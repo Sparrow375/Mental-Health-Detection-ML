@@ -190,4 +190,4 @@ Alert System + User Dashboard
 
 This architecture separates concerns cleanly: collect → establish baseline → detect anomalies → characterize patterns → adapt baseline → alert. Each layer can be developed and validated independently.
 
-What aspect would you like to dive deeper into?
+

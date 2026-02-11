@@ -1,0 +1,7 @@
+Patient ID   Scenario                            Anomaly?   Confidence   Final Score 
+────────────────────────────────────────────────────────────────────────────────
+PT-001       Normal Patient                      NO         95.0%        0.258       
+PT-002       Anomaly Patient 1 (Rapid Subtle Changes) YES        95.0%        0.315       
+PT-003       Anomaly Patient 2 (Gradual Depression) YES        95.0%        0.418       
+PT-004       Normal Patient 2 (Life Event Recovery) NO         95.0%        0.320       
+PT-005       Mixed Signals Patient               YES        95.0%        0.387       

@@ -1,0 +1,662 @@
+
+================================================================================
+DAILY MONITORING REPORT: BPD RAPID CYCLING
+================================================================================
+
+Day 01 | 2026-02-13 | Alert: GREEN  | Score: 0.194 | Sustained: 0 days
+
+Day 02 | 2026-02-14 | Alert: GREEN  | Score: 0.489 | Sustained: 1 days
+
+Day 03 | 2026-02-15 | Alert: GREEN  | Score: 0.377 | Sustained: 2 days
+
+Day 04 | 2026-02-16 | Alert: GREEN  | Score: 0.364 | Sustained: 3 days
+
+Day 05 | 2026-02-17 | Alert: RED    | Score: 0.877 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 2.69 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'calls_per_day', 'texts_per_day']
+
+Day 06 | 2026-02-18 | Alert: RED    | Score: 0.920 | Sustained: 5 days
+        ⚠ Sustained deviation detected (5 consecutive days) | 📊 Evidence accumulated: 4.07 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'calls_per_day']
+
+Day 07 | 2026-02-19 | Alert: RED    | Score: 0.868 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 5.46 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'location_entropy']
+
+Day 08 | 2026-02-20 | Alert: RED    | Score: 0.919 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 7.02 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'calls_per_day', 'texts_per_day']
+
+Day 09 | 2026-02-21 | Alert: RED    | Score: 0.839 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 8.53 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'places_visited', 'location_entropy']
+
+Day 10 | 2026-02-22 | Alert: RED    | Score: 0.756 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.97 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'location_entropy', 'calls_per_day']
+
+Day 11 | 2026-02-23 | Alert: GREEN  | Score: 0.330 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 9.17
+
+Day 12 | 2026-02-24 | Alert: YELLOW | Score: 0.400 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.93
+
+Day 13 | 2026-02-25 | Alert: YELLOW | Score: 0.423 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.78 | 📈 Pattern: gradual_drift
+
+Day 14 | 2026-02-26 | Alert: RED    | Score: 0.780 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 12.42 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'social_app_ratio']
+
+Day 15 | 2026-02-27 | Alert: RED    | Score: 0.771 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 14.11 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'texts_per_day']
+
+Day 16 | 2026-02-28 | Alert: RED    | Score: 0.816 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 15.99 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'daily_displacement_km']
+
+Day 17 | 2026-03-01 | Alert: RED    | Score: 0.893 | Sustained: 14 days
+        ⚠ Sustained deviation detected (14 consecutive days) | 📊 Evidence accumulated: 18.13 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'social_app_ratio']
+
+Day 18 | 2026-03-02 | Alert: RED    | Score: 0.811 | Sustained: 15 days
+        ⚠ Sustained deviation detected (15 consecutive days) | 📊 Evidence accumulated: 20.16 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'places_visited']
+
+Day 19 | 2026-03-03 | Alert: RED    | Score: 0.736 | Sustained: 16 days
+        ⚠ Sustained deviation detected (16 consecutive days) | 📊 Evidence accumulated: 22.08 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'social_app_ratio', 'daily_displacement_km']
+
+Day 20 | 2026-03-04 | Alert: RED    | Score: 0.716 | Sustained: 17 days
+        ⚠ Sustained deviation detected (17 consecutive days) | 📊 Evidence accumulated: 24.01 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'texts_per_day']
+
+Day 21 | 2026-03-05 | Alert: GREEN  | Score: 0.310 | Sustained: 16 days
+        ⚠ Sustained deviation detected (16 consecutive days) | 📊 Evidence accumulated: 22.09
+
+Day 22 | 2026-03-06 | Alert: YELLOW | Score: 0.405 | Sustained: 17 days
+        ⚠ Sustained deviation detected (17 consecutive days) | 📊 Evidence accumulated: 23.18
+
+Day 23 | 2026-03-07 | Alert: YELLOW | Score: 0.467 | Sustained: 18 days
+        ⚠ Sustained deviation detected (18 consecutive days) | 📊 Evidence accumulated: 24.49 | 📈 Pattern: gradual_drift
+
+Day 24 | 2026-03-08 | Alert: YELLOW | Score: 0.438 | Sustained: 19 days
+        ⚠ Sustained deviation detected (19 consecutive days) | 📊 Evidence accumulated: 25.76 | 📈 Pattern: gradual_drift
+
+Day 25 | 2026-03-09 | Alert: YELLOW | Score: 0.409 | Sustained: 20 days
+        ⚠ Sustained deviation detected (20 consecutive days) | 📊 Evidence accumulated: 26.99 | 📈 Pattern: gradual_drift
+
+Day 26 | 2026-03-10 | Alert: YELLOW | Score: 0.332 | Sustained: 19 days
+        ⚠ Sustained deviation detected (19 consecutive days) | 📊 Evidence accumulated: 24.83 | 📈 Pattern: gradual_drift
+
+Day 27 | 2026-03-11 | Alert: GREEN  | Score: 0.141 | Sustained: 18 days
+        ⚠ Sustained deviation detected (18 consecutive days) | 📊 Evidence accumulated: 22.84 | 📈 Pattern: gradual_drift
+
+Day 28 | 2026-03-12 | Alert: RED    | Score: 0.816 | Sustained: 19 days
+        ⚠ Sustained deviation detected (19 consecutive days) | 📊 Evidence accumulated: 25.21 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'texts_per_day']
+
+Day 29 | 2026-03-13 | Alert: RED    | Score: 0.818 | Sustained: 20 days
+        ⚠ Sustained deviation detected (20 consecutive days) | 📊 Evidence accumulated: 27.66 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'calls_per_day']
+
+Day 30 | 2026-03-14 | Alert: RED    | Score: 0.826 | Sustained: 21 days
+        ⚠ Sustained deviation detected (21 consecutive days) | 📊 Evidence accumulated: 30.22 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'calls_per_day']
+
+Day 31 | 2026-03-15 | Alert: RED    | Score: 0.880 | Sustained: 22 days
+        ⚠ Sustained deviation detected (22 consecutive days) | 📊 Evidence accumulated: 33.04 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'texts_per_day']
+
+Day 32 | 2026-03-16 | Alert: RED    | Score: 0.890 | Sustained: 23 days
+        ⚠ Sustained deviation detected (23 consecutive days) | 📊 Evidence accumulated: 35.97 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'calls_per_day']
+
+Day 33 | 2026-03-17 | Alert: RED    | Score: 0.700 | Sustained: 24 days
+        ⚠ Sustained deviation detected (24 consecutive days) | 📊 Evidence accumulated: 38.35 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'places_visited', 'texts_per_day']
+
+Day 34 | 2026-03-18 | Alert: GREEN  | Score: 0.297 | Sustained: 23 days
+        ⚠ Sustained deviation detected (23 consecutive days) | 📊 Evidence accumulated: 35.29 | 📈 Pattern: gradual_drift
+
+Day 35 | 2026-03-19 | Alert: YELLOW | Score: 0.371 | Sustained: 24 days
+        ⚠ Sustained deviation detected (24 consecutive days) | 📊 Evidence accumulated: 36.55
+
+Day 36 | 2026-03-20 | Alert: YELLOW | Score: 0.399 | Sustained: 25 days
+        ⚠ Sustained deviation detected (25 consecutive days) | 📊 Evidence accumulated: 37.94 | 📈 Pattern: gradual_drift
+
+Day 37 | 2026-03-21 | Alert: YELLOW | Score: 0.361 | Sustained: 26 days
+        ⚠ Sustained deviation detected (26 consecutive days) | 📊 Evidence accumulated: 39.24 | 📈 Pattern: gradual_drift
+
+Day 38 | 2026-03-22 | Alert: RED    | Score: 0.785 | Sustained: 27 days
+        ⚠ Sustained deviation detected (27 consecutive days) | 📊 Evidence accumulated: 42.14 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'social_app_ratio']
+
+Day 39 | 2026-03-23 | Alert: RED    | Score: 0.762 | Sustained: 28 days
+        ⚠ Sustained deviation detected (28 consecutive days) | 📊 Evidence accumulated: 45.04 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'screen_time_hours']
+
+Day 40 | 2026-03-24 | Alert: ORANGE | Score: 0.649 | Sustained: 29 days
+        ⚠ Sustained deviation detected (29 consecutive days) | 📊 Evidence accumulated: 47.57 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['social_app_ratio', 'calls_per_day', 'texts_per_day']
+
+Day 41 | 2026-03-25 | Alert: ORANGE | Score: 0.641 | Sustained: 30 days
+        ⚠ Sustained deviation detected (30 consecutive days) | 📊 Evidence accumulated: 50.14 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unlock_count', 'calls_per_day', 'screen_time_hours']
+
+Day 42 | 2026-03-26 | Alert: RED    | Score: 0.669 | Sustained: 31 days
+        ⚠ Sustained deviation detected (31 consecutive days) | 📊 Evidence accumulated: 52.88 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'calls_per_day', 'screen_time_hours']
+
+Day 43 | 2026-03-27 | Alert: RED    | Score: 0.684 | Sustained: 32 days
+        ⚠ Sustained deviation detected (32 consecutive days) | 📊 Evidence accumulated: 55.75 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'screen_time_hours']
+
+Day 44 | 2026-03-28 | Alert: RED    | Score: 0.860 | Sustained: 33 days
+        ⚠ Sustained deviation detected (33 consecutive days) | 📊 Evidence accumulated: 59.45 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'daily_displacement_km']
+
+Day 45 | 2026-03-29 | Alert: RED    | Score: 0.951 | Sustained: 34 days
+        ⚠ Sustained deviation detected (34 consecutive days) | 📊 Evidence accumulated: 63.63 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'calls_per_day']
+
+Day 46 | 2026-03-30 | Alert: RED    | Score: 0.858 | Sustained: 35 days
+        ⚠ Sustained deviation detected (35 consecutive days) | 📊 Evidence accumulated: 67.49 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'daily_displacement_km', 'calls_per_day']
+
+Day 47 | 2026-03-31 | Alert: RED    | Score: 0.984 | Sustained: 36 days
+        ⚠ Sustained deviation detected (36 consecutive days) | 📊 Evidence accumulated: 72.02 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'daily_displacement_km', 'social_app_ratio']
+
+Day 48 | 2026-04-01 | Alert: RED    | Score: 0.908 | Sustained: 37 days
+        ⚠ Sustained deviation detected (37 consecutive days) | 📊 Evidence accumulated: 76.29 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'calls_per_day']
+
+Day 49 | 2026-04-02 | Alert: RED    | Score: 0.806 | Sustained: 38 days
+        ⚠ Sustained deviation detected (38 consecutive days) | 📊 Evidence accumulated: 80.16 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'social_app_ratio']
+
+Day 50 | 2026-04-03 | Alert: RED    | Score: 0.658 | Sustained: 39 days
+        ⚠ Sustained deviation detected (39 consecutive days) | 📊 Evidence accumulated: 83.38 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'social_app_ratio', 'screen_time_hours']
+
+Day 51 | 2026-04-04 | Alert: RED    | Score: 0.798 | Sustained: 40 days
+        ⚠ Sustained deviation detected (40 consecutive days) | 📊 Evidence accumulated: 87.37 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'social_app_ratio', 'calls_per_day']
+
+Day 52 | 2026-04-05 | Alert: RED    | Score: 0.770 | Sustained: 41 days
+        ⚠ Sustained deviation detected (41 consecutive days) | 📊 Evidence accumulated: 91.30 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'calls_per_day', 'unlock_count']
+
+Day 53 | 2026-04-06 | Alert: YELLOW | Score: 0.423 | Sustained: 42 days
+        ⚠ Sustained deviation detected (42 consecutive days) | 📊 Evidence accumulated: 93.50
+
+Day 54 | 2026-04-07 | Alert: ORANGE | Score: 0.376 | Sustained: 43 days
+        ⚠ Sustained deviation detected (43 consecutive days) | 📊 Evidence accumulated: 95.49 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'voice_energy_mean', 'social_app_ratio']
+
+Day 55 | 2026-04-08 | Alert: GREEN  | Score: 0.283 | Sustained: 42 days
+        ⚠ Sustained deviation detected (42 consecutive days) | 📊 Evidence accumulated: 87.85
+
+Day 56 | 2026-04-09 | Alert: GREEN  | Score: 0.290 | Sustained: 41 days
+        ⚠ Sustained deviation detected (41 consecutive days) | 📊 Evidence accumulated: 80.82
+
+Day 57 | 2026-04-10 | Alert: YELLOW | Score: 0.320 | Sustained: 40 days
+        ⚠ Sustained deviation detected (40 consecutive days) | 📊 Evidence accumulated: 74.36 | 📈 Pattern: gradual_drift
+
+Day 58 | 2026-04-11 | Alert: ORANGE | Score: 0.599 | Sustained: 41 days
+        ⚠ Sustained deviation detected (41 consecutive days) | 📊 Evidence accumulated: 77.42 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['calls_per_day', 'texts_per_day', 'screen_time_hours']
+
+Day 59 | 2026-04-12 | Alert: RED    | Score: 0.769 | Sustained: 42 days
+        ⚠ Sustained deviation detected (42 consecutive days) | 📊 Evidence accumulated: 81.42 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'unlock_count']
+
+Day 60 | 2026-04-13 | Alert: RED    | Score: 0.806 | Sustained: 43 days
+        ⚠ Sustained deviation detected (43 consecutive days) | 📊 Evidence accumulated: 85.69 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'screen_time_hours']
+
+Day 61 | 2026-04-14 | Alert: RED    | Score: 0.710 | Sustained: 44 days
+        ⚠ Sustained deviation detected (44 consecutive days) | 📊 Evidence accumulated: 89.52 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'sleep_duration_hours', 'social_app_ratio']
+
+Day 62 | 2026-04-15 | Alert: RED    | Score: 0.744 | Sustained: 45 days
+        ⚠ Sustained deviation detected (45 consecutive days) | 📊 Evidence accumulated: 93.61 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'unlock_count']
+
+Day 63 | 2026-04-16 | Alert: RED    | Score: 0.764 | Sustained: 46 days
+        ⚠ Sustained deviation detected (46 consecutive days) | 📊 Evidence accumulated: 97.89 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'sleep_duration_hours']
+
+Day 64 | 2026-04-17 | Alert: RED    | Score: 0.946 | Sustained: 47 days
+        ⚠ Sustained deviation detected (47 consecutive days) | 📊 Evidence accumulated: 103.29 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'social_app_ratio']
+
+Day 65 | 2026-04-18 | Alert: RED    | Score: 0.909 | Sustained: 48 days
+        ⚠ Sustained deviation detected (48 consecutive days) | 📊 Evidence accumulated: 108.56 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'daily_displacement_km']
+
+Day 66 | 2026-04-19 | Alert: RED    | Score: 0.958 | Sustained: 49 days
+        ⚠ Sustained deviation detected (49 consecutive days) | 📊 Evidence accumulated: 114.21 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'calls_per_day', 'places_visited']
+
+Day 67 | 2026-04-20 | Alert: RED    | Score: 0.866 | Sustained: 50 days
+        ⚠ Sustained deviation detected (50 consecutive days) | 📊 Evidence accumulated: 119.41 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'calls_per_day', 'social_app_ratio']
+
+Day 68 | 2026-04-21 | Alert: RED    | Score: 0.767 | Sustained: 51 days
+        ⚠ Sustained deviation detected (51 consecutive days) | 📊 Evidence accumulated: 124.09 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'daily_displacement_km']
+
+Day 69 | 2026-04-22 | Alert: RED    | Score: 0.670 | Sustained: 52 days
+        ⚠ Sustained deviation detected (52 consecutive days) | 📊 Evidence accumulated: 128.24 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'places_visited']
+
+Day 70 | 2026-04-23 | Alert: RED    | Score: 0.775 | Sustained: 53 days
+        ⚠ Sustained deviation detected (53 consecutive days) | 📊 Evidence accumulated: 133.12 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'unlock_count']
+
+Day 71 | 2026-04-24 | Alert: RED    | Score: 0.829 | Sustained: 54 days
+        ⚠ Sustained deviation detected (54 consecutive days) | 📊 Evidence accumulated: 138.43 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'sleep_duration_hours', 'unlock_count']
+
+Day 72 | 2026-04-25 | Alert: RED    | Score: 0.853 | Sustained: 55 days
+        ⚠ Sustained deviation detected (55 consecutive days) | 📊 Evidence accumulated: 143.98 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'screen_time_hours']
+
+Day 73 | 2026-04-26 | Alert: RED    | Score: 0.870 | Sustained: 56 days
+        ⚠ Sustained deviation detected (56 consecutive days) | 📊 Evidence accumulated: 149.72 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'social_app_ratio']
+
+Day 74 | 2026-04-27 | Alert: YELLOW | Score: 0.400 | Sustained: 57 days
+        ⚠ Sustained deviation detected (57 consecutive days) | 📊 Evidence accumulated: 152.40
+
+Day 75 | 2026-04-28 | Alert: GREEN  | Score: 0.343 | Sustained: 56 days
+        ⚠ Sustained deviation detected (56 consecutive days) | 📊 Evidence accumulated: 140.21
+
+Day 76 | 2026-04-29 | Alert: YELLOW | Score: 0.351 | Sustained: 57 days
+        ⚠ Sustained deviation detected (57 consecutive days) | 📊 Evidence accumulated: 142.56
+
+Day 77 | 2026-04-30 | Alert: RED    | Score: 0.796 | Sustained: 58 days
+        ⚠ Sustained deviation detected (58 consecutive days) | 📊 Evidence accumulated: 147.98 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'places_visited', 'calls_per_day']
+
+Day 78 | 2026-05-01 | Alert: RED    | Score: 0.900 | Sustained: 59 days
+        ⚠ Sustained deviation detected (59 consecutive days) | 📊 Evidence accumulated: 154.19 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'social_app_ratio']
+
+Day 79 | 2026-05-02 | Alert: RED    | Score: 0.895 | Sustained: 60 days
+        ⚠ Sustained deviation detected (60 consecutive days) | 📊 Evidence accumulated: 160.46 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'location_entropy']
+
+Day 80 | 2026-05-03 | Alert: RED    | Score: 0.902 | Sustained: 61 days
+        ⚠ Sustained deviation detected (61 consecutive days) | 📊 Evidence accumulated: 166.86 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['places_visited', 'texts_per_day', 'social_app_ratio']
+
+Day 81 | 2026-05-04 | Alert: RED    | Score: 0.847 | Sustained: 62 days
+        ⚠ Sustained deviation detected (62 consecutive days) | 📊 Evidence accumulated: 172.96 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'daily_displacement_km']
+
+Day 82 | 2026-05-05 | Alert: RED    | Score: 0.823 | Sustained: 63 days
+        ⚠ Sustained deviation detected (63 consecutive days) | 📊 Evidence accumulated: 178.97 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'places_visited']
+
+Day 83 | 2026-05-06 | Alert: ORANGE | Score: 0.607 | Sustained: 64 days
+        ⚠ Sustained deviation detected (64 consecutive days) | 📊 Evidence accumulated: 183.46 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['texts_per_day', 'screen_time_hours', 'calls_per_day']
+
+Day 84 | 2026-05-07 | Alert: RED    | Score: 0.766 | Sustained: 65 days
+        ⚠ Sustained deviation detected (65 consecutive days) | 📊 Evidence accumulated: 189.21 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'unlock_count']
+
+Day 85 | 2026-05-08 | Alert: RED    | Score: 0.869 | Sustained: 66 days
+        ⚠ Sustained deviation detected (66 consecutive days) | 📊 Evidence accumulated: 195.81 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'texts_per_day', 'voice_speaking_rate']
+
+Day 86 | 2026-05-09 | Alert: RED    | Score: 0.833 | Sustained: 67 days
+        ⚠ Sustained deviation detected (67 consecutive days) | 📊 Evidence accumulated: 202.23 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'screen_time_hours', 'social_app_ratio']
+
+Day 87 | 2026-05-10 | Alert: RED    | Score: 0.816 | Sustained: 68 days
+        ⚠ Sustained deviation detected (68 consecutive days) | 📊 Evidence accumulated: 208.60 | 🚨 HIGH ALERT: RED
+        Top deviations: ['unlock_count', 'social_app_ratio', 'texts_per_day']
+
+Day 88 | 2026-05-11 | Alert: RED    | Score: 0.738 | Sustained: 69 days
+        ⚠ Sustained deviation detected (69 consecutive days) | 📊 Evidence accumulated: 214.42 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'social_app_ratio', 'calls_per_day']
+
+Day 89 | 2026-05-12 | Alert: RED    | Score: 0.846 | Sustained: 70 days
+        ⚠ Sustained deviation detected (70 consecutive days) | 📊 Evidence accumulated: 221.19 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'texts_per_day']
+
+Day 90 | 2026-05-13 | Alert: RED    | Score: 0.986 | Sustained: 71 days
+        ⚠ Sustained deviation detected (71 consecutive days) | 📊 Evidence accumulated: 229.18 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'calls_per_day', 'texts_per_day']
+
+Day 91 | 2026-05-14 | Alert: RED    | Score: 0.936 | Sustained: 72 days
+        ⚠ Sustained deviation detected (72 consecutive days) | 📊 Evidence accumulated: 236.85 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'daily_displacement_km']
+
+Day 92 | 2026-05-15 | Alert: RED    | Score: 0.983 | Sustained: 73 days
+        ⚠ Sustained deviation detected (73 consecutive days) | 📊 Evidence accumulated: 245.01 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'daily_displacement_km']
+
+Day 93 | 2026-05-16 | Alert: RED    | Score: 0.948 | Sustained: 74 days
+        ⚠ Sustained deviation detected (74 consecutive days) | 📊 Evidence accumulated: 252.97 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'texts_per_day', 'calls_per_day']
+
+Day 94 | 2026-05-17 | Alert: RED    | Score: 0.814 | Sustained: 75 days
+        ⚠ Sustained deviation detected (75 consecutive days) | 📊 Evidence accumulated: 259.89 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'social_app_ratio', 'calls_per_day']
+
+Day 95 | 2026-05-18 | Alert: RED    | Score: 0.748 | Sustained: 76 days
+        ⚠ Sustained deviation detected (76 consecutive days) | 📊 Evidence accumulated: 266.32 | 🚨 HIGH ALERT: RED
+        Top deviations: ['places_visited', 'location_entropy', 'daily_displacement_km']
+
+Day 96 | 2026-05-19 | Alert: RED    | Score: 0.711 | Sustained: 77 days
+        ⚠ Sustained deviation detected (77 consecutive days) | 📊 Evidence accumulated: 272.51 | 🚨 HIGH ALERT: RED
+        Top deviations: ['screen_time_hours', 'calls_per_day', 'texts_per_day']
+
+Day 97 | 2026-05-20 | Alert: RED    | Score: 0.809 | Sustained: 78 days
+        ⚠ Sustained deviation detected (78 consecutive days) | 📊 Evidence accumulated: 279.62 | 🚨 HIGH ALERT: RED
+        Top deviations: ['screen_time_hours', 'social_app_ratio', 'texts_per_day']
+
+Day 98 | 2026-05-21 | Alert: RED    | Score: 0.914 | Sustained: 79 days
+        ⚠ Sustained deviation detected (79 consecutive days) | 📊 Evidence accumulated: 287.76 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'calls_per_day', 'unlock_count']
+
+Day 99 | 2026-05-22 | Alert: RED    | Score: 0.898 | Sustained: 80 days
+        ⚠ Sustained deviation detected (80 consecutive days) | 📊 Evidence accumulated: 295.84 | 🚨 HIGH ALERT: RED
+        Top deviations: ['unlock_count', 'calls_per_day', 'texts_per_day']
+
+Day 100 | 2026-05-23 | Alert: YELLOW | Score: 0.384 | Sustained: 81 days
+        ⚠ Sustained deviation detected (81 consecutive days) | 📊 Evidence accumulated: 299.34
+
+Day 101 | 2026-05-24 | Alert: GREEN  | Score: 0.307 | Sustained: 80 days
+        ⚠ Sustained deviation detected (80 consecutive days) | 📊 Evidence accumulated: 275.39
+
+Day 102 | 2026-05-25 | Alert: GREEN  | Score: 0.335 | Sustained: 79 days
+        ⚠ Sustained deviation detected (79 consecutive days) | 📊 Evidence accumulated: 253.36 | 📈 Pattern: gradual_drift
+
+Day 103 | 2026-05-26 | Alert: RED    | Score: 0.943 | Sustained: 80 days
+        ⚠ Sustained deviation detected (80 consecutive days) | 📊 Evidence accumulated: 261.85 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'daily_displacement_km']
+
+Day 104 | 2026-05-27 | Alert: RED    | Score: 0.944 | Sustained: 81 days
+        ⚠ Sustained deviation detected (81 consecutive days) | 📊 Evidence accumulated: 270.43 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'calls_per_day', 'daily_displacement_km']
+
+Day 105 | 2026-05-28 | Alert: RED    | Score: 0.963 | Sustained: 82 days
+        ⚠ Sustained deviation detected (82 consecutive days) | 📊 Evidence accumulated: 279.29 | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'texts_per_day']
+
+Day 106 | 2026-05-29 | Alert: RED    | Score: 0.871 | Sustained: 83 days
+        ⚠ Sustained deviation detected (83 consecutive days) | 📊 Evidence accumulated: 287.40 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'daily_displacement_km']
+
+Day 107 | 2026-05-30 | Alert: RED    | Score: 0.852 | Sustained: 84 days
+        ⚠ Sustained deviation detected (84 consecutive days) | 📊 Evidence accumulated: 295.41 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'social_app_ratio']
+
+Day 108 | 2026-05-31 | Alert: RED    | Score: 0.802 | Sustained: 85 days
+        ⚠ Sustained deviation detected (85 consecutive days) | 📊 Evidence accumulated: 303.03 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'daily_displacement_km', 'location_entropy']
+
+Day 109 | 2026-06-01 | Alert: YELLOW | Score: 0.363 | Sustained: 86 days
+        ⚠ Sustained deviation detected (86 consecutive days) | 📊 Evidence accumulated: 306.51
+
+Day 110 | 2026-06-02 | Alert: YELLOW | Score: 0.353 | Sustained: 87 days
+        ⚠ Sustained deviation detected (87 consecutive days) | 📊 Evidence accumulated: 309.93
+
+Day 111 | 2026-06-03 | Alert: YELLOW | Score: 0.423 | Sustained: 88 days
+        ⚠ Sustained deviation detected (88 consecutive days) | 📊 Evidence accumulated: 314.07 | 📈 Pattern: gradual_drift
+
+Day 112 | 2026-06-04 | Alert: YELLOW | Score: 0.392 | Sustained: 89 days
+        ⚠ Sustained deviation detected (89 consecutive days) | 📊 Evidence accumulated: 317.95 | 📈 Pattern: gradual_drift
+
+Day 113 | 2026-06-05 | Alert: GREEN  | Score: 0.342 | Sustained: 88 days
+        ⚠ Sustained deviation detected (88 consecutive days) | 📊 Evidence accumulated: 292.52 | 📈 Pattern: gradual_drift
+
+Day 114 | 2026-06-06 | Alert: RED    | Score: 0.755 | Sustained: 89 days
+        ⚠ Sustained deviation detected (89 consecutive days) | 📊 Evidence accumulated: 299.99 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'calls_per_day', 'texts_per_day']
+
+Day 115 | 2026-06-07 | Alert: RED    | Score: 0.840 | Sustained: 90 days
+        ⚠ Sustained deviation detected (90 consecutive days) | 📊 Evidence accumulated: 308.39 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'daily_displacement_km', 'location_entropy']
+
+Day 116 | 2026-06-08 | Alert: RED    | Score: 0.869 | Sustained: 91 days
+        ⚠ Sustained deviation detected (91 consecutive days) | 📊 Evidence accumulated: 317.17 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'places_visited']
+
+Day 117 | 2026-06-09 | Alert: RED    | Score: 0.904 | Sustained: 92 days
+        ⚠ Sustained deviation detected (92 consecutive days) | 📊 Evidence accumulated: 326.38 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'location_entropy', 'daily_displacement_km']
+
+Day 118 | 2026-06-10 | Alert: RED    | Score: 0.811 | Sustained: 93 days
+        ⚠ Sustained deviation detected (93 consecutive days) | 📊 Evidence accumulated: 334.74 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'places_visited', 'social_app_ratio']
+
+Day 119 | 2026-06-11 | Alert: RED    | Score: 0.665 | Sustained: 94 days
+        ⚠ Sustained deviation detected (94 consecutive days) | 📊 Evidence accumulated: 341.65 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'screen_time_hours']
+
+Day 120 | 2026-06-12 | Alert: RED    | Score: 0.838 | Sustained: 95 days
+        ⚠ Sustained deviation detected (95 consecutive days) | 📊 Evidence accumulated: 350.46 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'texts_per_day', 'calls_per_day']
+
+Day 121 | 2026-06-13 | Alert: RED    | Score: 0.890 | Sustained: 96 days
+        ⚠ Sustained deviation detected (96 consecutive days) | 📊 Evidence accumulated: 359.89 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'social_app_ratio']
+
+Day 122 | 2026-06-14 | Alert: RED    | Score: 0.787 | Sustained: 97 days
+        ⚠ Sustained deviation detected (97 consecutive days) | 📊 Evidence accumulated: 368.30 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'unlock_count', 'calls_per_day']
+
+Day 123 | 2026-06-15 | Alert: RED    | Score: 0.791 | Sustained: 98 days
+        ⚠ Sustained deviation detected (98 consecutive days) | 📊 Evidence accumulated: 376.84 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'screen_time_hours', 'calls_per_day']
+
+Day 124 | 2026-06-16 | Alert: RED    | Score: 0.690 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 384.36 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'social_app_ratio', 'screen_time_hours']
+
+Day 125 | 2026-06-17 | Alert: ORANGE | Score: 0.585 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 390.79 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'texts_per_day']
+
+Day 126 | 2026-06-18 | Alert: GREEN  | Score: 0.288 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 359.53
+
+Day 127 | 2026-06-19 | Alert: YELLOW | Score: 0.356 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 363.45
+
+Day 128 | 2026-06-20 | Alert: GREEN  | Score: 0.323 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 334.37
+
+Day 129 | 2026-06-21 | Alert: YELLOW | Score: 0.357 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 338.30
+
+Day 130 | 2026-06-22 | Alert: GREEN  | Score: 0.339 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 311.24 | 📈 Pattern: gradual_drift
+
+Day 131 | 2026-06-23 | Alert: RED    | Score: 0.813 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 320.18 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'location_entropy', 'social_app_ratio']
+
+Day 132 | 2026-06-24 | Alert: RED    | Score: 0.900 | Sustained: 101 days
+        ⚠ Sustained deviation detected (101 consecutive days) | 📊 Evidence accumulated: 330.17 | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'social_app_ratio', 'texts_per_day']
+
+Day 133 | 2026-06-25 | Alert: RED    | Score: 0.869 | Sustained: 102 days
+        ⚠ Sustained deviation detected (102 consecutive days) | 📊 Evidence accumulated: 339.90 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'texts_per_day']
+
+Day 134 | 2026-06-26 | Alert: GREEN  | Score: 0.314 | Sustained: 101 days
+        ⚠ Sustained deviation detected (101 consecutive days) | 📊 Evidence accumulated: 312.71 | 📈 Pattern: rapid_cycling
+
+Day 135 | 2026-06-27 | Alert: GREEN  | Score: 0.227 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 287.69 | 📈 Pattern: rapid_cycling
+
+Day 136 | 2026-06-28 | Alert: GREEN  | Score: 0.270 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 264.68 | 📈 Pattern: rapid_cycling
+
+Day 137 | 2026-06-29 | Alert: YELLOW | Score: 0.407 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 269.15 | 📈 Pattern: rapid_cycling
+
+Day 138 | 2026-06-30 | Alert: YELLOW | Score: 0.336 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 247.62 | 📈 Pattern: rapid_cycling
+
+Day 139 | 2026-07-01 | Alert: GREEN  | Score: 0.280 | Sustained: 98 days
+        ⚠ Sustained deviation detected (98 consecutive days) | 📊 Evidence accumulated: 227.81 | 📈 Pattern: gradual_drift
+
+Day 140 | 2026-07-02 | Alert: RED    | Score: 0.774 | Sustained: 99 days
+        ⚠ Sustained deviation detected (99 consecutive days) | 📊 Evidence accumulated: 236.25 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'places_visited']
+
+Day 141 | 2026-07-03 | Alert: RED    | Score: 0.887 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 246.00 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'location_entropy', 'texts_per_day']
+
+Day 142 | 2026-07-04 | Alert: RED    | Score: 0.866 | Sustained: 101 days
+        ⚠ Sustained deviation detected (101 consecutive days) | 📊 Evidence accumulated: 255.61 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'places_visited', 'daily_displacement_km']
+
+Day 143 | 2026-07-05 | Alert: RED    | Score: 0.755 | Sustained: 102 days
+        ⚠ Sustained deviation detected (102 consecutive days) | 📊 Evidence accumulated: 264.07 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'places_visited', 'texts_per_day']
+
+Day 144 | 2026-07-06 | Alert: RED    | Score: 0.833 | Sustained: 103 days
+        ⚠ Sustained deviation detected (103 consecutive days) | 📊 Evidence accumulated: 273.49 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'location_entropy', 'texts_per_day']
+
+Day 145 | 2026-07-07 | Alert: GREEN  | Score: 0.232 | Sustained: 102 days
+        ⚠ Sustained deviation detected (102 consecutive days) | 📊 Evidence accumulated: 251.61 | 📈 Pattern: gradual_drift
+
+Day 146 | 2026-07-08 | Alert: YELLOW | Score: 0.432 | Sustained: 103 days
+        ⚠ Sustained deviation detected (103 consecutive days) | 📊 Evidence accumulated: 256.49
+
+Day 147 | 2026-07-09 | Alert: YELLOW | Score: 0.405 | Sustained: 104 days
+        ⚠ Sustained deviation detected (104 consecutive days) | 📊 Evidence accumulated: 261.11 | 📈 Pattern: gradual_drift
+
+Day 148 | 2026-07-10 | Alert: GREEN  | Score: 0.347 | Sustained: 103 days
+        ⚠ Sustained deviation detected (103 consecutive days) | 📊 Evidence accumulated: 240.22 | 📈 Pattern: gradual_drift
+
+Day 149 | 2026-07-11 | Alert: GREEN  | Score: 0.317 | Sustained: 102 days
+        ⚠ Sustained deviation detected (102 consecutive days) | 📊 Evidence accumulated: 221.00 | 📈 Pattern: gradual_drift
+
+Day 150 | 2026-07-12 | Alert: GREEN  | Score: 0.255 | Sustained: 101 days
+        ⚠ Sustained deviation detected (101 consecutive days) | 📊 Evidence accumulated: 203.32 | 📈 Pattern: gradual_drift
+
+Day 151 | 2026-07-13 | Alert: ORANGE | Score: 0.276 | Sustained: 100 days
+        ⚠ Sustained deviation detected (100 consecutive days) | 📊 Evidence accumulated: 187.06 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'daily_displacement_km', 'home_time_ratio']
+
+Day 152 | 2026-07-14 | Alert: RED    | Score: 0.826 | Sustained: 101 days
+        ⚠ Sustained deviation detected (101 consecutive days) | 📊 Evidence accumulated: 196.22 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'daily_displacement_km', 'places_visited']
+
+Day 153 | 2026-07-15 | Alert: RED    | Score: 0.754 | Sustained: 102 days
+        ⚠ Sustained deviation detected (102 consecutive days) | 📊 Evidence accumulated: 204.67 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'texts_per_day', 'daily_displacement_km']
+
+Day 154 | 2026-07-16 | Alert: RED    | Score: 0.859 | Sustained: 103 days
+        ⚠ Sustained deviation detected (103 consecutive days) | 📊 Evidence accumulated: 214.38 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'daily_displacement_km', 'sleep_duration_hours']
+
+Day 155 | 2026-07-17 | Alert: RED    | Score: 0.838 | Sustained: 104 days
+        ⚠ Sustained deviation detected (104 consecutive days) | 📊 Evidence accumulated: 223.93 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'calls_per_day', 'texts_per_day']
+
+Day 156 | 2026-07-18 | Alert: RED    | Score: 0.876 | Sustained: 105 days
+        ⚠ Sustained deviation detected (105 consecutive days) | 📊 Evidence accumulated: 234.01 | 📈 Pattern: rapid_cycling | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'calls_per_day']
+
+Day 157 | 2026-07-19 | Alert: GREEN  | Score: 0.247 | Sustained: 104 days
+        ⚠ Sustained deviation detected (104 consecutive days) | 📊 Evidence accumulated: 215.29 | 📈 Pattern: gradual_drift
+
+Day 158 | 2026-07-20 | Alert: YELLOW | Score: 0.426 | Sustained: 105 days
+        ⚠ Sustained deviation detected (105 consecutive days) | 📊 Evidence accumulated: 220.19
+
+Day 159 | 2026-07-21 | Alert: YELLOW | Score: 0.377 | Sustained: 106 days
+        ⚠ Sustained deviation detected (106 consecutive days) | 📊 Evidence accumulated: 224.56 | 📈 Pattern: gradual_drift
+
+Day 160 | 2026-07-22 | Alert: YELLOW | Score: 0.376 | Sustained: 107 days
+        ⚠ Sustained deviation detected (107 consecutive days) | 📊 Evidence accumulated: 228.96 | 📈 Pattern: gradual_drift
+
+Day 161 | 2026-07-23 | Alert: YELLOW | Score: 0.353 | Sustained: 108 days
+        ⚠ Sustained deviation detected (108 consecutive days) | 📊 Evidence accumulated: 233.13 | 📈 Pattern: rapid_cycling
+
+Day 162 | 2026-07-24 | Alert: RED    | Score: 0.719 | Sustained: 109 days
+        ⚠ Sustained deviation detected (109 consecutive days) | 📊 Evidence accumulated: 241.69 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'voice_speaking_rate']
+
+Day 163 | 2026-07-25 | Alert: RED    | Score: 0.703 | Sustained: 110 days
+        ⚠ Sustained deviation detected (110 consecutive days) | 📊 Evidence accumulated: 250.13 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'texts_per_day', 'social_app_ratio']
+
+Day 164 | 2026-07-26 | Alert: RED    | Score: 0.683 | Sustained: 111 days
+        ⚠ Sustained deviation detected (111 consecutive days) | 📊 Evidence accumulated: 258.39 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'unlock_count']
+
+Day 165 | 2026-07-27 | Alert: RED    | Score: 0.729 | Sustained: 112 days
+        ⚠ Sustained deviation detected (112 consecutive days) | 📊 Evidence accumulated: 267.29 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'unlock_count']
+
+Day 166 | 2026-07-28 | Alert: RED    | Score: 0.805 | Sustained: 113 days
+        ⚠ Sustained deviation detected (113 consecutive days) | 📊 Evidence accumulated: 277.19 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'places_visited', 'calls_per_day']
+
+Day 167 | 2026-07-29 | Alert: RED    | Score: 0.926 | Sustained: 114 days
+        ⚠ Sustained deviation detected (114 consecutive days) | 📊 Evidence accumulated: 288.68 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['daily_displacement_km', 'location_entropy', 'social_app_ratio']
+
+Day 168 | 2026-07-30 | Alert: RED    | Score: 0.926 | Sustained: 115 days
+        ⚠ Sustained deviation detected (115 consecutive days) | 📊 Evidence accumulated: 300.26 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'daily_displacement_km', 'calls_per_day']
+
+Day 169 | 2026-07-31 | Alert: RED    | Score: 0.979 | Sustained: 116 days
+        ⚠ Sustained deviation detected (116 consecutive days) | 📊 Evidence accumulated: 312.59 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'location_entropy', 'calls_per_day']
+
+Day 170 | 2026-08-01 | Alert: RED    | Score: 0.897 | Sustained: 117 days
+        ⚠ Sustained deviation detected (117 consecutive days) | 📊 Evidence accumulated: 323.98 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'location_entropy', 'screen_time_hours']
+
+Day 171 | 2026-08-02 | Alert: RED    | Score: 0.854 | Sustained: 118 days
+        ⚠ Sustained deviation detected (118 consecutive days) | 📊 Evidence accumulated: 334.92 | 🚨 HIGH ALERT: RED
+        Top deviations: ['texts_per_day', 'calls_per_day', 'location_entropy']
+
+Day 172 | 2026-08-03 | Alert: ORANGE | Score: 0.636 | Sustained: 119 days
+        ⚠ Sustained deviation detected (119 consecutive days) | 📊 Evidence accumulated: 343.11 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'calls_per_day', 'daily_displacement_km']
+
+Day 173 | 2026-08-04 | Alert: RED    | Score: 0.759 | Sustained: 120 days
+        ⚠ Sustained deviation detected (120 consecutive days) | 📊 Evidence accumulated: 352.98 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'social_app_ratio', 'unlock_count']
+
+Day 174 | 2026-08-05 | Alert: RED    | Score: 0.927 | Sustained: 121 days
+        ⚠ Sustained deviation detected (121 consecutive days) | 📊 Evidence accumulated: 365.12 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'unlock_count', 'social_app_ratio']
+
+Day 175 | 2026-08-06 | Alert: RED    | Score: 0.861 | Sustained: 122 days
+        ⚠ Sustained deviation detected (122 consecutive days) | 📊 Evidence accumulated: 376.48 | 🚨 HIGH ALERT: RED
+        Top deviations: ['social_app_ratio', 'calls_per_day', 'texts_per_day']
+
+Day 176 | 2026-08-07 | Alert: RED    | Score: 0.925 | Sustained: 123 days
+        ⚠ Sustained deviation detected (123 consecutive days) | 📊 Evidence accumulated: 388.78 | 🚨 HIGH ALERT: RED
+        Top deviations: ['calls_per_day', 'screen_time_hours', 'voice_speaking_rate']
+
+Day 177 | 2026-08-08 | Alert: GREEN  | Score: 0.349 | Sustained: 122 days
+        ⚠ Sustained deviation detected (122 consecutive days) | 📊 Evidence accumulated: 357.68
+
+Day 178 | 2026-08-09 | Alert: GREEN  | Score: 0.334 | Sustained: 121 days
+        ⚠ Sustained deviation detected (121 consecutive days) | 📊 Evidence accumulated: 329.06
+
+Day 179 | 2026-08-10 | Alert: YELLOW | Score: 0.385 | Sustained: 122 days
+        ⚠ Sustained deviation detected (122 consecutive days) | 📊 Evidence accumulated: 334.14 | 📈 Pattern: gradual_drift
+
+Day 180 | 2026-08-11 | Alert: RED    | Score: 0.927 | Sustained: 123 days
+        ⚠ Sustained deviation detected (123 consecutive days) | 📊 Evidence accumulated: 346.46 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: RED
+        Top deviations: ['location_entropy', 'places_visited', 'calls_per_day']

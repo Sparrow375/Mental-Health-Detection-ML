@@ -4,6 +4,19 @@ Detects sustained deviations from personalized baseline using synthetic data
 Only flags after accumulating sufficient evidence over time
 """
 
+import sys
+import os
+
+# Fix Windows console encoding issues
+if sys.platform == 'win32':
+    try:
+        # Try to set UTF-8 for console output
+        sys.stdout.reconfigure(encoding='utf-8')
+        sys.stderr.reconfigure(encoding='utf-8')
+    except:
+        # If reconfigure fails, continue with default
+        pass
+
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -175,13 +188,18 @@ class SyntheticDataGenerator:
         return baseline_vector, df
 
     def generate_monitoring_data(self, baseline: PersonalityVector,
-                                 scenario: str, days=30) -> pd.DataFrame:
+                                 scenario: str, days=180) -> pd.DataFrame:
         """Generate monitoring period data with different patterns"""
         print(f"  Generating {days} days of '{scenario}' monitoring data...")
 
         baseline_dict = baseline.to_dict()
         dates = [datetime.now() + timedelta(days=i) for i in range(days)]
         data = []
+
+        # For BPD scenario state tracking
+        bpd_state = 'normal' # normal, impulsive, depressive
+        days_in_state = 0
+        state_threshold = np.random.randint(3, 10)
 
         for i, date in enumerate(dates):
             daily_data = {'date': date}
@@ -193,28 +211,70 @@ class SyntheticDataGenerator:
                     value = np.random.normal(mean_val, variance)
                     daily_data[feature] = max(0, value)
 
-            elif scenario == 'anomaly_subtle_rapid':
-                # Subtle but consistent rapid changes (NOT obvious single spikes)
-                # Small amplitude, but high frequency oscillations
-                cycle_phase = np.sin(2 * np.pi * i / 3)  # 3-day cycle
+            elif scenario == 'bpd_rapid_cycling':
+                # BPD Scenario: Rapid switching between states
+                days_in_state += 1
+                if days_in_state >= state_threshold:
+                    # Switch state
+                    choices = ['normal', 'impulsive', 'depressive']
+                    choices.remove(bpd_state)
+                    bpd_state = np.random.choice(choices)
+                    days_in_state = 0
+                    state_threshold = np.random.randint(3, 8) # Switch every 3-7 days
 
                 for feature, mean_val in baseline_dict.items():
                     variance = baseline.variances[feature]
+                    
+                    if bpd_state == 'normal':
+                        value = np.random.normal(mean_val, variance)
+                    elif bpd_state == 'impulsive':
+                        # High energy/social/screen time
+                        if feature in ['screen_time_hours', 'social_app_ratio', 'texts_per_day', 'calls_per_day', 'unlock_count']:
+                            value = mean_val * 1.6 + np.random.normal(0, variance)
+                        elif feature in ['sleep_duration_hours']:
+                            value = mean_val * 0.7 + np.random.normal(0, variance)
+                        elif feature in ['voice_energy_mean', 'voice_speaking_rate']:
+                            value = mean_val * 1.3 + np.random.normal(0, variance)
+                        else:
+                            value = np.random.normal(mean_val, variance)
+                    elif bpd_state == 'depressive':
+                        # Low energy/social/movement
+                        if feature in ['screen_time_hours', 'social_app_ratio', 'texts_per_day', 'calls_per_day']:
+                            # Actually screen time might INCREASE if they are isolating with phone
+                            if feature == 'screen_time_hours':
+                                value = mean_val * 1.4 + np.random.normal(0, variance)
+                            else:
+                                value = mean_val * 0.4 + np.random.normal(0, variance)
+                        elif feature in ['daily_displacement_km', 'places_visited', 'location_entropy']:
+                            value = mean_val * 0.3 + np.random.normal(0, variance)
+                        elif feature in ['voice_energy_mean', 'voice_pitch_mean']:
+                            value = mean_val * 0.8 + np.random.normal(0, variance)
+                        elif feature in ['sleep_duration_hours']:
+                            value = mean_val * 1.4 + np.random.normal(0, variance)
+                        else:
+                            value = np.random.normal(mean_val, variance)
+                    
+                    daily_data[feature] = max(0, value)
 
-                    # More noticeable swings (25-35% instead of 12-20%)
+            elif scenario == 'anomaly_subtle_rapid':
+                # Kept for compatibility but enhanced for longer period
+                cycle_phase = np.sin(2 * np.pi * i / 5) 
+
+                for feature, mean_val in baseline_dict.items():
+                    variance = baseline.variances[feature]
                     if feature in ['voice_energy_mean', 'screen_time_hours',
                                    'social_app_ratio', 'texts_per_day']:
-                        swing = cycle_phase * mean_val * 0.30  # 30% swings
+                        swing = cycle_phase * mean_val * 0.30 
                     else:
-                        swing = cycle_phase * mean_val * 0.18  # 18% swings
+                        swing = cycle_phase * mean_val * 0.18
 
                     value = mean_val + swing + np.random.normal(0, variance * 0.5)
                     daily_data[feature] = max(0, value)
 
             elif scenario == 'anomaly_gradual_depression':
-                # Very gradual, subtle decline (depression pattern)
-                # 35% decline over 30 days (was 25%, now more detectable)
-                decline_factor = 1 - (i / days) * 0.35
+                # 6 months gradual decline is much more subtle per day
+                # Total 50% decline over 180 days
+                decline_factor = 1 - (i / days) * 0.50
 
                 for feature, mean_val in baseline_dict.items():
                     variance = baseline.variances[feature]
@@ -226,91 +286,62 @@ class SyntheticDataGenerator:
                                    'places_visited']:
                         value = mean_val * decline_factor + np.random.normal(0, variance)
                     elif feature == 'sleep_duration_hours':
-                        value = mean_val * (1 + (i / days) * 0.20) + np.random.normal(0, variance)
+                        # Hypersomnia common in depression
+                        value = mean_val * (1 + (i / days) * 0.40) + np.random.normal(0, variance)
                     else:
                         value = mean_val + np.random.normal(0, variance)
 
                     daily_data[feature] = max(0, value)
 
             elif scenario == 'normal_life_event':
-                # Normal person with temporary dip (breakup/job loss) then recovery
-                # Days 0-10: normal
-                # Days 11-20: dip
-                # Days 21-30: recovery
+                # Normal person with temporary dip around middle of 6 months
+                # Days 0-70: normal
+                # Days 71-100: dip (e.g. bereavement or job loss)
+                # Days 101-180: gradual recovery
 
-                if i < 10:
-                    # Normal baseline
+                if i < 70:
                     for feature, mean_val in baseline_dict.items():
                         variance = baseline.variances[feature]
                         value = np.random.normal(mean_val, variance)
                         daily_data[feature] = max(0, value)
-
-                elif i < 20:
-                    # Temporary dip (30% decrease in some features)
-                    dip_progress = (i - 10) / 10  # 0 to 1
-                    dip_factor = 1 - dip_progress * 0.30
+                elif i < 100:
+                    dip_progress = (i - 70) / 30 
+                    dip_factor = 1 - (0.4 * np.sin(np.pi * dip_progress)) # Max 40% dip at middle
 
                     for feature, mean_val in baseline_dict.items():
                         variance = baseline.variances[feature]
-
                         if feature in ['voice_energy_mean', 'social_app_ratio',
                                        'calls_per_day', 'texts_per_day',
                                        'daily_displacement_km']:
                             value = mean_val * dip_factor + np.random.normal(0, variance)
                         elif feature == 'sleep_duration_hours':
-                            value = mean_val * (1 + dip_progress * 0.15) + np.random.normal(0, variance)
+                            value = mean_val * (1 + (1-dip_factor)*0.5) + np.random.normal(0, variance)
                         else:
                             value = mean_val + np.random.normal(0, variance)
-
                         daily_data[feature] = max(0, value)
-
                 else:
-                    # Recovery (gradual return to baseline)
-                    recovery_progress = (i - 20) / 10  # 0 to 1
-                    recovery_factor = 0.70 + recovery_progress * 0.30  # 70% -> 100%
-
+                    # Recovery
                     for feature, mean_val in baseline_dict.items():
                         variance = baseline.variances[feature]
-
-                        if feature in ['voice_energy_mean', 'social_app_ratio',
-                                       'calls_per_day', 'texts_per_day',
-                                       'daily_displacement_km']:
-                            value = mean_val * recovery_factor + np.random.normal(0, variance)
-                        elif feature == 'sleep_duration_hours':
-                            sleep_factor = 1 + (1 - recovery_progress) * 0.15
-                            value = mean_val * sleep_factor + np.random.normal(0, variance)
-                        else:
-                            value = mean_val + np.random.normal(0, variance)
-
+                        value = np.random.normal(mean_val, variance)
                         daily_data[feature] = max(0, value)
 
             elif scenario == 'mixed_signals':
-                # Mixed signals: some features stable, others unstable
-                # Hard to classify but should show some evidence
-
+                # Mixed signals over 6 months
                 for feature, mean_val in baseline_dict.items():
                     variance = baseline.variances[feature]
-
-                    # Group 1: Stable features
                     if feature in ['voice_pitch_mean', 'voice_pitch_std',
                                    'wake_time_hour', 'sleep_time_hour']:
                         value = np.random.normal(mean_val, variance)
-
-                    # Group 2: Oscillating features (stronger oscillations)
                     elif feature in ['voice_energy_mean', 'screen_time_hours']:
-                        cycle = np.sin(2 * np.pi * i / 5)
-                        swing = cycle * mean_val * 0.32  # Increased from 0.25
+                        cycle = np.sin(2 * np.pi * i / 14) # 2-week cycle
+                        swing = cycle * mean_val * 0.35 
                         value = mean_val + swing + np.random.normal(0, variance * 0.5)
-
-                    # Group 3: Gradually declining features (stronger decline)
                     elif feature in ['social_app_ratio', 'texts_per_day']:
-                        decline = 1 - (i / days) * 0.28  # Increased from 0.20
+                        decline = 1 - (i / days) * 0.3 
                         value = mean_val * decline + np.random.normal(0, variance)
-
-                    # Group 4: Normal with high noise
                     else:
                         value = np.random.normal(mean_val, variance * 1.5)
-
                     daily_data[feature] = max(0, value)
 
             data.append(daily_data)
@@ -631,30 +662,254 @@ class ImprovedAnomalyDetector:
 # VISUALIZATION
 # ============================================================================
 
+# ============================================================================
+# COMPREHENSIVE REPORT GENERATOR (PDF)
+# ============================================================================
+
+from matplotlib.backends.backend_pdf import PdfPages
+import matplotlib.gridspec as gridspec
+
+class ReportGenerator:
+    """Generate detailed clinical PDF reports for each scenario"""
+    
+    def __init__(self, scenario: str, patient_id: str):
+        self.scenario = scenario
+        self.patient_id = patient_id
+        self.feature_groups = {
+            'Voice Analysis': ['voice_pitch_mean', 'voice_pitch_std', 'voice_energy_mean', 'voice_speaking_rate'],
+            'Digital Activity': ['screen_time_hours', 'unlock_count', 'social_app_ratio'],
+            'Social Connection': ['calls_per_day', 'texts_per_day', 'unique_contacts', 'response_time_minutes'],
+            'Movement & Mobility': ['daily_displacement_km', 'location_entropy', 'home_time_ratio', 'places_visited'],
+            'Circadian & Sleep': ['wake_time_hour', 'sleep_time_hour', 'sleep_duration_hours']
+        }
+        self.colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', '#8c564b']
+
+    def generate_pdf(self, baseline_df, monitoring_df, daily_reports, final_prediction):
+        filename = f"report_{self.scenario}_{self.patient_id}.pdf"
+        print(f"  Generating PDF report: {filename}...")
+        
+        with PdfPages(filename) as pdf:
+            # Page 1: Executive Summary
+            self._plot_summary_page(pdf, final_prediction, daily_reports)
+            
+            # Page 2: Personality Vector Comparison (Current Snapshot)
+            self._plot_personality_comparison_page(pdf, baseline_df, monitoring_df)
+
+            # Page 3: Personality Vector Drift Timeline
+            self._plot_drift_timeline_page(pdf, baseline_df, monitoring_df)
+            
+            # Pages 4+: Feature Group Details
+            for group_name, features in self.feature_groups.items():
+                self._plot_feature_group_page(pdf, group_name, features, monitoring_df, baseline_df, daily_reports)
+                
+        print(f"  ✓ Saved PDF Report: {filename}")
+        return filename
+
+    def _plot_summary_page(self, pdf, pred, daily_reports):
+        fig = plt.figure(figsize=(11, 8.5))
+        gs = gridspec.GridSpec(3, 2, hspace=0.4, wspace=0.3)
+        
+        # Header
+        plt.figtext(0.5, 0.95, f"Mental Health Monitoring - Clinical Report", fontsize=18, fontweight='bold', ha='center')
+        plt.figtext(0.5, 0.92, f"Scenario: {self.scenario.upper()} | Patient ID: {self.patient_id}", fontsize=12, ha='center')
+        plt.figtext(0.5, 0.90, f"Generated on: {datetime.now().strftime('%Y-%m-%d %H:%M')}", fontsize=10, ha='center', alpha=0.7)
+        
+        # Status Box
+        ax_status = fig.add_subplot(gs[0, 0])
+        status_color = 'red' if pred.sustained_anomaly_detected else 'green'
+        ax_status.set_facecolor(status_color)
+        ax_status.patch.set_alpha(0.1)
+        status_text = "ANOMALY DETECTED" if pred.sustained_anomaly_detected else "NORMAL RANGE"
+        ax_status.text(0.5, 0.6, status_text, fontsize=16, fontweight='bold', color=status_color, ha='center')
+        ax_status.text(0.5, 0.3, f"Confidence: {pred.confidence:.1%}", fontsize=12, ha='center')
+        ax_status.set_title("Overall Status", fontweight='bold')
+        ax_status.set_xticks([]); ax_status.set_yticks([])
+
+        # Recommendation Box
+        ax_rec = fig.add_subplot(gs[0, 1])
+        ax_rec.text(0.05, 0.8, "Clinical Recommendation:", fontweight='bold')
+        ax_rec.text(0.05, 0.4, pred.recommendation, wrap=True, fontsize=10)
+        ax_rec.set_xticks([]); ax_rec.set_yticks([])
+        ax_rec.set_facecolor('whitesmoke')
+
+        # Anomaly Score Timeline
+        ax_score = fig.add_subplot(gs[1, :])
+        dates = [r.date for r in daily_reports]
+        scores = [r.anomaly_score for r in daily_reports]
+        ax_score.plot(dates, scores, color='black', alpha=0.3)
+        
+        colors_map = {'green': 'green', 'yellow': 'yellow', 'orange': 'orange', 'red': 'red'}
+        ax_score.scatter(dates, scores, c=[colors_map[r.alert_level] for r in daily_reports], s=30)
+        ax_score.axhline(0.4, color='orange', linestyle='--', alpha=0.5)
+        ax_score.set_title("Long-term Anomaly Score Timeline (6 Months)", fontweight='bold')
+        ax_score.set_ylabel("Score")
+        ax_score.grid(True, alpha=0.2)
+
+        # Alert Distribution
+        ax_dist = fig.add_subplot(gs[2, 0])
+        levels = ['green', 'yellow', 'orange', 'red']
+        counts = [sum(1 for r in daily_reports if r.alert_level == l) for l in levels]
+        ax_dist.bar(levels, counts, color=['green', 'yellow', 'orange', 'red'], alpha=0.7)
+        ax_dist.set_title("Alert Distribution")
+
+        # Evidence Accumulation
+        ax_ev = fig.add_subplot(gs[2, 1])
+        evidence = [r.evidence_accumulated for r in daily_reports]
+        ax_ev.plot(dates, evidence, color='purple', linewidth=2)
+        ax_ev.set_title("Evidence Accumulation")
+        ax_ev.axhline(2.0, color='red', linestyle='--', alpha=0.5)
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_personality_comparison_page(self, pdf, baseline_df, monitoring_df):
+        fig = plt.figure(figsize=(11, 8.5))
+        
+        plt.figtext(0.5, 0.93, "Personality Vector Analysis: Baseline vs. Current", fontsize=16, fontweight='bold', ha='center')
+        
+        # Calculate recent average (last 30 days) vs initial baseline
+        recent_df = monitoring_df.tail(30).mean(numeric_only=True)
+        initial_baseline = baseline_df.mean(numeric_only=True)
+        initial_std = baseline_df.std(numeric_only=True)
+
+        features = list(initial_baseline.keys())
+        # Drop 'date' if it exists
+        if 'date' in features: features.remove('date')
+        
+        # Normalize deviations by baseline STD
+        deviations = []
+        for feat in features:
+            dev = (recent_df[feat] - initial_baseline[feat]) / (initial_std[feat] + 1e-6)
+            deviations.append(dev)
+
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.7])
+        y_pos = np.arange(len(features))
+        
+        colors = ['red' if abs(d) > 2 else 'orange' if abs(d) > 1 else 'green' for d in deviations]
+        ax.barh(y_pos, deviations, color=colors, alpha=0.7)
+        ax.axvline(0, color='black', linewidth=1)
+        ax.axvline(2, color='red', linestyle='--', alpha=0.3)
+        ax.axvline(-2, color='red', linestyle='--', alpha=0.3)
+        
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels([f.replace('_', ' ').title() for f in features])
+        ax.set_xlabel("Deviation from Baseline (Standard Deviations)")
+        ax.set_title("Recent Personality Vector Drift (Last 30 Days vs. Baseline)")
+        ax.grid(True, alpha=0.3)
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_drift_timeline_page(self, pdf, baseline_df, monitoring_df):
+        fig = plt.figure(figsize=(11, 8.5))
+        
+        plt.figtext(0.5, 0.93, "Personality Vector Drift Timeline (Tracked Throughout)", fontsize=16, fontweight='bold', ha='center')
+        
+        # Calculate rolling 7-day Z-score for all features
+        initial_baseline = baseline_df.mean(numeric_only=True)
+        initial_std = baseline_df.std(numeric_only=True) + 1e-6
+        
+        dates = monitoring_df['date']
+        
+        # Select 8 most representative features to avoid clutter
+        track_features = [
+            'voice_energy_mean', 'screen_time_hours', 'sleep_duration_hours',
+            'daily_displacement_km', 'social_app_ratio', 'texts_per_day',
+            'voice_pitch_mean', 'calls_per_day'
+        ]
+        
+        ax = fig.add_axes([0.1, 0.1, 0.8, 0.75])
+        
+        for feat in track_features:
+            if feat in monitoring_df.columns:
+                # 7-day rolling mean
+                rolling = monitoring_df[feat].rolling(window=7).mean()
+                # Z-score relative to initial baseline
+                z_score = (rolling - initial_baseline[feat]) / initial_std[feat]
+                ax.plot(dates, z_score, label=feat.replace('_', ' ').title(), linewidth=1.5, alpha=0.8)
+
+        ax.axhline(0, color='black', linewidth=1, linestyle='-')
+        ax.axhline(2, color='red', linestyle='--', alpha=0.3)
+        ax.axhline(-2, color='red', linestyle='--', alpha=0.3)
+        ax.fill_between(dates, -1, 1, color='green', alpha=0.05, label='Normal Range (±1 SD)')
+        
+        ax.set_ylabel("Deviation (Z-Score)")
+        ax.set_xlabel("Monitoring Duration")
+        ax.set_title("How the Personality Vector Shifts over 180 Days", fontsize=12)
+        ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', fontsize=8)
+        ax.grid(True, alpha=0.2)
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+    def _plot_feature_group_page(self, pdf, group_name, features, monitoring_df, baseline_df, daily_reports):
+        n = len(features)
+        fig = plt.figure(figsize=(11, 8.5))
+        gs = gridspec.GridSpec(n, 1, hspace=0.4)
+        
+        plt.figtext(0.5, 0.95, f"Detailed Feature Analysis: {group_name}", fontsize=16, fontweight='bold', ha='center')
+        
+        dates = monitoring_df['date']
+        
+        for i, feat in enumerate(features):
+            ax = fig.add_subplot(gs[i])
+            
+            b_mean = baseline_df[feat].mean()
+            b_std = baseline_df[feat].std()
+            
+            # Baseline band
+            ax.axhline(b_mean, color='green', linestyle='--', alpha=0.5)
+            ax.axhspan(b_mean - 2*b_std, b_mean + 2*b_std, color='green', alpha=0.1, label='Normal Range (±2 SD)')
+            
+            # Monitoring data
+            ax.plot(dates, monitoring_df[feat], color='blue', alpha=0.7, label='Observed')
+            
+            # Highlight anomaly days
+            alert_colors = {'green': None, 'yellow': 'yellow', 'orange': 'orange', 'red': 'red'}
+            for j, report in enumerate(daily_reports):
+                if report.alert_level != 'green':
+                    ax.axvspan(dates.iloc[j], dates.iloc[min(j+1, len(dates)-1)], 
+                              color=alert_colors[report.alert_level], alpha=0.1)
+
+            ax.set_title(feat.replace('_', ' ').title(), fontsize=10, fontweight='bold', loc='left')
+            ax.grid(True, alpha=0.2)
+            if i == n-1:
+                ax.set_xlabel("Date")
+            else:
+                ax.set_xticklabels([])
+
+        pdf.savefig(fig)
+        plt.close(fig)
+
+
 def plot_comprehensive_results(baseline_df: pd.DataFrame,
                                monitoring_df: pd.DataFrame,
                                daily_reports: List[DailyReport],
                                scenario: str,
                                final_prediction: FinalPrediction):
-    """Create comprehensive visualization"""
+    """Create comprehensive visualization summary image"""
 
-    fig = plt.figure(figsize=(20, 14))
+    # Generate PDF Report first
+    rg = ReportGenerator(scenario, final_prediction.patient_id)
+    pdf_path = rg.generate_pdf(baseline_df, monitoring_df, daily_reports, final_prediction)
+
+    # Generate Summary PNG
+    fig = plt.figure(figsize=(24, 16))
     gs = fig.add_gridspec(4, 3, hspace=0.3, wspace=0.3)
 
-    fig.suptitle(f'System 1 Analysis: {scenario.upper().replace("_", " ")}', 
-                 fontsize=18, fontweight='bold')
+    fig.suptitle(f'System 1 Final Analysis Summary: {scenario.upper().replace("_", " ")}', 
+                 fontsize=22, fontweight='bold')
 
-    # Key features to plot
+    # Key features to plot in PNG summary
     key_features = [
         ('voice_energy_mean', 'Voice Energy'),
         ('screen_time_hours', 'Screen Time (hrs)'),
         ('sleep_duration_hours', 'Sleep Duration (hrs)'),
         ('daily_displacement_km', 'Daily Movement (km)'),
         ('texts_per_day', 'Texts per Day'),
-        ('social_app_ratio', 'Social App Usage')
+        ('social_app_ratio', 'Social Activity Ratio')
     ]
 
-    # Plot 1-6: Feature time series
     for idx, (feature, title) in enumerate(key_features):
         ax = fig.add_subplot(gs[idx // 3, idx % 3])
 
@@ -664,123 +919,70 @@ def plot_comprehensive_results(baseline_df: pd.DataFrame,
         dates = monitoring_df['date']
         values = monitoring_df[feature]
 
-        # Baseline bands
-        ax.axhline(baseline_mean, color='green', linestyle='--', 
-                   label='Baseline', alpha=0.7, linewidth=2)
-        ax.axhspan(baseline_mean - baseline_std, baseline_mean + baseline_std,
-                   alpha=0.15, color='green', label='±1 SD')
+        ax.axhline(baseline_mean, color='green', linestyle='--', alpha=0.7, linewidth=2)
         ax.axhspan(baseline_mean - 2*baseline_std, baseline_mean + 2*baseline_std,
-                   alpha=0.1, color='yellow', label='±2 SD')
+                   alpha=0.1, color='green')
 
-        # Data line
-        ax.plot(dates, values, 'b-', linewidth=2, label='Observed', alpha=0.8)
+        ax.plot(dates, values, 'b-', linewidth=1.5, alpha=0.8)
 
-        # Color regions by alert level
-        alert_colors = {'green': 'lightgreen', 'yellow': 'yellow', 
-                       'orange': 'orange', 'red': 'red'}
+        # Alert colors
+        alert_colors = {'green': None, 'yellow': '#ffffcc', 'orange': '#ffcc99', 'red': '#ff9999'}
         for i, report in enumerate(daily_reports):
             if report.alert_level != 'green':
                 ax.axvspan(dates.iloc[i], dates.iloc[min(i+1, len(dates)-1)],
-                          alpha=0.2, color=alert_colors[report.alert_level])
+                          alpha=0.3, color=alert_colors[report.alert_level])
 
-        ax.set_title(title, fontsize=11, fontweight='bold')
-        ax.set_xlabel('Date', fontsize=9)
-        ax.grid(True, alpha=0.3)
-        ax.legend(fontsize=8, loc='best')
-        ax.tick_params(labelsize=8)
+        ax.set_title(title, fontsize=12, fontweight='bold')
+        ax.grid(True, alpha=0.2)
 
-    # Plot 7: Anomaly Score Timeline
+    # Score Timeline
     ax7 = fig.add_subplot(gs[2, :])
     dates = [r.date for r in daily_reports]
     scores = [r.anomaly_score for r in daily_reports]
-    sustained_days = [r.sustained_deviation_days for r in daily_reports]
+    
+    colors = {'green': 'green', 'yellow': 'orange', 'orange': 'darkorange', 'red': 'red'}
+    ax7.scatter(dates, scores, c=[colors[r.alert_level] for r in daily_reports], s=50, alpha=0.6)
+    ax7.plot(dates, scores, 'k-', alpha=0.1)
+    ax7.set_title('Anomaly Score Evolution (180 Days)', fontsize=14, fontweight='bold')
+    ax7.set_ylabel('Score')
+    ax7.grid(True, alpha=0.2)
 
-    # Color code points by alert level
-    colors = {'green': 'green', 'yellow': 'yellow', 'orange': 'orange', 'red': 'red'}
-    point_colors = [colors[r.alert_level] for r in daily_reports]
-
-    ax7.scatter(dates, scores, c=point_colors, s=100, alpha=0.6, edgecolors='black', linewidth=1)
-    ax7.plot(dates, scores, 'k-', alpha=0.3, linewidth=1)
-
-    # Add sustained deviation counter
-    ax7_twin = ax7.twinx()
-    ax7_twin.plot(dates, sustained_days, 'r--', alpha=0.5, linewidth=2, label='Sustained Days')
-    ax7_twin.set_ylabel('Sustained Deviation Days', color='r', fontsize=10)
-    ax7_twin.tick_params(axis='y', labelcolor='r', labelsize=9)
-
-    # Thresholds
-    ax7.axhline(0.4, color='yellow', linestyle=':', alpha=0.5, label='Yellow threshold')
-    ax7.axhline(0.5, color='orange', linestyle=':', alpha=0.5, label='Orange threshold')
-    ax7.axhline(0.65, color='red', linestyle=':', alpha=0.5, label='Red threshold')
-
-    ax7.set_title('Anomaly Score & Sustained Deviation Timeline', fontsize=12, fontweight='bold')
-    ax7.set_xlabel('Date', fontsize=10)
-    ax7.set_ylabel('Anomaly Score', fontsize=10)
-    ax7.legend(fontsize=9, loc='upper left')
-    ax7.grid(True, alpha=0.3)
-    ax7.tick_params(labelsize=9)
-
-    # Plot 8: Alert Distribution
+    # Personality Radar/Bar Chart comparison in summary
     ax8 = fig.add_subplot(gs[3, 0])
-    alert_counts = {'green': 0, 'yellow': 0, 'orange': 0, 'red': 0}
-    for r in daily_reports:
-        alert_counts[r.alert_level] += 1
+    recent_avg = monitoring_df.tail(30).mean(numeric_only=True)
+    base_avg = baseline_df.mean(numeric_only=True)
+    base_std = baseline_df.std(numeric_only=True) + 1e-6
+    
+    devs = [(recent_avg[f] - base_avg[f])/base_std[f] for f in key_features[0][0:1] + key_features[1][0:1] + key_features[2][0:1] + key_features[3][0:1] + key_features[4][0:1] + key_features[5][0:1]]
+    # Wait, the indexing above is wrong. Let's do it properly.
+    feat_names = [kf[0] for kf in key_features]
+    devs = [(recent_avg[fn] - base_avg[fn])/base_std[fn] for fn in feat_names]
+    
+    ax8.barh([kf[1] for kf in key_features], devs, color='skyblue')
+    ax8.axvline(0, color='black', linewidth=1)
+    ax8.set_title('Vector Deviation (Recent vs Base)')
+    ax8.set_xlabel('SD Units')
 
-    colors_plot = ['green', 'yellow', 'orange', 'red']
-    counts = [alert_counts[c] for c in colors_plot]
-    ax8.bar(colors_plot, counts, color=colors_plot, alpha=0.7, edgecolor='black')
-    ax8.set_title('Alert Level Distribution', fontsize=11, fontweight='bold')
-    ax8.set_ylabel('Days', fontsize=10)
-    ax8.tick_params(labelsize=9)
-    ax8.grid(True, alpha=0.3, axis='y')
-
-    # Plot 9: Evidence Accumulation
+    # Evidence
     ax9 = fig.add_subplot(gs[3, 1])
     evidence = [r.evidence_accumulated for r in daily_reports]
-    ax9.plot(dates, evidence, 'purple', linewidth=2, marker='o', markersize=4)
-    ax9.axhline(2.0, color='red', linestyle='--', alpha=0.7, label='Alert Threshold')
-    ax9.set_title('Evidence Accumulation', fontsize=11, fontweight='bold')
-    ax9.set_xlabel('Date', fontsize=10)
-    ax9.set_ylabel('Cumulative Evidence', fontsize=10)
-    ax9.legend(fontsize=9)
-    ax9.grid(True, alpha=0.3)
-    ax9.tick_params(labelsize=9)
+    ax9.plot(dates, evidence, 'purple', linewidth=2)
+    ax9.set_title('Evidence Accumulation')
+    ax9.axhline(2.0, color='red', linestyle='--')
 
-    # Plot 10: Final Prediction Summary
+    # Status
     ax10 = fig.add_subplot(gs[3, 2])
     ax10.axis('off')
+    summary_text = f"RESULTS SUMMARY\n{'-'*20}\n" \
+                   f"Scenario: {scenario}\n" \
+                   f"Status: {'ANOMALY' if final_prediction.sustained_anomaly_detected else 'NORMAL'}\n" \
+                   f"Confidence: {final_prediction.confidence:.1%}\n" \
+                   f"Sustained Days: {final_prediction.evidence_summary['sustained_deviation_days']}\n\n" \
+                   f"Recommendation:\n{final_prediction.recommendation}"
+    ax10.text(0, 0.5, summary_text, fontweight='bold', va='center', fontsize=12, bbox=dict(facecolor='white', alpha=0.8))
 
-    summary_text = f"""
-FINAL PREDICTION
-{'='*30}
-
-Status: {'ANOMALY DETECTED' if final_prediction.sustained_anomaly_detected else 'NORMAL'}
-Confidence: {final_prediction.confidence:.1%}
-
-Pattern: {final_prediction.pattern_identified}
-Final Score: {final_prediction.final_anomaly_score:.3f}
-
-Evidence Summary:
-• Sustained days: {final_prediction.evidence_summary['sustained_deviation_days']}
-• Evidence: {final_prediction.evidence_summary['evidence_accumulated']:.2f}
-• Days above threshold: {final_prediction.evidence_summary['days_above_threshold']}
-
-Recommendation:
-{final_prediction.recommendation}
-"""
-
-    ax10.text(0.05, 0.95, summary_text, transform=ax10.transAxes,
-             fontsize=9, verticalalignment='top', fontfamily='monospace',
-             bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-    plt.savefig(f'/home/claude/analysis_{scenario}.png', dpi=150, bbox_inches='tight')
-    print(f"  ✓ Saved: analysis_{scenario}.png")
+    plt.savefig(f'analysis_{scenario}.png', dpi=100, bbox_inches='tight')
     plt.close()
-
-
-# ============================================================================
-# DAILY REPORT GENERATOR
-# ============================================================================
 
 def generate_daily_report_summary(daily_reports: List[DailyReport], scenario: str):
     """Generate text summary of daily reports"""
@@ -819,15 +1021,15 @@ def run_scenario(scenario: str, patient_id: str):
 
     generator = SyntheticDataGenerator(seed=hash(patient_id) % 1000)
 
-    # Generate baseline
+    # Generate baseline (28 days is standard)
     baseline, baseline_df = generator.generate_baseline(days=28)
     print(f"  ✓ Baseline established")
 
     # Initialize detector
     detector = ImprovedAnomalyDetector(baseline)
 
-    # Generate monitoring data
-    monitoring_df = generator.generate_monitoring_data(baseline, scenario, days=30)
+    # Generate monitoring data (6 months = 180 days)
+    monitoring_df = generator.generate_monitoring_data(baseline, scenario, days=180)
 
     # Analyze each day
     reports = []
@@ -847,7 +1049,7 @@ def run_scenario(scenario: str, patient_id: str):
     final_prediction = detector.generate_final_prediction(scenario, patient_id, len(monitoring_df))
 
     # Print summary
-    print(f"\n  📊 ANALYSIS COMPLETE")
+    print(f"\n  📊 ANALYSIS COMPLETE (180 DAY SIMULATION)")
     print(f"  {'─'*76}")
 
     alert_dist = {}
@@ -858,12 +1060,12 @@ def run_scenario(scenario: str, patient_id: str):
     for level in ['green', 'yellow', 'orange', 'red']:
         count = alert_dist.get(level, 0)
         pct = (count / len(daily_reports)) * 100
-        bar = '█' * (count // 2)
-        print(f"    {level.upper():6s}: {bar:15s} {count:2d} days ({pct:5.1f}%)")
+        bar = '█' * (count // 4) # Adjust bar scale for 180 days
+        print(f"    {level.upper():6s}: {bar:15s} {count:3d} days ({pct:5.1f}%)")
 
     print(f"\n  🎯 FINAL PREDICTION:")
     print(f"  {'─'*76}")
-    print(f"  Status: {final_prediction.sustained_anomaly_detected}")
+    print(f"  Status: {'ANOMALY' if final_prediction.sustained_anomaly_detected else 'NORMAL'}")
     print(f"  Confidence: {final_prediction.confidence:.1%}")
     print(f"  Pattern: {final_prediction.pattern_identified}")
     print(f"  Final Score: {final_prediction.final_anomaly_score:.3f}")
@@ -872,11 +1074,11 @@ def run_scenario(scenario: str, patient_id: str):
     print(f"\n  💡 Recommendation:")
     print(f"  {final_prediction.recommendation}")
 
-    # Generate visualizations
+    # Generate visualizations (PNG and PDF combined in this call now)
     plot_comprehensive_results(baseline_df, monitoring_df, daily_reports, 
-                              scenario, final_prediction)
+                               scenario, final_prediction)
 
-    # Generate daily report text
+    # Generate daily report text summary (brief)
     daily_summary = generate_daily_report_summary(daily_reports, scenario)
 
     return {
@@ -893,25 +1095,25 @@ def main():
     """Run all scenarios"""
 
     print("\n" + "="*80)
-    print("SYSTEM 1: IMPROVED ANOMALY DETECTION WITH SUSTAINED PATTERN RECOGNITION")
+    print("SYSTEM 1: 6-MONTH EXTENDED SIMULATION & BPD STRESS TESTING")
     print("="*80)
-    print("\nObjective: Only flag anomalies after accumulating sufficient evidence")
-    print("         Individual odd days should NOT trigger high alerts\n")
+    print("\nObjective: Evaluate long-term patterns and complex cycling scenarios")
+    print("         Generating detailed PDF reports for each patient profile.\n")
 
     scenarios = [
         ('normal', 'PT-001'),
-        ('anomaly_subtle_rapid', 'PT-002'),
+        ('bpd_rapid_cycling', 'PT-002'),
         ('anomaly_gradual_depression', 'PT-003'),
         ('normal_life_event', 'PT-004'),
         ('mixed_signals', 'PT-005'),
     ]
 
     scenario_names = {
-        'normal': 'Normal Patient',
-        'anomaly_subtle_rapid': 'Anomaly Patient 1 (Rapid Subtle Changes)',
-        'anomaly_gradual_depression': 'Anomaly Patient 2 (Gradual Depression)',
-        'normal_life_event': 'Normal Patient 2 (Life Event Recovery)',
-        'mixed_signals': 'Mixed Signals Patient'
+        'normal': 'Normal Baseline Patient',
+        'bpd_rapid_cycling': 'BPD Patient (Rapid Cycling States)',
+        'anomaly_gradual_depression': 'Depression Patient (Gradual Drift)',
+        'normal_life_event': 'Normal Life Event (Bereavement)',
+        'mixed_signals': 'Mixed Behavioral Signals'
     }
 
     all_results = {}
@@ -921,13 +1123,14 @@ def main():
         all_results[scenario] = results
 
         # Save daily report to file
-        with open(f'/home/claude/daily_report_{scenario}.txt', 'w') as f:
+        report_file = f'daily_report_{scenario}.txt'
+        with open(report_file, 'w', encoding='utf-8') as f:
             f.write(results['daily_summary'])
-        print(f"  ✓ Saved: daily_report_{scenario}.txt")
+        print(f"  ✓ Saved: {report_file}")
 
     # Generate comparison summary
     print(f"\n\n{'='*80}")
-    print("COMPARATIVE ANALYSIS SUMMARY")
+    print("6-MONTH COMPARATIVE ANALYSIS SUMMARY")
     print(f"{'='*80}\n")
 
     comparison_lines = []
@@ -948,16 +1151,16 @@ def main():
     print(comparison_text)
 
     # Save comparison
-    with open('/home/claude/comparison_summary.txt', 'w') as f:
+    with open('comparison_summary.txt', 'w', encoding='utf-8') as f:
         f.write(comparison_text)
 
     print(f"\n{'='*80}")
-    print("ALL ANALYSES COMPLETE")
+    print("SIMULATION SUITE COMPLETE")
     print(f"{'='*80}")
-    print(f"\nGenerated files:")
-    print(f"  • {len(scenarios)} analysis visualizations (analysis_*.png)")
-    print(f"  • {len(scenarios)} daily reports (daily_report_*.txt)")
-    print(f"  • 1 comparison summary (comparison_summary.txt)")
+    print(f"\nGenerated Artifacts:")
+    print(f"  • Clinical PDF Reports: report_*.pdf")
+    print(f"  • Overview PNG Charts: analysis_*.png")
+    print(f"  • Comparative Summary: comparison_summary.txt")
 
     return all_results
 

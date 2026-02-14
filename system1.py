@@ -395,8 +395,12 @@ class ImprovedAnomalyDetector:
         return deviations
 
     def calculate_deviation_velocity(self, current_data: Dict[str, float]) -> Dict[str, float]:
-        """Calculate rate of change"""
+        """
+        Calculate rate of change using EWMA (Exponential Weighted Moving Average)
+        EWMA gives more weight to recent days - better for detecting acceleration
+        """
         velocities = {}
+        alpha = 0.4  # Smoothing factor (0.4 = recent days weighted ~2x older days)
 
         for feature in self.feature_names:
             self.feature_history[feature].append(current_data[feature])
@@ -407,10 +411,16 @@ class ImprovedAnomalyDetector:
             if len(history) < 2:
                 velocities[feature] = 0
             else:
-                x = np.arange(len(history))
-                y = np.array(history)
-                slope = np.polyfit(x, y, 1)[0]
-
+                # Calculate EWMA
+                ewma_values = []
+                ewma = history[0]
+                for val in history:
+                    ewma = alpha * val + (1 - alpha) * ewma
+                    ewma_values.append(ewma)
+                
+                # Velocity = change in EWMA over time
+                slope = (ewma_values[-1] - ewma_values[0]) / len(ewma_values)
+                
                 baseline_val = self.baseline_dict[feature]
                 if baseline_val > 0:
                     velocities[feature] = slope / baseline_val

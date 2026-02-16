@@ -180,8 +180,9 @@ def run_system1_on_studentlife_user(user_id, dataset_path):
     print(f"  {'='*76}")
     print(f"  Status: {'ANOMALY DETECTED' if final_prediction.sustained_anomaly_detected else 'NORMAL'}")
     print(f"  Final Anomaly Score: {final_prediction.final_anomaly_score:.3f}")
-    print(f"  Sustained Deviation Days: {final_prediction.evidence_summary['sustained_deviation_days']}")
-    print(f"  Evidence Accumulated: {final_prediction.evidence_summary['evidence_accumulated']:.2f}")
+    print(f"  Sustained Deviation Days: {final_prediction.evidence_summary['sustained_deviation_days']} (Peak: {final_prediction.evidence_summary['max_sustained_days']}, Target: {detector.PEAK_SUSTAINED_THRESHOLD_DAYS})")
+    print(f"  Current Evidence: {final_prediction.evidence_summary['evidence_accumulated_final']:.2f}")
+    print(f"  PEAK Evidence:    {final_prediction.evidence_summary['peak_evidence']:.2f} (Target: {detector.PEAK_EVIDENCE_THRESHOLD})")
     print(f"  Pattern: {final_prediction.pattern_identified}")
     
     print(f"\n  {'='*76}")
@@ -218,7 +219,10 @@ def run_system1_on_studentlife_user(user_id, dataset_path):
         'anomaly_score': final_prediction.final_anomaly_score,
         'anomaly_detected': final_prediction.sustained_anomaly_detected,
         'sustained_days': final_prediction.evidence_summary['sustained_deviation_days'],
-        'evidence': final_prediction.evidence_summary['evidence_accumulated'],
+        'evidence': final_prediction.evidence_summary['peak_evidence'],
+        'peak_evidence': final_prediction.evidence_summary['peak_evidence'],
+        'current_evidence': final_prediction.evidence_summary['evidence_accumulated_final'],
+        'max_sustained_days': final_prediction.evidence_summary['max_sustained_days'],
         'pattern': final_prediction.pattern_identified,
         'monitoring_days': len(monitoring_df),
         'daily_reports': daily_reports

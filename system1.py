@@ -386,10 +386,19 @@ class ImprovedAnomalyDetector:
         self.sustained_deviation_days = 0
         self.evidence_accumulated = 0.0
 
-        # Thresholds for sustained detection
+        # Thresholds for sustained detection (Real-time alerting)
         self.SUSTAINED_THRESHOLD_DAYS = 4  # Need 4+ days of deviation
-        self.EVIDENCE_THRESHOLD = 2.0  # Accumulated evidence score
+        self.EVIDENCE_THRESHOLD = 2.0  # Daily alerting threshold
         self.ANOMALY_SCORE_THRESHOLD = 0.35  # Daily score to count as "deviant day"
+
+        # PEAK Thresholds for clinical validation (Retrospective)
+        self.PEAK_EVIDENCE_THRESHOLD = 2.7  # Much stricter for validation reports
+        self.PEAK_SUSTAINED_THRESHOLD_DAYS = 5 # Require longer sustained periods
+
+        # PEAK TRACKING (for retrospective validation)
+        self.max_evidence = 0.0
+        self.max_sustained_days = 0
+        self.max_anomaly_score = 0.0
 
     def calculate_deviation_magnitude(self, current_data: Dict[str, float]) -> Dict[str, float]:
         """Calculate how many standard deviations from baseline"""
@@ -489,6 +498,10 @@ class ImprovedAnomalyDetector:
     def update_sustained_tracking(self, anomaly_score: float):
         """Update tracking of sustained deviations"""
         self.anomaly_score_history.append(anomaly_score)
+        
+        # Track max anomaly score
+        if anomaly_score > self.max_anomaly_score:
+            self.max_anomaly_score = anomaly_score
 
         # Count consecutive days above threshold
         if anomaly_score > self.ANOMALY_SCORE_THRESHOLD:
@@ -499,6 +512,27 @@ class ImprovedAnomalyDetector:
             # Decay if we have a normal day (but more slowly)
             self.sustained_deviation_days = max(0, self.sustained_deviation_days - 1)
             self.evidence_accumulated *= 0.92  # Decay evidence more slowly
+
+        # Track peaks (no decay)
+        if self.evidence_accumulated > self.max_evidence:
+            self.max_evidence = self.evidence_accumulated
+        
+        if self.sustained_deviation_days > self.max_sustained_days:
+            self.max_sustained_days = self.sustained_deviation_days
+
+    def should_alert_now(self) -> bool:
+        """Real-time alerting - uses current state"""
+        return (
+            self.evidence_accumulated >= self.EVIDENCE_THRESHOLD or
+            self.sustained_deviation_days >= self.SUSTAINED_THRESHOLD_DAYS
+        )
+
+    def had_episode(self) -> bool:
+        """Retrospective detection for validation - uses peak state with stricter thresholds"""
+        return (
+            self.max_evidence >= self.PEAK_EVIDENCE_THRESHOLD or
+            self.max_sustained_days >= self.PEAK_SUSTAINED_THRESHOLD_DAYS
+        )
 
     def determine_alert_level(self, anomaly_score: float,
                               deviations: Dict[str, float]) -> str:
@@ -626,11 +660,8 @@ class ImprovedAnomalyDetector:
         # Calculate confidence based on data quality
         confidence = min(0.95, monitoring_days / 30 * 0.8 + 0.15)
 
-        # Determine if sustained anomaly detected
-        sustained_anomaly = (
-            self.sustained_deviation_days >= self.SUSTAINED_THRESHOLD_DAYS or
-            self.evidence_accumulated >= self.EVIDENCE_THRESHOLD
-        )
+        # Determine if sustained anomaly detected (Retrospective Detection Mode)
+        sustained_anomaly = self.had_episode()
 
         # Calculate final anomaly score (average of recent history)
         if len(self.anomaly_score_history) > 0:
@@ -649,19 +680,22 @@ class ImprovedAnomalyDetector:
             else:
                 pattern = "stable"
 
-        # Generate recommendation
-        if sustained_anomaly and final_score > 0.55:
-            recommendation = "REFER: Strong evidence of sustained behavioral deviation. Clinical evaluation recommended."
-        elif sustained_anomaly and final_score > 0.40:
-            recommendation = "MONITOR: Moderate sustained deviation detected. Continue close monitoring."
-        elif self.evidence_accumulated > 1.5:
-            recommendation = "WATCH: Some evidence of deviation. Extend monitoring period."
+        # Generate recommendation using peak states
+        if sustained_anomaly and self.max_evidence >= 4.0:
+            recommendation = "REFER: Very strong evidence of sustained behavioral deviation (Critical Peak). Immediate clinical evaluation recommended."
+        elif sustained_anomaly:
+            recommendation = "MONITOR: Significant sustained deviation detected during study (Met Peak Threshold). Clinical follow-up recommended."
+        elif self.max_evidence > 1.5:
+            recommendation = "WATCH: Some periodic evidence of deviation. Suggest extending monitoring or additional check-ins."
         else:
-            recommendation = "NORMAL: No sustained deviation detected. Routine follow-up sufficient."
+            recommendation = "NORMAL: No significant sustained deviation detected during the study period."
 
         evidence_summary = {
             'sustained_deviation_days': self.sustained_deviation_days,
-            'evidence_accumulated': round(self.evidence_accumulated, 2),
+            'max_sustained_days': self.max_sustained_days,
+            'evidence_accumulated_final': round(self.evidence_accumulated, 2),
+            'peak_evidence': round(self.max_evidence, 2),
+            'max_daily_anomaly_score': round(self.max_anomaly_score, 3),
             'avg_recent_anomaly_score': round(final_score, 3),
             'monitoring_days': monitoring_days,
             'days_above_threshold': sum(1 for s in self.anomaly_score_history if s > self.ANOMALY_SCORE_THRESHOLD)

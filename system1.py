@@ -56,9 +56,16 @@ class PersonalityVector:
     places_visited: float
 
     # Circadian features
+    # Circadian & Environment features
     wake_time_hour: float
     sleep_time_hour: float
     sleep_duration_hours: float
+    dark_duration_hours: float  # Proxy for sleep/pocket time
+    charge_duration_hours: float # Phone charging pattern
+
+    # Social & Audio features
+    conversation_duration_hours: float # Voice activity
+    conversation_frequency: float      # Number of conversations
 
     # Variance bounds (for each feature)
     variances: Dict[str, float] = None
@@ -84,6 +91,10 @@ class PersonalityVector:
             'wake_time_hour': self.wake_time_hour,
             'sleep_time_hour': self.sleep_time_hour,
             'sleep_duration_hours': self.sleep_duration_hours,
+            'dark_duration_hours': self.dark_duration_hours,
+            'charge_duration_hours': self.charge_duration_hours,
+            'conversation_duration_hours': self.conversation_duration_hours,
+            'conversation_frequency': self.conversation_frequency,
         }
 
 
@@ -165,6 +176,10 @@ class SyntheticDataGenerator:
             'wake_time_hour': 7.5,
             'sleep_time_hour': 23.5,
             'sleep_duration_hours': 7.5,
+            'dark_duration_hours': 8.5,
+            'charge_duration_hours': 6.0,
+            'conversation_duration_hours': 1.5,
+            'conversation_frequency': 12.0,
         }
 
         dates = [datetime.now() - timedelta(days=days - i) for i in range(days)]

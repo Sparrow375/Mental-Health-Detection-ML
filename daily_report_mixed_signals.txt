@@ -1,0 +1,644 @@
+
+================================================================================
+DAILY MONITORING REPORT: MIXED SIGNALS
+================================================================================
+
+Day 01 | 2026-02-13 | Alert: GREEN  | Score: 0.201 | Sustained: 0 days
+
+Day 02 | 2026-02-14 | Alert: GREEN  | Score: 0.340 | Sustained: 0 days
+
+Day 03 | 2026-02-15 | Alert: GREEN  | Score: 0.412 | Sustained: 1 days
+
+Day 04 | 2026-02-16 | Alert: GREEN  | Score: 0.463 | Sustained: 2 days
+
+Day 05 | 2026-02-17 | Alert: GREEN  | Score: 0.342 | Sustained: 1 days
+
+Day 06 | 2026-02-18 | Alert: GREEN  | Score: 0.347 | Sustained: 0 days
+
+Day 07 | 2026-02-19 | Alert: GREEN  | Score: 0.471 | Sustained: 1 days
+
+Day 08 | 2026-02-20 | Alert: GREEN  | Score: 0.264 | Sustained: 0 days
+
+Day 09 | 2026-02-21 | Alert: GREEN  | Score: 0.424 | Sustained: 1 days
+
+Day 10 | 2026-02-22 | Alert: ORANGE | Score: 0.436 | Sustained: 2 days
+        📊 Evidence accumulated: 2.25 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'calls_per_day', 'screen_time_hours']
+
+Day 11 | 2026-02-23 | Alert: ORANGE | Score: 0.349 | Sustained: 1 days
+        📊 Evidence accumulated: 2.07 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unlock_count', 'voice_energy_mean', 'screen_time_hours']
+
+Day 12 | 2026-02-24 | Alert: GREEN  | Score: 0.349 | Sustained: 0 days
+
+Day 13 | 2026-02-25 | Alert: ORANGE | Score: 0.443 | Sustained: 1 days
+        📊 Evidence accumulated: 2.39 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'home_time_ratio', 'calls_per_day']
+
+Day 14 | 2026-02-26 | Alert: ORANGE | Score: 0.305 | Sustained: 0 days
+        📊 Evidence accumulated: 2.20 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'screen_time_hours', 'places_visited']
+
+Day 15 | 2026-02-27 | Alert: GREEN  | Score: 0.264 | Sustained: 0 days
+        📊 Evidence accumulated: 2.03
+
+Day 16 | 2026-02-28 | Alert: YELLOW | Score: 0.358 | Sustained: 1 days
+        📊 Evidence accumulated: 2.42
+
+Day 17 | 2026-03-01 | Alert: ORANGE | Score: 0.427 | Sustained: 2 days
+        📊 Evidence accumulated: 2.93 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'places_visited']
+
+Day 18 | 2026-03-02 | Alert: ORANGE | Score: 0.349 | Sustained: 1 days
+        📊 Evidence accumulated: 2.70 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'unlock_count']
+
+Day 19 | 2026-03-03 | Alert: ORANGE | Score: 0.349 | Sustained: 0 days
+        📊 Evidence accumulated: 2.48 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'home_time_ratio']
+
+Day 20 | 2026-03-04 | Alert: ORANGE | Score: 0.308 | Sustained: 0 days
+        📊 Evidence accumulated: 2.28 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'home_time_ratio', 'voice_energy_mean']
+
+Day 21 | 2026-03-05 | Alert: GREEN  | Score: 0.297 | Sustained: 0 days
+        📊 Evidence accumulated: 2.10
+
+Day 22 | 2026-03-06 | Alert: GREEN  | Score: 0.281 | Sustained: 0 days
+
+Day 23 | 2026-03-07 | Alert: GREEN  | Score: 0.303 | Sustained: 0 days
+
+Day 24 | 2026-03-08 | Alert: ORANGE | Score: 0.383 | Sustained: 1 days
+        📊 Evidence accumulated: 2.20 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'home_time_ratio']
+
+Day 25 | 2026-03-09 | Alert: ORANGE | Score: 0.370 | Sustained: 2 days
+        📊 Evidence accumulated: 2.64 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['home_time_ratio', 'voice_energy_mean', 'screen_time_hours']
+
+Day 26 | 2026-03-10 | Alert: ORANGE | Score: 0.381 | Sustained: 3 days
+        📊 Evidence accumulated: 3.14 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'location_entropy', 'voice_energy_mean']
+
+Day 27 | 2026-03-11 | Alert: ORANGE | Score: 0.384 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 3.68 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'screen_time_hours', 'unlock_count']
+
+Day 28 | 2026-03-12 | Alert: ORANGE | Score: 0.337 | Sustained: 3 days
+        📊 Evidence accumulated: 3.38 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'places_visited', 'social_app_ratio']
+
+Day 29 | 2026-03-13 | Alert: YELLOW | Score: 0.204 | Sustained: 2 days
+        📊 Evidence accumulated: 3.11
+
+Day 30 | 2026-03-14 | Alert: YELLOW | Score: 0.389 | Sustained: 3 days
+        📊 Evidence accumulated: 3.62
+
+Day 31 | 2026-03-15 | Alert: ORANGE | Score: 0.310 | Sustained: 2 days
+        📊 Evidence accumulated: 3.33 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'home_time_ratio']
+
+Day 32 | 2026-03-16 | Alert: ORANGE | Score: 0.336 | Sustained: 1 days
+        📊 Evidence accumulated: 3.06 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'response_time_minutes']
+
+Day 33 | 2026-03-17 | Alert: ORANGE | Score: 0.426 | Sustained: 2 days
+        📊 Evidence accumulated: 3.57 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'sleep_duration_hours']
+
+Day 34 | 2026-03-18 | Alert: ORANGE | Score: 0.332 | Sustained: 1 days
+        📊 Evidence accumulated: 3.29 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'unique_contacts', 'location_entropy']
+
+Day 35 | 2026-03-19 | Alert: ORANGE | Score: 0.298 | Sustained: 0 days
+        📊 Evidence accumulated: 3.02 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'places_visited', 'wake_time_hour']
+
+Day 36 | 2026-03-20 | Alert: ORANGE | Score: 0.318 | Sustained: 0 days
+        📊 Evidence accumulated: 2.78 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'sleep_time_hour', 'unique_contacts']
+
+Day 37 | 2026-03-21 | Alert: ORANGE | Score: 0.388 | Sustained: 1 days
+        📊 Evidence accumulated: 3.21 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'unlock_count', 'calls_per_day']
+
+Day 38 | 2026-03-22 | Alert: ORANGE | Score: 0.334 | Sustained: 0 days
+        📊 Evidence accumulated: 2.95 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'screen_time_hours', 'unique_contacts']
+
+Day 39 | 2026-03-23 | Alert: ORANGE | Score: 0.449 | Sustained: 1 days
+        📊 Evidence accumulated: 3.45 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'response_time_minutes', 'home_time_ratio']
+
+Day 40 | 2026-03-24 | Alert: ORANGE | Score: 0.379 | Sustained: 2 days
+        📊 Evidence accumulated: 3.90 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'screen_time_hours', 'voice_energy_mean']
+
+Day 41 | 2026-03-25 | Alert: ORANGE | Score: 0.385 | Sustained: 3 days
+        📊 Evidence accumulated: 4.40 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'sleep_duration_hours', 'screen_time_hours']
+
+Day 42 | 2026-03-26 | Alert: YELLOW | Score: 0.328 | Sustained: 2 days
+        📊 Evidence accumulated: 4.05
+
+Day 43 | 2026-03-27 | Alert: GREEN  | Score: 0.260 | Sustained: 1 days
+        📊 Evidence accumulated: 3.73
+
+Day 44 | 2026-03-28 | Alert: YELLOW | Score: 0.341 | Sustained: 0 days
+        📊 Evidence accumulated: 3.43
+
+Day 45 | 2026-03-29 | Alert: ORANGE | Score: 0.429 | Sustained: 1 days
+        📊 Evidence accumulated: 3.90 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['response_time_minutes', 'home_time_ratio', 'screen_time_hours']
+
+Day 46 | 2026-03-30 | Alert: ORANGE | Score: 0.377 | Sustained: 2 days
+        📊 Evidence accumulated: 4.35 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'calls_per_day', 'voice_energy_mean']
+
+Day 47 | 2026-03-31 | Alert: ORANGE | Score: 0.479 | Sustained: 3 days
+        📊 Evidence accumulated: 4.97 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'voice_speaking_rate']
+
+Day 48 | 2026-04-01 | Alert: ORANGE | Score: 0.282 | Sustained: 2 days
+        📊 Evidence accumulated: 4.58 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'voice_energy_mean', 'screen_time_hours']
+
+Day 49 | 2026-04-02 | Alert: YELLOW | Score: 0.397 | Sustained: 3 days
+        📊 Evidence accumulated: 5.09
+
+Day 50 | 2026-04-03 | Alert: GREEN  | Score: 0.286 | Sustained: 2 days
+        📊 Evidence accumulated: 4.68
+
+Day 51 | 2026-04-04 | Alert: YELLOW | Score: 0.347 | Sustained: 1 days
+        📊 Evidence accumulated: 4.31
+
+Day 52 | 2026-04-05 | Alert: ORANGE | Score: 0.346 | Sustained: 0 days
+        📊 Evidence accumulated: 3.97 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unique_contacts', 'screen_time_hours', 'response_time_minutes']
+
+Day 53 | 2026-04-06 | Alert: ORANGE | Score: 0.399 | Sustained: 1 days
+        📊 Evidence accumulated: 4.40 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'unique_contacts']
+
+Day 54 | 2026-04-07 | Alert: ORANGE | Score: 0.382 | Sustained: 2 days
+        📊 Evidence accumulated: 4.86 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'texts_per_day']
+
+Day 55 | 2026-04-08 | Alert: YELLOW | Score: 0.363 | Sustained: 3 days
+        📊 Evidence accumulated: 5.33
+
+Day 56 | 2026-04-09 | Alert: ORANGE | Score: 0.336 | Sustained: 2 days
+        📊 Evidence accumulated: 4.91 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'calls_per_day', 'screen_time_hours']
+
+Day 57 | 2026-04-10 | Alert: YELLOW | Score: 0.266 | Sustained: 1 days
+        📊 Evidence accumulated: 4.52
+
+Day 58 | 2026-04-11 | Alert: ORANGE | Score: 0.375 | Sustained: 2 days
+        📊 Evidence accumulated: 4.97 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'screen_time_hours', 'calls_per_day']
+
+Day 59 | 2026-04-12 | Alert: ORANGE | Score: 0.368 | Sustained: 3 days
+        📊 Evidence accumulated: 5.44 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'voice_speaking_rate', 'unlock_count']
+
+Day 60 | 2026-04-13 | Alert: ORANGE | Score: 0.348 | Sustained: 2 days
+        📊 Evidence accumulated: 5.01 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'unlock_count', 'voice_energy_mean']
+
+Day 61 | 2026-04-14 | Alert: ORANGE | Score: 0.338 | Sustained: 1 days
+        📊 Evidence accumulated: 4.61 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'places_visited']
+
+Day 62 | 2026-04-15 | Alert: ORANGE | Score: 0.362 | Sustained: 2 days
+        📊 Evidence accumulated: 5.04 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_speaking_rate', 'screen_time_hours', 'voice_energy_mean']
+
+Day 63 | 2026-04-16 | Alert: ORANGE | Score: 0.293 | Sustained: 1 days
+        📊 Evidence accumulated: 4.64 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['response_time_minutes', 'sleep_duration_hours', 'voice_energy_mean']
+
+Day 64 | 2026-04-17 | Alert: ORANGE | Score: 0.351 | Sustained: 2 days
+        📊 Evidence accumulated: 5.06 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'voice_speaking_rate', 'places_visited']
+
+Day 65 | 2026-04-18 | Alert: GREEN  | Score: 0.328 | Sustained: 1 days
+        📊 Evidence accumulated: 4.66
+
+Day 66 | 2026-04-19 | Alert: ORANGE | Score: 0.371 | Sustained: 2 days
+        📊 Evidence accumulated: 5.10 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'screen_time_hours', 'unlock_count']
+
+Day 67 | 2026-04-20 | Alert: ORANGE | Score: 0.292 | Sustained: 1 days
+        📊 Evidence accumulated: 4.69 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'daily_displacement_km']
+
+Day 68 | 2026-04-21 | Alert: ORANGE | Score: 0.380 | Sustained: 2 days
+        📊 Evidence accumulated: 5.15 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'unique_contacts', 'voice_energy_mean']
+
+Day 69 | 2026-04-22 | Alert: ORANGE | Score: 0.413 | Sustained: 3 days
+        📊 Evidence accumulated: 5.69 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'screen_time_hours', 'social_app_ratio']
+
+Day 70 | 2026-04-23 | Alert: YELLOW | Score: 0.377 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.21
+
+Day 71 | 2026-04-24 | Alert: ORANGE | Score: 0.346 | Sustained: 3 days
+        📊 Evidence accumulated: 5.72 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'response_time_minutes', 'daily_displacement_km']
+
+Day 72 | 2026-04-25 | Alert: ORANGE | Score: 0.384 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.26 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'response_time_minutes', 'texts_per_day']
+
+Day 73 | 2026-04-26 | Alert: ORANGE | Score: 0.381 | Sustained: 5 days
+        ⚠ Sustained deviation detected (5 consecutive days) | 📊 Evidence accumulated: 6.83 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['response_time_minutes', 'unique_contacts', 'screen_time_hours']
+
+Day 74 | 2026-04-27 | Alert: ORANGE | Score: 0.395 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 7.46 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'unlock_count']
+
+Day 75 | 2026-04-28 | Alert: ORANGE | Score: 0.390 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.12 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'unique_contacts', 'voice_energy_mean']
+
+Day 76 | 2026-04-29 | Alert: ORANGE | Score: 0.382 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 8.81 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'response_time_minutes', 'unique_contacts']
+
+Day 77 | 2026-04-30 | Alert: ORANGE | Score: 0.436 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.64 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unique_contacts', 'places_visited', 'daily_displacement_km']
+
+Day 78 | 2026-05-01 | Alert: ORANGE | Score: 0.267 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 8.87 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'texts_per_day', 'social_app_ratio']
+
+Day 79 | 2026-05-02 | Alert: YELLOW | Score: 0.424 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.67
+
+Day 80 | 2026-05-03 | Alert: ORANGE | Score: 0.440 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.55 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_speaking_rate', 'screen_time_hours', 'voice_energy_mean']
+
+Day 81 | 2026-05-04 | Alert: ORANGE | Score: 0.340 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.71 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'location_entropy']
+
+Day 82 | 2026-05-05 | Alert: ORANGE | Score: 0.399 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.51 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'location_entropy']
+
+Day 83 | 2026-05-06 | Alert: ORANGE | Score: 0.333 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.67 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'voice_pitch_mean']
+
+Day 84 | 2026-05-07 | Alert: GREEN  | Score: 0.325 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 8.89
+
+Day 85 | 2026-05-08 | Alert: GREEN  | Score: 0.308 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.18
+
+Day 86 | 2026-05-09 | Alert: YELLOW | Score: 0.276 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 7.53
+
+Day 87 | 2026-05-10 | Alert: ORANGE | Score: 0.350 | Sustained: 5 days
+        ⚠ Sustained deviation detected (5 consecutive days) | 📊 Evidence accumulated: 6.92 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['calls_per_day', 'sleep_duration_hours', 'screen_time_hours']
+
+Day 88 | 2026-05-11 | Alert: ORANGE | Score: 0.383 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 7.54 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'wake_time_hour']
+
+Day 89 | 2026-05-12 | Alert: ORANGE | Score: 0.326 | Sustained: 5 days
+        ⚠ Sustained deviation detected (5 consecutive days) | 📊 Evidence accumulated: 6.93 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'unique_contacts']
+
+Day 90 | 2026-05-13 | Alert: ORANGE | Score: 0.260 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.38 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['social_app_ratio', 'voice_energy_mean', 'screen_time_hours']
+
+Day 91 | 2026-05-14 | Alert: GREEN  | Score: 0.277 | Sustained: 3 days
+        📊 Evidence accumulated: 5.87
+
+Day 92 | 2026-05-15 | Alert: GREEN  | Score: 0.204 | Sustained: 2 days
+        📊 Evidence accumulated: 5.40
+
+Day 93 | 2026-05-16 | Alert: YELLOW | Score: 0.370 | Sustained: 3 days
+        📊 Evidence accumulated: 5.88
+
+Day 94 | 2026-05-17 | Alert: YELLOW | Score: 0.310 | Sustained: 2 days
+        📊 Evidence accumulated: 5.41
+
+Day 95 | 2026-05-18 | Alert: ORANGE | Score: 0.369 | Sustained: 3 days
+        📊 Evidence accumulated: 5.89 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'location_entropy', 'voice_energy_mean']
+
+Day 96 | 2026-05-19 | Alert: ORANGE | Score: 0.400 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.45 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['response_time_minutes', 'screen_time_hours', 'places_visited']
+
+Day 97 | 2026-05-20 | Alert: ORANGE | Score: 0.340 | Sustained: 3 days
+        📊 Evidence accumulated: 5.93 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'screen_time_hours', 'location_entropy']
+
+Day 98 | 2026-05-21 | Alert: GREEN  | Score: 0.264 | Sustained: 2 days
+        📊 Evidence accumulated: 5.46
+
+Day 99 | 2026-05-22 | Alert: GREEN  | Score: 0.303 | Sustained: 1 days
+        📊 Evidence accumulated: 5.02
+
+Day 100 | 2026-05-23 | Alert: ORANGE | Score: 0.299 | Sustained: 0 days
+        📊 Evidence accumulated: 4.62 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'voice_energy_mean', 'calls_per_day']
+
+Day 101 | 2026-05-24 | Alert: ORANGE | Score: 0.362 | Sustained: 1 days
+        📊 Evidence accumulated: 5.02 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_speaking_rate', 'voice_energy_mean', 'screen_time_hours']
+
+Day 102 | 2026-05-25 | Alert: ORANGE | Score: 0.377 | Sustained: 2 days
+        📊 Evidence accumulated: 5.47 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'unlock_count']
+
+Day 103 | 2026-05-26 | Alert: ORANGE | Score: 0.373 | Sustained: 3 days
+        📊 Evidence accumulated: 5.95 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'unlock_count']
+
+Day 104 | 2026-05-27 | Alert: ORANGE | Score: 0.393 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.51 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'sleep_duration_hours', 'voice_energy_mean']
+
+Day 105 | 2026-05-28 | Alert: GREEN  | Score: 0.328 | Sustained: 3 days
+        📊 Evidence accumulated: 5.98
+
+Day 106 | 2026-05-29 | Alert: GREEN  | Score: 0.271 | Sustained: 2 days
+        📊 Evidence accumulated: 5.51
+
+Day 107 | 2026-05-30 | Alert: YELLOW | Score: 0.265 | Sustained: 1 days
+        📊 Evidence accumulated: 5.07
+
+Day 108 | 2026-05-31 | Alert: ORANGE | Score: 0.439 | Sustained: 2 days
+        📊 Evidence accumulated: 5.59 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'screen_time_hours', 'response_time_minutes']
+
+Day 109 | 2026-06-01 | Alert: ORANGE | Score: 0.478 | Sustained: 3 days
+        📊 Evidence accumulated: 6.21 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'screen_time_hours', 'daily_displacement_km']
+
+Day 110 | 2026-06-02 | Alert: ORANGE | Score: 0.420 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.80 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_speaking_rate', 'texts_per_day']
+
+Day 111 | 2026-06-03 | Alert: ORANGE | Score: 0.300 | Sustained: 3 days
+        📊 Evidence accumulated: 6.26 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'voice_pitch_mean']
+
+Day 112 | 2026-06-04 | Alert: GREEN  | Score: 0.342 | Sustained: 2 days
+        📊 Evidence accumulated: 5.76
+
+Day 113 | 2026-06-05 | Alert: ORANGE | Score: 0.349 | Sustained: 1 days
+        📊 Evidence accumulated: 5.30 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'unique_contacts', 'unlock_count']
+
+Day 114 | 2026-06-06 | Alert: GREEN  | Score: 0.302 | Sustained: 0 days
+        📊 Evidence accumulated: 4.87
+
+Day 115 | 2026-06-07 | Alert: YELLOW | Score: 0.395 | Sustained: 1 days
+        📊 Evidence accumulated: 5.31 | 📈 Pattern: gradual_drift
+
+Day 116 | 2026-06-08 | Alert: ORANGE | Score: 0.434 | Sustained: 2 days
+        📊 Evidence accumulated: 5.83 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'places_visited', 'screen_time_hours']
+
+Day 117 | 2026-06-09 | Alert: ORANGE | Score: 0.418 | Sustained: 3 days
+        📊 Evidence accumulated: 6.37 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'texts_per_day']
+
+Day 118 | 2026-06-10 | Alert: ORANGE | Score: 0.334 | Sustained: 2 days
+        📊 Evidence accumulated: 5.86 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unique_contacts', 'screen_time_hours', 'social_app_ratio']
+
+Day 119 | 2026-06-11 | Alert: YELLOW | Score: 0.436 | Sustained: 3 days
+        📊 Evidence accumulated: 6.43
+
+Day 120 | 2026-06-12 | Alert: GREEN  | Score: 0.251 | Sustained: 2 days
+        📊 Evidence accumulated: 5.91
+
+Day 121 | 2026-06-13 | Alert: YELLOW | Score: 0.369 | Sustained: 3 days
+        📊 Evidence accumulated: 6.39
+
+Day 122 | 2026-06-14 | Alert: ORANGE | Score: 0.396 | Sustained: 4 days
+        ⚠ Sustained deviation detected (4 consecutive days) | 📊 Evidence accumulated: 6.95 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'texts_per_day']
+
+Day 123 | 2026-06-15 | Alert: ORANGE | Score: 0.415 | Sustained: 5 days
+        ⚠ Sustained deviation detected (5 consecutive days) | 📊 Evidence accumulated: 7.57 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'texts_per_day']
+
+Day 124 | 2026-06-16 | Alert: ORANGE | Score: 0.392 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 8.20 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'voice_speaking_rate']
+
+Day 125 | 2026-06-17 | Alert: ORANGE | Score: 0.359 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.81 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'unlock_count', 'voice_speaking_rate']
+
+Day 126 | 2026-06-18 | Alert: YELLOW | Score: 0.346 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 8.10
+
+Day 127 | 2026-06-19 | Alert: YELLOW | Score: 0.367 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.73
+
+Day 128 | 2026-06-20 | Alert: GREEN  | Score: 0.289 | Sustained: 6 days
+        ⚠ Sustained deviation detected (6 consecutive days) | 📊 Evidence accumulated: 8.03
+
+Day 129 | 2026-06-21 | Alert: ORANGE | Score: 0.350 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.62 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'places_visited', 'response_time_minutes']
+
+Day 130 | 2026-06-22 | Alert: ORANGE | Score: 0.387 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 9.32 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'response_time_minutes']
+
+Day 131 | 2026-06-23 | Alert: ORANGE | Score: 0.412 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 10.10 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unlock_count', 'screen_time_hours', 'voice_energy_mean']
+
+Day 132 | 2026-06-24 | Alert: ORANGE | Score: 0.394 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.89 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'home_time_ratio', 'voice_energy_mean']
+
+Day 133 | 2026-06-25 | Alert: GREEN  | Score: 0.313 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 10.02
+
+Day 134 | 2026-06-26 | Alert: GREEN  | Score: 0.230 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 9.22
+
+Day 135 | 2026-06-27 | Alert: GREEN  | Score: 0.253 | Sustained: 7 days
+        ⚠ Sustained deviation detected (7 consecutive days) | 📊 Evidence accumulated: 8.48
+
+Day 136 | 2026-06-28 | Alert: ORANGE | Score: 0.477 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 9.34 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unlock_count', 'social_app_ratio', 'calls_per_day']
+
+Day 137 | 2026-06-29 | Alert: ORANGE | Score: 0.389 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 10.08 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'calls_per_day']
+
+Day 138 | 2026-06-30 | Alert: ORANGE | Score: 0.357 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.79 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'texts_per_day']
+
+Day 139 | 2026-07-01 | Alert: YELLOW | Score: 0.353 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.53
+
+Day 140 | 2026-07-02 | Alert: GREEN  | Score: 0.295 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.61
+
+Day 141 | 2026-07-03 | Alert: GREEN  | Score: 0.287 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.76
+
+Day 142 | 2026-07-04 | Alert: YELLOW | Score: 0.302 | Sustained: 8 days
+        ⚠ Sustained deviation detected (8 consecutive days) | 📊 Evidence accumulated: 8.98
+
+Day 143 | 2026-07-05 | Alert: ORANGE | Score: 0.424 | Sustained: 9 days
+        ⚠ Sustained deviation detected (9 consecutive days) | 📊 Evidence accumulated: 9.78 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_speaking_rate', 'voice_energy_mean', 'unique_contacts']
+
+Day 144 | 2026-07-06 | Alert: ORANGE | Score: 0.382 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.55 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'sleep_duration_hours']
+
+Day 145 | 2026-07-07 | Alert: ORANGE | Score: 0.437 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.47 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['texts_per_day', 'screen_time_hours', 'voice_energy_mean']
+
+Day 146 | 2026-07-08 | Alert: ORANGE | Score: 0.445 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 12.45 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['daily_displacement_km', 'screen_time_hours', 'social_app_ratio']
+
+Day 147 | 2026-07-09 | Alert: ORANGE | Score: 0.380 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 13.32 | 📈 Pattern: gradual_drift | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['sleep_duration_hours', 'unlock_count', 'calls_per_day']
+
+Day 148 | 2026-07-10 | Alert: GREEN  | Score: 0.232 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 12.25
+
+Day 149 | 2026-07-11 | Alert: GREEN  | Score: 0.313 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.27
+
+Day 150 | 2026-07-12 | Alert: ORANGE | Score: 0.469 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 12.31 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['response_time_minutes', 'social_app_ratio', 'texts_per_day']
+
+Day 151 | 2026-07-13 | Alert: ORANGE | Score: 0.332 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.32 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'calls_per_day']
+
+Day 152 | 2026-07-14 | Alert: ORANGE | Score: 0.365 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 12.13 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'calls_per_day']
+
+Day 153 | 2026-07-15 | Alert: ORANGE | Score: 0.408 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 13.06 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['social_app_ratio', 'unlock_count', 'daily_displacement_km']
+
+Day 154 | 2026-07-16 | Alert: ORANGE | Score: 0.324 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 12.02 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['location_entropy', 'screen_time_hours', 'social_app_ratio']
+
+Day 155 | 2026-07-17 | Alert: GREEN  | Score: 0.316 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.06
+
+Day 156 | 2026-07-18 | Alert: YELLOW | Score: 0.347 | Sustained: 10 days
+        ⚠ Sustained deviation detected (10 consecutive days) | 📊 Evidence accumulated: 10.17
+
+Day 157 | 2026-07-19 | Alert: ORANGE | Score: 0.464 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 11.15 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unique_contacts', 'social_app_ratio', 'sleep_duration_hours']
+
+Day 158 | 2026-07-20 | Alert: ORANGE | Score: 0.385 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 11.99 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'unique_contacts']
+
+Day 159 | 2026-07-21 | Alert: ORANGE | Score: 0.412 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 12.94 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'home_time_ratio', 'sleep_time_hour']
+
+Day 160 | 2026-07-22 | Alert: ORANGE | Score: 0.324 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 11.90 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'places_visited', 'screen_time_hours']
+
+Day 161 | 2026-07-23 | Alert: YELLOW | Score: 0.356 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 12.72
+
+Day 162 | 2026-07-24 | Alert: GREEN  | Score: 0.306 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 11.71
+
+Day 163 | 2026-07-25 | Alert: YELLOW | Score: 0.327 | Sustained: 11 days
+        ⚠ Sustained deviation detected (11 consecutive days) | 📊 Evidence accumulated: 10.77
+
+Day 164 | 2026-07-26 | Alert: ORANGE | Score: 0.372 | Sustained: 12 days
+        ⚠ Sustained deviation detected (12 consecutive days) | 📊 Evidence accumulated: 11.59 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['home_time_ratio', 'voice_energy_mean', 'social_app_ratio']
+
+Day 165 | 2026-07-27 | Alert: ORANGE | Score: 0.412 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 12.53 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['unique_contacts', 'calls_per_day', 'voice_energy_mean']
+
+Day 166 | 2026-07-28 | Alert: ORANGE | Score: 0.378 | Sustained: 14 days
+        ⚠ Sustained deviation detected (14 consecutive days) | 📊 Evidence accumulated: 13.44 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'social_app_ratio']
+
+Day 167 | 2026-07-29 | Alert: ORANGE | Score: 0.342 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 12.37 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_pitch_mean', 'screen_time_hours', 'texts_per_day']
+
+Day 168 | 2026-07-30 | Alert: YELLOW | Score: 0.359 | Sustained: 14 days
+        ⚠ Sustained deviation detected (14 consecutive days) | 📊 Evidence accumulated: 13.23
+
+Day 169 | 2026-07-31 | Alert: GREEN  | Score: 0.312 | Sustained: 13 days
+        ⚠ Sustained deviation detected (13 consecutive days) | 📊 Evidence accumulated: 12.17
+
+Day 170 | 2026-08-01 | Alert: ORANGE | Score: 0.390 | Sustained: 14 days
+        ⚠ Sustained deviation detected (14 consecutive days) | 📊 Evidence accumulated: 13.11 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['places_visited', 'sleep_duration_hours', 'unlock_count']
+
+Day 171 | 2026-08-02 | Alert: ORANGE | Score: 0.421 | Sustained: 15 days
+        ⚠ Sustained deviation detected (15 consecutive days) | 📊 Evidence accumulated: 14.16 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_speaking_rate', 'texts_per_day']
+
+Day 172 | 2026-08-03 | Alert: ORANGE | Score: 0.370 | Sustained: 16 days
+        ⚠ Sustained deviation detected (16 consecutive days) | 📊 Evidence accumulated: 15.12 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'texts_per_day']
+
+Day 173 | 2026-08-04 | Alert: ORANGE | Score: 0.465 | Sustained: 17 days
+        ⚠ Sustained deviation detected (17 consecutive days) | 📊 Evidence accumulated: 16.38 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'daily_displacement_km']
+
+Day 174 | 2026-08-05 | Alert: ORANGE | Score: 0.383 | Sustained: 18 days
+        ⚠ Sustained deviation detected (18 consecutive days) | 📊 Evidence accumulated: 17.45 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'texts_per_day']
+
+Day 175 | 2026-08-06 | Alert: YELLOW | Score: 0.353 | Sustained: 19 days
+        ⚠ Sustained deviation detected (19 consecutive days) | 📊 Evidence accumulated: 18.47
+
+Day 176 | 2026-08-07 | Alert: YELLOW | Score: 0.362 | Sustained: 20 days
+        ⚠ Sustained deviation detected (20 consecutive days) | 📊 Evidence accumulated: 19.56
+
+Day 177 | 2026-08-08 | Alert: ORANGE | Score: 0.424 | Sustained: 21 days
+        ⚠ Sustained deviation detected (21 consecutive days) | 📊 Evidence accumulated: 20.87 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['social_app_ratio', 'texts_per_day', 'daily_displacement_km']
+
+Day 178 | 2026-08-09 | Alert: YELLOW | Score: 0.369 | Sustained: 22 days
+        ⚠ Sustained deviation detected (22 consecutive days) | 📊 Evidence accumulated: 22.05
+
+Day 179 | 2026-08-10 | Alert: ORANGE | Score: 0.376 | Sustained: 23 days
+        ⚠ Sustained deviation detected (23 consecutive days) | 📊 Evidence accumulated: 23.29 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['voice_energy_mean', 'screen_time_hours', 'calls_per_day']
+
+Day 180 | 2026-08-11 | Alert: ORANGE | Score: 0.420 | Sustained: 24 days
+        ⚠ Sustained deviation detected (24 consecutive days) | 📊 Evidence accumulated: 24.72 | 🚨 HIGH ALERT: ORANGE
+        Top deviations: ['screen_time_hours', 'voice_energy_mean', 'voice_speaking_rate']

@@ -133,6 +133,10 @@ def run_system1_on_studentlife_user(user_id, dataset_path):
     # Initialize detector
     detector = ImprovedAnomalyDetector(baseline)
     
+    # Calibrate thresholds from this user's own baseline noise
+    # This reduces false positives by not flagging normal-but-noisy baselines
+    detector.calibrate_from_baseline(baseline_df)
+    
     # Analyze monitoring period (days 29 onwards)
     monitoring_df = df.iloc[28:].copy().reset_index(drop=True)
     
@@ -238,7 +242,7 @@ def main():
     print("\nObjective: Validate anomaly detection against PHQ-9 clinical scores")
     print("Expected: Higher anomaly scores should correlate with higher PHQ-9 scores\n")
     
-    dataset_path = r'F:\Avaneesh\download\student\dataset'
+    dataset_path = r'C:\Users\SRIRAM\Downloads\dataset'
     
     # Load available users
     loader = StudentLifeLoader(dataset_path)

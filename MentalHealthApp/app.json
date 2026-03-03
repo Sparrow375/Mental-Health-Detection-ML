@@ -6,23 +6,70 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "This app needs always-on location to track your daily movement, location entropy, and home time ratio for mental health monitoring.",
+        "NSLocationWhenInUseUsageDescription": "This app needs location access to track your movement and places visited.",
+        "NSLocationAlwaysUsageDescription": "This app needs background location to track your daily displacement and location patterns.",
+        "NSMotionUsageDescription": "This app uses motion sensors to count your steps and measure physical activity.",
+        "NSContactsUsageDescription": "This app reads contact count to estimate your social connection metrics.",
+        "UIBackgroundModes": [
+          "location",
+          "fetch",
+          "processing"
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#ffffff"
-      }
+      },
+      "permissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.ACTIVITY_RECOGNITION",
+        "android.permission.READ_CONTACTS",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION",
+        "android.permission.RECEIVE_BOOT_COMPLETED",
+        "android.permission.INTERNET",
+        "android.permission.WAKE_LOCK",
+        "android.permission.WRITE_CONTACTS"
+      ],
+      "package": "com.anonymous.MentalHealthApp"
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Allow MH Monitor to use your location in the background for movement tracking.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow MH Monitor to read your contacts list to estimate social connectivity."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "83559146-1660-44bc-a324-6c8bbc1678de"
+      }
     }
   }
 }

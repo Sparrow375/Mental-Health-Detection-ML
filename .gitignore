@@ -1,0 +1,19 @@
+# Common Python ignored files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Datasets and external data
+system2/data/
+schz/
+
+# Execution outputs and logs
+system2/*.txt
+
+# AI Agent Artifacts
+system2/*.resolved
+
+# IDE / Testing Tools
+.idea/
+.pytest_cache/

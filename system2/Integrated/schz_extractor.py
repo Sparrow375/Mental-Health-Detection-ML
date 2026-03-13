@@ -27,7 +27,7 @@ import numpy as np
 import pandas as pd
 
 DATA_PATH = os.path.join(
-    os.path.dirname(__file__),
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "schz",
     "CrossCheck_Daily_Data.csv",
 )

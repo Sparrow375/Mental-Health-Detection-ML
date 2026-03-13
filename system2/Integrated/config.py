@@ -115,22 +115,41 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "conversation_duration_hours": 4.93,
         "conversation_frequency": 28.38,
     },
-    # CALIBRATED from StudentLife depressed cohort (PHQ-9 >= 10, N=7)
-    "depression": {
+    "depression_insomnia": {
         "screen_time_hours": 12.06,
         "unlock_count": 3.91,
         "social_app_ratio": 0.07,
         "calls_per_day": 18.47,
         "texts_per_day": 19.37,
         "unique_contacts": 1.81,
-        "response_time_minutes": 28.0,   # limited SMS response data
+        "response_time_minutes": 28.0,
         "daily_displacement_km": 6.43,
         "location_entropy": 1.32,
         "home_time_ratio": 0.65,
         "places_visited": 7.96,
         "wake_time_hour": 5.22,
         "sleep_time_hour": 10.73,
-        "sleep_duration_hours": 5.68,
+        "sleep_duration_hours": 4.0, # Insomnia pattern
+        "dark_duration_hours": 10.63,
+        "charge_duration_hours": 6.89,
+        "conversation_duration_hours": 3.89,
+        "conversation_frequency": 21.97,
+    },
+    "depression_hypersomnia": {
+        "screen_time_hours": 12.06,
+        "unlock_count": 3.91,
+        "social_app_ratio": 0.07,
+        "calls_per_day": 18.47,
+        "texts_per_day": 19.37,
+        "unique_contacts": 1.81,
+        "response_time_minutes": 28.0,
+        "daily_displacement_km": 6.43,
+        "location_entropy": 1.32,
+        "home_time_ratio": 0.65,
+        "places_visited": 7.96,
+        "wake_time_hour": 9.22, # Late wake time
+        "sleep_time_hour": 10.73,
+        "sleep_duration_hours": 10.0, # Hypersomnia pattern
         "dark_duration_hours": 10.63,
         "charge_duration_hours": 6.89,
         "conversation_duration_hours": 3.89,

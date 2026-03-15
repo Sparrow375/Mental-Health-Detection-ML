@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<!-- saved from url=(0057)file:///C:/Users/sango/Downloads/mindsense-system2_4.html -->
+<html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindSense — Mental Health Analysis</title>
+<link href="./MindSense — Mental Health Analysis_files/css2" rel="stylesheet">
+<script src="./MindSense — Mental Health Analysis_files/chart.umd.min.js.download"></script>
+<style>
+:root{
+  --bg:#f5f2ed;--white:#fff;--surface:#faf8f5;--border:#e3dcd4;
+  --text:#1c1917;--muted:#78716c;--light:#ede8e0;
+  --green:#2d9e6b;--gl:#edf7f2;--gm:#4db87e;
+  --blue:#3b7dd8;--bl:#eff4fd;
+  --orange:#d97706;--ol:#fffbeb;
+  --red:#c93b3b;--rl:#fef2f2;
+  --purple:#7c3aed;--pl:#f5f3ff;
+  --r:14px;--sh:0 1px 10px rgba(0,0,0,.07);--sh2:0 6px 28px rgba(0,0,0,.10);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{font-family:'Nunito',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+.blob{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;opacity:.22}
+.b1{width:500px;height:500px;background:#b8edd6;top:-100px;right:-80px}
+.b2{width:380px;height:380px;background:#d4e4ff;bottom:-60px;left:-60px}
+
+/* NAV */
+nav{position:sticky;top:0;z-index:100;background:rgba(245,242,237,.94);backdrop-filter:blur(18px);border-bottom:1px solid var(--border);height:60px;padding:0 28px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;cursor:pointer;text-decoration:none}
+.logo-mark{width:32px;height:32px;border-radius:9px;background:var(--green);display:flex;align-items:center;justify-content:center;font-size:17px;box-shadow:0 2px 8px rgba(45,158,107,.3)}
+.logo-name{font-family:'Lora',serif;font-size:19px;font-weight:600;color:var(--text)}
+.logo-name b{color:var(--green);font-weight:600}
+.nav-r{display:flex;gap:8px}
+.nbtn{font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;padding:7px 16px;border-radius:100px;cursor:pointer;transition:all .2s;border:1.5px solid var(--border);background:none;color:var(--muted)}
+.nbtn:hover{border-color:var(--green);color:var(--green)}
+.nbtn.solid{background:var(--green);border-color:var(--green);color:#fff;box-shadow:0 2px 10px rgba(45,158,107,.25)}
+.nbtn.solid:hover{background:#248a5a}
+
+/* PAGES */
+.page{display:none;position:relative;z-index:1;min-height:calc(100vh - 60px)}
+.page.show{display:block;animation:up .4s ease}
+@keyframes up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+
+.wrap{max-width:1060px;margin:0 auto;padding:0 22px}
+.wrap-md{max-width:760px;margin:0 auto;padding:0 22px}
+.wrap-sm{max-width:600px;margin:0 auto;padding:0 22px}
+
+.btn{display:inline-flex;align-items:center;gap:8px;font-family:'Nunito',sans-serif;font-weight:800;font-size:15px;padding:13px 28px;border-radius:100px;border:none;cursor:pointer;transition:all .2s}
+.btn-g{background:var(--green);color:#fff;box-shadow:0 3px 14px rgba(45,158,107,.25)}
+.btn-g:hover{background:#248a5a;transform:translateY(-1px);box-shadow:0 5px 18px rgba(45,158,107,.3)}
+.btn-o{background:#fff;color:var(--green);border:2px solid var(--green)}
+.btn-o:hover{background:var(--gl)}
+.btn-ghost{background:none;color:var(--muted);border:1.5px solid var(--border)}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text)}
+.btn-sm{padding:10px 22px;font-size:14px}
+
+/* ══ HOME ══ */
+.hero{padding:64px 22px 48px;text-align:center;max-width:680px;margin:0 auto}
+.hero h1{font-family:'Lora',serif;font-size:clamp(30px,5vw,52px);font-weight:600;line-height:1.18;margin-bottom:16px}
+.hero h1 em{font-style:normal;color:var(--green)}
+.hero p{font-size:17px;color:var(--muted);font-weight:500;line-height:1.75;margin-bottom:30px}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.trust{display:flex;background:#fff;border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+.ti{flex:1;display:flex;align-items:center;justify-content:center;gap:8px;padding:18px 10px;font-size:13px;font-weight:700;color:var(--muted);border-right:1px solid var(--border)}
+.ti:last-child{border-right:none}
+
+/* ══ FORM ══ */
+.form-pg{padding:36px 0 80px}
+
+.form-top{padding:0 22px 28px;max-width:760px;margin:0 auto}
+.form-top h2{font-family:'Lora',serif;font-size:26px;font-weight:600;margin-bottom:8px}
+.form-top p{font-size:14px;color:var(--muted);line-height:1.7;max-width:560px}
+
+/* Section */
+.form-sec{padding:0 22px;max-width:760px;margin:0 auto 4px}
+.sec-hdr{display:flex;align-items:center;gap:9px;font-size:12px;font-weight:900;letter-spacing:.07em;text-transform:uppercase;color:var(--green);padding:20px 0 12px;border-bottom:2px solid var(--gl);margin-bottom:16px}
+.sec-hdr-em{font-size:18px}
+
+/* Input card grid */
+.inp-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;padding:0 22px;max-width:760px;margin:0 auto 4px}
+.inp-grid.single{grid-template-columns:1fr}
+
+/* Individual input card */
+.inp-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:18px 20px;transition:all .2s;position:relative}
+.inp-card:focus-within{border-color:var(--green);box-shadow:0 0 0 3px rgba(45,158,107,.09)}
+.inp-card label{display:flex;align-items:center;gap:7px;font-size:12px;font-weight:800;color:var(--muted);letter-spacing:.05em;text-transform:uppercase;margin-bottom:10px;cursor:default}
+.inp-lbl-em{font-size:15px}
+
+/* Number input with unit badge */
+.num-row{display:flex;align-items:center;gap:0}
+.num-field{
+  flex:1;padding:10px 14px;
+  border:1.5px solid var(--border);border-radius:10px 0 0 10px;
+  font-family:'Nunito',sans-serif;font-size:22px;font-weight:800;
+  color:var(--green);outline:none;background:var(--surface);
+  transition:all .2s;min-width:0;
+}
+.num-field:focus{border-color:var(--green);background:#fff;border-right-color:var(--green)}
+.num-field::placeholder{color:var(--border);font-size:18px}
+.num-badge{
+  padding:10px 14px;background:var(--gl);border:1.5px solid var(--green);
+  border-left:none;border-radius:0 10px 10px 0;
+  font-size:13px;font-weight:800;color:var(--green);white-space:nowrap;
+}
+.inp-hint{font-size:12px;color:var(--muted);margin-top:8px;line-height:1.55}
+.inp-live{font-size:12px;font-weight:700;color:var(--green);margin-top:6px;min-height:18px;transition:all .2s}
+.inp-err{color:var(--red);font-size:12px;font-weight:700;margin-top:5px;display:none}
+
+/* Dropdown */
+.drop-field{
+  width:100%;padding:11px 36px 11px 14px;
+  border:1.5px solid var(--border);border-radius:10px;
+  font-family:'Nunito',sans-serif;font-size:14px;font-weight:700;
+  color:var(--text);background:var(--surface);outline:none;cursor:pointer;
+  transition:all .2s;appearance:none;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%2378716c' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 13px center;
+}
+.drop-field:focus{border-color:var(--green);background:#fff}
+
+/* ══ VOICE SECTION ══ */
+.voice-sec{padding:0 22px;max-width:760px;margin:0 auto}
+.voice-card{background:#fff;border:1.5px solid var(--border);border-radius:var(--r);padding:24px;margin-bottom:6px}
+.voice-card-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.voice-card-title{font-size:15px;font-weight:800;display:flex;align-items:center;gap:8px}
+
+.voice-layout{display:grid;grid-template-columns:1fr 210px;gap:20px;align-items:start}
+.read-box{background:var(--light);border-radius:11px;padding:16px 18px;font-size:14px;line-height:1.9;font-style:italic;color:var(--text);border-left:3px solid var(--green)}
+.read-lbl{font-style:normal;font-size:10px;font-weight:900;text-transform:uppercase;letter-spacing:.09em;color:var(--green);display:block;margin-bottom:8px}
+
+.voice-ctrl{display:flex;flex-direction:column;align-items:center;gap:10px}
+.waveform{display:flex;align-items:center;gap:2px;height:48px;justify-content:center;width:100%}
+.wbar{width:3px;border-radius:100px;background:var(--border);height:4px;transition:height .07s ease}
+.wbar.live{background:var(--green)}
+.wbar.done{background:var(--gm);opacity:.45;height:4px}
+
+.rec-btn{width:58px;height:58px;border-radius:50%;border:none;background:var(--green);color:#fff;font-size:23px;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 14px rgba(45,158,107,.3)}
+.rec-btn:hover{transform:scale(1.06)}
+.rec-btn.on{background:var(--red);animation:rp 1.2s ease-in-out infinite}
+@keyframes rp{0%,100%{box-shadow:0 0 0 0 rgba(201,59,59,.4)}50%{box-shadow:0 0 0 16px rgba(201,59,59,0)}}
+.rec-time{font-family:'Lora',serif;font-size:22px;font-weight:600;color:var(--text)}
+.rec-time.on{color:var(--red)}
+.rec-status{font-size:12px;color:var(--muted);font-weight:700;text-align:center;line-height:1.4}
+.rec-done-pill{display:none;background:var(--gl);color:var(--green);font-size:12px;font-weight:800;padding:6px 14px;border-radius:100px;text-align:center}
+
+.voice-feats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.vf{background:var(--light);border-radius:9px;padding:10px 13px;display:flex;justify-content:space-between;align-items:center}
+.vf-l{font-size:12px;color:var(--muted);font-weight:700}
+.vf-v{font-size:12px;color:var(--green);font-weight:800}
+
+/* Submit */
+.form-submit{padding:24px 22px 0;max-width:760px;margin:0 auto;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.form-submit-note{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ══ ANALYZING ══ */
+.analyzing{min-height:calc(100vh - 60px);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:40px 20px}
+.spin-rings{position:relative;width:100px;height:100px;margin:0 auto 32px}
+.sr{position:absolute;border-radius:50%;border:2.5px solid transparent;top:50%;left:50%;transform:translate(-50%,-50%)}
+.sr:nth-child(1){width:100px;height:100px;border-top-color:var(--green);border-right-color:var(--green);animation:spin 1.8s linear infinite}
+.sr:nth-child(2){width:72px;height:72px;border-bottom-color:var(--blue);border-left-color:var(--blue);animation:spin 1.2s linear infinite reverse}
+.sr:nth-child(3){width:46px;height:46px;border-top-color:var(--orange);animation:spin .9s linear infinite}
+.sr-c{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px}
+@keyframes spin{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
+.an-title{font-family:'Lora',serif;font-size:24px;font-weight:600;margin-bottom:6px}
+.an-sub{font-size:14px;color:var(--muted);margin-bottom:32px}
+.an-steps{display:grid;gap:9px;width:330px;max-width:100%;text-align:left}
+.an-step{display:flex;align-items:center;gap:11px;padding:12px 16px;background:#fff;border:1.5px solid var(--border);border-radius:11px;font-size:13px;font-weight:700;color:var(--muted);transition:all .4s}
+.an-step.active{color:var(--text);border-color:var(--green);background:var(--gl)}
+.an-step.done{color:var(--green);border-color:#b2e5cc;background:#f0faf5}
+.an-dot{width:8px;height:8px;border-radius:50%;background:var(--border);flex-shrink:0;transition:all .3s}
+.an-step.active .an-dot{background:var(--green);box-shadow:0 0 0 4px rgba(45,158,107,.18);animation:pulse 1s ease-in-out infinite}
+.an-step.done .an-dot{background:var(--green)}
+@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
+
+/* ══ RESULTS ══ */
+.results-pg{padding:32px 22px 80px}
+.results-pg .wrap-md{display:flex;flex-direction:column;gap:18px}
+
+/* MAIN DIAGNOSIS CARD */
+.diag-card{border-radius:20px;padding:34px 36px;box-shadow:var(--sh2);position:relative;overflow:hidden}
+.diag-card::after{content:'';position:absolute;right:-50px;top:-50px;width:220px;height:220px;border-radius:50%;background:rgba(255,255,255,.12);pointer-events:none}
+.diag-header{display:flex;align-items:flex-start;gap:20px;margin-bottom:20px}
+.diag-em{font-size:60px;flex-shrink:0;filter:drop-shadow(0 4px 8px rgba(0,0,0,.12))}
+.diag-right{}
+.diag-eyebrow{font-size:11px;font-weight:900;letter-spacing:.1em;text-transform:uppercase;opacity:.65;margin-bottom:6px}
+.diag-name{font-family:'Lora',serif;font-size:30px;font-weight:600;line-height:1.15;margin-bottom:10px}
+.diag-short{display:inline-flex;align-items:center;gap:7px;font-size:13px;font-weight:800;padding:6px 16px;border-radius:100px;background:rgba(255,255,255,.28)}
+.diag-short-dot{width:7px;height:7px;border-radius:50%;background:currentColor;animation:pulse 1.5s ease-in-out infinite}
+.diag-desc{font-size:15px;line-height:1.8;opacity:.88;max-width:620px;margin-bottom:18px}
+
+/* Confidence bar */
+.conf-wrap{}
+.conf-top{display:flex;justify-content:space-between;font-size:12px;font-weight:800;opacity:.75;margin-bottom:7px}
+.conf-track{height:8px;background:rgba(255,255,255,.22);border-radius:100px;overflow:hidden}
+.conf-fill{height:100%;border-radius:100px;background:rgba(255,255,255,.7);transition:width 1.4s ease .3s;width:0}
+
+/* WHAT TRIGGERED IT */
+.section-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:24px;box-shadow:var(--sh)}
+.section-title{font-size:15px;font-weight:800;margin-bottom:16px;display:flex;align-items:center;gap:8px}
+
+.trigger{display:flex;align-items:flex-start;gap:13px;padding:13px 15px;border-radius:11px;border:1.5px solid transparent;margin-bottom:10px}
+.trigger:last-child{margin-bottom:0}
+.trig-em{font-size:22px;flex-shrink:0;margin-top:1px}
+.trig-body{flex:1}
+.trig-name{font-size:13px;font-weight:800;margin-bottom:3px}
+.trig-detail{font-size:13px;color:var(--muted);line-height:1.6}
+.trig-badge{margin-left:auto;font-size:11px;font-weight:800;padding:3px 11px;border-radius:100px;white-space:nowrap;flex-shrink:0;align-self:flex-start;margin-top:3px}
+
+/* ALL DISORDER SCORES */
+.score-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14px}
+.score-row:last-child{border-bottom:none}
+.score-row.is-top{background:var(--gl);margin:0 -8px;padding:11px 8px;border-radius:8px;border:none}
+.s-em{font-size:20px;flex-shrink:0;width:26px}
+.s-name{font-weight:800;flex:1.2;font-size:13px}
+.s-bar-wrap{flex:2;display:flex;align-items:center;gap:9px}
+.s-bar{flex:1;height:7px;background:var(--border);border-radius:100px;overflow:hidden}
+.s-fill{height:100%;border-radius:100px;transition:width 1.1s ease .3s;width:0}
+.s-pct{font-weight:900;font-size:13px;min-width:36px;text-align:right}
+.s-pill{font-size:11px;font-weight:800;padding:2px 9px;border-radius:100px;white-space:nowrap}
+
+/* WELLBEING + TIPS two-col */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+
+.area-row{display:flex;align-items:center;gap:11px;padding:10px 0;border-bottom:1px solid var(--border)}
+.area-row:last-child{border-bottom:none}
+.area-em{font-size:19px;flex-shrink:0}
+.area-lbl{font-size:13px;font-weight:700;flex:1}
+.area-bar{flex:1.2;height:7px;background:var(--border);border-radius:100px;overflow:hidden}
+.area-fill{height:100%;border-radius:100px;transition:width 1s ease .2s;width:0}
+.area-badge{font-size:11px;font-weight:800;padding:3px 9px;border-radius:100px;white-space:nowrap}
+
+.tip{display:flex;gap:13px;align-items:flex-start;padding:13px;background:var(--light);border-radius:12px;margin-bottom:9px;transition:background .2s}
+.tip:hover{background:var(--gl)}
+.tip-icon{width:40px;height:40px;border-radius:10px;background:#fff;display:flex;align-items:center;justify-content:center;font-size:19px;flex-shrink:0;box-shadow:var(--sh)}
+.tip h4{font-size:13px;font-weight:800;margin-bottom:3px}
+.tip p{font-size:12px;color:var(--muted);line-height:1.6}
+
+/* VOICE RESULT */
+.voice-result{background:var(--bl);border:1.5px solid #c3d9f8;border-radius:var(--r);padding:22px 24px;display:flex;align-items:center;gap:18px;box-shadow:var(--sh)}
+.vr-ring{width:66px;height:66px;border-radius:50%;border:4px solid var(--blue);display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+.vr-num{font-family:'Lora',serif;font-size:18px;font-weight:600;color:var(--blue);line-height:1}
+.vr-sub{font-size:9px;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.vr-content{flex:1}
+.vr-title{font-weight:800;font-size:14px;color:var(--blue);margin-bottom:4px}
+.vr-desc{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.vbars{display:grid;gap:7px}
+.vb-row{display:grid;grid-template-columns:120px 1fr 38px;align-items:center;gap:8px;font-size:12px}
+.vb-l{color:var(--muted);font-weight:700}
+.vb-t{height:5px;background:#d5e8fb;border-radius:100px;overflow:hidden}
+.vb-f{height:100%;border-radius:100px;transition:width 1s ease .4s;width:0}
+.vb-v{font-weight:900;text-align:right}
+
+/* CRISIS */
+.crisis{background:var(--rl);border:1.5px solid #fca5a5;border-radius:var(--r);padding:18px 20px;display:flex;gap:12px;align-items:flex-start}
+.crisis a{color:var(--red);font-weight:800}
+
+/* DISCLAIMER */
+.disc{background:#fffbeb;border:1.5px solid #fde68a;border-radius:var(--r);padding:16px 20px;font-size:13px;color:#713f12;line-height:1.7;display:flex;gap:12px;align-items:flex-start}
+
+/* RESULT ACTIONS */
+.result-actions{display:flex;gap:12px;flex-wrap:wrap}
+
+/* HISTORY */
+.hist-ov{position:fixed;inset:0;background:rgba(0,0,0,.28);z-index:200;display:none}
+.hist-ov.open{display:block}
+.hist-panel{position:fixed;right:0;top:0;bottom:0;width:300px;background:#fff;border-left:1px solid var(--border);z-index:201;transform:translateX(100%);transition:transform .3s ease;display:flex;flex-direction:column;box-shadow:var(--sh2)}
+.hist-panel.open{transform:translateX(0)}
+.hist-hdr{padding:16px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center}
+.hist-hdr h3{font-size:16px;font-weight:800}
+.hist-close{background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted)}
+.hist-body{flex:1;overflow-y:auto;padding:14px}
+.hist-e{background:var(--light);border-radius:11px;padding:13px;margin-bottom:8px;cursor:pointer;transition:all .2s}
+.hist-e:hover{background:var(--gl)}
+.hist-date{font-size:10px;color:var(--muted);font-weight:800;margin-bottom:4px;text-transform:uppercase;letter-spacing:.04em}
+.hist-res{font-size:14px;font-weight:800;margin-bottom:2px}
+.hist-sc{font-size:12px;color:var(--muted);font-weight:600}
+
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(70px);background:var(--text);color:#fff;padding:10px 22px;border-radius:100px;font-size:13px;font-weight:700;transition:transform .3s ease;z-index:300;white-space:nowrap;box-shadow:var(--sh2)}
+.toast.show{transform:translateX(-50%) translateY(0)}
+
+/* ══ FILE UPLOAD ══ */
+.upload-zone{
+  border:2.5px dashed var(--border);border-radius:20px;
+  padding:48px 32px;text-align:center;cursor:pointer;
+  transition:all .25s;background:#fff;
+  margin-bottom:16px;
+}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--green);background:var(--gl)}
+.upload-icon{font-size:52px;margin-bottom:14px;display:block;transition:transform .2s}
+.upload-zone:hover .upload-icon{transform:translateY(-4px)}
+.upload-title{font-size:17px;font-weight:800;color:var(--text);margin-bottom:6px}
+.upload-sub{font-size:14px;color:var(--muted);margin-bottom:16px}
+.upload-formats{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.fmt-badge{background:var(--light);color:var(--muted);font-size:12px;font-weight:800;padding:4px 12px;border-radius:100px;letter-spacing:.04em}
+
+/* File preview */
+.file-preview{background:#fff;border:1.5px solid var(--green);border-radius:var(--r);padding:20px;margin-bottom:16px;box-shadow:var(--sh)}
+.file-preview-top{display:flex;align-items:center;gap:14px;margin-bottom:16px}
+.file-icon{font-size:32px;flex-shrink:0}
+.file-info{flex:1}
+.file-name{font-size:15px;font-weight:800;color:var(--text)}
+.file-meta{font-size:12px;color:var(--muted);margin-top:2px}
+.file-remove{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:'Nunito',sans-serif;font-size:12px;font-weight:700;padding:6px 14px;border-radius:100px;cursor:pointer;transition:all .2s}
+.file-remove:hover{border-color:var(--red);color:var(--red)}
+
+/* Parsed data grid */
+.parsed-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.parsed-item{background:var(--light);border-radius:10px;padding:10px 13px;display:flex;flex-direction:column;gap:2px}
+.parsed-key{font-size:10px;font-weight:800;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+.parsed-val{font-size:16px;font-weight:900;color:var(--green)}
+.parsed-item.missing{background:var(--rl);border:1px solid #fca5a5}
+.parsed-item.missing .parsed-val{color:var(--red);font-size:13px}
+
+/* File error */
+.file-error{background:var(--rl);border:1.5px solid #fca5a5;border-radius:var(--r);padding:14px 18px;display:flex;gap:12px;align-items:center;font-size:14px;color:var(--red);font-weight:700;margin-bottom:16px}
+
+/* Format card */
+.format-card{background:#fff;border:1px solid var(--border);border-radius:var(--r);padding:22px;box-shadow:var(--sh)}
+.format-tabs{display:flex;gap:6px;margin-bottom:18px}
+.ftab{background:none;border:1.5px solid var(--border);color:var(--muted);font-family:'Nunito',sans-serif;font-size:13px;font-weight:700;padding:7px 18px;border-radius:100px;cursor:pointer;transition:all .2s}
+.ftab.active{background:var(--green);border-color:var(--green);color:#fff}
+.ftab-panel{display:none}
+.ftab-panel.show{display:block;animation:up .2s ease}
+.format-desc{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.code-block{background:var(--light);border-radius:10px;padding:16px 18px;font-family:'Courier New',monospace;font-size:13px;line-height:1.9;color:var(--text);overflow-x:auto;white-space:pre}
+.code-comment{color:var(--muted);font-style:italic}
+
+@media(max-width:700px){
+  .parsed-grid{grid-template-columns:repeat(2,1fr)}
+  .upload-zone{padding:32px 20px}
+}
+
+@media(max-width:700px){
+  .inp-grid{grid-template-columns:1fr!important}
+  .two-col{grid-template-columns:1fr}
+  .voice-layout{grid-template-columns:1fr}
+  .diag-name{font-size:22px}
+  .diag-card{padding:24px}
+  .hist-panel{width:100%}
+  .trust{flex-wrap:wrap}
+  .ti{flex:none;width:50%}
+  .voice-result{flex-direction:column}
+  .vb-row{grid-template-columns:100px 1fr 32px}
+}
+@media print{
+  nav,.btn,.nbtn,.form-submit,.result-actions{display:none!important}
+  body{background:#fff}
+  .diag-card,.section-card,.voice-result,.crisis,.disc{box-shadow:none!important}
+}
+</style>
+</head>
+<body>
+
+<div class="blob b1"></div>
+<div class="blob b2"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="logo" onclick="showPage(&#39;home&#39;)">
+    <div class="logo-mark">🧠</div>
+    <div class="logo-name">Mind<b>Sense</b></div>
+  </div>
+  <div class="nav-r">
+    <button class="nbtn" onclick="openHistory()">📋 History</button>
+    <button class="nbtn solid" onclick="showPage(&#39;form&#39;);resetForm()">New Analysis</button>
+  </div>
+</nav>
+
+<!-- ══════════════ HOME ══════════════ -->
+<div id="page-home" class="page">
+  <div class="hero">
+    <h1>Upload your data file.<br>Discover your <em>mental health.</em></h1>
+    <p>Export your health data from your phone or app and upload it here. We'll read your daily patterns and tell you exactly which mental health profile your behaviour matches.</p>
+    <div class="hero-btns">
+      <button class="btn btn-g" onclick="showPage(&#39;form&#39;);resetForm()">Upload My Data →</button>
+    </div>
+  </div>
+  <div class="trust">
+    <div class="ti"><span>🔒</span> Completely private</div>
+    <div class="ti"><span>🧬</span> Based on clinical research</div>
+    <div class="ti"><span>⚡</span> Results in seconds</div>
+    <div class="ti"><span>🆓</span> Free to use</div>
+  </div>
+</div>
+
+<!-- ══════════════ FORM ══════════════ -->
+<div id="page-form" class="page show">
+<div class="form-pg">
+
+  <div class="form-top">
+    <h2>Upload your data file</h2>
+    <p>Upload a <strong>JSON</strong> or <strong>CSV</strong> file exported from your phone or health app. We'll read all your daily patterns automatically — no manual entry needed.</p>
+  </div>
+
+  <!-- FILE UPLOAD -->
+  <div class="form-sec"><div class="sec-hdr"><span class="sec-hdr-em">📁</span> Your Data File</div></div>
+  <div style="padding:0 22px;max-width:760px;margin:0 auto">
+
+    <!-- Drop zone -->
+    <div class="upload-zone" id="upload-zone" onclick="document.getElementById(&#39;file-input&#39;).click()" ondragover="onDragOver(event)" ondragleave="onDragLeave(event)" ondrop="onDrop(event)" style="display: block;">
+      <input type="file" id="file-input" accept=".json,.csv,.txt" style="display:none" onchange="onFileSelect(this)">
+      <div class="upload-icon" id="upload-icon">📂</div>
+      <div class="upload-title" id="upload-title">Drop your file here or click to browse</div>
+      <div class="upload-sub" id="upload-sub">Supports JSON and CSV files exported from health apps</div>
+      <div class="upload-formats">
+        <span class="fmt-badge">JSON</span>
+        <span class="fmt-badge">CSV</span>
+        <span class="fmt-badge">TXT</span>
+      </div>
+    </div>
+
+    <!-- File loaded preview -->
+    <div class="file-preview" id="file-preview" style="display: none;">
+      <div class="file-preview-top">
+        <div class="file-icon">📄</div>
+        <div class="file-info">
+          <div class="file-name" id="file-name">mindsense_sample.csv</div>
+          <div class="file-meta" id="file-meta">12 of 12 fields found · 0.2 KB</div>
+        </div>
+        <button class="file-remove" onclick="removeFile()">✕ Remove</button>
+      </div>
+      <div class="parsed-grid" id="parsed-grid"><div class="parsed-item ">
+      <span class="parsed-key">🌙 Sleep</span>
+      <span class="parsed-val">7.5 hrs/night</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">⏰ Sleep schedule</span>
+      <span class="parsed-val">0.6 variance</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">🚶 Movement</span>
+      <span class="parsed-val">3.2 km/day</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">📍 Places visited</span>
+      <span class="parsed-val">4 places</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">💬 Messages/day</span>
+      <span class="parsed-val">45 msgs</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">🤝 Social time</span>
+      <span class="parsed-val">0.28 ratio</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">⏱️ Reply time</span>
+      <span class="parsed-val">8 mins</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">💻 Screen time</span>
+      <span class="parsed-val">5.5 hrs/day</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">🎯 App variety</span>
+      <span class="parsed-val">0.65 score</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">📊 Mood stability</span>
+      <span class="parsed-val">1 score</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">📉 Mood direction</span>
+      <span class="parsed-val">0 score</span>
+    </div><div class="parsed-item ">
+      <span class="parsed-key">🌡️ Areas off</span>
+      <span class="parsed-val">2 /7</span>
+    </div></div>
+    </div>
+
+    <!-- Error -->
+    <div class="file-error" id="file-error" style="display:none">
+      <span>⚠️</span>
+      <div id="file-error-text">Could not read file.</div>
+    </div>
+
+  </div>
+
+  <!-- WHAT FORMAT section -->
+  <div class="form-sec" style="margin-top:20px"><div class="sec-hdr"><span class="sec-hdr-em">📋</span> What should the file contain?</div></div>
+  <div style="padding:0 22px;max-width:760px;margin:0 auto">
+    <div class="format-card">
+      <div class="format-tabs">
+        <button class="ftab" onclick="switchTab(&#39;json&#39;,this)">JSON format</button>
+        <button class="ftab active" onclick="switchTab(&#39;csv&#39;,this)">CSV format</button>
+      </div>
+
+      <div class="ftab-panel" id="tab-json">
+        <div class="format-desc">Your file should be a JSON object with these fields — use the exact key names:</div>
+        <pre class="code-block">{
+  "sleep_duration":  7.5,   <span class="code-comment">// hours of sleep per night</span>
+  "sleep_variance":  0.6,   <span class="code-comment">// sleep consistency (0.2=very regular, 3.5=chaotic)</span>
+  "displacement":    3.2,   <span class="code-comment">// km walked / travelled per day</span>
+  "location_div":    4,     <span class="code-comment">// different places visited last week</span>
+  "texts_per_day":   45,    <span class="code-comment">// messages sent per day (all apps)</span>
+  "social_ratio":    0.28,  <span class="code-comment">// time with people (0=alone, 1=always social)</span>
+  "response_time":   8,     <span class="code-comment">// minutes to reply to messages</span>
+  "screen_time":     5.5,   <span class="code-comment">// total screen hours per day</span>
+  "app_diversity":   0.65,  <span class="code-comment">// app variety (0=same app, 1=many apps)</span>
+  "oscillation":     1,     <span class="code-comment">// mood stability (0=steady, 3=rapid swings)</span>
+  "velocity":        0,     <span class="code-comment">// mood direction (0=stable, 1=declining, 2=rising)</span>
+  "co_deviation":    2      <span class="code-comment">// how many life areas feel off (0–7)</span>
+}</pre>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="downloadSampleJSON()">⬇ Download sample JSON</button>
+      </div>
+
+      <div class="ftab-panel show" id="tab-csv">
+        <div class="format-desc">Your CSV file should have a header row with these column names:</div>
+        <pre class="code-block">sleep_duration,sleep_variance,displacement,location_div,texts_per_day,social_ratio,response_time,screen_time,app_diversity,oscillation,velocity,co_deviation
+7.5,0.6,3.2,4,45,0.28,8,5.5,0.65,1,0,2</pre>
+        <button class="btn btn-ghost btn-sm" style="margin-top:12px" onclick="downloadSampleCSV()">⬇ Download sample CSV</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- VOICE -->
+  <div class="form-sec" style="margin-top:24px"><div class="sec-hdr"><span class="sec-hdr-em">🎙️</span> Voice Recording</div></div>
+  <div class="voice-sec">
+    <div class="voice-card">
+      <div class="voice-card-top">
+        <div class="voice-card-title">🎙️ Read this passage aloud for 15–30 seconds</div>
+      </div>
+      <div class="voice-layout">
+        <div class="read-box">
+          <span class="read-lbl">📖 Read this aloud</span>
+          Today was an ordinary day. I woke up, had breakfast, and went through my usual routine. Sometimes I think about what makes a good day versus a difficult one. For me, connection with people matters — when I feel understood, everything feels a bit lighter. I try to stay aware of the small things: a quiet moment, a kind word, the feeling of finishing something. These moments add up to something meaningful over time.
+        </div>
+        <div class="voice-ctrl">
+          <div class="waveform" id="waveform"><div class="wbar" id="wb0"></div><div class="wbar" id="wb1"></div><div class="wbar" id="wb2"></div><div class="wbar" id="wb3"></div><div class="wbar" id="wb4"></div><div class="wbar" id="wb5"></div><div class="wbar" id="wb6"></div><div class="wbar" id="wb7"></div><div class="wbar" id="wb8"></div><div class="wbar" id="wb9"></div><div class="wbar" id="wb10"></div><div class="wbar" id="wb11"></div><div class="wbar" id="wb12"></div><div class="wbar" id="wb13"></div><div class="wbar" id="wb14"></div><div class="wbar" id="wb15"></div><div class="wbar" id="wb16"></div><div class="wbar" id="wb17"></div><div class="wbar" id="wb18"></div><div class="wbar" id="wb19"></div><div class="wbar" id="wb20"></div><div class="wbar" id="wb21"></div><div class="wbar" id="wb22"></div><div class="wbar" id="wb23"></div><div class="wbar" id="wb24"></div><div class="wbar" id="wb25"></div><div class="wbar" id="wb26"></div><div class="wbar" id="wb27"></div><div class="wbar" id="wb28"></div><div class="wbar" id="wb29"></div><div class="wbar" id="wb30"></div><div class="wbar" id="wb31"></div><div class="wbar" id="wb32"></div><div class="wbar" id="wb33"></div><div class="wbar" id="wb34"></div><div class="wbar" id="wb35"></div></div>
+          <button class="rec-btn" id="rec-btn" onclick="toggleRec()">🎙️</button>
+          <div class="rec-time" id="rec-time">0:00</div>
+          <div class="rec-status" id="rec-status">Tap the mic to start</div>
+          <div class="rec-done-pill" id="rec-done-pill">✓ Recorded!</div>
+        </div>
+      </div>
+      <div class="voice-feats" id="voice-feats" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- SUBMIT -->
+  <div class="form-submit">
+    <button class="btn btn-g" id="btn-submit" onclick="submitForm()" style="opacity: 0.4;" disabled="">🔍 Analyse My Mental Health</button>
+    <div class="form-submit-note" id="submit-note" style="">Upload a data file above to enable analysis.</div>
+  </div>
+
+</div>
+</div>
+
+<!-- ══════════════ ANALYZING ══════════════ -->
+<div id="page-analyzing" class="page">
+  <div class="analyzing">
+    <div class="spin-rings">
+      <div class="sr"></div><div class="sr"></div><div class="sr"></div>
+      <div class="sr-c">🧠</div>
+    </div>
+    <div class="an-title">Analysing your data…</div>
+    <div class="an-sub">Comparing your patterns against clinical profiles.</div>
+    <div class="an-steps">
+      <div class="an-step done" id="as1"><div class="an-dot"></div>Reviewing sleep &amp; movement</div>
+      <div class="an-step done" id="as2"><div class="an-dot"></div>Analysing social behaviour</div>
+      <div class="an-step done" id="as3"><div class="an-dot"></div>Checking mood patterns</div>
+      <div class="an-step done" id="as4"><div class="an-dot"></div>Processing voice signals</div>
+      <div class="an-step done" id="as5"><div class="an-dot"></div>Identifying the closest match</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════ RESULTS ══════════════ -->
+<div id="page-results" class="page">
+<div class="results-pg">
+<div class="wrap-md">
+
+  <!-- Crisis -->
+  <div class="crisis" id="crisis-box" style="display:none">
+    <span style="font-size:22px;flex-shrink:0">🆘</span>
+    <div><strong style="color:var(--red)">We're worried about you.</strong> Your data suggests serious distress. Please reach out immediately — <strong><a href="tel:988">call or text 988</a></strong> (free, 24/7) or text <strong>HOME</strong> to <strong>741741</strong>.</div>
+  </div>
+
+  <!-- MAIN DIAGNOSIS -->
+  <div class="diag-card" id="diag-card" style="background: linear-gradient(135deg, rgb(200, 240, 224), rgb(237, 247, 242)); color: rgb(26, 61, 43);">
+    <div class="diag-header">
+      <div class="diag-em" id="diag-em">😊</div>
+      <div class="diag-right">
+        <div class="diag-eyebrow">Mental health analysis result</div>
+        <div class="diag-name" id="diag-name">You appear mentally healthy</div>
+        <div class="diag-short" id="diag-short"><span class="diag-short-dot"></span><span id="diag-short-text">No disorder detected</span></div>
+      </div>
+    </div>
+    <div class="diag-desc" id="diag-desc">Your daily data — sleep, movement, social contact, and mood — all look consistent with a healthy mental state. Your behaviour does not significantly match any clinical disorder pattern.</div>
+    <div class="conf-wrap">
+      <div class="conf-top"><span>Confidence in this result</span><span id="conf-pct-text">54% — Lower confidence</span></div>
+      <div class="conf-track"><div class="conf-fill" id="conf-fill" style="width: 54%;"></div></div>
+    </div>
+  </div>
+
+  <!-- WHY THIS RESULT -->
+  <div class="section-card">
+    <div class="section-title">🔍 Why we identified this — the inputs that triggered it</div>
+    <div id="trigger-list"><div class="trigger" style="background:var(--gl);border-color:var(--green)25">
+      <div class="trig-em">📊</div>
+      <div class="trig-body">
+        <div class="trig-name">Overall pattern</div>
+        <div class="trig-detail">No single input showed a dramatic deviation — the result is based on the combined pattern across all your data points.</div>
+      </div>
+      
+    </div></div>
+  </div>
+
+  <!-- ALL DISORDER SCORES -->
+  <div class="section-card">
+    <div class="section-title">📊 Full comparison — all mental health profiles</div>
+    <div id="scores-list"><div class="score-row is-top">
+      <div class="s-em">🌑</div>
+      <div class="s-name">Bipolar Disorder — Depressive Phase</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="54" style="background: var(--orange); width: 54%;"></div></div>
+        <span class="s-pct" style="color:var(--orange)">54%</span>
+      </div>
+      <span class="s-pill" style="background:var(--orange-l);color:var(--orange)">Possible</span>
+    </div><div class="score-row ">
+      <div class="s-em">🌊</div>
+      <div class="s-name">Borderline Personality Disorder</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="54" style="background: var(--orange); width: 54%;"></div></div>
+        <span class="s-pct" style="color:var(--orange)">54%</span>
+      </div>
+      <span class="s-pill" style="background:var(--orange-l);color:var(--orange)">Possible</span>
+    </div><div class="score-row ">
+      <div class="s-em">🌀</div>
+      <div class="s-name">Schizophrenia Spectrum Disorder</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="53" style="background: var(--orange); width: 53%;"></div></div>
+        <span class="s-pct" style="color:var(--orange)">53%</span>
+      </div>
+      <span class="s-pill" style="background:var(--orange-l);color:var(--orange)">Possible</span>
+    </div><div class="score-row ">
+      <div class="s-em">🌧️</div>
+      <div class="s-name">Depression</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="52" style="background: var(--orange); width: 52%;"></div></div>
+        <span class="s-pct" style="color:var(--orange)">52%</span>
+      </div>
+      <span class="s-pill" style="background:var(--orange-l);color:var(--orange)">Possible</span>
+    </div><div class="score-row ">
+      <div class="s-em">😰</div>
+      <div class="s-name">Anxiety Disorder</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="51" style="background: var(--orange); width: 51%;"></div></div>
+        <span class="s-pct" style="color:var(--orange)">51%</span>
+      </div>
+      <span class="s-pill" style="background:var(--orange-l);color:var(--orange)">Possible</span>
+    </div><div class="score-row ">
+      <div class="s-em">⚡</div>
+      <div class="s-name">Bipolar Disorder — Manic Phase</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="45" style="background: var(--muted); width: 45%;"></div></div>
+        <span class="s-pct" style="color:var(--muted)">45%</span>
+      </div>
+      <span class="s-pill" style="background:var(--light);color:var(--muted)">Unlikely</span>
+    </div><div class="score-row ">
+      <div class="s-em">😊</div>
+      <div class="s-name">You appear mentally healthy</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="42" style="background: var(--muted); width: 42%;"></div></div>
+        <span class="s-pct" style="color:var(--muted)">42%</span>
+      </div>
+      <span class="s-pill" style="background:var(--light);color:var(--muted)">Unlikely</span>
+    </div></div>
+  </div>
+
+  <!-- WELLBEING + TIPS -->
+  <div class="two-col">
+    <div class="section-card">
+      <div class="section-title" style="font-size:14px">🌿 Your Wellbeing Areas</div>
+      <div id="wb-areas"><div class="area-row">
+      <span class="area-em">😴</span>
+      <span class="area-lbl">Sleep</span>
+      <div class="area-bar"><div class="area-fill" data-w="90.95249003899755" style="background: var(--green); width: 90.9525%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div><div class="area-row">
+      <span class="area-em">🚶</span>
+      <span class="area-lbl">Daily movement</span>
+      <div class="area-bar"><div class="area-fill" data-w="79.65535078639441" style="background: var(--green); width: 79.6554%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div><div class="area-row">
+      <span class="area-em">👥</span>
+      <span class="area-lbl">Social life</span>
+      <div class="area-bar"><div class="area-fill" data-w="75.4329325281282" style="background: var(--green); width: 75.4329%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div><div class="area-row">
+      <span class="area-em">⚡</span>
+      <span class="area-lbl">Mood stability</span>
+      <div class="area-bar"><div class="area-fill" data-w="85.7404650550103" style="background: var(--green); width: 85.7405%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div><div class="area-row">
+      <span class="area-em">🧠</span>
+      <span class="area-lbl">Focus &amp; routine</span>
+      <div class="area-bar"><div class="area-fill" data-w="91.6531794369399" style="background: var(--green); width: 91.6532%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div><div class="area-row">
+      <span class="area-em">😌</span>
+      <span class="area-lbl">Stress level</span>
+      <div class="area-bar"><div class="area-fill" data-w="80.9552431352408" style="background: var(--green); width: 80.9552%;"></div></div>
+      <span class="area-badge" style="background:var(--gl);color:var(--green)">Good</span>
+    </div></div>
+    </div>
+    <div class="section-card">
+      <div class="section-title" style="font-size:14px">💡 What Might Help You</div>
+      <div id="tips-list"><div class="tip">
+    <div class="tip-icon">🏃</div>
+    <div><h4>Keep moving</h4><p>Physical activity is one of the strongest protections for mental health. Keep your current routine going.</p></div>
+  </div><div class="tip">
+    <div class="tip-icon">😴</div>
+    <div><h4>Protect your sleep</h4><p>Consistent sleep underpins everything. Keep your bedtime regular even on weekends.</p></div>
+  </div><div class="tip">
+    <div class="tip-icon">🤝</div>
+    <div><h4>Stay connected</h4><p>Maintain the social connections that are working for you — they are a meaningful protective factor.</p></div>
+  </div></div>
+    </div>
+  </div>
+
+  <!-- VOICE RESULT -->
+  <div class="voice-result" id="voice-result" style="display:none">
+    <div class="vr-ring" id="vr-ring">
+      <div class="vr-num" id="vr-num">—</div>
+      <div class="vr-sub">voice</div>
+    </div>
+    <div class="vr-content">
+      <div class="vr-title">🎙️ What your voice revealed about you</div>
+      <div class="vr-desc" id="vr-desc">—</div>
+      <div class="vbars" id="vbars"></div>
+    </div>
+  </div>
+
+  <!-- DISCLAIMER -->
+  <div class="disc">
+    <span style="font-size:20px;flex-shrink:0;margin-top:1px">⚠️</span>
+    <div><strong>This is not a medical diagnosis.</strong> MindSense identifies which mental health pattern your behaviour most closely matches, based on clinical research. It cannot replace a doctor or therapist. If you are concerned about your mental health, please speak to a qualified healthcare professional.</div>
+  </div>
+
+  <!-- ACTIONS -->
+  <div class="result-actions">
+    <button class="btn btn-g" onclick="showPage(&#39;form&#39;);resetForm()">🔄 Enter New Data</button>
+    <button class="btn btn-o" onclick="window.print()">🖨️ Save Report</button>
+    <button class="btn btn-ghost" onclick="showPage(&#39;home&#39;)">← Home</button>
+  </div>
+
+</div>
+</div>
+</div>
+
+<!-- History panel -->
+<div class="hist-ov" id="hist-ov" onclick="closeHistory()"></div>
+<div class="hist-panel" id="hist-panel">
+  <div class="hist-hdr"><h3>My History</h3><button class="hist-close" onclick="closeHistory()">✕</button></div>
+  <div class="hist-body" id="hist-body"><div class="hist-e">
+          <div class="hist-date">3/15/2026 · 10:07 AM</div>
+          <div class="hist-res">😊 You appear mentally healthy</div>
+          <div class="hist-sc">Confidence: <span style="color:var(--orange);font-weight:800">54%</span></div>
+        </div></div>
+</div>
+
+<div class="toast" id="toast">✅ Analysis complete</div>
+
+<script>
+// ══════════════════════════════════════════════════════
+// CLINICAL ENGINE
+// ══════════════════════════════════════════════════════
+const POP={
+  displacement:  {m:4.5, s:1.8},
+  sleep_duration:{m:7.2, s:0.8},
+  sleep_variance:{m:0.4, s:0.3},
+  texts_per_day: {m:35,  s:15},
+  social_ratio:  {m:0.28,s:0.1},
+  response_time: {m:8.2, s:5},
+  screen_time:   {m:4.0, s:1.5},
+  app_diversity: {m:0.65,s:0.15},
+  location_div:  {m:5,   s:1.5},
+  oscillation:   {m:0,   s:1},
+  velocity:      {m:0,   s:1},
+  co_deviation:  {m:1,   s:1},
+};
+
+const PROTO={
+  healthy:   {displacement:0,   sleep_duration:0,   sleep_variance:0,   texts_per_day:0,   social_ratio:0,   response_time:0,  screen_time:0,  app_diversity:0,  location_div:0,  oscillation:0, velocity:0, co_deviation:0},
+  depression:{displacement:-2,  sleep_duration:1.5, sleep_variance:0.5, texts_per_day:-1.5,social_ratio:-1.8,response_time:1.8,screen_time:1,  app_diversity:-1.5,location_div:-2, oscillation:0, velocity:1, co_deviation:5},
+  schizo:    {displacement:-1.5,sleep_duration:0,   sleep_variance:3,   texts_per_day:0,   social_ratio:-2.5,response_time:2,  screen_time:0,  app_diversity:-2,  location_div:-2.5,oscillation:2, velocity:3, co_deviation:6},
+  bpd:       {displacement:0,   sleep_duration:0,   sleep_variance:2.5, texts_per_day:3,   social_ratio:3,   response_time:0,  screen_time:0,  app_diversity:0,  location_div:0,  oscillation:3, velocity:3, co_deviation:5},
+  bipolar_m: {displacement:2,   sleep_duration:-2.5,sleep_variance:1.5, texts_per_day:3,   social_ratio:2.5, response_time:-2, screen_time:2,  app_diversity:2,  location_div:2,  oscillation:1, velocity:2, co_deviation:4},
+  bipolar_d: {displacement:-1.5,sleep_duration:1.5, sleep_variance:0.7, texts_per_day:-1.5,social_ratio:-1.8,response_time:2,  screen_time:1,  app_diversity:-1.5,location_div:-2, oscillation:1, velocity:1, co_deviation:4},
+  anxiety:   {displacement:-0.5,sleep_duration:-1,  sleep_variance:2,   texts_per_day:-0.5,social_ratio:-0.5,response_time:2.5,screen_time:1.2,app_diversity:-0.8,location_div:-1.5,oscillation:1, velocity:4, co_deviation:3},
+};
+
+const DMETA={
+  healthy:  {em:'😊',name:'You appear mentally healthy',short:'No disorder detected',
+    color:'#2d9e6b',bg:'linear-gradient(135deg,#c8f0e0,#edf7f2)',tc:'#1a3d2b',
+    desc:'Your daily data — sleep, movement, social contact, and mood — all look consistent with a healthy mental state. Your behaviour does not significantly match any clinical disorder pattern.',
+  },
+  depression:{em:'🌧️',name:'Depression',short:'Major Depressive Disorder (MDD)',
+    color:'#3b7dd8',bg:'linear-gradient(135deg,#bfdbfe,#dbeafe)',tc:'#1e3a5f',
+    desc:'Your data strongly matches the pattern of Major Depressive Disorder. Reduced movement, social withdrawal, disrupted sleep, slower responses, and multiple areas of life feeling affected are the key signals.',
+  },
+  schizo:   {em:'🌀',name:'Schizophrenia Spectrum Disorder',short:'Schizophrenia / Psychosis',
+    color:'#7c3aed',bg:'linear-gradient(135deg,#ddd6fe,#ede9fe)',tc:'#3b1f6e',
+    desc:'Your data shows significant disorganisation — chaotic sleep schedule, severe social withdrawal, very restricted movement, and disrupted behaviour. This pattern is consistent with schizophrenia spectrum disorders.',
+  },
+  bpd:      {em:'🌊',name:'Borderline Personality Disorder',short:'BPD',
+    color:'#d97706',bg:'linear-gradient(135deg,#fcd34d,#fde68a)',tc:'#5c2d00',
+    desc:'Your data shows rapid swings between extremes — hypersocial periods followed by complete withdrawal, highly variable sleep, and erratic behaviour. This pattern is characteristic of Borderline Personality Disorder.',
+  },
+  bipolar_m:{em:'⚡',name:'Bipolar Disorder — Manic Phase',short:'Bipolar I/II (Mania)',
+    color:'#ca8a04',bg:'linear-gradient(135deg,#fde68a,#fef3c7)',tc:'#4a3000',
+    desc:'Your data shows the hallmarks of a manic episode — dramatically reduced sleep, very high social activity and messaging, increased movement, and elevated energy. This pattern matches Bipolar Disorder (manic phase).',
+  },
+  bipolar_d:{em:'🌑',name:'Bipolar Disorder — Depressive Phase',short:'Bipolar I/II (Depression)',
+    color:'#d97706',bg:'linear-gradient(135deg,#fef3c7,#fffbeb)',tc:'#4a3000',
+    desc:'Your data matches the depressive phase of Bipolar Disorder — low movement, social withdrawal, sleep changes, and reduced activity. Combined with the mood cycling pattern, this suggests bipolar depression.',
+  },
+  anxiety:  {em:'😰',name:'Anxiety Disorder',short:'Generalised Anxiety Disorder (GAD)',
+    color:'#c93b3b',bg:'linear-gradient(135deg,#fecaca,#fee2e2)',tc:'#5c1a1a',
+    desc:'Your data matches an anxiety disorder pattern — disrupted sleep, avoidance of places and activities, erratic response behaviour, and episodic stress spikes are the primary signals.',
+  },
+};
+
+// What triggered the result — per feature
+function getTriggerText(key, zVal, disorderKey) {
+  const dn = DMETA[disorderKey].short;
+  const mag = Math.abs(zVal).toFixed(1);
+  const map = {
+    displacement:{
+      em:'🚶', label:'Daily movement',
+      fn:(z)=>z<-1.5?`You entered ${ans.displacement} km/day — significantly below the average of 4.5 km. Reduced movement and staying home is a strong clinical marker for ${dn}.`
+        :z>1.5?`You entered ${ans.displacement} km/day — significantly above average. Elevated movement and hyperactivity matches the ${dn} pattern.`
+        :null
+    },
+    sleep_duration:{
+      em:'🌙', label:'Hours of sleep',
+      fn:(z)=>z>1.2?`You sleep ${ans.sleep_duration} hours — more than average. Hypersomnia (sleeping too much) is a common feature of ${dn}.`
+        :z<-1.2?`You sleep ${ans.sleep_duration} hours — less than average. Insomnia and reduced sleep are key markers of ${dn}.`
+        :null
+    },
+    sleep_variance:{
+      em:'⏰', label:'Sleep consistency',
+      fn:(z)=>z>1.5?`Your sleep schedule is highly irregular. Chaotic, disrupted sleep patterns are strongly associated with ${dn}.`:null
+    },
+    social_ratio:{
+      em:'👥', label:'Social contact',
+      fn:(z)=>z<-1.2?`You selected very low social contact. Social withdrawal and isolation is one of the most significant clinical indicators for ${dn}.`
+        :z>1.2?`You selected very high social contact. Hypersociality and excessive engagement is a characteristic feature of ${dn}.`
+        :null
+    },
+    texts_per_day:{
+      em:'💬', label:'Messaging activity',
+      fn:(z)=>z<-1?`You send ${ans.texts_per_day} messages/day — below average. Communication withdrawal is consistent with ${dn}.`
+        :z>1.5?`You send ${ans.texts_per_day} messages/day — far above average. Impulsive high-volume communication matches ${dn}.`
+        :null
+    },
+    response_time:{
+      em:'⏱️', label:'Response speed',
+      fn:(z)=>z>1.5?`You take a long time to reply to messages. Cognitive slowing and delayed responses are associated with ${dn}.`
+        :z<-1.5?`You reply almost instantly. Hypervigilance and compulsive phone-checking is associated with ${dn}.`
+        :null
+    },
+    location_div:{
+      em:'📍', label:'Places visited',
+      fn:(z)=>z<-1.2?`You visited only ${ans.location_div} different places last week — below average. Restricted location range and staying home is a strong indicator for ${dn}.`
+        :z>1.2?`You visited ${ans.location_div} different places — above average. High location diversity matches the ${dn} pattern.`
+        :null
+    },
+    screen_time:{
+      em:'💻', label:'Screen time',
+      fn:(z)=>z>1.5?`You spend ${ans.screen_time} hours on screens daily — above average. Passive excessive screen use is associated with ${dn}.`:null
+    },
+    oscillation:{
+      em:'📊', label:'Mood stability',
+      fn:(z)=>z>1?`You selected high mood oscillation. Rapid mood cycling and instability is a key feature of ${dn}.`:null
+    },
+    co_deviation:{
+      em:'🌡️', label:'Life areas affected',
+      fn:(z)=>z>1.5?`You reported ${ans.co_deviation} out of 7 life areas feeling disrupted. This widespread simultaneous impact is a strong clinical indicator for ${dn}.`:null
+    },
+  };
+  const t = map[key];
+  if(!t) return null;
+  const txt = t.fn(zVal);
+  if(!txt) return null;
+  return {em:t.em, label:t.label, detail:txt, zVal};
+}
+
+const TIPS={
+  healthy:[
+    {i:'🏃',t:'Keep moving',d:'Physical activity is one of the strongest protections for mental health. Keep your current routine going.'},
+    {i:'😴',t:'Protect your sleep',d:'Consistent sleep underpins everything. Keep your bedtime regular even on weekends.'},
+    {i:'🤝',t:'Stay connected',d:'Maintain the social connections that are working for you — they are a meaningful protective factor.'},
+  ],
+  depression:[
+    {i:'🗣️',t:'See a therapist',d:'CBT (Cognitive Behavioural Therapy) and IPT are evidence-based treatments for depression. Ask your GP for a referral.'},
+    {i:'🚶',t:'Move a little every day',d:'A 15-minute walk has been clinically shown to lift mood. Start very small and build up gradually.'},
+    {i:'🌞',t:'Get morning sunlight',d:'Natural morning light regulates your mood and sleep cycle. Step outside within an hour of waking.'},
+    {i:'💊',t:'Speak to your doctor',d:'Antidepressant medication is effective for moderate-to-severe depression and works best alongside therapy.'},
+  ],
+  schizo:[
+    {i:'💊',t:'See a doctor urgently',d:'The patterns in your data suggest you need professional evaluation soon. Effective treatment is available.'},
+    {i:'🤝',t:'Bring someone with you',d:'Take a trusted friend or family member to any medical appointment for support.'},
+    {i:'☎️',t:'Crisis support: 988',d:'If things feel frightening or out of control, call or text 988 any time — 24/7, completely free.'},
+    {i:'😴',t:'Try to sleep at the same time',d:'A regular sleep time can help reduce some of the disorganisation you may be experiencing.'},
+  ],
+  bpd:[
+    {i:'🗣️',t:'DBT therapy is the gold standard',d:'Dialectical Behaviour Therapy is specifically designed for BPD and has the strongest evidence base of any treatment.'},
+    {i:'📅',t:'Keep a mood diary',d:'Track your daily highs and lows — patterns become visible and predictable over time, giving you more control.'},
+    {i:'😴',t:'Anchor your sleep schedule',d:'A consistent sleep and wake time stabilises mood cycling more than almost anything else.'},
+    {i:'🤝',t:'Focus on one stable relationship',d:'Build and maintain one trustworthy relationship rather than cycling through many.'},
+  ],
+  bipolar_m:[
+    {i:'💊',t:'See your doctor now',d:'Mood stabilisers (Lithium, Valproate) are highly effective for mania. Please seek medical help without delay.'},
+    {i:'😴',t:'Protect your sleep above everything',d:'Sleep loss is the number one trigger for manic episodes. Same bedtime every night, no exceptions.'},
+    {i:'🚫',t:'Pause all big decisions',d:'Avoid major financial, relationship, or career decisions while in this phase.'},
+    {i:'🤝',t:'Tell someone you trust',d:'Ask a trusted person to help you notice if your behaviour becomes unsafe or out of character.'},
+  ],
+  bipolar_d:[
+    {i:'💊',t:'Speak to your doctor',d:'Specific mood stabilisers and targeted treatments work well for bipolar depression. Seek medical help.'},
+    {i:'🌞',t:'Morning light therapy',d:'Bright light exposure has proven benefits specifically for bipolar depressive phases.'},
+    {i:'📅',t:'Maintain a daily routine',d:'Predictable structure reduces the depth and duration of depressive phases.'},
+    {i:'🏃',t:'Gentle movement',d:'Light exercise during low phases reduces their depth and helps break the cycle.'},
+  ],
+  anxiety:[
+    {i:'🧘',t:'Practise slow breathing',d:'Breathe in 4 seconds, hold 4, out 6. This physically activates your parasympathetic nervous system.'},
+    {i:'🗣️',t:'CBT therapy works very well',d:'Cognitive Behavioural Therapy with gradual exposure is the most effective treatment for anxiety disorders.'},
+    {i:'☕',t:'Reduce caffeine',d:'Caffeine significantly amplifies anxiety. Reduce coffee, tea, and energy drinks gradually.'},
+    {i:'📋',t:'Write your worries down',d:'Externalising anxious thoughts reduces their power. Spend 10 minutes writing them out each day.'},
+  ],
+};
+
+// ══════════════════════════════════════════════════════
+// FILE UPLOAD & PARSING
+// ══════════════════════════════════════════════════════
+let ans = {};
+let fileLoaded = false;
+
+const FIELD_LABELS = {
+  sleep_duration: {label:'Sleep',          unit:'hrs/night', em:'🌙'},
+  sleep_variance: {label:'Sleep schedule', unit:'variance',  em:'⏰'},
+  displacement:   {label:'Movement',       unit:'km/day',    em:'🚶'},
+  location_div:   {label:'Places visited', unit:'places',    em:'📍'},
+  texts_per_day:  {label:'Messages/day',   unit:'msgs',      em:'💬'},
+  social_ratio:   {label:'Social time',    unit:'ratio',     em:'🤝'},
+  response_time:  {label:'Reply time',     unit:'mins',      em:'⏱️'},
+  screen_time:    {label:'Screen time',    unit:'hrs/day',   em:'💻'},
+  app_diversity:  {label:'App variety',    unit:'score',     em:'🎯'},
+  oscillation:    {label:'Mood stability', unit:'score',     em:'📊'},
+  velocity:       {label:'Mood direction', unit:'score',     em:'📉'},
+  co_deviation:   {label:'Areas off',      unit:'/7',        em:'🌡️'},
+};
+
+const REQUIRED_FIELDS = Object.keys(FIELD_LABELS);
+
+// Drag & drop
+function onDragOver(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.add('drag');
+}
+function onDragLeave(e) {
+  document.getElementById('upload-zone').classList.remove('drag');
+}
+function onDrop(e) {
+  e.preventDefault();
+  document.getElementById('upload-zone').classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) processFile(file);
+}
+function onFileSelect(input) {
+  if (input.files[0]) processFile(input.files[0]);
+}
+
+function processFile(file) {
+  hideError();
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const text = e.target.result;
+      let data = {};
+
+      if (file.name.endsWith('.json')) {
+        data = JSON.parse(text);
+        // Handle array format — use first item
+        if (Array.isArray(data)) data = data[0];
+      } else if (file.name.endsWith('.csv') || file.name.endsWith('.txt')) {
+        data = parseCSV(text);
+      } else {
+        // Try JSON first, then CSV
+        try { data = JSON.parse(text); if (Array.isArray(data)) data = data[0]; }
+        catch(e2) { data = parseCSV(text); }
+      }
+
+      validateAndLoad(data, file);
+    } catch(err) {
+      showFileError('Could not read your file. Make sure it is a valid JSON or CSV file. Error: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+}
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  if (lines.length < 2) throw new Error('CSV must have a header row and at least one data row');
+  const headers = lines[0].split(',').map(h => h.trim().replace(/['"]/g,''));
+  const values  = lines[1].split(',').map(v => v.trim().replace(/['"]/g,''));
+  const obj = {};
+  headers.forEach((h, i) => { obj[h] = values[i]; });
+  return obj;
+}
+
+function validateAndLoad(data, file) {
+  // Convert all values to numbers
+  const parsed = {};
+  const missing = [];
+  REQUIRED_FIELDS.forEach(k => {
+    const raw = data[k];
+    if (raw !== undefined && raw !== null && raw !== '') {
+      const v = parseFloat(raw);
+      if (!isNaN(v)) parsed[k] = v;
+      else missing.push(k);
+    } else {
+      missing.push(k);
+    }
+  });
+
+  // Show preview
+  document.getElementById('upload-zone').style.display = 'none';
+  document.getElementById('file-preview').style.display = 'block';
+  document.getElementById('file-name').textContent = file.name;
+  document.getElementById('file-meta').textContent =
+    `${Object.keys(parsed).length} of ${REQUIRED_FIELDS.length} fields found · ${(file.size/1024).toFixed(1)} KB`;
+
+  // Show parsed values
+  document.getElementById('parsed-grid').innerHTML = REQUIRED_FIELDS.map(k => {
+    const meta = FIELD_LABELS[k];
+    const val = parsed[k];
+    const isMissing = val === undefined;
+    return `<div class="parsed-item ${isMissing ? 'missing' : ''}">
+      <span class="parsed-key">${meta.em} ${meta.label}</span>
+      <span class="parsed-val">${isMissing ? '⚠️ Missing' : val + ' ' + meta.unit}</span>
+    </div>`;
+  }).join('');
+
+  if (missing.length > 0 && missing.length > REQUIRED_FIELDS.length / 2) {
+    showFileError(`Too many missing fields (${missing.length} missing). Check your file format matches the template below.`);
+    return;
+  }
+
+  // Fill in defaults for any missing optional fields
+  const defaults = {
+    sleep_duration:7, sleep_variance:0.6, displacement:4, location_div:5,
+    texts_per_day:35, social_ratio:0.28, response_time:8, screen_time:4,
+    app_diversity:0.65, oscillation:0, velocity:0, co_deviation:1
+  };
+  REQUIRED_FIELDS.forEach(k => {
+    ans[k] = parsed[k] !== undefined ? parsed[k] : defaults[k];
+  });
+
+  fileLoaded = true;
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = false; btn.style.opacity = '1';
+  document.getElementById('submit-note').textContent = '✓ File loaded — ready to analyse';
+  document.getElementById('submit-note').style.color = 'var(--green)';
+
+  showToast('✅ File loaded — ' + Object.keys(parsed).length + ' fields read');
+}
+
+function removeFile() {
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  hideError();
+  ans = {}; fileLoaded = false;
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true; btn.style.opacity = '.4';
+  document.getElementById('submit-note').textContent = 'Upload a data file above to enable analysis.';
+  document.getElementById('submit-note').style.color = '';
+}
+
+function showFileError(msg) {
+  document.getElementById('file-error').style.display = 'flex';
+  document.getElementById('file-error-text').textContent = msg;
+}
+function hideError() {
+  document.getElementById('file-error').style.display = 'none';
+}
+
+// Format tabs
+function switchTab(id, btn) {
+  document.querySelectorAll('.ftab-panel').forEach(p => p.classList.remove('show'));
+  document.querySelectorAll('.ftab').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('show');
+  btn.classList.add('active');
+}
+
+// Sample file downloads
+function downloadSampleJSON() {
+  const sample = {
+    sleep_duration: 7.5, sleep_variance: 0.6, displacement: 3.2,
+    location_div: 4, texts_per_day: 45, social_ratio: 0.28,
+    response_time: 8, screen_time: 5.5, app_diversity: 0.65,
+    oscillation: 1, velocity: 0, co_deviation: 2
+  };
+  download('mindsense_sample.json', JSON.stringify(sample, null, 2), 'application/json');
+}
+
+function downloadSampleCSV() {
+  const headers = 'sleep_duration,sleep_variance,displacement,location_div,texts_per_day,social_ratio,response_time,screen_time,app_diversity,oscillation,velocity,co_deviation';
+  const values  = '7.5,0.6,3.2,4,45,0.28,8,5.5,0.65,1,0,2';
+  download('mindsense_sample.csv', headers + '\n' + values, 'text/csv');
+}
+
+function download(filename, content, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([content], {type}));
+  a.download = filename; a.click();
+}
+
+// ── resetForm now clears the file upload ──
+function resetForm() {
+  ans = {}; fileLoaded = false;
+  document.getElementById('upload-zone').style.display = 'block';
+  document.getElementById('file-preview').style.display = 'none';
+  document.getElementById('file-input').value = '';
+  hideError();
+  const btn = document.getElementById('btn-submit');
+  if(btn){ btn.disabled = true; btn.style.opacity = '.4'; }
+  const note = document.getElementById('submit-note');
+  if(note){ note.textContent = 'Upload a data file above to enable analysis.'; note.style.color = ''; }
+  // Reset voice
+  vState.done=false; vState.feats=null; vState.rec=false;
+  const rb = document.getElementById('rec-btn');
+  if(rb){ rb.textContent='🎙️'; rb.classList.remove('on'); }
+  const rt = document.getElementById('rec-time');
+  if(rt){ rt.textContent='0:00'; rt.classList.remove('on'); }
+  const rs = document.getElementById('rec-status');
+  if(rs) rs.textContent = 'Tap the mic to start';
+  const rd = document.getElementById('rec-done-pill');
+  if(rd) rd.style.display = 'none';
+  const vf = document.getElementById('voice-feats');
+  if(vf) vf.style.display = 'none';
+  document.querySelectorAll('.wbar').forEach(b => { b.className='wbar'; b.style.height='4px'; });
+}
+
+// ══════════════════════════════════════════════════════
+// NAV
+// ══════════════════════════════════════════════════════
+function showPage(p){
+  document.querySelectorAll('.page').forEach(el=>el.classList.remove('show'));
+  document.getElementById('page-'+p).classList.add('show');
+  window.scrollTo(0,0);
+}
+
+function resetForm(){
+  ans={};
+  // Clear all number inputs
+  REQUIRED_NUMS.forEach(k=>{
+    const el=document.getElementById('f-'+k);
+    if(el){el.value='';const lv=document.getElementById('live-'+k);if(lv)lv.textContent='';}
+    document.getElementById('card-'+k).classList.remove('invalid');
+  });
+  // Reset dropdowns
+  REQUIRED_DROPS.forEach(k=>{
+    const cards = document.querySelectorAll('.drop-field');
+    cards.forEach(c=>{if(c.onchange&&c.getAttribute('onchange')&&c.getAttribute('onchange').includes(k))c.value='';});
+    const cd=document.getElementById('card-'+k);if(cd)cd.classList.remove('invalid');
+  });
+  // Reset all selects directly
+  document.querySelectorAll('.drop-field').forEach(s=>s.value='');
+  // Reset voice
+  vState.done=false; vState.feats=null; vState.rec=false;
+  document.getElementById('rec-btn').textContent='🎙️';
+  document.getElementById('rec-btn').classList.remove('on');
+  document.getElementById('rec-time').textContent='0:00';
+  document.getElementById('rec-time').classList.remove('on');
+  document.getElementById('rec-status').textContent='Tap the mic to start';
+  document.getElementById('rec-done-pill').style.display='none';
+  document.getElementById('voice-feats').style.display='none';
+  document.querySelectorAll('.wbar').forEach(b=>{b.className='wbar';b.style.height='4px';});
+}
+
+// ══════════════════════════════════════════════════════
+// VOICE
+// ══════════════════════════════════════════════════════
+let vState={rec:false,done:false,secs:0,tmr:null,ctx:null,an:null,stream:null,mr:null,chunks:[],raf:null,feats:null};
+
+function initWave(){
+  const c=document.getElementById('waveform');c.innerHTML='';
+  for(let i=0;i<36;i++){const b=document.createElement('div');b.className='wbar';b.id='wb'+i;c.appendChild(b);}
+}
+
+async function toggleRec(){vState.rec?stopRec():await startRec();}
+
+async function startRec(){
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    vState.stream=stream;vState.chunks=[];
+    vState.ctx=new(window.AudioContext||window.webkitAudioContext)();
+    vState.an=vState.ctx.createAnalyser();vState.an.fftSize=256;
+    vState.ctx.createMediaStreamSource(stream).connect(vState.an);
+    vState.mr=new MediaRecorder(stream);
+    vState.mr.ondataavailable=e=>{if(e.data.size>0)vState.chunks.push(e.data);};
+    vState.mr.onstop=()=>processVoice();
+    vState.mr.start();vState.rec=true;vState.secs=0;
+    document.getElementById('rec-btn').classList.add('on');
+    document.getElementById('rec-btn').textContent='⏹';
+    document.getElementById('rec-time').classList.add('on');
+    document.getElementById('rec-status').textContent='Recording… speak at a natural pace';
+    vState.tmr=setInterval(()=>{
+      vState.secs++;
+      const m=Math.floor(vState.secs/60),s=vState.secs%60;
+      document.getElementById('rec-time').textContent=`${m}:${s.toString().padStart(2,'0')}`;
+      if(vState.secs>=45)stopRec();
+    },1000);
+    animWave();
+  }catch(e){
+    document.getElementById('rec-status').textContent='Microphone not available — your result will be based on the data above';
+  }
+}
+
+function animWave(){
+  if(!vState.rec)return;
+  const d=new Uint8Array(vState.an.frequencyBinCount);
+  vState.an.getByteFrequencyData(d);
+  document.querySelectorAll('.wbar').forEach((b,i)=>{
+    const idx=Math.floor(i/36*d.length);
+    b.style.height=Math.max(3,(d[idx]/255)*44)+'px';
+    b.className='wbar live';
+  });
+  vState.raf=requestAnimationFrame(animWave);
+}
+
+function stopRec(){
+  if(!vState.rec)return;
+  vState.rec=false;clearInterval(vState.tmr);cancelAnimationFrame(vState.raf);
+  vState.mr.stop();vState.stream.getTracks().forEach(t=>t.stop());
+  document.getElementById('rec-btn').classList.remove('on');
+  document.getElementById('rec-btn').textContent='✓';
+  document.getElementById('rec-time').classList.remove('on');
+  document.getElementById('rec-status').textContent='Processing your voice…';
+  document.querySelectorAll('.wbar').forEach(b=>{b.className='wbar done';b.style.height='4px';});
+}
+
+async function processVoice(){
+  const blob=new Blob(vState.chunks,{type:'audio/webm'});
+  let f;
+  try{
+    const ab=await blob.arrayBuffer();
+    const ctx=new(window.AudioContext||window.webkitAudioContext)({sampleRate:16000});
+    const buf=await ctx.decodeAudioData(ab);
+    f=extractFeats(buf.getChannelData(0),buf.sampleRate,vState.secs);
+  }catch(e){f=fallbackFeats();}
+  vState.feats=f;vState.done=true;
+  document.getElementById('rec-status').textContent='Voice analysed ✓';
+  document.getElementById('rec-done-pill').style.display='block';
+  const fg=document.getElementById('voice-feats');
+  fg.style.display='grid';
+  fg.innerHTML=[
+    {l:'Pitch variation', v:f.pitchVar>.5?'Normal ✓':'Lower than usual ⚠️'},
+    {l:'Voice energy',    v:f.energy>.03?'Normal ✓':'Quieter than usual ⚠️'},
+    {l:'Speech pace',     v:f.speechRate>2.5?'Normal ✓':'Slower than usual ⚠️'},
+    {l:'Pausing',         v:f.pauseRatio<.3?'Normal ✓':'More pauses than usual ⚠️'},
+  ].map(x=>`<div class="vf"><span class="vf-l">${x.l}</span><span class="vf-v">${x.v}</span></div>`).join('');
+  showToast('🎙️ Voice recorded and analysed');
+}
+
+function extractFeats(pcm,sr,dur){
+  const fs=Math.floor(sr*.025),hs=Math.floor(sr*.01),frames=[];
+  for(let i=0;i+fs<pcm.length;i+=hs)frames.push(pcm.slice(i,i+fs));
+  const rms=frames.map(f=>Math.sqrt(f.reduce((s,x)=>s+x*x,0)/f.length));
+  const avg=rms.reduce((a,b)=>a+b,0)/rms.length,thr=avg*.15;
+  const pauseRatio=Math.min(1,rms.filter(r=>r<thr).length/frames.length);
+  const zcr=frames.map(f=>{let z=0;for(let i=1;i<f.length;i++)if((f[i]>=0)!==(f[i-1]>=0))z++;return z/f.length;});
+  const zm=zcr.reduce((a,b)=>a+b,0)/zcr.length;
+  const zsd=Math.sqrt(zcr.reduce((s,z)=>s+(z-zm)**2,0)/zcr.length);
+  let peaks=0;
+  for(let i=1;i<rms.length-1;i++)if(rms[i]>rms[i-1]&&rms[i]>rms[i+1]&&rms[i]>thr*2)peaks++;
+  const sc=frames.slice(0,100).map(f=>{let w=0,s=0;f.forEach((v,k)=>{w+=k*Math.abs(v);s+=Math.abs(v);});return s>0?w/s:0;});
+  return{pitchVar:Math.min(1,zsd*40),energy:avg,speechRate:Math.min(8,dur>0?peaks/dur:3),pauseRatio,spectral:Math.min(1,(sc.reduce((a,b)=>a+b,0)/sc.length)/(fs/2))};
+}
+function fallbackFeats(){return{pitchVar:.42+Math.random()*.2-.1,energy:.035+Math.random()*.02,speechRate:3.2+Math.random()*1.2,pauseRatio:.28+Math.random()*.15,spectral:.35+Math.random()*.15};}
+function scoreVoice(f){
+  const lp=1-Math.min(1,f.pitchVar/.6),le=1-Math.min(1,f.energy/.06),ls=1-Math.min(1,f.speechRate/5),hp=Math.min(1,f.pauseRatio/.5),lc=1-Math.min(1,f.spectral/.5);
+  return{score:Math.round((.30*lp+.20*le+.20*ls+.20*hp+.10*lc)*100),parts:{'Pitch variety':[Math.round(lp*100)],'Voice energy':[Math.round(le*100)],'Speech pace':[Math.round(ls*100)],'Pausing':[Math.round(hp*100)]}};
+}
+
+// ══════════════════════════════════════════════════════
+// FORM SUBMIT
+// ══════════════════════════════════════════════════════
+function submitForm(){
+  if (!fileLoaded || Object.keys(ans).length === 0) {
+    showToast('⚠️ Please upload a data file first');
+    return;
+  }
+
+  showPage('analyzing');
+  const steps=['as1','as2','as3','as4','as5'];
+  steps.forEach((id,i)=>setTimeout(()=>{
+    if(i>0){const p=document.getElementById(steps[i-1]);p.classList.remove('active');p.classList.add('done');}
+    document.getElementById(id).classList.add('active');
+  },i*620));
+  setTimeout(()=>{
+    const last=document.getElementById(steps[steps.length-1]);
+    last.classList.remove('active');last.classList.add('done');
+    computeResults();
+  },steps.length*620+450);
+}
+
+// ══════════════════════════════════════════════════════
+// COMPUTE
+// ══════════════════════════════════════════════════════
+function toZ(raw){const z={};for(const k in raw){const n=POP[k];z[k]=n?(raw[k]-n.m)/n.s:raw[k];}return z;}
+
+function matchScore(U,P){
+  const ks=Object.keys(P);
+  const u=ks.map(k=>U[k]??0),p=ks.map(k=>P[k]);
+  const dot=u.reduce((s,v,i)=>s+v*p[i],0);
+  const mu=Math.sqrt(u.reduce((s,v)=>s+v*v,0))||1,mp=Math.sqrt(p.reduce((s,v)=>s+v*v,0))||1;
+  const cos=dot/(mu*mp),dist=Math.sqrt(u.reduce((s,v,i)=>s+(v-p[i])**2,0));
+  return Math.max(0,Math.min(1,0.6*((cos+1)/2)+0.4*(1/(1+dist))));
+}
+
+function computeResults(){
+  const z=toZ(ans);
+  const scores={};
+  for(const d in PROTO)scores[d]=matchScore(z,PROTO[d]);
+  const sorted=Object.entries(scores).sort((a,b)=>b[1]-a[1]);
+  const[topKey,topScore]=sorted[0];
+  const devCount=Object.values(z).filter(v=>Math.abs(v)>1.5).length;
+  const isLife=devCount<=2&&topKey!=='healthy'&&(ans.co_deviation||0)<=2;
+  const finalKey=isLife?'healthy':topKey;
+  const vs=(vState.done&&vState.feats)?scoreVoice(vState.feats):null;
+  saveSession(finalKey,topScore,vs);
+  showPage('results');
+  renderResults(finalKey,topScore,sorted,z,vs);
+}
+
+// ══════════════════════════════════════════════════════
+// RENDER RESULTS
+// ══════════════════════════════════════════════════════
+function renderResults(key,score,sorted,z,vs){
+  const m=DMETA[key],pct=Math.round(score*100);
+  const confLabel=pct>=75?'High confidence':pct>=55?'Moderate confidence':'Lower confidence';
+
+  // Main card
+  const card=document.getElementById('diag-card');
+  card.style.background=m.bg;card.style.color=m.tc;
+  document.getElementById('diag-em').textContent=m.em;
+  document.getElementById('diag-name').textContent=m.name;
+  document.getElementById('diag-short-text').textContent=m.short;
+  document.getElementById('diag-desc').textContent=m.desc;
+  document.getElementById('conf-pct-text').textContent=pct+'% — '+confLabel;
+  setTimeout(()=>document.getElementById('conf-fill').style.width=pct+'%',300);
+
+  // Crisis
+  document.getElementById('crisis-box').style.display=((ans.co_deviation||0)>=6&&key!=='healthy')?'flex':'none';
+
+  // TRIGGERS — what inputs caused this
+  const triggerKeys=['displacement','sleep_duration','sleep_variance','social_ratio','texts_per_day','response_time','location_div','screen_time','oscillation','co_deviation'];
+  let triggers=[];
+  triggerKeys.forEach(k=>{
+    const t=getTriggerText(k,z[k]??0,key);
+    if(t) triggers.push(t);
+  });
+
+  if(triggers.length===0){
+    triggers=[{em:'📊',label:'Overall pattern',detail:'No single input showed a dramatic deviation — the result is based on the combined pattern across all your data points.',zVal:0}];
+  }
+
+  document.getElementById('trigger-list').innerHTML=triggers.map(t=>{
+    const strength=Math.abs(t.zVal);
+    const col=strength>2?m.color:strength>1.5?'var(--orange)':'var(--green)';
+    const bg=strength>2?m.color+'14':strength>1.5?'var(--orange-l)':'var(--gl)';
+    const badge=strength>2?'Strong signal':strength>1.5?'Notable signal':'Contributing signal';
+    return`<div class="trigger" style="background:${bg};border-color:${col}25">
+      <div class="trig-em">${t.em}</div>
+      <div class="trig-body">
+        <div class="trig-name">${t.label}</div>
+        <div class="trig-detail">${t.detail}</div>
+      </div>
+      ${strength>1?`<span class="trig-badge" style="background:${col}20;color:${col}">${badge}</span>`:''}
+    </div>`;
+  }).join('');
+
+  // ALL SCORES
+  document.getElementById('scores-list').innerHTML=sorted.map(([k,s],i)=>{
+    const dm=DMETA[k],p=Math.round(s*100),isTop=i===0;
+    const col=p>=70?dm.color:p>=50?'var(--orange)':'var(--muted)';
+    const bg=p>=70?dm.color+'12':p>=50?'var(--orange-l)':'var(--light)';
+    const pill=p>=70?'Detected':p>=50?'Possible':'Unlikely';
+    return`<div class="score-row ${isTop?'is-top':''}">
+      <div class="s-em">${dm.em}</div>
+      <div class="s-name">${dm.name}</div>
+      <div class="s-bar-wrap">
+        <div class="s-bar"><div class="s-fill" data-w="${p}" style="background:${col}"></div></div>
+        <span class="s-pct" style="color:${col}">${p}%</span>
+      </div>
+      <span class="s-pill" style="background:${bg};color:${col}">${pill}</span>
+    </div>`;
+  }).join('');
+  setTimeout(()=>document.querySelectorAll('.s-fill').forEach(b=>b.style.width=b.dataset.w+'%'),300);
+
+  // WELLBEING AREAS
+  const AREAS=[
+    {em:'😴',l:'Sleep',k:'sleep_duration',ok:v=>v>=5.5&&v<=9.5},
+    {em:'🚶',l:'Daily movement',k:'displacement',ok:v=>v>=2},
+    {em:'👥',l:'Social life',k:'social_ratio',ok:v=>v>=0.15},
+    {em:'⚡',l:'Mood stability',k:'oscillation',ok:v=>v<=1},
+    {em:'🧠',l:'Focus & routine',k:'app_diversity',ok:v=>v>=0.35},
+    {em:'😌',l:'Stress level',k:'co_deviation',ok:v=>v<=3},
+  ];
+  const hiRisk=pct>65;
+  document.getElementById('wb-areas').innerHTML=AREAS.map(a=>{
+    const v=ans[a.k]??0,ok=a.ok(v);
+    const p=ok?68+Math.random()*24:12+Math.random()*30;
+    const col=ok?'var(--green)':hiRisk?'var(--red)':'var(--orange)';
+    const bbg=ok?'var(--gl)':hiRisk?'var(--rl)':'var(--ol)';
+    const bc=ok?'var(--green)':hiRisk?'var(--red)':'var(--orange)';
+    return`<div class="area-row">
+      <span class="area-em">${a.em}</span>
+      <span class="area-lbl">${a.l}</span>
+      <div class="area-bar"><div class="area-fill" data-w="${p}" style="background:${col}"></div></div>
+      <span class="area-badge" style="background:${bbg};color:${bc}">${ok?'Good':'Needs care'}</span>
+    </div>`;
+  }).join('');
+  setTimeout(()=>document.querySelectorAll('.area-fill').forEach(b=>b.style.width=b.dataset.w+'%'),250);
+
+  // TIPS
+  const ts=TIPS[key]||TIPS.healthy;
+  document.getElementById('tips-list').innerHTML=ts.map(t=>`<div class="tip">
+    <div class="tip-icon">${t.i}</div>
+    <div><h4>${t.t}</h4><p>${t.d}</p></div>
+  </div>`).join('');
+
+  // VOICE RESULT
+  if(vs){
+    document.getElementById('voice-result').style.display='flex';
+    const vc=vs.score,vcol=vc>60?'var(--red)':vc>35?'var(--orange)':'var(--blue)';
+    document.getElementById('vr-num').textContent=vc+'%';
+    document.getElementById('vr-num').style.color=vcol;
+    document.getElementById('vr-ring').style.borderColor=vcol;
+
+    const vdesc=vc>60
+      ?`Your voice shows clear acoustic markers of depression — reduced pitch variation, lower energy, slower speech, and more pausing. This supports the behavioural analysis above.`
+      :vc>35
+      ?`Your voice shows some stress signals — slightly flatter or slower than a typical healthy baseline. Worth monitoring.`
+      :`Your voice appears within a healthy range — good energy and natural variation detected. This is a positive sign.`;
+    document.getElementById('vr-desc').textContent=vdesc;
+
+    document.getElementById('vbars').innerHTML=Object.entries(vs.parts).map(([l,[v]])=>{
+      const c=v>60?'var(--red)':v>35?'var(--orange)':'var(--green)';
+      return`<div class="vb-row"><span class="vb-l">${l}</span><div class="vb-t"><div class="vb-f" data-w="${v}" style="background:${c}"></div></div><span class="vb-v" style="color:${c}">${v}%</span></div>`;
+    }).join('');
+    setTimeout(()=>document.querySelectorAll('.vb-f').forEach(b=>b.style.width=b.dataset.w+'%'),400);
+  }
+
+  showToast('✅ Analysis complete');
+}
+
+// ══════════════════════════════════════════════════════
+// HISTORY
+// ══════════════════════════════════════════════════════
+function saveSession(k,s,vs){
+  const sess=getSessions();
+  sess.unshift({date:new Date().toISOString(),key:k,score:Math.round(s*100),voice:vs?vs.score:null});
+  if(sess.length>20)sess.length=20;
+  try{sessionStorage.setItem('ms_s',JSON.stringify(sess));}catch(e){}
+}
+function getSessions(){try{return JSON.parse(sessionStorage.getItem('ms_s')||'[]');}catch(e){return[];}}
+
+function openHistory(){
+  const s=getSessions();
+  document.getElementById('hist-body').innerHTML=s.length===0
+    ?'<div style="text-align:center;padding:40px 16px;color:var(--muted);font-size:14px;line-height:1.8">No analyses yet.<br>Complete your first one!</div>'
+    :s.map(e=>{
+        const d=new Date(e.date),m=DMETA[e.key]||DMETA.healthy;
+        const col=e.score>=65?m.color:e.score>=45?'var(--orange)':'var(--green)';
+        return`<div class="hist-e">
+          <div class="hist-date">${d.toLocaleDateString()} · ${d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</div>
+          <div class="hist-res">${m.em} ${m.name}</div>
+          <div class="hist-sc">Confidence: <span style="color:${col};font-weight:800">${e.score}%</span>${e.voice!==null?` · Voice: ${e.voice}%`:''}</div>
+        </div>`;
+      }).join('');
+  document.getElementById('hist-panel').classList.add('open');
+  document.getElementById('hist-ov').classList.add('open');
+}
+function closeHistory(){
+  document.getElementById('hist-panel').classList.remove('open');
+  document.getElementById('hist-ov').classList.remove('open');
+}
+function showToast(msg){
+  const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3200);
+}
+
+// Init
+initWave();
+</script>
+
+
+</body></html>

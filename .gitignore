@@ -1,0 +1,12 @@
+# Git ignore for Mental Health Detection repo
+.venv/
+.agent/
+.idea/
+.gradle/
+build/
+local.properties
+/MHealth - Copy/.gradle/
+/MHealth - Copy/build/
+/MHealth - Copy/local.properties
+/MHealth - Copy/.idea/
+*.class

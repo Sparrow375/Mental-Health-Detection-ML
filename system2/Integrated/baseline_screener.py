@@ -86,7 +86,7 @@ class BaselineScreener:
 
     # ── Gate 1: Population Anchor Check ─────────────────────────────
 
-    def gate1_population_anchor(
+    def gate1_population_deviation_check(
         self, raw_7day: Dict[str, float]
     ) -> tuple[GateResult, List[str]]:
         """
@@ -170,9 +170,8 @@ class BaselineScreener:
             w_vec = []
             for feat in self.features:
                 if feat in raw_28day and feat in proto:
-                    norm = self.norms[feat]
-                    # Normalise both to population z-scores for fair comparison
-                    if norm["std"] == 0:
+                    norm = self.norms.get(feat)   # guard: skip missing norms
+                    if norm is None or norm["std"] == 0:
                         continue
                     u_z = (raw_28day[feat] - norm["mean"]) / norm["std"]
                     p_z = (proto[feat] - norm["mean"]) / norm["std"]
@@ -229,7 +228,7 @@ class BaselineScreener:
         raw_28day : dict
             Feature averages for the full 28-day onboarding.
         """
-        g1_result, g1_flagged = self.gate1_population_anchor(raw_7day)
+        g1_result, g1_flagged = self.gate1_population_deviation_check(raw_7day)
         g2_result, g2_flagged = self.gate2_stability_check(weekly_windows)
         g3_result, g3_match, g3_score = self.gate3_prototype_proximity(raw_28day)
 

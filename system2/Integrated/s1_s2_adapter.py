@@ -71,7 +71,7 @@ def build_baseline_data(baseline_df: pd.DataFrame) -> Dict:
 
 def build_anomaly_report(
     s1_report,
-    co_deviating_threshold: float = 0.5,
+    co_deviating_threshold: float = 1.0,
 ) -> S2AnomalyReport:
     """
     Map System 1's AnomalyReport to System 2's AnomalyReport format.
@@ -81,7 +81,9 @@ def build_anomaly_report(
     s1_report : system1.AnomalyReport
         The latest report from ImprovedAnomalyDetector.analyze().
     co_deviating_threshold : float
-        SD threshold for counting co-deviating features (default 1.5).
+        SD threshold for counting co-deviating features.
+        Default 1.0 SD — sub-1 SD fluctuations are within normal healthy
+        daily variation and should not count as clinical co-deviations.
 
     Returns
     -------

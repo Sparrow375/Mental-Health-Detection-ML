@@ -65,29 +65,42 @@ for uid in sorted(ext.get_student_ids()):
     gt = "DEPRESSED" if uid in depressed_ids else "healthy"
     phq = labels[uid].get("phq9_score", "?")
     
-    # Get all scores
+    # Get all scores — use Frame 2 subtype key names
     if s2.classification:
         scores = s2.classification.all_scores
-        dep_s = scores.get("depression", 0)
-        sch_s = scores.get("schizophrenia", 0)
-        anx_s = scores.get("anxiety", 0)
-        bpm_s = scores.get("bipolar_manic", 0)
-        bpd_s = scores.get("bipolar_depressive", 0)
+        # Primary subtypes used by pipeline (Frame 2 names)
+        dep_s = max(
+            scores.get("depression_type_1", 0),
+            scores.get("depression_type_2", 0),
+            scores.get("depression_type_3", 0),
+        )
+        sch_s = max(
+            scores.get("schizophrenia_type_1", 0),
+            scores.get("schizophrenia_type_2", 0),
+            scores.get("schizophrenia_type_3", 0),
+        )
+        # Top-3 ranked matches
+        top3 = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:3]
         top_s = s2.classification.score
     else:
-        dep_s = sch_s = anx_s = bpm_s = bpd_s = top_s = 0
-    
+        dep_s = sch_s = top_s = 0
+        top3 = []
+
     co_dev = s1_input.anomaly_report.co_deviating_count
     max_dev = max(abs(v) for v in latest.feature_deviations.values()) if latest.feature_deviations else 0
     
-    # Count depression signals
+    # Count depression signals (16-feature set; SMS features excluded)
     dep_signals = 0
     for feat, direction in [
-        ("conversation_frequency", "negative"), ("conversation_duration_hours", "negative"),
-        ("daily_displacement_km", "negative"), ("home_time_ratio", "positive"),
-        ("dark_duration_hours", "positive"), ("calls_per_day", "negative"),
-        ("texts_per_day", "negative"), ("screen_time_hours", "negative"),
-        ("unlock_count", "negative"),
+        ("conversation_frequency",        "negative"),
+        ("conversation_duration_hours",   "negative"),
+        ("daily_displacement_km",         "negative"),
+        ("home_time_ratio",               "positive"),
+        ("dark_duration_hours",           "positive"),
+        ("calls_per_day",                 "negative"),
+        ("unique_contacts",               "negative"),   # replaces texts_per_day
+        ("screen_time_hours",             "negative"),
+        ("unlock_count",                  "negative"),
     ]:
         dev = latest.feature_deviations.get(feat, 0)
         if direction == "negative" and dev < -0.3:
@@ -97,21 +110,25 @@ for uid in sorted(ext.get_student_ids()):
     
     all_results.append({
         "uid": uid, "gt": gt, "phq": phq, "s2": s2.disorder,
-        "dep_s": dep_s, "sch_s": sch_s, "top_s": top_s,
+        "dep_s": round(dep_s, 3), "sch_s": round(sch_s, 3), "top_s": round(top_s, 3),
+        "top3": "|".join(f"{k}:{v:.3f}" for k, v in top3),
         "co_dev": co_dev, "max_dev": round(max_dev, 2),
         "dep_signals": dep_signals,
         "filter": s2.filter_decision.value,
     })
 
 # Print table
-print(f"{'UID':<6} {'GT':<10} {'PHQ':<5} {'S2':<18} {'DepS':<6} {'SchS':<6} {'TopS':<6} "
-      f"{'CoDev':<6} {'MaxDev':<7} {'DepSig':<7} {'Filter':<8}")
-print("-" * 100)
+_HDR = f"{'UID':<6} {'GT':<10} {'PHQ':<5} {'S2':<22} {'DepS':<7} {'SchS':<7} {'TopS':<7} {'CoDev':<6} {'MaxDev':<8} {'DepSig':<7} {'Filter':<10} Top3"
+print(_HDR)
+print("-" * len(_HDR))
 for r in all_results:
-    gt_marker = "***" if r["gt"] == "DEPRESSED" else ""
-    print(f"{r['uid']:<6} {r['gt']:<10} {r['phq']:<5} {r['s2']:<18} "
-          f"{r['dep_s']:.3f} {r['sch_s']:.3f} {r['top_s']:.3f} "
-          f"{r['co_dev']:<6} {r['max_dev']:<7} {r['dep_signals']:<7} {r['filter']:<8} {gt_marker}")
+    gt_marker = " ***" if r["gt"] == "DEPRESSED" else ""
+    print(
+        f"{r['uid']:<6} {r['gt']:<10} {str(r['phq']):<5} {r['s2']:<22} "
+        f"{r['dep_s']:<7.3f} {r['sch_s']:<7.3f} {r['top_s']:<7.3f} "
+        f"{r['co_dev']:<6} {r['max_dev']:<8.2f} {r['dep_signals']:<7} {r['filter']:<10} "
+        f"{r['top3']}{gt_marker}"
+    )
 
 # Summary stats
 dep_results = [r for r in all_results if r["gt"] == "DEPRESSED"]

@@ -3,7 +3,7 @@ System 2 Configuration
 ======================
 
 Central source of truth for:
-  - Behavioral feature definitions (18 features, voice excluded)
+  - Behavioral feature definitions (16 features, voice + SMS excluded)
   - Population norms (healthy mean/std from StudentLife + literature)
   - Disorder prototype vectors — Frame 1 (absolute) & Frame 2 (z-scores)
   - Feature diagnostic weights
@@ -21,15 +21,13 @@ from typing import Dict, List
 _THIS_DIR = pathlib.Path(__file__).resolve().parent
 _DATA_DIR = _THIS_DIR.parent / "data"
 
-# ── 1. Behavioral Feature Set (18 features, voice excluded) ─────────────
+# ── 1. Behavioral Feature Set (16 features, voice + SMS excluded) ───────
 BEHAVIORAL_FEATURES: List[str] = [
     "screen_time_hours",
     "unlock_count",
     "social_app_ratio",
     "calls_per_day",
-    "texts_per_day",
     "unique_contacts",
-    "response_time_minutes",
     "daily_displacement_km",
     "location_entropy",
     "home_time_ratio",
@@ -46,14 +44,14 @@ BEHAVIORAL_FEATURES: List[str] = [
 # ── 2. Population Norms (healthy baseline) ──────────────────────────────
 # CALIBRATED from StudentLife healthy cohort (PHQ-9 < 5, N=27).
 # Each entry: {"mean": float, "std": float}  (healthy population reference)
+# SMS features (texts_per_day, response_time_minutes) removed — not
+# available on modern Android; their absence injected ghost z-scores.
 POPULATION_NORMS: Dict[str, Dict[str, float]] = {
     "screen_time_hours":          {"mean": 11.3,  "std": 1.3},
     "unlock_count":               {"mean": 3.6,   "std": 1.5},
     "social_app_ratio":           {"mean": 0.08,  "std": 0.05},
     "calls_per_day":              {"mean": 31.8,  "std": 1.8},
-    "texts_per_day":              {"mean": 29.1,  "std": 18.0},
     "unique_contacts":            {"mean": 7.2,   "std": 3.5},
-    "response_time_minutes":      {"mean": 63.8,  "std": 5.0},
     "daily_displacement_km":      {"mean": 11.0,  "std": 2.0},
     "location_entropy":           {"mean": 1.5,   "std": 0.7},
     "home_time_ratio":            {"mean": 0.52,  "std": 0.12},
@@ -74,9 +72,7 @@ POPULATION_EXPECTED_DRIFT: Dict[str, float] = {
     "unlock_count":               6.0,
     "social_app_ratio":           0.03,
     "calls_per_day":              0.6,
-    "texts_per_day":              6.0,
     "unique_contacts":            1.2,
-    "response_time_minutes":      1.5,
     "daily_displacement_km":      0.8,
     "location_entropy":           0.2,
     "home_time_ratio":            0.04,
@@ -100,9 +96,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 3.58,
         "social_app_ratio": 0.08,
         "calls_per_day": 31.75,
-        "texts_per_day": 29.11,
         "unique_contacts": 7.15,
-        "response_time_minutes": 63.77,
         "daily_displacement_km": 11.03,
         "location_entropy": 1.51,
         "home_time_ratio": 0.52,
@@ -120,16 +114,14 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 3.91,
         "social_app_ratio": 0.07,
         "calls_per_day": 18.47,
-        "texts_per_day": 19.37,
         "unique_contacts": 1.81,
-        "response_time_minutes": 28.0,
         "daily_displacement_km": 6.43,
         "location_entropy": 1.32,
         "home_time_ratio": 0.65,
         "places_visited": 7.96,
         "wake_time_hour": 5.22,
         "sleep_time_hour": 10.73,
-        "sleep_duration_hours": 4.0, # Insomnia pattern
+        "sleep_duration_hours": 4.0,  # Insomnia pattern
         "dark_duration_hours": 10.63,
         "charge_duration_hours": 6.89,
         "conversation_duration_hours": 3.89,
@@ -140,16 +132,14 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 3.91,
         "social_app_ratio": 0.07,
         "calls_per_day": 18.47,
-        "texts_per_day": 19.37,
         "unique_contacts": 1.81,
-        "response_time_minutes": 28.0,
         "daily_displacement_km": 6.43,
         "location_entropy": 1.32,
         "home_time_ratio": 0.65,
         "places_visited": 7.96,
-        "wake_time_hour": 9.22, # Late wake time
+        "wake_time_hour": 9.22,   # Late wake time
         "sleep_time_hour": 10.73,
-        "sleep_duration_hours": 10.0, # Hypersomnia pattern
+        "sleep_duration_hours": 10.0,  # Hypersomnia pattern
         "dark_duration_hours": 10.63,
         "charge_duration_hours": 6.89,
         "conversation_duration_hours": 3.89,
@@ -161,9 +151,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 57.2,
         "social_app_ratio": 0.48,      # similar to non-schz
         "calls_per_day": 7.2,
-        "texts_per_day": 8.0,          # much lower than non-schz (18.6)
         "unique_contacts": 7.2,
-        "response_time_minutes": 63.8, # same as norms
         "daily_displacement_km": 3.5,  # literature-based (GPS data unreliable)
         "location_entropy": 1.0,       # more constrained
         "home_time_ratio": 0.75,       # more homebound
@@ -181,9 +169,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 70.0,           # frequent checking
         "social_app_ratio": 0.30,       # variable — swings
         "calls_per_day": 5.0,           # bursts
-        "texts_per_day": 50.0,          # bursts then ghosting
         "unique_contacts": 6.0,
-        "response_time_minutes": 12.0,  # erratic
         "daily_displacement_km": 4.0,   # variable
         "location_entropy": 2.5,
         "home_time_ratio": 0.55,
@@ -201,9 +187,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 28.0,
         "social_app_ratio": 0.09,
         "calls_per_day": 1.2,
-        "texts_per_day": 8.0,
         "unique_contacts": 2.5,
-        "response_time_minutes": 25.0,
         "daily_displacement_km": 1.5,
         "location_entropy": 1.0,
         "home_time_ratio": 0.85,
@@ -221,9 +205,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 110.0,
         "social_app_ratio": 0.55,
         "calls_per_day": 8.0,
-        "texts_per_day": 90.0,
         "unique_contacts": 15.0,
-        "response_time_minutes": 2.0,
         "daily_displacement_km": 7.0,
         "location_entropy": 3.8,
         "home_time_ratio": 0.25,
@@ -241,9 +223,7 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "unlock_count": 75.0,           # checking behaviour
         "social_app_ratio": 0.18,
         "calls_per_day": 2.0,
-        "texts_per_day": 20.0,
         "unique_contacts": 5.0,
-        "response_time_minutes": 15.0,  # erratic
         "daily_displacement_km": 2.1,
         "location_entropy": 1.8,
         "home_time_ratio": 0.72,
@@ -460,14 +440,13 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
 # CALIBRATED: weights reflect real discriminative power from StudentLife.
 # Higher weight = larger real z-score difference (depressed vs healthy).
 # Range [0, 1].  Used in Weighted Euclidean distance (Phase 2).
+# SMS features removed — weights redistributed to call/contact features.
 FEATURE_WEIGHTS: Dict[str, float] = {
     "screen_time_hours":          0.5,   # real z=+0.56, moderate; good coverage
     "unlock_count":               0.2,   # real z=+0.02, no signal
     "social_app_ratio":           0.1,   # real z=-0.14, no signal
-    "calls_per_day":              0.5,   # capped z=-2.5; often zero-imputed — moderate weight
-    "texts_per_day":              0.6,   # real z=-0.54, moderate signal
-    "unique_contacts":            0.4,   # real z=-1.53 but correlated with calls
-    "response_time_minutes":      0.1,   # insufficient data
+    "calls_per_day":              0.6,   # bumped from 0.5; absorbs texts signal
+    "unique_contacts":            0.5,   # bumped from 0.4; absorbs texts signal
     "daily_displacement_km":      0.9,   # real z=-2.30, STRONG signal; good coverage
     "location_entropy":           0.4,   # real z=-0.27, moderate
     "home_time_ratio":            0.7,   # real z=+1.07, good signal
@@ -523,51 +502,47 @@ TEMPORAL_SHAPES = {
 
 # ── 9. Shape–Disorder Compatibility Matrix ─────────────────────────────
 # Values: +1 = supports,  0 = neutral,  -1 = contradicts.
+# Covers BOTH parent disorder names AND all Frame 2 subtype names so that
+# temporal boost/downgrade fires correctly for every classification output.
+_DEP = 1    # supports depression pattern
+_SCHZ = 1   # supports schizophrenia pattern
 SHAPE_DISORDER_MATRIX: Dict[str, Dict[str, int]] = {
     "monotonic_drift": {
-        "healthy": -1,
-        "depression": 1,
-        "schizophrenia": 0,
-        "bpd": -1,
-        "bipolar_depressive": 1,
-        "bipolar_manic": -1,
-        "anxiety": 0,
+        # parent names (Frame 1)
+        "healthy": -1, "depression": 1, "schizophrenia": 0,
+        "bpd": -1, "bipolar_depressive": 1, "bipolar_manic": -1, "anxiety": 0,
+        # Frame 2 subtypes
+        "healthy_type_1": -1, "healthy_type_2": -1, "healthy_type_3": -1,
+        "depression_type_1": 1, "depression_type_2": 1, "depression_type_3": 1,
+        "schizophrenia_type_1": 0, "schizophrenia_type_2": 0, "schizophrenia_type_3": 0,
     },
     "oscillating": {
-        "healthy": -1,
-        "depression": -1,
-        "schizophrenia": 0,
-        "bpd": 1,
-        "bipolar_depressive": -1,
-        "bipolar_manic": 0,
-        "anxiety": 0,
+        "healthy": -1, "depression": -1, "schizophrenia": 0,
+        "bpd": 1, "bipolar_depressive": -1, "bipolar_manic": 0, "anxiety": 0,
+        "healthy_type_1": -1, "healthy_type_2": -1, "healthy_type_3": -1,
+        "depression_type_1": -1, "depression_type_2": -1, "depression_type_3": -1,
+        "schizophrenia_type_1": 0, "schizophrenia_type_2": 0, "schizophrenia_type_3": 0,
     },
     "chaotic": {
-        "healthy": -1,
-        "depression": -1,
-        "schizophrenia": 1,
-        "bpd": 0,
-        "bipolar_depressive": -1,
-        "bipolar_manic": 0,
-        "anxiety": 0,
+        "healthy": -1, "depression": -1, "schizophrenia": 1,
+        "bpd": 0, "bipolar_depressive": -1, "bipolar_manic": 0, "anxiety": 0,
+        "healthy_type_1": -1, "healthy_type_2": -1, "healthy_type_3": -1,
+        "depression_type_1": -1, "depression_type_2": -1, "depression_type_3": -1,
+        "schizophrenia_type_1": 1, "schizophrenia_type_2": 1, "schizophrenia_type_3": 1,
     },
     "episodic_spike": {
-        "healthy": 0,
-        "depression": -1,
-        "schizophrenia": -1,
-        "bpd": 0,
-        "bipolar_depressive": -1,
-        "bipolar_manic": 0,
-        "anxiety": 1,
+        "healthy": 0, "depression": -1, "schizophrenia": -1,
+        "bpd": 0, "bipolar_depressive": -1, "bipolar_manic": 0, "anxiety": 1,
+        "healthy_type_1": 0, "healthy_type_2": 0, "healthy_type_3": 0,
+        "depression_type_1": -1, "depression_type_2": -1, "depression_type_3": -1,
+        "schizophrenia_type_1": -1, "schizophrenia_type_2": -1, "schizophrenia_type_3": -1,
     },
     "phase_flip": {
-        "healthy": -1,
-        "depression": -1,
-        "schizophrenia": 0,
-        "bpd": 0,
-        "bipolar_depressive": 0,
-        "bipolar_manic": 1,
-        "anxiety": -1,
+        "healthy": -1, "depression": -1, "schizophrenia": 0,
+        "bpd": 0, "bipolar_depressive": 0, "bipolar_manic": 1, "anxiety": -1,
+        "healthy_type_1": -1, "healthy_type_2": -1, "healthy_type_3": -1,
+        "depression_type_1": -1, "depression_type_2": -1, "depression_type_3": -1,
+        "schizophrenia_type_1": 0, "schizophrenia_type_2": 0, "schizophrenia_type_3": 0,
     },
 }
 
@@ -577,7 +552,9 @@ TEMPORAL_DOWNGRADE = 0.6  # multiply when shape contradicts
 
 # ── 11. Life-Event Filter Parameters ──────────────────────────────────
 LIFE_EVENT_PARAMS = {
-    "max_co_deviating_features": 2,     # ≤ 2 features → likely situational (balanced)
+    "max_co_deviating_features": 3,     # ≤ 3 features → likely situational
+                                        # raised from 2: schizophrenia often presents
+                                        # as 2-3 focused deviations, not broad spread
     "self_resolve_days":         10,     # resolved within N days → dismiss
     "severity_floor_sd":         1.0,   # no feature exceeds 1.0 SD → too mild to classify
 }

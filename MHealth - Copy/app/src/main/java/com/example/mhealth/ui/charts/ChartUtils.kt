@@ -160,9 +160,11 @@ fun RadarChart(
     LaunchedEffect(values) {
         animProgress.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
     }
+    
     Canvas(modifier = modifier) {
-        val cx = size.width / 2; val cy = size.height / 2
-        val maxRadius = minOf(cx, cy) * 0.78f
+        val cx = size.width / 2f
+        val cy = size.height / 2f
+        val maxRadius = minOf(cx, cy) * 0.90f // maximize web size
         val n = labels.size
         val angleStep = 2 * PI / n
 

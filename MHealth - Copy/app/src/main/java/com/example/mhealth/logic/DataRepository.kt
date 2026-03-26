@@ -2,15 +2,58 @@ package com.example.mhealth.logic
 
 import android.content.Context
 import android.content.SharedPreferences
+import com.example.mhealth.logic.db.AnalysisResultEntity
+import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 
 object DataRepository {
 
     private var prefs: SharedPreferences? = null
+    
+    // Coroutine scope for stateIn() — survives for the lifetime of the process
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    // ─── Room-backed reactive flows (populated via initWithDb) ─────────────
+
+    /** Emits the most recent AnalysisResultEntity whenever NightlyWorker saves a new result. */
+    private val _latestAnalysisResult = MutableStateFlow<AnalysisResultEntity?>(null)
+    val latestAnalysisResult: StateFlow<AnalysisResultEntity?> = _latestAnalysisResult
+
+    /** Emits the last 30 analysis results (newest first) for the history sparkline. */
+    private val _analysisHistory = MutableStateFlow<List<AnalysisResultEntity>>(emptyList())
+    val analysisHistory: StateFlow<List<AnalysisResultEntity>> = _analysisHistory
+
+    /**
+     * Wire the Room-backed StateFlows after the DB is available (call from MonitoringService/Application).
+     * Safe to call multiple times — subsequent calls are no-ops.
+     */
+    @Volatile private var dbInitialized = false
+    fun initWithDb(context: Context, userId: String) {
+        if (dbInitialized) return
+        dbInitialized = true
+        val db = MHealthDatabase.getInstance(context.applicationContext)
+        // Launch two long-lived coroutines that push Room Flow emissions into MutableStateFlows
+        scope.launch {
+            db.analysisResultDao().getLatestFlow(userId).collect { entity ->
+                _latestAnalysisResult.value = entity
+            }
+        }
+        scope.launch {
+            db.analysisResultDao().getLatestNFlow(userId, limit = 30).collect { list ->
+                _analysisHistory.value = list
+            }
+        }
+    }
+
+
 
     // Latest computed personality vector (updated ~every 15 min)
     private val _latestVector = MutableStateFlow<PersonalityVector?>(null)
@@ -31,6 +74,10 @@ object DataRepository {
     // Number of days collected toward baseline
     private val _baselineProgress = MutableStateFlow(0)
     val baselineProgress: StateFlow<Int> = _baselineProgress
+
+    // Raw vectors collected so far during the baseline building phase
+    private val _collectedBaselineVectors = MutableStateFlow<List<PersonalityVector>>(emptyList())
+    val collectedBaselineVectors: StateFlow<List<PersonalityVector>> = _collectedBaselineVectors
 
     // Intraday hourly snapshots — for live sparkline on Monitor screen
     private val _hourlySnapshots = MutableStateFlow<List<PersonalityVector>>(emptyList())
@@ -71,6 +118,9 @@ object DataRepository {
 
     private val _forceNewDayTrigger = MutableStateFlow(0)
     val forceNewDayTrigger: StateFlow<Int> = _forceNewDayTrigger
+
+    private val _resetTrigger = MutableStateFlow(0)
+    val resetTrigger: StateFlow<Int> = _resetTrigger
 
     // --- Persistence & Init ---
     
@@ -153,6 +203,14 @@ object DataRepository {
         _forceNewDayTrigger.value += 1
     }
 
+    fun triggerReset() {
+        _resetTrigger.value += 1
+    }
+
+    fun setIsBuildingBaseline(building: Boolean) {
+        _isBuildingBaseline.value = building
+    }
+
     fun updateLatestVector(vector: PersonalityVector) {
         _latestVector.value = vector
     }
@@ -168,6 +226,10 @@ object DataRepository {
 
     fun updateBaselineProgress(days: Int) {
         _baselineProgress.value = days
+    }
+
+    fun updateCollectedBaselineVectors(vectors: List<PersonalityVector>) {
+        _collectedBaselineVectors.value = vectors.toList()
     }
 
     fun addHourlySnapshot(vector: PersonalityVector) {
@@ -225,5 +287,13 @@ object DataRepository {
             remove("loc_snapshots_today")
             remove("charge_hours_today")
         }?.apply()
+    }
+
+    fun clearAllState() {
+        _baselineProgress.value = 0
+        _collectedBaselineVectors.value = emptyList()
+        _baseline.value = null
+        _isBuildingBaseline.value = true
+        resetDailyState()
     }
 }

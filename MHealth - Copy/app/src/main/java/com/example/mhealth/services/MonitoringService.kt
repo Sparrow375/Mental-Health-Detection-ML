@@ -10,28 +10,94 @@ import com.example.mhealth.MainActivity
 import com.example.mhealth.logic.AnomalyDetector
 import com.example.mhealth.logic.DataCollector
 import com.example.mhealth.logic.DataRepository
+import com.example.mhealth.logic.JsonConverter
+import com.example.mhealth.logic.db.BaselineEntity
+import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.UserProfileEntity
 import com.example.mhealth.models.PersonalityVector
-import java.util.*
-
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
+import java.text.SimpleDateFormat
+import java.util.*
 
 class MonitoringService : Service() {
 
     private lateinit var dataCollector: DataCollector
     private var detector: AnomalyDetector? = null
-    
+
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
     private var trackingJob: Job? = null
+    private val dateFmt = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
     private val collectedDailyVectors = mutableListOf<PersonalityVector>()
-    private var collectionTickCount = 0 // increments occasionally
+    private var collectionTickCount = 0
+    private var nightlyWorkerScheduled = false
 
     override fun onCreate() {
         super.onCreate()
         dataCollector = DataCollector(this)
+        // Wire Room-backed StateFlows so AnalysisScreen/InsightsScreen update reactively
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        DataRepository.initWithDb(applicationContext, userId)
+        
+        restoreStateFromRoom()
+        
         startForegroundNotification()
         scheduleMonitoring()
+    }
+
+    private fun restoreStateFromRoom() {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        serviceScope.launch {
+            try {
+                val db = MHealthDatabase.getInstance(this@MonitoringService)
+                val profile = db.userProfileDao().get(userId)
+                
+                if (profile?.baselineReady == true) {
+                    val baselineEntities = db.baselineDao().getBaseline(userId)
+                    if (baselineEntities.isNotEmpty()) {
+                        val baselineFields = baselineEntities.associate { it.featureName to it.baselineValue }
+                        val variances = baselineEntities.associate { it.featureName to it.stdDeviation }
+                        val baseline = PersonalityVector(
+                            screenTimeHours = baselineFields["screenTimeHours"] ?: 0f,
+                            unlockCount = baselineFields["unlockCount"] ?: 0f,
+                            appLaunchCount = baselineFields["appLaunchCount"] ?: 0f,
+                            notificationsToday = baselineFields["notificationsToday"] ?: 0f,
+                            socialAppRatio = baselineFields["socialAppRatio"] ?: 0f,
+                            callsPerDay = baselineFields["callsPerDay"] ?: 0f,
+                            callDurationMinutes = baselineFields["callDurationMinutes"] ?: 0f,
+                            uniqueContacts = baselineFields["uniqueContacts"] ?: 0f,
+                            conversationFrequency = baselineFields["conversationFrequency"] ?: 0f,
+                            dailyDisplacementKm = baselineFields["dailyDisplacementKm"] ?: 0f,
+                            locationEntropy = baselineFields["locationEntropy"] ?: 0f,
+                            homeTimeRatio = baselineFields["homeTimeRatio"] ?: 0f,
+                            placesVisited = baselineFields["placesVisited"] ?: 0f,
+                            wakeTimeHour = baselineFields["wakeTimeHour"] ?: 0f,
+                            sleepTimeHour = baselineFields["sleepTimeHour"] ?: 0f,
+                            sleepDurationHours = baselineFields["sleepDurationHours"] ?: 0f,
+                            darkDurationHours = baselineFields["darkDurationHours"] ?: 0f,
+                            chargeDurationHours = baselineFields["chargeDurationHours"] ?: 0f,
+                            memoryUsagePercent = baselineFields["memoryUsagePercent"] ?: 0f,
+                            networkWifiMB = baselineFields["networkWifiMB"] ?: 0f,
+                            networkMobileMB = baselineFields["networkMobileMB"] ?: 0f,
+                            variances = variances as MutableMap<String, Float>
+                        )
+                        DataRepository.setBaseline(baseline)
+                        detector = AnomalyDetector(baseline)
+                    }
+                }
+                
+                // Always load recent history for the Recent Trends UI, whether building or actively monitoring
+                val pastFeatures = db.dailyFeaturesDao().getLatestN(userId, 60).reversed()
+                val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
+                collectedDailyVectors.clear()
+                collectedDailyVectors.addAll(pastVectors)
+                DataRepository.updateBaselineProgress(collectedDailyVectors.size)
+                DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun startForegroundNotification() {
@@ -74,8 +140,34 @@ class MonitoringService : Service() {
         serviceScope.launch {
             DataRepository.forceNewDayTrigger.collect { triggers ->
                 if (triggers > 0) {
-                    DataRepository.setLastProcessedDay(-1)
+                    val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+                    DataRepository.setLastProcessedDay(if (today <= 1) 365 else today - 1)
                     runTick()
+                }
+            }
+        }
+
+        // dev force reset trigger listener
+        serviceScope.launch {
+            DataRepository.resetTrigger.collect { triggers ->
+                if (triggers > 0) {
+                    collectedDailyVectors.clear()
+                    DataRepository.clearAllState()
+                    detector = null
+                    
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val db = MHealthDatabase.getInstance(this@MonitoringService)
+                    try {
+                        db.dailyFeaturesDao().clearAll(userId)
+                        db.baselineDao().clearBaseline(userId)
+                        db.analysisResultDao().clearAll(userId)
+                        val profile = db.userProfileDao().get(userId)
+                        if (profile != null) {
+                            db.userProfileDao().upsert(profile.copy(baselineReady = false))
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }
@@ -132,14 +224,16 @@ class MonitoringService : Service() {
     }
 
     private fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int) {
-        // Only add one vector per *day* to baseline corpus (end-of-day snapshot logic)
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val targetBaselineDays = DataRepository.baselineDaysRequired.value
         if (today != savedDay && savedDay != -1) {
-            // New day — add yesterday's final snapshot to baseline corpus
             if (collectedDailyVectors.size < targetBaselineDays) {
                 collectedDailyVectors.add(snapshot)
                 DataRepository.updateBaselineProgress(collectedDailyVectors.size)
+                DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+
+                // Persist end-of-day snapshot to Room
+                persistDailySnapshot(snapshot, savedDay)
             }
         }
 
@@ -147,20 +241,82 @@ class MonitoringService : Service() {
             val baseline = buildBaseline(collectedDailyVectors)
             DataRepository.setBaseline(baseline)
             detector = AnomalyDetector(baseline)
+
+            // Persist baseline to Room and schedule nightly worker
+            if (!nightlyWorkerScheduled) {
+                serviceScope.launch {
+                    persistBaselineToRoom(baseline, targetBaselineDays)
+                    scheduleNightlyWorker()
+                    nightlyWorkerScheduled = true
+                }
+            }
         }
     }
 
     private fun handleAnomalyDetection(snapshot: PersonalityVector, today: Int, savedDay: Int) {
         val report = detector?.analyze(snapshot, DataRepository.reports.value.size + 1)
         report?.let {
-            // Update or replace today's report (only add once per day at end, update live otherwise)
             if (today != savedDay && savedDay != -1) {
+                // Persist end-of-monitoring-day snapshot to Room
+                persistDailySnapshot(snapshot, savedDay)
+
                 DataRepository.addReport(it)
                 if (it.alertLevel == "orange" || it.alertLevel == "red") {
                     sendAlertNotification(it.alertLevel, it.notes)
                 }
             }
         }
+    }
+
+    // ── Room persistence helpers ──────────────────────────────────────────────
+
+    private fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int) {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        val cal = Calendar.getInstance().apply { set(Calendar.DAY_OF_YEAR, dayOfYear) }
+        val dateStr = dateFmt.format(cal.time)
+        val entity = JsonConverter.fromPersonalityVector(userId, dateStr, snapshot)
+        serviceScope.launch {
+            try {
+                MHealthDatabase.getInstance(this@MonitoringService)
+                    .dailyFeaturesDao().insert(entity)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    private suspend fun persistBaselineToRoom(
+        baseline: PersonalityVector,
+        baselineDays: Int
+    ) {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        val db = MHealthDatabase.getInstance(this@MonitoringService)
+        val today = dateFmt.format(Date())
+
+        val entities = baseline.toMap().map { (feature, mean) ->
+            BaselineEntity(
+                userId         = userId,
+                featureName    = feature,
+                baselineValue  = mean,
+                stdDeviation   = baseline.variances[feature] ?: 1f,
+                baselineStart  = today,
+                baselineEnd    = today
+            )
+        }
+        db.baselineDao().insertAll(entities)
+        db.userProfileDao().upsert(
+            UserProfileEntity(
+                userId        = userId,
+                baselineReady = true,
+                baselineDays  = baselineDays,
+                currentStatus = "Monitoring"
+            )
+        )
+    }
+
+    private fun scheduleNightlyWorker() {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        NightlyAnalysisWorker.schedule(this@MonitoringService, userId)
     }
 
     private fun buildBaseline(vectors: List<PersonalityVector>): PersonalityVector {

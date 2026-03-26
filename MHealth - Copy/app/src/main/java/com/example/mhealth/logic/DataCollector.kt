@@ -1,5 +1,7 @@
 package com.example.mhealth.logic
 
+import android.Manifest
+import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.usage.NetworkStatsManager
 import android.app.usage.UsageEvents
@@ -7,6 +9,7 @@ import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
@@ -130,20 +133,54 @@ class DataCollector(private val context: Context) : SensorEventListener {
     }
 
     /** Capture a GPS fix and append to today's location track. */
+    @SuppressLint("MissingPermission")
     fun captureLocationSnapshot() {
+        // Guard: check that fine-location permission is actually granted
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED &&
+            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.w(TAG, "Location permission not granted — skipping GPS capture")
+            return
+        }
+
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-            val loc = Tasks.await(
-                fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null),
-                5, TimeUnit.SECONDS
-            )
+
+            // Try getCurrentLocation first (active fix)
+            var loc = try {
+                Tasks.await(
+                    fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null),
+                    10, TimeUnit.SECONDS
+                )
+            } catch (e: Exception) {
+                Log.w(TAG, "getCurrentLocation failed: ${e.message}")
+                null
+            }
+
+            // Fallback: use last known location if active fix returned null
+            if (loc == null) {
+                loc = try {
+                    Tasks.await(fusedClient.lastLocation, 5, TimeUnit.SECONDS)
+                } catch (e: Exception) {
+                    Log.w(TAG, "getLastLocation fallback failed: ${e.message}")
+                    null
+                }
+            }
+
             if (loc != null) {
                 DataRepository.addLocationSnapshot(
                     LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
                 )
+                Log.i(TAG, "GPS fix recorded: %.5f, %.5f".format(loc.latitude, loc.longitude))
+            } else {
+                Log.w(TAG, "GPS unavailable — both getCurrentLocation and lastLocation returned null")
             }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "SecurityException accessing location: ${e.message}")
         } catch (e: Exception) {
-            Log.w(TAG, "GPS unavailable: ${e.message}")
+            Log.w(TAG, "GPS capture error: ${e.message}")
         }
     }
 

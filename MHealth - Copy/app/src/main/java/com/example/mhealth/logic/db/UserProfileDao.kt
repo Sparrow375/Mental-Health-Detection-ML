@@ -1,0 +1,19 @@
+package com.example.mhealth.logic.db
+
+import androidx.room.*
+
+@Dao
+interface UserProfileDao {
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entity: UserProfileEntity)
+
+    @Query("SELECT * FROM user_profile_db WHERE userId = :userId LIMIT 1")
+    suspend fun get(userId: String): UserProfileEntity?
+
+    @Query("UPDATE user_profile_db SET baselineReady = :ready WHERE userId = :userId")
+    suspend fun setBaselineReady(userId: String, ready: Boolean)
+
+    @Query("UPDATE user_profile_db SET currentStatus = :status WHERE userId = :userId")
+    suspend fun updateStatus(userId: String, status: String)
+}

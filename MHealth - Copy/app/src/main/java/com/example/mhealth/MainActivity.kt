@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.*
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -32,19 +33,30 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mhealth.logic.DataRepository
+import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.UserCredentialsEntity
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.services.MonitoringService
 import com.example.mhealth.ui.charts.*
 import com.example.mhealth.ui.theme.*
+import kotlinx.coroutines.launch
+import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // *** CRITICAL FIX: init DataRepository BEFORE setContent ***
+        // This ensures the persisted 'first_login_complete' flag is loaded from
+        // SharedPreferences synchronously, so MHealthApp() starts with the
+        // correct initial NavState and never flashes the login screen for
+        // returning users.
+        DataRepository.init(applicationContext)
         setContent { MHealthTheme { MHealthApp() } }
     }
 }
@@ -54,7 +66,7 @@ class MainActivity : ComponentActivity() {
 // =============================================================================
 enum class AppDest(val label: String, val icon: ImageVector) {
     HOME("Sensors", Icons.Default.Sensors),
-    MONITOR("Monitor", Icons.Default.ShowChart),
+    MONITOR("Monitor", Icons.AutoMirrored.Filled.ShowChart),
     ANALYSIS("Analysis", Icons.Default.Analytics),
     INSIGHTS("Insights", Icons.Default.Lightbulb),
     SETTINGS("Settings", Icons.Default.Settings)
@@ -68,20 +80,24 @@ enum class NavState {
 
 @Composable
 fun MHealthApp() {
+    // Because DataRepository.init() is now called in MainActivity.onCreate()
+    // BEFORE setContent { }, this StateFlow already holds the correct persisted
+    // value on the very first composition — no login flicker for returning users.
     val firstLoginComplete by DataRepository.firstLoginComplete.collectAsState()
-    var appState by remember { mutableStateOf(NavState.LOGIN) }
 
-    // Once collected, skip login if already onboarded (this assumes "login" remembers local state for returning users)
-    LaunchedEffect(firstLoginComplete) {
-        if (firstLoginComplete && appState == NavState.LOGIN) {
-            appState = NavState.DASHBOARD
-        }
+    // Derive initial state synchronously from the already-loaded flag so
+    // we never start at LOGIN for a returning user.
+    var appState by remember {
+        mutableStateOf(
+            if (DataRepository.firstLoginComplete.value) NavState.DASHBOARD else NavState.LOGIN
+        )
     }
 
     when (appState) {
-        NavState.LOGIN -> LoginScreen(onLoginSuccess = {
-            appState = if (firstLoginComplete) NavState.DASHBOARD else NavState.QUESTIONNAIRE
-        })
+        NavState.LOGIN -> LoginScreen(
+            onSignedIn = { appState = NavState.DASHBOARD },
+            onRegistered = { appState = NavState.QUESTIONNAIRE }
+        )
         NavState.QUESTIONNAIRE -> QuestionnaireScreen(onComplete = {
             appState = NavState.DASHBOARD
         })
@@ -94,6 +110,7 @@ fun MainDashboard() {
     var current by remember { mutableStateOf(AppDest.HOME) }
     val context = LocalContext.current
 
+    // ── Foreground permissions (everything EXCEPT background location) ──
     val perms = buildList {
         addAll(listOf(
             Manifest.permission.READ_CALL_LOG, Manifest.permission.READ_SMS,
@@ -109,11 +126,24 @@ fun MainDashboard() {
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
             add(Manifest.permission.ACTIVITY_RECOGNITION)
-            add(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
         }
     }
 
-    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { _ ->
+    // ── Background location must be requested SEPARATELY on Android 10+ ──
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        android.util.Log.i("MHealth", "Background location permission granted: $granted")
+        if (hasUsageStatsPermission(context)) startMonitoringService(context)
+    }
+
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { results ->
+        // After foreground permissions are handled, request background location separately
+        val fineGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        if ((fineGranted || coarseGranted) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        }
         if (hasUsageStatsPermission(context)) startMonitoringService(context)
     }
     LaunchedEffect(Unit) {
@@ -164,69 +194,261 @@ fun MainDashboard() {
 // =============================================================================
 // AUTH & ONBOARDING SCREENS
 // =============================================================================
+
+/** SHA-256 hash a string and return the hex digest. */
+fun sha256(input: String): String {
+    val md = MessageDigest.getInstance("SHA-256")
+    val digest = md.digest(input.toByteArray(Charsets.UTF_8))
+    return digest.joinToString("") { "%02x".format(it) }
+}
+
+/**
+ * Combined Sign-In / Sign-Up screen.
+ *
+ * Behaviour:
+ *  - [onSignedIn]   → called for a returning user whose credentials match the local DB.
+ *  - [onRegistered] → called for a brand-new user (first time on device); the caller
+ *                     will route them through the Questionnaire before Dashboard.
+ *
+ * The login screen will only appear:
+ *   1. The very first time the app is installed (no credentials in DB → Sign Up mode).
+ *   2. If somehow credentials data is cleared (edge case).
+ * For all normal subsequent launches the Composable is never shown because
+ * MHealthApp() starts directly at DASHBOARD when firstLoginComplete == true.
+ */
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
-    var email by remember { mutableStateOf("") }
+fun LoginScreen(
+    onSignedIn: () -> Unit,
+    onRegistered: () -> Unit
+) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val db = remember { MHealthDatabase.getInstance(context) }
+
+    // Determine whether any account already exists in the local DB.
+    // null = still loading, true = has account (show Sign-In), false = no account (show Sign-Up)
+    var hasAccount by remember { mutableStateOf<Boolean?>(null) }
+    // Toggle: user can switch between sign-in and sign-up manually
+    var showSignIn by remember { mutableStateOf(true) }
+
+    LaunchedEffect(Unit) {
+        val count = db.userCredentialsDao().count()
+        hasAccount = count > 0
+        showSignIn = count > 0  // default to sign-in if account exists
+    }
+
+    // Form fields
+    var name     by remember { mutableStateOf("") }
+    var email    by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var emailError by remember { mutableStateOf(false) }
-    var passError by remember { mutableStateOf(false) }
+
+    // Error / status messages
+    var nameError    by remember { mutableStateOf(false) }
+    var emailError   by remember { mutableStateOf(false) }
+    var passError    by remember { mutableStateOf(false) }
+    var statusMsg    by remember { mutableStateOf("") }
+    var isLoading    by remember { mutableStateOf(false) }
+
+    // Whenever the user switches tab, clear errors
+    LaunchedEffect(showSignIn) {
+        nameError = false; emailError = false; passError = false; statusMsg = ""
+    }
+
+    if (hasAccount == null) {
+        // Still querying DB — show a brief splash
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = MintGreen)
+        }
+        return
+    }
 
     Column(
         Modifier.fillMaxSize().background(BackgroundWhite).padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
+        // Logo
         Box(
             Modifier.size(80.dp).clip(CircleShape).background(MintGreen.copy(0.15f)),
             contentAlignment = Alignment.Center
         ) {
             Icon(Icons.Default.HealthAndSafety, "Logo", tint = MintGreen, modifier = Modifier.size(48.dp))
         }
-        Spacer(Modifier.height(24.dp))
-        Text("Welcome to MHealth", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-        Text("Sign in to continue your mental health journey", fontSize = 14.sp, color = TextSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-        Spacer(Modifier.height(32.dp))
+        Spacer(Modifier.height(20.dp))
+        Text(
+            if (showSignIn) "Welcome Back" else "Create Account",
+            fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TextPrimary
+        )
+        Text(
+            if (showSignIn) "Sign in to continue your mental health journey"
+            else "Set up your local account — stored privately on this device",
+            fontSize = 13.sp, color = TextSecondary,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+        )
+        Spacer(Modifier.height(28.dp))
 
+        // ── Name field (sign-up only) ──────────────────────────────────────
+        if (!showSignIn) {
+            OutlinedTextField(
+                value = name, onValueChange = { name = it; nameError = false },
+                label = { Text("Full Name") },
+                isError = nameError,
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MintGreen, focusedLabelColor = MintGreen, cursorColor = MintGreen
+                )
+            )
+            if (nameError) Text("Name is required", color = AlertRed, fontSize = 11.sp,
+                modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp))
+            Spacer(Modifier.height(12.dp))
+        }
+
+        // ── Email ──────────────────────────────────────────────────────────
         OutlinedTextField(
-            value = email, onValueChange = { email = it; emailError = false },
-            label = { Text("Email", color = TextSecondary) },
+            value = email, onValueChange = { email = it.trim(); emailError = false; statusMsg = "" },
+            label = { Text("Email") },
             isError = emailError,
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, focusedLabelColor = MintGreen, cursorColor = MintGreen)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MintGreen, focusedLabelColor = MintGreen, cursorColor = MintGreen
+            )
         )
-        if (emailError) Text("Please enter a valid email", color = AlertRed, fontSize = 11.sp, modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp))
-        Spacer(Modifier.height(16.dp))
+        if (emailError) Text("Enter a valid email address", color = AlertRed, fontSize = 11.sp,
+            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp))
+        Spacer(Modifier.height(12.dp))
 
+        // ── Password ───────────────────────────────────────────────────────
         OutlinedTextField(
-            value = password, onValueChange = { password = it; passError = false },
-            label = { Text("Password", color = TextSecondary) },
+            value = password, onValueChange = { password = it; passError = false; statusMsg = "" },
+            label = { Text("Password (Use 'user1234')") },
             isError = passError,
             singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+            visualTransformation = PasswordVisualTransformation(),
             modifier = Modifier.fillMaxWidth(),
-            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, focusedLabelColor = MintGreen, cursorColor = MintGreen)
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = MintGreen, focusedLabelColor = MintGreen, cursorColor = MintGreen
+            )
         )
-        if (passError) Text("Password is required", color = AlertRed, fontSize = 11.sp, modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp))
-        Spacer(Modifier.height(32.dp))
+        if (passError) Text(
+            if (showSignIn) "Incorrect password" else "Password must be at least 4 characters",
+            color = AlertRed, fontSize = 11.sp,
+            modifier = Modifier.fillMaxWidth().padding(start = 4.dp, top = 2.dp)
+        )
 
+        // Generic status message (e.g. "Account already exists")
+        if (statusMsg.isNotEmpty()) {
+            Spacer(Modifier.height(6.dp))
+            Text(statusMsg, color = AlertRed, fontSize = 12.sp,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier.fillMaxWidth())
+        }
+
+        Spacer(Modifier.height(24.dp))
+
+        // ── Primary action button ──────────────────────────────────────────
         Button(
+            enabled = !isLoading,
             onClick = {
                 val emailValid = android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()
-                if (!emailValid) emailError = true
-                if (password.isBlank()) passError = true
-                if (emailValid && password.isNotBlank()) onLoginSuccess()
+                if (!emailValid)       { emailError = true; return@Button }
+                if (password.length < 4) { passError = true; return@Button }
+                if (!showSignIn && name.isBlank()) { nameError = true; return@Button }
+
+                isLoading = true
+                scope.launch {
+                    val credDao = db.userCredentialsDao()
+                    val hash = sha256(password)
+
+                    if (showSignIn) {
+                        // ── SIGN IN ──────────────────────────────────────
+                        val stored = credDao.findByEmail(email)
+                        when {
+                            stored == null -> {
+                                isLoading = false
+                                statusMsg = "No account found for this email. Please sign up."
+                            }
+                            stored.passwordHash != hash -> {
+                                isLoading = false
+                                passError = true
+                            }
+                            else -> {
+                                // Credentials match — mark login complete and proceed
+                                DataRepository.saveUserProfile(
+                                    DataRepository.userProfile.value?.copy(email = email)
+                                        ?: com.example.mhealth.models.UserProfile(
+                                            email = email,
+                                            name = stored.name
+                                        )
+                                )
+                                // Call Firebase
+                                val authResult = com.example.mhealth.logic.AuthManager(context).signInOrCreateUser(email, stored.name)
+                                if (authResult.isSuccess) {
+                                    isLoading = false
+                                    onSignedIn()
+                                } else {
+                                    isLoading = false
+                                    statusMsg = "Cloud Error: Ensure Email Auth is Enabled in Firebase Console!"
+                                }
+                            }
+                        }
+                    } else {
+                        // ── SIGN UP ───────────────────────────────────────
+                        // OnConflictStrategy.IGNORE returns -1 if email already exists
+                        val rowId = credDao.register(
+                            UserCredentialsEntity(
+                                email        = email,
+                                name         = name.trim(),
+                                passwordHash = hash
+                            )
+                        )
+                        if (rowId == -1L) {
+                            isLoading = false
+                            statusMsg = "An account with this email already exists. Please sign in."
+                        } else {
+                            // Save profile to prefs and set firstLoginComplete = true
+                            DataRepository.saveUserProfile(
+                                com.example.mhealth.models.UserProfile(
+                                    email = email,
+                                    name  = name.trim()
+                                )
+                            )
+                            // Call Firebase
+                            val authResult = com.example.mhealth.logic.AuthManager(context).signInOrCreateUser(email, name.trim())
+                            if (authResult.isSuccess) {
+                                isLoading = false
+                                onRegistered()   // → goes to Questionnaire
+                            } else {
+                                isLoading = false
+                                statusMsg = "Cloud Error: Ensure Email Auth is Enabled in Firebase Console!"
+                            }
+                        }
+                    }
+                }
             },
             colors = ButtonDefaults.buttonColors(containerColor = MintGreen),
             modifier = Modifier.fillMaxWidth().height(50.dp),
             shape = RoundedCornerShape(12.dp)
         ) {
-            Text("Sign In", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            if (isLoading) CircularProgressIndicator(Modifier.size(22.dp), color = Color.White, strokeWidth = 2.dp)
+            else Text(
+                if (showSignIn) "Sign In" else "Create Account",
+                color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold
+            )
         }
+
         Spacer(Modifier.height(16.dp))
-        TextButton(onClick = { /* Sign Up Logic Placeholder */ }) {
-            Text("Don't have an account? ", color = TextSecondary, fontSize = 14.sp)
-            Text("Sign Up", color = MintGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+
+        // ── Toggle between Sign-In / Sign-Up ──────────────────────────────
+        TextButton(onClick = { showSignIn = !showSignIn }) {
+            if (showSignIn) {
+                Text("Don't have an account? ", color = TextSecondary, fontSize = 14.sp)
+                Text("Sign Up", color = MintGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            } else {
+                Text("Already have an account? ", color = TextSecondary, fontSize = 14.sp)
+                Text("Sign In", color = MintGreen, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }
@@ -595,6 +817,8 @@ fun MonitorScreen() {
     val baseline by DataRepository.baseline.collectAsState()
     val hourly by DataRepository.hourlySnapshots.collectAsState()
     val reports by DataRepository.reports.collectAsState()
+    val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
+    val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -614,13 +838,14 @@ fun MonitorScreen() {
         item {
             InfoCard("Baseline Progress (P₀)", headerColor = SkyBlue) {
                 if (isBuilding) {
-                    val frac = progress / 28f
+                    val target = baselineDaysReq.toFloat()
+                    val frac = (progress / target).coerceIn(0f, 1f)
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        ArcProgressRing(progress.toFloat(), 28f, SkyBlue, "Days", "/ 28", size = 90.dp)
+                        ArcProgressRing(progress.toFloat(), target, SkyBlue, "Days", "/ ${target.toInt()}", size = 90.dp)
                         Spacer(Modifier.width(16.dp))
                         Column {
                             Text("Building your personal baseline", fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Text("Weeks 1–4: Establishing P₀ vector.\nData is collected continuously.", fontSize = 12.sp, color = TextSecondary)
+                            Text("Days 1–${target.toInt()}: Establishing P₀ vector.\nData is collected continuously.", fontSize = 12.sp, color = TextSecondary)
                             Spacer(Modifier.height(6.dp))
                             LinearProgressIndicator(
                                 progress = { frac },
@@ -636,9 +861,31 @@ fun MonitorScreen() {
                         Spacer(Modifier.width(12.dp))
                         Column {
                             Text("Baseline Established", fontWeight = FontWeight.SemiBold, color = AlertGreen)
-                            Text("28-day P₀ vector locked. Monitoring active.", fontSize = 12.sp, color = TextSecondary)
+                            Text("${baselineDaysReq}-day P₀ vector locked. Monitoring active.", fontSize = 12.sp, color = TextSecondary)
                         }
                     }
+                }
+                
+                if (baselineVectors.isNotEmpty()) {
+                    Spacer(Modifier.height(20.dp))
+                    Text(if (isBuilding) "Baseline Formation Trend" else "Composite Daily Activity", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Spacer(Modifier.height(12.dp))
+                    
+                    val composite = baselineVectors.takeLast(14).map { v ->
+                        val screen = (v.screenTimeHours / 12f).coerceIn(0f, 1f) * 40f
+                        val move = (v.dailyDisplacementKm / 20f).coerceIn(0f, 1f) * 30f
+                        val comms = (v.callsPerDay / 10f).coerceIn(0f, 1f) * 30f
+                        screen + move + comms
+                    }
+                    
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                        Text("Activity Index (Last 14 Days)", fontSize = 11.sp, color = TextSecondary)
+                        if (composite.isNotEmpty()) {
+                            Text("%.0f".format(composite.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SkyBlue)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    SparklineChart(composite, SkyBlue, Modifier.fillMaxWidth().height(80.dp), showDots = true)
                 }
             }
         }
@@ -697,9 +944,16 @@ fun MonitorScreen() {
 
 @Composable
 fun SparklineLabel(label: String, values: List<Float>, color: Color) {
-    Text(label, fontSize = 11.sp, color = TextSecondary)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+        Text(label, fontSize = 11.sp, color = TextSecondary)
+        if (values.isNotEmpty()) {
+            val lastVal = values.last()
+            val formatStr = if (lastVal < 10f) "%.1f" else "%.0f"
+            Text(formatStr.format(lastVal), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = color)
+        }
+    }
     Spacer(Modifier.height(4.dp))
-    SparklineChart(values, color, Modifier.fillMaxWidth().height(50.dp))
+    SparklineChart(values, color, Modifier.fillMaxWidth().height(40.dp))
 }
 
 @Composable
@@ -797,27 +1051,27 @@ fun AnalysisScreen() {
                     InfoCard("Feature Deviation Radar", headerColor = LavenderPurple) {
                         val b = baseline!!; val v = vector!!
                         val radarLabels = listOf("Screen\nTime", "Social", "Places", "Location", "Sleep", "Comms")
-                        val normalize: (Float, Float, Float) -> Float = { cur, base, maxVal ->
-                            ((cur / maxVal.coerceAtLeast(0.01f)).coerceIn(0f, 1f))
+                        val normalizeDev: (Float, Float) -> Float = { cur, base ->
+                            if (base <= 0.01f) {
+                                if (cur <= 0.01f) 0.5f else 1.0f
+                            } else {
+                                ((cur / base) * 0.5f).coerceIn(0f, 1f)
+                            }
                         }
                         val curVals = listOf(
-                            normalize(v.screenTimeHours, b.screenTimeHours, 12f),
-                            normalize(v.socialAppRatio, b.socialAppRatio, 1f),
-                            normalize(v.placesVisited, b.placesVisited, 20f),
-                            normalize(v.dailyDisplacementKm, b.dailyDisplacementKm, 20f),
-                            normalize(v.sleepDurationHours, b.sleepDurationHours, 10f),
-                            normalize(v.conversationFrequency, b.conversationFrequency, 50f)
+                            normalizeDev(v.screenTimeHours, b.screenTimeHours),
+                            normalizeDev(v.socialAppRatio, b.socialAppRatio),
+                            normalizeDev(v.placesVisited.toFloat(), b.placesVisited.toFloat()),
+                            normalizeDev(v.dailyDisplacementKm, b.dailyDisplacementKm),
+                            normalizeDev(v.sleepDurationHours, b.sleepDurationHours),
+                            normalizeDev(v.conversationFrequency, b.conversationFrequency)
                         )
-                        val baseVals = listOf(
-                            normalize(b.screenTimeHours, b.screenTimeHours, 12f),
-                            normalize(b.socialAppRatio, b.socialAppRatio, 1f),
-                            normalize(b.placesVisited, b.placesVisited, 20f),
-                            normalize(b.dailyDisplacementKm, b.dailyDisplacementKm, 20f),
-                            normalize(b.sleepDurationHours, b.sleepDurationHours, 10f),
-                            normalize(b.conversationFrequency, b.conversationFrequency, 50f)
-                        )
+                        val baseVals = listOf(0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f)
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            RadarChart(radarLabels, curVals, baseVals, LavenderPurple, Modifier.size(220.dp))
+                            RadarChart(
+                                radarLabels, curVals, baseVals, LavenderPurple, 
+                                Modifier.fillMaxWidth(0.9f).aspectRatio(1f).padding(vertical = 16.dp)
+                            )
                         }
                         Spacer(Modifier.height(8.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -858,6 +1112,91 @@ fun AnalysisScreen() {
                 }
             }
         }
+
+            // Prototype Match Card (Room-backed, updates after NightlyWorker runs)
+            item {
+                val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+                InfoCard("Prototype Classification", headerColor = LavenderPurple) {
+                    val result = latestResult
+                    if (result == null) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.HourglassEmpty, null, tint = LavenderPurple, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("No nightly analysis yet — baseline period active", fontSize = 12.sp, color = TextSecondary)
+                        }
+                    } else {
+                        // Disorder label badge
+                        val disorderLabel = result.prototypeMatch
+                            .replace("_", " ")
+                            .replaceFirstChar { it.uppercase() }
+                        Surface(
+                            color = LavenderPurple.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                disorderLabel,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                fontSize = 14.sp, fontWeight = FontWeight.Bold, color = LavenderPurple
+                            )
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        // Confidence bar
+                        Text("Confidence: ${"%.0f".format(result.prototypeConfidence * 100)}%", fontSize = 12.sp, color = TextSecondary)
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { result.prototypeConfidence.coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)),
+                            color = LavenderPurple,
+                            trackColor = LavenderPurple.copy(0.15f)
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        // Gate chips — parse from the gateResults JSON blob
+                        val gateJson = remember(result.gateResults) {
+                            try { org.json.JSONObject(result.gateResults) } catch (e: Exception) { org.json.JSONObject() }
+                        }
+                        val gate1 = gateJson.optBoolean("gate1_passed", true)
+                        val gate2 = gateJson.optBoolean("gate2_passed", true)
+                        val gate3 = gateJson.optBoolean("gate3_passed", true)
+                        val isContaminated = gateJson.optBoolean("is_contaminated", false)
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            listOf(
+                                "G1" to gate1,
+                                "G2" to gate2,
+                                "G3" to gate3
+                            ).forEach { (label, passed) ->
+                                Surface(
+                                    color = if (passed) AlertGreen.copy(0.15f) else AlertOrange.copy(0.15f),
+                                    shape = RoundedCornerShape(6.dp)
+                                ) {
+                                    Text(
+                                        "$label ${if (passed) "✓" else "✗"}",
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                        fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                        color = if (passed) AlertGreen else AlertOrange
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.weight(1f))
+                            // Reference frame badge
+                            Surface(
+                                color = SkyBlue.copy(0.12f),
+                                shape = RoundedCornerShape(6.dp)
+                            ) {
+                                Text(
+                                    if (isContaminated) "Frame 1" else "Frame 2",
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                                    fontSize = 11.sp, color = SkyBlue
+                                )
+                            }
+                        }
+                        // Clinical message
+                        if (result.matchMessage.isNotBlank()) {
+                            Spacer(Modifier.height(8.dp))
+                            Text(result.matchMessage, fontSize = 11.sp, color = TextSecondary, lineHeight = 16.sp)
+                        }
+                    }
+                }
+            }
 
         item { Spacer(Modifier.height(12.dp)) }
     }
@@ -989,6 +1328,43 @@ fun InsightsScreen() {
             }
         }
 
+        // Pattern History Card (Room-backed 30-day sparkline)
+        item {
+            val history by DataRepository.analysisHistory.collectAsState()
+            if (history.isNotEmpty()) {
+                InfoCard("Pattern History (Last 30 days)", headerColor = ChartBlue) {
+                    // Sparkline — scores in chronological order (oldest → newest, left → right)
+                    val scores = history.reversed().map { it.anomalyScore }
+                    SparklineChart(
+                        values = scores,
+                        color = ChartBlue,
+                        modifier = Modifier.fillMaxWidth().height(80.dp)
+                    )
+                    Spacer(Modifier.height(12.dp))
+                    // Last 7 days list (newest first)
+                    history.take(7).forEach { result ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            val dotColor = alertColor(result.alertLevel)
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(dotColor))
+                            Spacer(Modifier.width(10.dp))
+                            Text(result.date, fontSize = 12.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                            Text(
+                                result.prototypeMatch
+                                    .replace("_", " ")
+                                    .replaceFirstChar { it.uppercase() },
+                                fontSize = 11.sp, color = LavenderPurple, fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(result.alertLevel.uppercase(), fontSize = 10.sp, color = dotColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+
         item { Spacer(Modifier.height(12.dp)) }
     }
 }
@@ -1038,10 +1414,8 @@ fun SettingsScreen() {
                         Text(if (isBuilding) "Building Baseline" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
                         Text("Day $progress / $baselineDaysReq established", fontSize = 12.sp, color = TextSecondary)
                     }
-                    if (!isBuilding) {
-                        Button(onClick = { /* Reset logic */ }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed)) {
-                            Text("Reset", fontSize = 12.sp)
-                        }
+                    Button(onClick = { DataRepository.triggerReset() }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed)) {
+                        Text("Reset", fontSize = 12.sp, color = Color.White)
                     }
                 }
             }
@@ -1094,7 +1468,7 @@ fun SettingsScreen() {
             InfoCard("Data Collection", headerColor = TextSecondary) {
                 Column {
                     ToggleRow("Master Collection", "Enable all data logging", dataCollectionEnabled, TextSecondary) { dataCollectionEnabled = it }
-                    Divider(Modifier.padding(vertical = 8.dp), color = SurfaceBlue)
+                    HorizontalDivider(Modifier.padding(vertical = 8.dp), color = SurfaceBlue)
                     ToggleRow("Location Tracking (GPS)", "Displacement & entropy tracking", locationEnabled, MintGreen) { locationEnabled = it }
                     ToggleRow("Communication Logs", "Call and SMS tracking", commsEnabled, ChartOrange) { commsEnabled = it }
                 }
@@ -1116,7 +1490,7 @@ fun SettingsScreen() {
                         Spacer(Modifier.width(16.dp))
                         Text("Export Local Data (JSON)", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
-                    Divider(color = SurfaceBlue)
+                    HorizontalDivider(color = SurfaceBlue)
                     Row(Modifier.fillMaxWidth().clickable {}.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Delete, null, tint = AlertRed)
                         Spacer(Modifier.width(16.dp))
@@ -1217,7 +1591,12 @@ fun ToggleRow(title: String, subtitle: String, checked: Boolean, color: Color, o
 // =============================================================================
 fun hasUsageStatsPermission(context: Context): Boolean {
     val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
-    val mode = appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+    val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+    } else {
+        @Suppress("DEPRECATION")
+        appOps.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
+    }
     return mode == AppOpsManager.MODE_ALLOWED
 }
 

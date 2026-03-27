@@ -16,3 +16,4 @@ service cloud.firestore {
     // or you can add custom claims for admin.
   }
 }
+  

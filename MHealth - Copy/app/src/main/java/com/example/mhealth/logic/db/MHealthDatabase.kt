@@ -19,7 +19,7 @@ import androidx.room.RoomDatabase
         UserProfileEntity::class,
         UserCredentialsEntity::class
     ],
-    version = 3,
+    version = 4,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -33,6 +33,12 @@ abstract class MHealthDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null
 
+        private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE daily_features ADD COLUMN isSimulated INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -40,6 +46,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                     MHealthDatabase::class.java,
                     "mhealth_database"
                 )
+                    .addMigrations(MIGRATION_3_4)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

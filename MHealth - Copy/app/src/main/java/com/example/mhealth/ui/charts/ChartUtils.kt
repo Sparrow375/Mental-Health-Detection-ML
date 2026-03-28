@@ -311,3 +311,91 @@ fun AnomalyScoreGauge(
         drawCircle(Color.White, stroke * 0.18f, Offset(cx, cy))
     }
 }
+
+// =============================================================================
+// PieChart — animated donut/pie chart for categorical distribution
+// =============================================================================
+@Composable
+fun PieChart(
+    data: Map<String, Float>,
+    colors: Map<String, Color>,
+    icons: Map<String, String>? = null,
+    centerText: String = "",
+    centerSubtext: String = "",
+    modifier: Modifier = Modifier
+) {
+    val total = data.values.sum().coerceAtLeast(0.01f)
+    val animProgress = remember { Animatable(0f) }
+    
+    LaunchedEffect(data) {
+        animProgress.animateTo(
+            1f, 
+            animationSpec = tween(1200, easing = FastOutSlowInEasing)
+        )
+    }
+
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Pie Chart Canvas (Donut Style)
+        Box(
+            modifier = Modifier.size(150.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 28.dp.toPx()
+                val radius = size.minDimension / 2f - strokeWidth / 2f
+                var startAngle = -90f
+
+                data.forEach { (key, value) ->
+                    val sweepAngle = (value / total) * 360f
+                    val sweepAnimated = sweepAngle * animProgress.value
+                    
+                    if (sweepAnimated > 0.5f) {
+                        drawArc(
+                            color = colors[key] ?: Color.Gray,
+                            startAngle = startAngle,
+                            sweepAngle = sweepAnimated,
+                            useCenter = false,
+                            topLeft = Offset(size.width / 2 - radius, size.height / 2 - radius),
+                            size = Size(radius * 2, radius * 2),
+                            style = Stroke(strokeWidth, cap = StrokeCap.Butt)
+                        )
+                        startAngle += sweepAnimated + 1.5f // 1.5度 gap for sleek separation
+                    }
+                }
+            }
+            if (centerText.isNotEmpty()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(centerText, fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
+                    if (centerSubtext.isNotEmpty()) {
+                        Text(centerSubtext, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.width(20.dp))
+
+        // Legend beside the pie
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            data.entries.sortedByDescending { it.value }.take(5).forEach { (key, value) ->
+                val icon = icons?.get(key) ?: "▪️"
+                val color = colors[key] ?: Color.Gray
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Canvas(Modifier.size(8.dp)) { drawCircle(color) }
+                    Spacer(Modifier.width(8.dp))
+                    Text("$icon $key", fontSize = 11.sp, color = color, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+                    Text(
+                        if (value % 1 == 0f) "${value.toInt()}" else "%.1f".format(value), 
+                        fontSize = 12.sp, color = TextPrimary, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}

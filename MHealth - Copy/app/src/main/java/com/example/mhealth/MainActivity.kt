@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -650,6 +651,7 @@ fun alertColor(level: String) = when (level.lowercase()) {
 // =============================================================================
 // HOME SCREEN — Layer 1: Data Collection Infographic
 // =============================================================================
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun HomeScreen() {
     val vector by DataRepository.latestVector.collectAsState()
@@ -700,44 +702,35 @@ fun HomeScreen() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         ArcProgressRing(v.notificationsToday, 200f, AlertOrange, "Notifs", "")
                         ArcProgressRing(v.placesVisited, 10f, LavenderPurple, "Places Vis.", "")
-                        ArcProgressRing(v.socialAppRatio, 1f, ChartGreen, "Social", "")
+                        // socialAppRatio is 0–1 fraction — multiply by 100 for % display
+                        ArcProgressRing(v.socialAppRatio * 100f, 100f, ChartGreen, "Social", "%")
                     }
                 }
             }
 
-            // Movement & Location row
+            // Movement & Location — single unified card
             item {
                 InfoCard("Movement & Location", headerColor = SkyBlue) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("🏃 Displacement", "%.2f km".format(v.dailyDisplacementKm), SkyBlue)
-                        MetricPill("🌐 Entropy", "%.2f".format(v.locationEntropy), LavenderPurple)
+                        ArcProgressRing(v.dailyDisplacementKm, 20f, CoralPink, "Distance", "km")
+                        ArcProgressRing(v.locationEntropy, 3f, AlertOrange, "Loc. Variety", "")
+                        ArcProgressRing(v.homeTimeRatio * 100f, 100f, MintGreen, "Home Time", "%")
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("🏠 Home Time", "%.0f%%".format(v.homeTimeRatio * 100), MintGreen)
+                        MetricPill("📍 Places", "${v.placesVisited.toInt()}", LavenderPurple)
+                        MetricPill("🔀 Entropy", "%.2f".format(v.locationEntropy), AlertOrange)
                     }
                 }
             }
 
-
-            // Communication row
+            // Communication
             item {
                 InfoCard("Communication", headerColor = SkyBlue) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SkyBlue)
                         MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", CoralPink)
-                        MetricPill("⭐ Favs", "${v.uniqueContacts.toInt()}", LavenderPurple)
-                    }
-                }
-            }
-
-            // Movement
-            item {
-                InfoCard("Movement & Location", headerColor = CoralPink) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        ArcProgressRing(v.dailyDisplacementKm, 20f, CoralPink, "Distance", "km")
-                        ArcProgressRing(v.locationEntropy, 3f, AlertOrange, "Location\nVariety", "")
-                        ArcProgressRing(v.homeTimeRatio, 1f, AlertYellow, "Home\nTime", "")
+                        MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", LavenderPurple)
                     }
                 }
             }
@@ -802,16 +795,108 @@ fun HomeScreen() {
                 }
             }
 
-            // Advanced sensors (new expanded features)
+            // Advanced Sensors — category-aware storage, installs, downloads, UPI, night checks
             item {
+                val ctx = LocalContext.current
+                val collector = remember { com.example.mhealth.logic.DataCollector(ctx) }
+                
+                // Efficiently compute heavy file/package queries on a background thread
+                // so the UI never lags or gives inaccurate stale reads due to main thread blocking.
+                val advancedData by produceState(
+                    initialValue = Pair(emptyMap<String, Float>(), emptyMap<String, Int>()),
+                    key1 = v
+                ) {
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        val storage = runCatching { collector.getStorageByCategory() }.getOrDefault(emptyMap())
+                        val apps = runCatching { collector.getAllAppsByCategory() }.getOrDefault(emptyMap())
+                        value = Pair(storage, apps)
+                    }
+                }
+                val storageByCategory = advancedData.first
+                val allAppsByCategory = advancedData.second
+
+                val catColors = mapOf(
+                    "Games"       to LavenderPurple,
+                    "Social"      to CoralPink,
+                    "Finance"     to MintGreen,
+                    "Media"       to AlertOrange,
+                    "Photos"      to SkyBlue,
+                    "Health"      to ChartGreen,
+                    "Productivity" to ChartBlue,
+                    "News"        to AlertYellow,
+                    "Other"       to TextSecondary
+                )
+
                 InfoCard("Advanced Sensors", headerColor = AlertOrange) {
+
+                    // ── Storage by Category (card grid) ──────────────────────
+                    if (storageByCategory.isEmpty() && allAppsByCategory.isEmpty()) {
+                        Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(color = AlertOrange, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                                Spacer(Modifier.height(8.dp))
+                                Text("Analyzing Deep Sensors...", fontSize = 11.sp, color = TextSecondary)
+                            }
+                        }
+                    } else if (storageByCategory.isNotEmpty()) {
+                        Text("💾 Storage Occupies", fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold, color = TextPrimary,
+                            modifier = Modifier.padding(bottom = 12.dp))
+
+                        val storageCatIcons = mapOf(
+                            "Games"        to "🎮",
+                            "Social"       to "💬",
+                            "Finance"      to "💳",
+                            "Media"        to "🎵",
+                            "Photos"       to "📸",
+                            "Health"       to "🏋️",
+                            "Productivity" to "💼",
+                            "News"         to "📰",
+                            "Maps"         to "🗺️",
+                            "Other"        to "📦"
+                        )
+                        PieChart(
+                            data = storageByCategory,
+                            colors = catColors,
+                            icons = storageCatIcons,
+                            centerText = "%.1f".format(storageByCategory.values.sum()),
+                            centerSubtext = "GB Total",
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    // ── Apps Installed by Category (card grid) ────────────────
+                    if (allAppsByCategory.isNotEmpty()) {
+                        Text("🛒 Apps by Category", fontSize = 13.sp,
+                            fontWeight = FontWeight.SemiBold, color = TextPrimary,
+                            modifier = Modifier.padding(bottom = 12.dp))
+
+                        val appCatIcons = mapOf(
+                            "Games"        to "🎮",
+                            "Social"       to "📱",
+                            "Finance"      to "💰",
+                            "Media"        to "🎬",
+                            "Photos"       to "🖼️",
+                            "Health"       to "❤️",
+                            "Productivity" to "✅",
+                            "News"         to "📰",
+                            "Maps"         to "🗺️",
+                            "Other"        to "📦"
+                        )
+                        val floatApps = allAppsByCategory.mapValues { it.value.toFloat() }
+                        PieChart(
+                            data = floatApps,
+                            colors = catColors,
+                            icons = appCatIcons,
+                            centerText = "${allAppsByCategory.values.sum()}",
+                            centerSubtext = "Apps",
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
+
+                    // ── Quick stats row ───────────────────────────────────────
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
-                        MetricPill("💾 Storage", "%.1f GB".format(v.storageUsedGB), CoralPink)
-                        MetricPill("🗑 Uninstalls", "${v.appUninstallsToday.toInt()}", AlertRed)
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", MintGreen)
                         MetricPill("🌙 Night Checks", "${v.nightInterruptions.toInt()}", LavenderPurple)
                     }
@@ -822,7 +907,8 @@ fun HomeScreen() {
             item {
                 InfoCard("System", headerColor = ChartBlue) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📶 WiFi", "%.0fMB".format(v.networkWifiMB), ChartBlue)
+                        MetricPill("📶 WiFi Data", "%.0f MB".format(v.networkWifiMB), ChartBlue)
+                        MetricPill("📶 Mobile Data", "%.0f MB".format(v.networkMobileMB), AlertOrange)
                     }
                 }
             }
@@ -1017,18 +1103,7 @@ fun MonitorScreen() {
             }
         }
 
-        // Sliding window selector (display only)
-        item {
-            InfoCard("Sliding Analysis Windows", headerColor = ChartOrange) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                    WindowChip("24h", "Acute", ChartOrange)
-                    WindowChip("7d", "Trend", SkyBlue)
-                    WindowChip("28d", "Persistent", LavenderPurple)
-                }
-                Spacer(Modifier.height(8.dp))
-                Text("System uses all three windows simultaneously to detect short-term spikes vs. gradual drift.", fontSize = 11.sp, color = TextSecondary)
-            }
-        }
+
 
         item { Spacer(Modifier.height(12.dp)) }
     }
@@ -1123,7 +1198,9 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "storageUsedGB"        to Pair("Storage Used",          "GB"),
     "appUninstallsToday"  to Pair("App Uninstalls",         ""),
     "upiTransactionsToday" to Pair("UPI / Payments",        ""),
-    "nightInterruptions"  to Pair("Night Check-ins",        "")
+    "nightInterruptions"  to Pair("Night Check-ins",        ""),
+    "mediaCountToday"      to Pair("Media Files",           ""),
+    "appInstallsToday"     to Pair("App Installs",          "")
 )
 
 @Composable
@@ -1134,11 +1211,16 @@ fun FeatureTableCard(
     val baselineMap = baseline.toMap()
     val currentMap  = current.toMap()
 
+    // Ratio features: multiply by 100 for % display in the table
+    val RATIO_FEATURES = setOf("socialAppRatio", "homeTimeRatio")
+
     val rows = featureLabels.mapNotNull { (key, labelUnit) ->
-        val mean = baselineMap[key] ?: return@mapNotNull null
-        val std  = baseline.variances[key] ?: 0f
-        val cur  = currentMap[key] ?: 0f
-        FeatureRow(labelUnit.first, labelUnit.second, mean, std, cur)
+        val meanRaw = baselineMap[key] ?: return@mapNotNull null
+        val stdRaw  = baseline.variances[key] ?: 0f
+        val curRaw  = currentMap[key] ?: 0f
+        // Scale ratios for display
+        val scale = if (key in RATIO_FEATURES) 100f else 1f
+        FeatureRow(labelUnit.first, labelUnit.second, meanRaw * scale, stdRaw * scale, curRaw * scale)
     }
 
     InfoCard("Full Baseline Reference", headerColor = SkyBlue) {
@@ -1156,11 +1238,13 @@ fun FeatureTableCard(
         Spacer(Modifier.height(4.dp))
 
         rows.forEach { row ->
-            val delta = if (row.mean > 0f) ((row.current - row.mean) / row.mean * 100f) else 0f
+            // Scientific flag: use z-score (std deviations from baseline mean)
+            val std = row.std.takeIf { it > 0f } ?: (row.mean * 0.15f).coerceAtLeast(0.01f)
+            val zScore = (row.current - row.mean) / std
             val (flagText, flagColor, flagIcon) = when {
-                kotlin.math.abs(delta) < 15f -> Triple("Normal",    AlertGreen,  Icons.Default.Check)
-                delta > 0f                   -> Triple("Elevated",  AlertOrange, Icons.Default.ArrowUpward)
-                else                         -> Triple("Decreased", SkyBlue,     Icons.Default.ArrowDownward)
+                kotlin.math.abs(zScore) < 1.0f  -> Triple("Normal",    AlertGreen,  Icons.Default.Check)
+                zScore > 0f                     -> Triple("Elevated",  AlertOrange, Icons.Default.ArrowUpward)
+                else                            -> Triple("Decreased", SkyBlue,     Icons.Default.ArrowDownward)
             }
             val unitSuffix = if (row.unit.isNotEmpty()) " ${row.unit}" else ""
             val fmtMean    = if (row.mean < 100f) "%.1f" else "%.0f"

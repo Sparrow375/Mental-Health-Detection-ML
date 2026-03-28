@@ -147,5 +147,52 @@ class AuthManager(private val context: Context) {
         if (entities.isNotEmpty()) {
             db.baselineDao().insertAll(entities)
         }
+
+        // 3. Fetch Historical Daily Features
+        val featuresSnapshot = firestore.collection("users").document(uid).collection("daily_features").get().await()
+        val featureEntities = mutableListOf<com.example.mhealth.logic.db.DailyFeaturesEntity>()
+        for (doc in featuresSnapshot.documents) {
+            try {
+                featureEntities.add(
+                    com.example.mhealth.logic.db.DailyFeaturesEntity(
+                        userId = emailId,
+                        date = doc.id,
+                        screenTimeHours = doc.getDouble("screenTimeHours")?.toFloat() ?: 0f,
+                        unlockCount = doc.getDouble("unlockCount")?.toFloat() ?: 0f,
+                        appLaunchCount = doc.getDouble("appLaunchCount")?.toFloat() ?: 0f,
+                        notificationsToday = doc.getDouble("notificationsToday")?.toFloat() ?: 0f,
+                        socialAppRatio = doc.getDouble("socialAppRatio")?.toFloat() ?: 0f,
+                        callsPerDay = doc.getDouble("callsPerDay")?.toFloat() ?: 0f,
+                        callDurationMinutes = doc.getDouble("callDurationMinutes")?.toFloat() ?: 0f,
+                        uniqueContacts = doc.getDouble("uniqueContacts")?.toFloat() ?: 0f,
+                        conversationFrequency = doc.getDouble("conversationFrequency")?.toFloat() ?: 0f,
+                        dailyDisplacementKm = doc.getDouble("dailyDisplacementKm")?.toFloat() ?: 0f,
+                        locationEntropy = doc.getDouble("locationEntropy")?.toFloat() ?: 0f,
+                        homeTimeRatio = doc.getDouble("homeTimeRatio")?.toFloat() ?: 0f,
+                        placesVisited = doc.getDouble("placesVisited")?.toFloat() ?: 0f,
+                        wakeTimeHour = doc.getDouble("wakeTimeHour")?.toFloat() ?: 0f,
+                        sleepTimeHour = doc.getDouble("sleepTimeHour")?.toFloat() ?: 0f,
+                        sleepDurationHours = doc.getDouble("sleepDurationHours")?.toFloat() ?: 0f,
+                        darkDurationHours = doc.getDouble("darkDurationHours")?.toFloat() ?: 0f,
+                        chargeDurationHours = doc.getDouble("chargeDurationHours")?.toFloat() ?: 0f,
+                        memoryUsagePercent = doc.getDouble("memoryUsagePercent")?.toFloat() ?: 0f,
+                        networkWifiMB = doc.getDouble("networkWifiMB")?.toFloat() ?: 0f,
+                        networkMobileMB = doc.getDouble("networkMobileMB")?.toFloat() ?: 0f,
+                        downloadsToday = doc.getDouble("downloadsToday")?.toFloat() ?: 0f,
+                        storageUsedGB = doc.getDouble("storageUsedGB")?.toFloat() ?: 0f,
+                        appUninstallsToday = doc.getDouble("appUninstallsToday")?.toFloat() ?: 0f,
+                        upiTransactionsToday = doc.getDouble("upiTransactionsToday")?.toFloat() ?: 0f,
+                        nightInterruptions = doc.getDouble("nightInterruptions")?.toFloat() ?: 0f,
+                        syncedToCloud = true,
+                        isSimulated = false
+                    )
+                )
+            } catch (e: Exception) {
+                // Skip faulty docs, although shouldn't happen
+            }
+        }
+        if (featureEntities.isNotEmpty()) {
+            db.dailyFeaturesDao().insertAll(featureEntities)
+        }
     }
 }

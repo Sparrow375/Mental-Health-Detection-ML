@@ -55,5 +55,8 @@ data class DailyFeaturesEntity(
     val nightInterruptions: Float = 0f,
 
     // Sync flag (for future Firebase cloud sync)
-    val syncedToCloud: Boolean = false
+    val syncedToCloud: Boolean = false,
+
+    // Developer testing
+    val isSimulated: Boolean = false
 )

@@ -100,7 +100,10 @@ data class PersonalityVector(
         "storageUsedGB"        to storageUsedGB,
         "appUninstallsToday"   to appUninstallsToday,
         "upiTransactionsToday" to upiTransactionsToday,
-        "nightInterruptions"   to nightInterruptions
+        "nightInterruptions"   to nightInterruptions,
+        // Previously missing — now included in model
+        "mediaCountToday"      to mediaCountToday,
+        "appInstallsToday"     to appInstallsToday
     )
 }
 

@@ -84,7 +84,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val calEvents     = countCalendarEvents(startOfDay, now)
         val mediaCount    = countMediaAdded(startOfDay)
         val appInstalls   = countAppInstalls(startOfDay)
-        val contacts      = countStarredContacts()
+        val contacts      = countUniqueContactsToday(startOfDay)  // fix: was starred contacts
         val downloads     = countDownloads(startOfDay)
         val storageGB     = getStorageUsedGB()
         val appUninstalls = countAppUninstalls()
@@ -108,7 +108,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
             callsPerDay          = comms.callCount.toFloat(),
             callDurationMinutes  = comms.callDurationMinutes,
             uniqueContacts       = contacts.toFloat(),
-            conversationFrequency= comms.callCount.toFloat(),
+            // conversationFrequency = avg daily events per unique contact (not duplicate of callsPerDay)
+            conversationFrequency= if (contacts > 0) comms.callCount.toFloat() / contacts else comms.callCount.toFloat(),
 
             // Location & movement
             dailyDisplacementKm  = locationData.displacementKm,
@@ -230,54 +231,91 @@ class DataCollector(private val context: Context) : SensorEventListener {
     )
 
     private fun calculateSleepProxy(startOfDayMs: Long, now: Long): SleepResult {
-        // Sleep for "today" corresponds to the previous night.
-        // Night window: Yesterday 18:00 (6 PM) to Today 14:00 (2 PM) = 20 hours
-        val windowStartMs = startOfDayMs - (6 * 3600_000L)
-        val windowEndMs   = kotlin.math.min(now, startOfDayMs + (14 * 3600_000L))
+        // Sleep window: Yesterday 20:00 → Today 12:00
+        val windowStartMs = startOfDayMs - (4 * 3600_000L)   // yesterday 20:00
+        val windowEndMs   = minOf(now, startOfDayMs + (12 * 3600_000L)) // today 12:00
 
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val events = usm.queryEvents(windowStartMs, windowEndMs)
-        val event = UsageEvents.Event()
+        val ev = UsageEvents.Event()
 
-        var gapStartMs = windowStartMs
-        var longestGapMs = 0L
-        var bestSleepStartMs = windowStartMs
-        var bestSleepEndMs = windowStartMs
+        // ── Step 1: collect raw screen-on/off timestamps ──────────────────────
+        // screenOn  = device became interactive (user picked up phone)
+        // screenOff = device went non-interactive (screen turned off)
+        data class ScreenSession(val onMs: Long, val offMs: Long)
+        val sessions = mutableListOf<ScreenSession>()
+
+        var screenOnAt  = windowStartMs
+        var screenIsOn  = true  // assume screen is on at start
 
         while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            val ts = event.timeStamp
-            
-            // Interaction Ends -> gap starts
-            if (event.eventType == 16 || event.eventType == 2) {
-                gapStartMs = ts
-            }
-            // Interaction Begins -> gap ends
-            else if (event.eventType == 1 || event.eventType == 15 || event.eventType == 18) {
-                val gap = ts - gapStartMs
-                if (gap > longestGapMs) {
-                    longestGapMs = gap
-                    bestSleepStartMs = gapStartMs
-                    bestSleepEndMs = ts
+            events.getNextEvent(ev)
+            when (ev.eventType) {
+                15 -> { // SCREEN_INTERACTIVE — screen turned on
+                    if (!screenIsOn) { screenOnAt = ev.timeStamp; screenIsOn = true }
                 }
-                gapStartMs = ts // Reset gap start to now, so we don't count time while screen is on
+                16 -> { // SCREEN_NON_INTERACTIVE — screen turned off
+                    if (screenIsOn) {
+                        sessions.add(ScreenSession(screenOnAt, ev.timeStamp))
+                        screenIsOn = false
+                    }
+                }
             }
         }
-        
-        // If window hasn't ended and no interaction yet, the gap is still running
-        if (now <= windowEndMs) {
-            val currentGap = now - gapStartMs
-            if (currentGap > longestGapMs) {
-                longestGapMs = currentGap
-                bestSleepStartMs = gapStartMs
-                bestSleepEndMs = now
-            }
+        // If screen is still on at end of window
+        if (screenIsOn) sessions.add(ScreenSession(screenOnAt, windowEndMs))
+
+        // ── Step 2: Identify sleep gaps (screen-off periods) ──────────────────
+        // A gap = interval between two consecutive screen sessions.
+        // Brief interruptions ≤ MICRO_WAKE_THRESHOLD are merged into the surrounding sleep.
+        val MICRO_WAKE_MS = 10 * 60_000L  // 10 minutes — brief checks (e.g. checking time at night) don't break sleep
+
+        // Build list of "off" intervals from consecutive sessions
+        data class Gap(val startMs: Long, val endMs: Long)
+        val gaps = mutableListOf<Gap>()
+        for (i in 0 until sessions.size - 1) {
+            gaps.add(Gap(sessions[i].offMs, sessions[i + 1].onMs))
+        }
+        // Also gap from window start to first session (if phone was off initially)
+        if (sessions.isNotEmpty() && sessions[0].onMs > windowStartMs) {
+            gaps.add(0, Gap(windowStartMs, sessions[0].onMs))
+        }
+        // And from last session to window end
+        if (sessions.isNotEmpty()) {
+            gaps.add(Gap(sessions.last().offMs, windowEndMs))
+        }
+        if (sessions.isEmpty()) {
+            gaps.add(Gap(windowStartMs, windowEndMs))
         }
 
+        // ── Step 3: Merge gaps separated only by micro-wakes ─────────────────
+        // Walk through gaps: if the "on" session between two gaps is ≤ MICRO_WAKE_MS,
+        // merge the two gaps into one continuous sleep episode.
+        val mergedGaps = mutableListOf<Gap>()
+        var current = gaps.firstOrNull() ?: return SleepResult(0f, 0f, 0f)
+
+        for (i in 1 until gaps.size) {
+            val bridgeOnMs = gaps[i].startMs - current.endMs  // how long was screen on between gaps
+            if (bridgeOnMs <= MICRO_WAKE_MS) {
+                // merge: extend current gap to swallow the micro-wake
+                current = Gap(current.startMs, gaps[i].endMs)
+            } else {
+                mergedGaps.add(current)
+                current = gaps[i]
+            }
+        }
+        mergedGaps.add(current)
+
+        // ── Step 4: Pick the longest merged gap = sleep episode ───────────────
+        val bestGap = mergedGaps.maxByOrNull { it.endMs - it.startMs }
+            ?: return SleepResult(0f, 0f, 0f)
+
+        val durationMs = bestGap.endMs - bestGap.startMs
+
         return SleepResult(
-            sleepTimeHour = msToHour(bestSleepStartMs),
-            wakeTimeHour = msToHour(bestSleepEndMs),
-            sleepDurationHours = longestGapMs / 3600_000f
+            sleepTimeHour      = msToHour(bestGap.startMs),
+            wakeTimeHour       = msToHour(bestGap.endMs),
+            sleepDurationHours = durationMs / 3_600_000f
         )
     }
 
@@ -547,6 +585,26 @@ class DataCollector(private val context: Context) : SensorEventListener {
         return CommStats(calls, totalDurationSeconds / 60f)
     }
 
+    private fun countUniqueContactsToday(startOfDay: Long): Int {
+        val uniqueNumbers = mutableSetOf<String>()
+        try {
+            context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                arrayOf(CallLog.Calls.NUMBER),
+                "${CallLog.Calls.DATE} >= ?",
+                arrayOf(startOfDay.toString()), null
+            )?.use { cursor ->
+                val numIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+                while (cursor.moveToNext()) {
+                    val num = cursor.getString(numIndex)?.replace("\\s".toRegex(), "") ?: continue
+                    if (num.isNotBlank()) uniqueNumbers.add(num)
+                }
+            }
+        } catch (e: Exception) { Log.e(TAG, "UniqueContacts error: ${e.message}") }
+        return uniqueNumbers.size
+    }
+
+    // Kept for backward compatibility — counts starred (favourite) contacts overall
     private fun countStarredContacts(): Int = try {
         context.contentResolver.query(
             ContactsContract.Contacts.CONTENT_URI,
@@ -655,12 +713,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
     // ── New feature collectors ─────────────────────────────────────────────────
 
     private fun countDownloads(since: Long): Int = try {
-        context.contentResolver.query(
-            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
-            arrayOf(android.provider.MediaStore.Downloads._ID),
-            "${android.provider.MediaStore.Downloads.DATE_ADDED} >= ?",
-            arrayOf((since / 1000).toString()), null
-        )?.use { it.count } ?: 0
+        // Scientifically bypass MediaStore index lags by checking the physical filesystem layer natively:
+        val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+        var count = 0
+        dir.listFiles()?.forEach { file ->
+            if (file.isFile && file.lastModified() >= since) count++
+        }
+        count
     } catch (e: Exception) { 0 }
 
     private fun getStorageUsedGB(): Float {
@@ -691,19 +750,25 @@ class DataCollector(private val context: Context) : SensorEventListener {
         "com.freecharge.android",                    // FreeCharge
         "com.myairtelapp",                           // Airtel Thanks
         "com.boi_mobile",                            // Bank of India Mobile
-        "com.sbi.upi",                               // SBI Pay
-        "com.axis.mobile"                            // Axis Mobile
+        "com.sbi.upi",                               // SBI Pay / YONO
+        "com.axis.mobile",                           // Axis Mobile
+        "com.csam.icici.bank.imobile",               // ICICI iMobile
+        "com.hdfcbank.payzapp",                      // HDFC PayZapp
+        "com.dreamplug.androidapp"                   // CRED
     )
 
     private fun countUpiLaunches(appLaunches: Map<String, Int>): Int =
         appLaunches.filterKeys { pkg -> UPI_PACKAGES.any { pkg.startsWith(it) } }.values.sum()
 
     private fun countNightInterruptions(startOfDay: Long): Int {
-        val nightStart = startOfDay  // 00:00
-        val nightEnd   = startOfDay + 5 * 3600_000L  // 05:00
-        if (System.currentTimeMillis() < nightEnd) return 0  // don't query future window
+        // Query the PREVIOUS night window: yesterday 22:00 to today 05:00
+        // This ensures a meaningful value is always available during daytime ticks
+        val nightStart = startOfDay - 2 * 3600_000L  // yesterday 22:00
+        val nightEnd   = startOfDay + 5 * 3600_000L  // today 05:00
+        val queryEnd   = minOf(nightEnd, System.currentTimeMillis())
+        if (queryEnd <= nightStart) return 0
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val events = usm.queryEvents(nightStart, nightEnd)
+        val events = usm.queryEvents(nightStart, queryEnd)
         val event = UsageEvents.Event()
         var count = 0
         while (events.hasNextEvent()) {
@@ -711,5 +776,111 @@ class DataCollector(private val context: Context) : SensorEventListener {
             if (event.eventType == 18) count++ // KEYGUARD_HIDDEN = unlock
         }
         return count
+    }
+
+    // ── Category-based storage breakdown ──────────────────────────────────────
+    // Returns map of category label → storage used in GB for installed apps
+    fun getStorageByCategory(): Map<String, Float> {
+        val result = mutableMapOf<String, Float>()
+        val pm = context.packageManager
+
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val ssm = context.getSystemService(Context.STORAGE_STATS_SERVICE) as? android.app.usage.StorageStatsManager
+            val storageUuid = android.os.storage.StorageManager.UUID_DEFAULT
+
+            for (pkg in pm.getInstalledPackages(0)) {
+                // Efficiently skip system-level packages so OS Bloat doesn't skew metric
+                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+                if (isSystemApp) continue
+
+                var usedBytes = 0L
+                if (ssm != null) {
+                    try {
+                        val stats = ssm.queryStatsForPackage(storageUuid, pkg.packageName, android.os.Process.myUserHandle())
+                        usedBytes = stats.appBytes + stats.cacheBytes + stats.dataBytes
+                    } catch (e: Exception) {
+                        try { usedBytes = java.io.File(pkg.applicationInfo?.sourceDir ?: "").length() } catch (_: Exception) {}
+                    }
+                } else {
+                    try { usedBytes = java.io.File(pkg.applicationInfo?.sourceDir ?: "").length() } catch (_: Exception) {}
+                }
+
+                if (usedBytes < 1_000_000L) continue // skip < 1MB
+                val label = getCategoryLabel(pkg.applicationInfo, pm)
+                // Scientifically exact to OS Settings: use decimal GB (1_000_000_000f) rather than binary GiB
+                result[label] = (result[label] ?: 0f) + (usedBytes / 1_000_000_000f)
+            }
+        }
+        return result.toList().sortedByDescending { it.second }.take(6).toMap()
+    }
+
+    // ── Category-based app installs today ─────────────────────────────────────
+    // Returns map of category label → count of apps installed today
+    fun getAppInstallsByCategory(since: Long): Map<String, Int> {
+        val result = mutableMapOf<String, Int>()
+        val pm = context.packageManager
+        for (pkg in pm.getInstalledPackages(0)) {
+            if (pkg.firstInstallTime < since) continue
+            val label = getCategoryLabel(pkg.applicationInfo, pm)
+            result[label] = (result[label] ?: 0) + 1
+        }
+        return result
+    }
+
+    // ── Total installed apps by category (all Play Store apps, not just today) ─
+    // Returns map of category label → total count of installed apps in that category
+    fun getAllAppsByCategory(): Map<String, Int> {
+        val result = mutableMapOf<String, Int>()
+        val pm = context.packageManager
+        for (pkg in pm.getInstalledPackages(0)) {
+            // Only count user-installed apps (exclude system apps)
+            val isSystemApp = (pkg.applicationInfo?.flags
+                ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+            if (isSystemApp) continue
+            val label = getCategoryLabel(pkg.applicationInfo, pm)
+            result[label] = (result[label] ?: 0) + 1
+        }
+        // Sort descending by count
+        return result.toList().sortedByDescending { it.second }.toMap()
+    }
+
+    private fun getCategoryLabel(info: android.content.pm.ApplicationInfo?,
+                                  pm: PackageManager): String {
+        if (info == null) return "Other"
+        val name = info.packageName?.lowercase() ?: ""
+        // Name-based heuristics (Catches side-loaded apps or mismatched manifest OS categories)
+        return when {
+            name.contains("game") || name.contains("pubg") || name.contains("clash") 
+                || name.contains("candy") || name.contains("chess") || name.contains("roblox")
+                || name.contains("minecraft") || name.contains("callofduty") || name.contains("freefire")
+                || name.contains("mihoyo") || name.contains("riotgames") || name.contains("ludo") -> "Games"
+            name.contains("pay") || name.contains("upi") || name.contains("bank")
+                || name.contains("wallet") || name.contains("phonepe")
+                || name.contains("paytm") -> "Finance"
+            name.contains("instagram") || name.contains("whatsapp")
+                || name.contains("twitter") || name.contains("facebook")
+                || name.contains("snapchat") || name.contains("tiktok")
+                || name.contains("telegram") || name.contains("discord") -> "Social"
+            name.contains("youtube") || name.contains("netflix")
+                || name.contains("spotify") || name.contains("hotstar")
+                || name.contains("prime") || name.contains("music") -> "Media"
+            name.contains("camera") || name.contains("photo")
+                || name.contains("gallery") || name.contains("editor") -> "Photos"
+            name.contains("health") || name.contains("fitness")
+                || name.contains("steps") || name.contains("workout") -> "Health"
+            else -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                when (info.category) {
+                    android.content.pm.ApplicationInfo.CATEGORY_GAME -> "Games"
+                    android.content.pm.ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+                    android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+                    android.content.pm.ApplicationInfo.CATEGORY_MAPS -> "Maps"
+                    android.content.pm.ApplicationInfo.CATEGORY_NEWS -> "News"
+                    android.content.pm.ApplicationInfo.CATEGORY_AUDIO -> "Media"
+                    android.content.pm.ApplicationInfo.CATEGORY_VIDEO -> "Media"
+                    android.content.pm.ApplicationInfo.CATEGORY_IMAGE -> "Photos"
+                    else -> "Other"
+                }
+            } else "Other"
+        }
     }
 }

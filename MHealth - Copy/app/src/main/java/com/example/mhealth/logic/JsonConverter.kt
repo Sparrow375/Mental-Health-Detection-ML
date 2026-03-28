@@ -106,7 +106,8 @@ object JsonConverter {
     fun fromPersonalityVector(
         userId: String,
         date: String,
-        v: com.example.mhealth.models.PersonalityVector
+        v: com.example.mhealth.models.PersonalityVector,
+        isSimulated: Boolean = false
     ): DailyFeaturesEntity = DailyFeaturesEntity(
         userId = userId,
         date = date,
@@ -135,7 +136,8 @@ object JsonConverter {
         storageUsedGB = v.storageUsedGB,
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
-        nightInterruptions = v.nightInterruptions
+        nightInterruptions = v.nightInterruptions,
+        isSimulated = isSimulated
     )
 
     fun toPersonalityVector(

@@ -145,7 +145,7 @@ class MonitoringService : Service() {
                 if (triggers > 0) {
                     val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
                     DataRepository.setLastProcessedDay(if (today <= 1) 365 else today - 1)
-                    runTick()
+                    runTick(isSimulated = true)
                 }
             }
         }
@@ -154,20 +154,25 @@ class MonitoringService : Service() {
         serviceScope.launch {
             DataRepository.resetTrigger.collect { triggers ->
                 if (triggers > 0) {
-                    collectedDailyVectors.clear()
-                    DataRepository.clearAllState()
-                    detector = null
-                    
                     val userId = DataRepository.userProfile.value?.email ?: "default_user"
                     val db = MHealthDatabase.getInstance(this@MonitoringService)
                     try {
-                        db.dailyFeaturesDao().clearAll(userId)
-                        db.baselineDao().clearBaseline(userId)
-                        db.analysisResultDao().clearAll(userId)
-                        val profile = db.userProfileDao().get(userId)
-                        if (profile != null) {
-                            db.userProfileDao().upsert(profile.copy(baselineReady = false))
+                        db.dailyFeaturesDao().clearSimulated(userId)
+                        
+                        val targetBaselineDays = DataRepository.baselineDaysRequired.value
+                        val remainingFeatures = db.dailyFeaturesDao().getLatestN(userId, 60)
+                        if (remainingFeatures.size < targetBaselineDays) {
+                            db.baselineDao().clearBaseline(userId)
+                            db.analysisResultDao().clearAll(userId)
+                            val profile = db.userProfileDao().get(userId)
+                            if (profile != null) {
+                                db.userProfileDao().upsert(profile.copy(baselineReady = false))
+                            }
+                            DataRepository.setIsBuildingBaseline(true)
+                            detector = null
                         }
+                        
+                        restoreStateFromRoom()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -181,7 +186,7 @@ class MonitoringService : Service() {
         serviceScope.cancel()
     }
 
-    private fun runTick() {
+    private fun runTick(isSimulated: Boolean = false) {
         try {
             collectionTickCount++
 
@@ -213,9 +218,9 @@ class MonitoringService : Service() {
             }
 
             if (DataRepository.isBuildingBaseline.value) {
-                handleBaselineBuilding(snapshot, today, savedDay)
+                handleBaselineBuilding(snapshot, today, savedDay, isSimulated)
             } else {
-                handleAnomalyDetection(snapshot, today, savedDay)
+                handleAnomalyDetection(snapshot, today, savedDay, isSimulated)
             }
 
             if (today != savedDay) {
@@ -226,7 +231,7 @@ class MonitoringService : Service() {
         }
     }
 
-    private fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int) {
+    private fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
         val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val targetBaselineDays = DataRepository.baselineDaysRequired.value
         if (today != savedDay && savedDay != -1) {
@@ -236,7 +241,7 @@ class MonitoringService : Service() {
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
                 // Persist end-of-day snapshot to Room
-                persistDailySnapshot(snapshot, savedDay)
+                persistDailySnapshot(snapshot, savedDay, isSimulated)
             }
         }
 
@@ -256,12 +261,12 @@ class MonitoringService : Service() {
         }
     }
 
-    private fun handleAnomalyDetection(snapshot: PersonalityVector, today: Int, savedDay: Int) {
+    private fun handleAnomalyDetection(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
         val report = detector?.analyze(snapshot, DataRepository.reports.value.size + 1)
         report?.let {
             if (today != savedDay && savedDay != -1) {
                 // Persist end-of-monitoring-day snapshot to Room
-                persistDailySnapshot(snapshot, savedDay)
+                persistDailySnapshot(snapshot, savedDay, isSimulated)
 
                 DataRepository.addReport(it)
                 if (it.alertLevel == "orange" || it.alertLevel == "red") {
@@ -273,15 +278,18 @@ class MonitoringService : Service() {
 
     // ── Room persistence helpers ──────────────────────────────────────────────
 
-    private fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int) {
+    private fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int, isSimulated: Boolean) {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         val cal = Calendar.getInstance().apply { set(Calendar.DAY_OF_YEAR, dayOfYear) }
         val dateStr = dateFmt.format(cal.time)
-        val entity = JsonConverter.fromPersonalityVector(userId, dateStr, snapshot)
+        val entity = JsonConverter.fromPersonalityVector(userId, dateStr, snapshot, isSimulated)
         serviceScope.launch {
             try {
                 MHealthDatabase.getInstance(this@MonitoringService)
                     .dailyFeaturesDao().insert(entity)
+                    
+                // Automatically push un-synced data to Firebase database
+                syncUnstagedDailyFeaturesToFirebase()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -352,11 +360,26 @@ class MonitoringService : Service() {
         val averages = mutableMapOf<String, Float>()
         val variances = mutableMapOf<String, Float>()
 
+        val n = vectors.size
+        // 10% Trimmed Mean: Removes extreme 10% high & 10% low outliers from the calibration period
+        val trimCount = (n * 0.10).toInt().coerceAtLeast(0)
+
         features.forEach { feature ->
             val vals = vectors.map { it.toMap()[feature] ?: 0f }
-            val avg = vals.average().toFloat()
-            averages[feature] = avg
-            variances[feature] = calculateSD(vals, avg)
+            
+            // Trim outliers for robust mean calculation
+            val sortedVals = vals.sorted()
+            val trimmedVals = if (n > 4 && trimCount > 0) {
+                sortedVals.subList(trimCount, n - trimCount)
+            } else {
+                sortedVals
+            }
+            
+            val robustAvg = trimmedVals.average().toFloat()
+            averages[feature] = robustAvg
+            
+            // Variance is computed against the robust average using the full valid dataset
+            variances[feature] = calculateSD(vals, robustAvg)
         }
 
         return PersonalityVector(
@@ -403,6 +426,62 @@ class MonitoringService : Service() {
                 .setAutoCancel(true)
                 .build()
         )
+    }
+
+    private suspend fun syncUnstagedDailyFeaturesToFirebase() {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid ?: return
+        val db = MHealthDatabase.getInstance(this@MonitoringService)
+        val userId = DataRepository.userProfile.value?.email ?: return
+        
+        try {
+            val unsynced = db.dailyFeaturesDao().getUnsynced(userId)
+            if (unsynced.isEmpty()) return
+            
+            val firestore = FirebaseFirestore.getInstance()
+            val collectionRef = firestore.collection("users").document(uid).collection("daily_features")
+            
+            for (entity in unsynced) {
+                // Ensure simulated testing data does not contaminate Firebase
+                if (entity.isSimulated) {
+                    db.dailyFeaturesDao().markSynced(entity.id)
+                    continue
+                }
+                
+                val data = hashMapOf(
+                    "screenTimeHours" to entity.screenTimeHours,
+                    "unlockCount" to entity.unlockCount,
+                    "appLaunchCount" to entity.appLaunchCount,
+                    "notificationsToday" to entity.notificationsToday,
+                    "socialAppRatio" to entity.socialAppRatio,
+                    "callsPerDay" to entity.callsPerDay,
+                    "callDurationMinutes" to entity.callDurationMinutes,
+                    "uniqueContacts" to entity.uniqueContacts,
+                    "conversationFrequency" to entity.conversationFrequency,
+                    "dailyDisplacementKm" to entity.dailyDisplacementKm,
+                    "locationEntropy" to entity.locationEntropy,
+                    "homeTimeRatio" to entity.homeTimeRatio,
+                    "placesVisited" to entity.placesVisited,
+                    "wakeTimeHour" to entity.wakeTimeHour,
+                    "sleepTimeHour" to entity.sleepTimeHour,
+                    "sleepDurationHours" to entity.sleepDurationHours,
+                    "darkDurationHours" to entity.darkDurationHours,
+                    "chargeDurationHours" to entity.chargeDurationHours,
+                    "memoryUsagePercent" to entity.memoryUsagePercent,
+                    "networkWifiMB" to entity.networkWifiMB,
+                    "networkMobileMB" to entity.networkMobileMB,
+                    "downloadsToday" to entity.downloadsToday,
+                    "storageUsedGB" to entity.storageUsedGB,
+                    "appUninstallsToday" to entity.appUninstallsToday,
+                    "upiTransactionsToday" to entity.upiTransactionsToday,
+                    "nightInterruptions" to entity.nightInterruptions
+                )
+                
+                collectionRef.document(entity.date).set(data).await()
+                db.dailyFeaturesDao().markSynced(entity.id)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     override fun onBind(intent: Intent?): IBinder? = null

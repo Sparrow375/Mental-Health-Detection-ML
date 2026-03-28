@@ -286,6 +286,7 @@ object DataRepository {
             remove("step_baseline_today")
             remove("loc_snapshots_today")
             remove("charge_hours_today")
+            remove("prev_pkg_count")   // reset so appUninstalls recalculates fresh each day
         }?.apply()
     }
 

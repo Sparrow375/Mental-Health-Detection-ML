@@ -19,13 +19,16 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
     private val EVIDENCE_THRESHOLD = 2.0f
 
     init {
+        // These MUST exactly match the keys returned by PersonalityVector.toMap()
         val features = listOf(
-            "screenTimeHours", "unlockCount", "socialAppRatio", "callsPerDay",
-            "textsPerDay", "uniqueContacts", "responseTimeMinutes", "dailyDisplacementKm",
-            "locationEntropy", "homeTimeRatio", "placesVisited", "wakeTimeHour",
-            "sleepTimeHour", "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
-            "conversationFrequency", "memoryUsagePercent",
-            "networkWifiMB", "networkMobileMB", "mediaCountToday", "appInstallsToday"
+            "screenTimeHours", "unlockCount", "appLaunchCount", "notificationsToday",
+            "socialAppRatio", "callsPerDay", "callDurationMinutes", "uniqueContacts",
+            "conversationFrequency", "dailyDisplacementKm", "locationEntropy",
+            "homeTimeRatio", "placesVisited", "wakeTimeHour", "sleepTimeHour",
+            "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
+            "memoryUsagePercent", "networkWifiMB", "networkMobileMB", "calendarEventsToday",
+            "downloadsToday", "storageUsedGB", "appUninstallsToday",
+            "upiTransactionsToday", "nightInterruptions"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
     }
@@ -121,7 +124,10 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
     }
 
     private fun determineAlertLevel(anomalyScore: Float, deviations: Map<String, Float>): String {
-        val criticalFeatures = listOf("sleepDurationHours", "screenTimeHours", "dailyDisplacementKm", "socialAppRatio")
+        val criticalFeatures = listOf(
+            "sleepDurationHours", "screenTimeHours", "dailyDisplacementKm",
+            "socialAppRatio", "nightInterruptions", "upiTransactionsToday"
+        )
         val criticalDeviation = criticalFeatures.map { abs(deviations[it] ?: 0f) }.maxOrNull() ?: 0f
 
         val hasSustainedDeviation = sustainedDeviationDays >= SUSTAINED_THRESHOLD_DAYS || evidenceAccumulated >= EVIDENCE_THRESHOLD

@@ -30,6 +30,7 @@ fun OnboardingScreen(authManager: AuthManager) {
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val coroutineScope = rememberCoroutineScope()
+    val context = androidx.compose.ui.platform.LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -54,7 +55,8 @@ fun OnboardingScreen(authManager: AuthManager) {
                         val result = authManager.signInOrCreateUser(email)
                         isLoading = false
                         if (result.isSuccess) {
-                            // TODO Navigate to Dashboard
+                            context.startActivity(android.content.Intent(context, com.example.mhealth.MainActivity::class.java))
+                            (context as? android.app.Activity)?.finish()
                         } else {
                             errorMessage = result.exceptionOrNull()?.message ?: "Login failed"
                         }

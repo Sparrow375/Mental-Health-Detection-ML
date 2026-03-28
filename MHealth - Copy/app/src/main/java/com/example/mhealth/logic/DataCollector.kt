@@ -85,6 +85,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val mediaCount    = countMediaAdded(startOfDay)
         val appInstalls   = countAppInstalls(startOfDay)
         val contacts      = countStarredContacts()
+        val downloads     = countDownloads(startOfDay)
+        val storageGB     = getStorageUsedGB()
+        val appUninstalls = countAppUninstalls()
+        val upiLaunches   = countUpiLaunches(events.appLaunches)
+        val nightChecks   = countNightInterruptions(startOfDay)
 
         // Notification count natively parsed from UsageEvents (Type 12)
         val notifCount = events.notificationCount.toFloat()
@@ -125,6 +130,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
             mediaCountToday      = mediaCount.toFloat(),
             appInstallsToday     = appInstalls.toFloat(),
             calendarEventsToday  = calEvents.toFloat(),
+
+            // New expanded features
+            downloadsToday       = downloads.toFloat(),
+            storageUsedGB        = storageGB,
+            appUninstallsToday   = appUninstalls.toFloat(),
+            upiTransactionsToday = upiLaunches.toFloat(),
+            nightInterruptions   = nightChecks.toFloat(),
 
             appBreakdown         = events.appMinutes,
             notificationBreakdown = events.notificationBreakdown,
@@ -638,5 +650,66 @@ class DataCollector(private val context: Context) : SensorEventListener {
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }.timeInMillis
+    }
+
+    // ── New feature collectors ─────────────────────────────────────────────────
+
+    private fun countDownloads(since: Long): Int = try {
+        context.contentResolver.query(
+            android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            arrayOf(android.provider.MediaStore.Downloads._ID),
+            "${android.provider.MediaStore.Downloads.DATE_ADDED} >= ?",
+            arrayOf((since / 1000).toString()), null
+        )?.use { it.count } ?: 0
+    } catch (e: Exception) { 0 }
+
+    private fun getStorageUsedGB(): Float {
+        return try {
+            val stat  = StatFs(Environment.getDataDirectory().path)
+            val total = stat.blockCountLong * stat.blockSizeLong
+            val avail = stat.availableBlocksLong * stat.blockSizeLong
+            ((total - avail) / (1024f * 1024f * 1024f))
+        } catch (e: Exception) { 0f }
+    }
+
+    private fun countAppUninstalls(): Int = try {
+        val prefs = context.getSharedPreferences("mhealth_prefs", Context.MODE_PRIVATE)
+        val currentCount = context.packageManager.getInstalledPackages(0).size
+        val prevKey = "prev_pkg_count"
+        val storedCount = prefs.getInt(prevKey, currentCount)
+        prefs.edit().putInt(prevKey, currentCount).apply()
+        val removed = (storedCount - currentCount).coerceAtLeast(0)
+        removed
+    } catch (e: Exception) { 0 }
+
+    private val UPI_PACKAGES = listOf(
+        "com.google.android.apps.nbu.paisa.user",   // Google Pay
+        "net.one97.paytm",                           // Paytm
+        "com.phonepe.app",                           // PhonePe
+        "in.amazon.mShop.android.shopping",          // Amazon Pay
+        "com.mobikwik_new",                          // MobiKwik
+        "com.freecharge.android",                    // FreeCharge
+        "com.myairtelapp",                           // Airtel Thanks
+        "com.boi_mobile",                            // Bank of India Mobile
+        "com.sbi.upi",                               // SBI Pay
+        "com.axis.mobile"                            // Axis Mobile
+    )
+
+    private fun countUpiLaunches(appLaunches: Map<String, Int>): Int =
+        appLaunches.filterKeys { pkg -> UPI_PACKAGES.any { pkg.startsWith(it) } }.values.sum()
+
+    private fun countNightInterruptions(startOfDay: Long): Int {
+        val nightStart = startOfDay  // 00:00
+        val nightEnd   = startOfDay + 5 * 3600_000L  // 05:00
+        if (System.currentTimeMillis() < nightEnd) return 0  // don't query future window
+        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val events = usm.queryEvents(nightStart, nightEnd)
+        val event = UsageEvents.Event()
+        var count = 0
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            if (event.eventType == 18) count++ // KEYGUARD_HIDDEN = unlock
+        }
+        return count
     }
 }

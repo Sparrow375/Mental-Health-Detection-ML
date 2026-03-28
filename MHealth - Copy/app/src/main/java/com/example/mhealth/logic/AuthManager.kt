@@ -34,6 +34,23 @@ class AuthManager(private val context: Context) {
         }
     }
 
+    // Cloud recovery for users who reinstalled the app
+    suspend fun signInExistingUser(email: String): Result<String> {
+        return try {
+            val password = "user1234"
+            auth.signInWithEmailAndPassword(email, password).await()
+            val user = auth.currentUser ?: return Result.failure(Exception("No user found"))
+            val uid = user.uid
+            val doc = firestore.collection("users").document(uid).get().await()
+            val name = doc.getString("name") ?: "Recovered User"
+            
+            downloadDataToRoom(uid)
+            Result.success(name)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     private suspend fun setupFirestoreProfile(name: String) {
         val user = auth.currentUser ?: return
         val uid = user.uid
@@ -72,7 +89,7 @@ class AuthManager(private val context: Context) {
             val db = MHealthDatabase.getInstance(context)
             db.userProfileDao().upsert(
                 UserProfileEntity(
-                    userId = uid,
+                    userId = user.email ?: uid,
                     currentStatus = "Collecting"
                 )
             )
@@ -91,6 +108,7 @@ class AuthManager(private val context: Context) {
 
     private suspend fun downloadDataToRoom(uid: String) {
         val db = MHealthDatabase.getInstance(context)
+        val emailId = auth.currentUser?.email ?: uid
         
         // 1. Fetch Profile
         val profileDoc = firestore.collection("users").document(uid).get().await()
@@ -100,7 +118,7 @@ class AuthManager(private val context: Context) {
         
         db.userProfileDao().upsert(
             UserProfileEntity(
-                userId = uid,
+                userId = emailId,
                 onboardingDate = onboardingDateMs.toString(),
                 baselineReady = isReady,
                 currentStatus = status
@@ -117,7 +135,7 @@ class AuthManager(private val context: Context) {
             
             entities.add(
                 BaselineEntity(
-                    userId = uid,
+                    userId = emailId,
                     featureName = featureName,
                     baselineValue = mean,
                     stdDeviation = std,

@@ -15,6 +15,9 @@ import com.example.mhealth.logic.db.BaselineEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.UserProfileEntity
 import com.example.mhealth.models.PersonalityVector
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
@@ -312,6 +315,30 @@ class MonitoringService : Service() {
                 currentStatus = "Monitoring"
             )
         )
+
+        // Upload firmly established baseline to Cloud Backup
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid != null) {
+            try {
+                val firestore = FirebaseFirestore.getInstance()
+                firestore.collection("users").document(uid).update("baseline_ready", true).await()
+                
+                val baselineRef = firestore.collection("users").document(uid).collection("baseline")
+                baseline.toMap().forEach { (feature, mean) ->
+                    val std = baseline.variances[feature] ?: 1f
+                    val data = hashMapOf(
+                        "featureName" to feature,
+                        "baselineValue" to mean,
+                        "stdDeviation" to std,
+                        "baselineStart" to today,
+                        "baselineEnd" to today
+                    )
+                    baselineRef.document(feature).set(data).await()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
     }
 
     private fun scheduleNightlyWorker() {

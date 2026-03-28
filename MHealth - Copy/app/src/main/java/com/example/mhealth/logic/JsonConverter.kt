@@ -92,6 +92,11 @@ object JsonConverter {
         put("network_wifi_mb", e.networkWifiMB)
         put("network_mobile_mb", e.networkMobileMB)
         put("conversation_duration_hours", e.callDurationMinutes / 60f)
+        put("downloads_today", e.downloadsToday)
+        put("storage_used_gb", e.storageUsedGB)
+        put("app_uninstalls_today", e.appUninstallsToday)
+        put("upi_transactions_today", e.upiTransactionsToday)
+        put("night_interruptions", e.nightInterruptions)
     }
 
     /**
@@ -125,7 +130,12 @@ object JsonConverter {
         chargeDurationHours = v.chargeDurationHours,
         memoryUsagePercent = v.memoryUsagePercent,
         networkWifiMB = v.networkWifiMB,
-        networkMobileMB = v.networkMobileMB
+        networkMobileMB = v.networkMobileMB,
+        downloadsToday = v.downloadsToday,
+        storageUsedGB = v.storageUsedGB,
+        appUninstallsToday = v.appUninstallsToday,
+        upiTransactionsToday = v.upiTransactionsToday,
+        nightInterruptions = v.nightInterruptions
     )
 
     fun toPersonalityVector(
@@ -151,6 +161,11 @@ object JsonConverter {
         chargeDurationHours = e.chargeDurationHours,
         memoryUsagePercent = e.memoryUsagePercent,
         networkWifiMB = e.networkWifiMB,
-        networkMobileMB = e.networkMobileMB
+        networkMobileMB = e.networkMobileMB,
+        downloadsToday = e.downloadsToday,
+        storageUsedGB = e.storageUsedGB,
+        appUninstallsToday = e.appUninstallsToday,
+        upiTransactionsToday = e.upiTransactionsToday,
+        nightInterruptions = e.nightInterruptions
     )
 }

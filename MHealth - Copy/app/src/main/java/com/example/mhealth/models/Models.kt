@@ -57,6 +57,13 @@ data class PersonalityVector(
     val appInstallsToday: Float = 0f,
     val calendarEventsToday: Float = 0f,
 
+    // ── NEW EXPANDED FEATURES ─────────────────────────────────────────────────
+    val downloadsToday: Float = 0f,        // files downloaded today
+    val storageUsedGB: Float = 0f,         // internal storage currently used (GB)
+    val appUninstallsToday: Float = 0f,    // apps removed today
+    val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
+    val nightInterruptions: Float = 0f,    // phone unlocks between 00:00–05:00
+
     // ── OPTIONAL ─────────────────────────────────────────────────────────────
     val moodScore: Int? = null,
 
@@ -88,7 +95,12 @@ data class PersonalityVector(
         "memoryUsagePercent"   to memoryUsagePercent,
         "networkWifiMB"        to networkWifiMB,
         "networkMobileMB"      to networkMobileMB,
-        "calendarEventsToday"  to calendarEventsToday
+        "calendarEventsToday"  to calendarEventsToday,
+        "downloadsToday"       to downloadsToday,
+        "storageUsedGB"        to storageUsedGB,
+        "appUninstallsToday"   to appUninstallsToday,
+        "upiTransactionsToday" to upiTransactionsToday,
+        "nightInterruptions"   to nightInterruptions
     )
 }
 

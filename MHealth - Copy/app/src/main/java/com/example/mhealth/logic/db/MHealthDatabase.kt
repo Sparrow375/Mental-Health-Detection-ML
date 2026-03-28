@@ -19,7 +19,7 @@ import androidx.room.RoomDatabase
         UserProfileEntity::class,
         UserCredentialsEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {

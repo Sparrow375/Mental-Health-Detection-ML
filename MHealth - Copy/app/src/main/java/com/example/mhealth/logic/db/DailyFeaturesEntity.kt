@@ -47,6 +47,13 @@ data class DailyFeaturesEntity(
     val networkWifiMB: Float = 0f,
     val networkMobileMB: Float = 0f,
 
+    // New expanded features (v2)
+    val downloadsToday: Float = 0f,
+    val storageUsedGB: Float = 0f,
+    val appUninstallsToday: Float = 0f,
+    val upiTransactionsToday: Float = 0f,
+    val nightInterruptions: Float = 0f,
+
     // Sync flag (for future Firebase cloud sync)
     val syncedToCloud: Boolean = false
 )

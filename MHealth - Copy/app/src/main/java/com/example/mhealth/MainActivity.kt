@@ -366,8 +366,30 @@ fun LoginScreen(
                         val stored = credDao.findByEmail(email)
                         when {
                             stored == null -> {
-                                isLoading = false
-                                statusMsg = "No account found for this email. Please sign up."
+                                // Try recovering from Firebase since local DB is cleared
+                                val authManager = com.example.mhealth.logic.AuthManager(context)
+                                val result = authManager.signInExistingUser(email)
+                                if (result.isSuccess) {
+                                    val recoveredName = result.getOrNull() ?: "Recovered User"
+                                    credDao.register(
+                                        UserCredentialsEntity(
+                                            email = email,
+                                            name = recoveredName,
+                                            passwordHash = hash
+                                        )
+                                    )
+                                    DataRepository.saveUserProfile(
+                                        com.example.mhealth.models.UserProfile(
+                                            email = email,
+                                            name = recoveredName
+                                        )
+                                    )
+                                    isLoading = false
+                                    onSignedIn()
+                                } else {
+                                    isLoading = false
+                                    statusMsg = "No account found locally or in cloud. Please sign up."
+                                }
                             }
                             stored.passwordHash != hash -> {
                                 isLoading = false
@@ -780,6 +802,22 @@ fun HomeScreen() {
                 }
             }
 
+            // Advanced sensors (new expanded features)
+            item {
+                InfoCard("Advanced Sensors", headerColor = AlertOrange) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
+                        MetricPill("💾 Storage", "%.1f GB".format(v.storageUsedGB), CoralPink)
+                        MetricPill("🗑 Uninstalls", "${v.appUninstallsToday.toInt()}", AlertRed)
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", MintGreen)
+                        MetricPill("🌙 Night Checks", "${v.nightInterruptions.toInt()}", LavenderPurple)
+                    }
+                }
+            }
+
             // System stats row
             item {
                 InfoCard("System", headerColor = ChartBlue) {
@@ -819,6 +857,7 @@ fun MonitorScreen() {
     val reports by DataRepository.reports.collectAsState()
     val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
     val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
+    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -844,8 +883,8 @@ fun MonitorScreen() {
                         ArcProgressRing(progress.toFloat(), target, SkyBlue, "Days", "/ ${target.toInt()}", size = 90.dp)
                         Spacer(Modifier.width(16.dp))
                         Column {
-                            Text("Building your personal baseline", fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Text("Days 1–${target.toInt()}: Establishing P₀ vector.\nData is collected continuously.", fontSize = 12.sp, color = TextSecondary)
+                            Text("Learning Your Unique Patterns", fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                            Text("Day $progress of ${target.toInt()} in mathematically establishing your scientific P₀ baseline. Collecting multidimensional behavioral data continuously for accuracy.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                             Spacer(Modifier.height(6.dp))
                             LinearProgressIndicator(
                                 progress = { frac },
@@ -857,21 +896,42 @@ fun MonitorScreen() {
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CheckCircle, null, tint = AlertGreen, modifier = Modifier.size(40.dp))
+                        val statusText = if (latestResult != null) {
+                            "Baseline Locked - ${latestResult!!.alertLevel.uppercase()} Status"
+                        } else {
+                            "Scientific Baseline Established"
+                        }
+                        val statusColor = if (latestResult != null) alertColor(latestResult!!.alertLevel) else AlertGreen
+                        val icon = if (latestResult != null && latestResult!!.alertLevel.lowercase() in listOf("orange", "red")) Icons.Default.Warning else Icons.Default.CheckCircle
+                        
+                        Icon(icon, null, tint = statusColor, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.width(12.dp))
                         Column {
-                            Text("Baseline Established", fontWeight = FontWeight.SemiBold, color = AlertGreen)
-                            Text("${baselineDaysReq}-day P₀ vector locked. Monitoring active.", fontSize = 12.sp, color = TextSecondary)
+                            Text(statusText, fontWeight = FontWeight.SemiBold, color = statusColor)
+                            
+                            val descriptionText = if (latestResult != null) {
+                                "Your current behavioral vector is being compared against your ${baselineDaysReq}-day P₀ baseline. " + 
+                                when(latestResult!!.alertLevel.lowercase()) {
+                                    "green" -> "Data indicates high alignment with your normal routines."
+                                    "yellow" -> "Slight deviations from your baseline detected. Tracking for potential shifts."
+                                    "orange" -> "Moderate departure from baseline established. Behavioral patterns show significant variance."
+                                    "red" -> "Critical deviation from your established P₀. Immediate attention recommended."
+                                    else -> "Continuous monitoring active."
+                                }
+                            } else {
+                                "${baselineDaysReq}-day P₀ vector is locked. Real-time multidimensional tracking is now active."
+                            }
+                            Text(descriptionText, fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                         }
                     }
                 }
                 
                 if (baselineVectors.isNotEmpty()) {
                     Spacer(Modifier.height(20.dp))
-                    Text(if (isBuilding) "Baseline Formation Trend" else "Composite Daily Activity", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Text(if (isBuilding) "Multi-Sensor Formation Trend" else "Composite Behavioral Index", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
                     Spacer(Modifier.height(12.dp))
                     
-                    val composite = baselineVectors.takeLast(14).map { v ->
+                    val composite = baselineVectors.takeLast(baselineDaysReq).map { v ->
                         val screen = (v.screenTimeHours / 12f).coerceIn(0f, 1f) * 40f
                         val move = (v.dailyDisplacementKm / 20f).coerceIn(0f, 1f) * 30f
                         val comms = (v.callsPerDay / 10f).coerceIn(0f, 1f) * 30f
@@ -879,7 +939,7 @@ fun MonitorScreen() {
                     }
                     
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text("Activity Index (Last 14 Days)", fontSize = 11.sp, color = TextSecondary)
+                        Text("Activity Index (Last $baselineDaysReq Days)", fontSize = 11.sp, color = TextSecondary)
                         if (composite.isNotEmpty()) {
                             Text("%.0f".format(composite.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SkyBlue)
                         }
@@ -925,6 +985,38 @@ fun MonitorScreen() {
             }
         }
 
+        // Full baseline feature table (all features, mean ± σ vs current)
+        if (!isBuilding && baseline != null && vector != null) {
+            item {
+                FeatureTableCard(baseline = baseline!!, current = vector!!)
+            }
+        }
+
+        // Per-App Breakdown section
+        if (!isBuilding && vector != null) {
+            item {
+                PerAppBreakdownCard(vector = vector!!)
+            }
+        }
+
+        // System Evidence Accumulation Graph
+        if (!isBuilding && reports.isNotEmpty()) {
+            item {
+                InfoCard("System Evidence Accumulation", headerColor = AlertRed) {
+                    val evidenceHistory = reports.takeLast(14).map { it.evidenceAccumulated }
+                    
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
+                        Text("Deviation Evidence (Last 14 Days)", fontSize = 11.sp, color = TextSecondary)
+                        if (evidenceHistory.isNotEmpty()) {
+                            Text("%.2f".format(evidenceHistory.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AlertRed)
+                        }
+                    }
+                    Spacer(Modifier.height(4.dp))
+                    SparklineChart(evidenceHistory, AlertRed, Modifier.fillMaxWidth().height(60.dp), showDots = true)
+                }
+            }
+        }
+
         // Sliding window selector (display only)
         item {
             InfoCard("Sliding Analysis Windows", headerColor = ChartOrange) {
@@ -959,15 +1051,202 @@ fun SparklineLabel(label: String, values: List<Float>, color: Color) {
 @Composable
 fun ComparisonRow(label: String, current: Float, baseline: Float) {
     val delta = if (baseline > 0) ((current - baseline) / baseline * 100) else 0f
-    val deltaColor = if (kotlin.math.abs(delta) < 10f) TextSecondary else if (delta > 0) AlertOrange else SkyBlue
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Text("%.1f".format(current), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-        Spacer(Modifier.width(8.dp))
-        Text(
-            "${if (delta >= 0) "+" else ""}%.0f%%".format(delta),
-            fontSize = 11.sp, color = deltaColor, fontWeight = FontWeight.SemiBold
-        )
+    
+    val flagText: String
+    val flagColor: Color
+    val icon: ImageVector
+
+    if (kotlin.math.abs(delta) < 15f) {
+        flagText = "Normal"
+        flagColor = AlertGreen
+        icon = Icons.Default.Check
+    } else if (delta > 0) {
+        flagText = "Elevated"
+        flagColor = AlertOrange
+        icon = Icons.Default.ArrowUpward
+    } else {
+        flagText = "Decreased"
+        flagColor = SkyBlue
+        icon = Icons.Default.ArrowDownward
+    }
+
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label, fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+        
+        Surface(
+            color = flagColor.copy(alpha = 0.12f),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                Icon(icon, null, tint = flagColor, modifier = Modifier.size(14.dp))
+                Spacer(Modifier.width(4.dp))
+                Text(flagText, fontSize = 11.sp, color = flagColor, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+// ── Baseline Feature Table ────────────────────────────────────────────────
+
+private data class FeatureRow(
+    val label: String,
+    val unit: String,
+    val mean: Float,
+    val std: Float,
+    val current: Float
+)
+
+private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
+    "screenTimeHours"      to Pair("Screen Time",         "hrs"),
+    "unlockCount"          to Pair("Phone Unlocks",        ""),
+    "appLaunchCount"       to Pair("App Launches",         ""),
+    "notificationsToday"   to Pair("Notifications",        ""),
+    "socialAppRatio"       to Pair("Social App Ratio",     "%"),
+    "callsPerDay"          to Pair("Calls / Day",          ""),
+    "callDurationMinutes"  to Pair("Call Duration",        "min"),
+    "uniqueContacts"       to Pair("Unique Contacts",      ""),
+    "conversationFrequency" to Pair("Conversation Freq.", ""),
+    "dailyDisplacementKm" to Pair("Displacement",          "km"),
+    "locationEntropy"      to Pair("Location Entropy",     ""),
+    "homeTimeRatio"        to Pair("Home Time Ratio",      "%"),
+    "placesVisited"        to Pair("Places Visited",       ""),
+    "wakeTimeHour"         to Pair("Wake Time",            "hr"),
+    "sleepTimeHour"        to Pair("Sleep Time",           "hr"),
+    "sleepDurationHours"   to Pair("Sleep Duration",       "hrs"),
+    "darkDurationHours"    to Pair("Screen-off Time",      "hrs"),
+    "chargeDurationHours"  to Pair("Charging Time",        "hrs"),
+    "memoryUsagePercent"   to Pair("Memory Usage",         "%"),
+    "networkWifiMB"        to Pair("Wi-Fi Usage",          "MB"),
+    "networkMobileMB"      to Pair("Mobile Data",          "MB"),
+    "calendarEventsToday" to Pair("Calendar Events",        ""),
+    "downloadsToday"       to Pair("Downloads Today",       ""),
+    "storageUsedGB"        to Pair("Storage Used",          "GB"),
+    "appUninstallsToday"  to Pair("App Uninstalls",         ""),
+    "upiTransactionsToday" to Pair("UPI / Payments",        ""),
+    "nightInterruptions"  to Pair("Night Check-ins",        "")
+)
+
+@Composable
+fun FeatureTableCard(
+    baseline: com.example.mhealth.models.PersonalityVector,
+    current: com.example.mhealth.models.PersonalityVector
+) {
+    val baselineMap = baseline.toMap()
+    val currentMap  = current.toMap()
+
+    val rows = featureLabels.mapNotNull { (key, labelUnit) ->
+        val mean = baselineMap[key] ?: return@mapNotNull null
+        val std  = baseline.variances[key] ?: 0f
+        val cur  = currentMap[key] ?: 0f
+        FeatureRow(labelUnit.first, labelUnit.second, mean, std, cur)
+    }
+
+    InfoCard("Full Baseline Reference", headerColor = SkyBlue) {
+        // Header row
+        Row(
+            Modifier.fillMaxWidth().padding(bottom = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("Feature",            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2f))
+            Text("Baseline (μ ± σ)",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
+            Text("Now",                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+            Text("Flag",               fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
+        }
+        Divider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
+        Spacer(Modifier.height(4.dp))
+
+        rows.forEach { row ->
+            val delta = if (row.mean > 0f) ((row.current - row.mean) / row.mean * 100f) else 0f
+            val (flagText, flagColor, flagIcon) = when {
+                kotlin.math.abs(delta) < 15f -> Triple("Normal",    AlertGreen,  Icons.Default.Check)
+                delta > 0f                   -> Triple("Elevated",  AlertOrange, Icons.Default.ArrowUpward)
+                else                         -> Triple("Decreased", SkyBlue,     Icons.Default.ArrowDownward)
+            }
+            val unitSuffix = if (row.unit.isNotEmpty()) " ${row.unit}" else ""
+            val fmtMean    = if (row.mean < 100f) "%.1f" else "%.0f"
+            val fmtStd     = if (row.std  < 100f) "%.1f" else "%.0f"
+            val fmtCur     = if (row.current < 100f) "%.1f" else "%.0f"
+
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 5.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(row.label,          fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(2f))
+                Text(
+                    "${fmtMean.format(row.mean)} ± ${fmtStd.format(row.std)}$unitSuffix",
+                    fontSize = 11.sp, color = TextSecondary,
+                    modifier = Modifier.weight(2.5f)
+                )
+                Text(
+                    "${fmtCur.format(row.current)}$unitSuffix",
+                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
+                    modifier = Modifier.weight(1.2f)
+                )
+                Surface(
+                    color = flagColor.copy(alpha = 0.12f),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.weight(1.5f)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp)
+                    ) {
+                        Icon(flagIcon, null, tint = flagColor, modifier = Modifier.size(11.dp))
+                        Spacer(Modifier.width(3.dp))
+                        Text(flagText, fontSize = 9.sp, color = flagColor, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Divider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
+        }
+    }
+}
+
+// \u2500\u2500 Per-App Breakdown Card \u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500
+
+@Composable
+fun PerAppBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
+    val pm = androidx.compose.ui.platform.LocalContext.current.packageManager
+    val topApps = vector.appBreakdown
+        .filterKeys { it.isNotBlank() }
+        .toList()
+        .sortedByDescending { it.second }
+        .take(7)
+
+    if (topApps.isEmpty()) return
+
+    InfoCard("Per-App Breakdown", headerColor = LavenderPurple) {
+        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+            Text("App",      fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
+            Text("Screen",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
+            Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
+            Text("Notifs",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+        }
+        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
+        Spacer(Modifier.height(4.dp))
+
+        topApps.forEach { (pkg, minutes) ->
+            val appName = try {
+                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+            } catch (e: Exception) { pkg.substringAfterLast(".") }
+            val launches = vector.appLaunchesBreakdown[pkg] ?: 0
+            val notifs   = vector.notificationBreakdown[pkg] ?: 0
+            val hrs  = minutes / 60L
+            val mins = minutes % 60L
+            val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
+
+            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(appName,   fontSize = 11.sp, color = TextPrimary,   modifier = Modifier.weight(2.5f),
+                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                Text(timeStr,   fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                Text("$launches", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
+                Text("$notifs",   fontSize = 11.sp,
+                    color = if (notifs > 30) AlertOrange else TextSecondary,
+                    fontWeight = if (notifs > 30) FontWeight.Bold else FontWeight.Normal,
+                    modifier = Modifier.weight(1.2f))
+            }
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
+        }
     }
 }
 

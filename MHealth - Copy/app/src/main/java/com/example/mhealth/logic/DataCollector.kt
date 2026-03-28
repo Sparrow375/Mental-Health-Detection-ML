@@ -139,6 +139,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
             upiTransactionsToday = upiLaunches.toFloat(),
             nightInterruptions   = nightChecks.toFloat(),
 
+            dailySteps           = dailySteps,
+
             appBreakdown         = events.appMinutes,
             notificationBreakdown = events.notificationBreakdown,
             appLaunchesBreakdown = events.appLaunches

@@ -36,8 +36,19 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             val unsyncedFeatures = db.dailyFeaturesDao().getUnsynced(uid)
             val dailyDataRef = firestore.collection("users").document(uid).collection("daily_data")
             
+            fun jsonToMap(jsonStr: String): Map<String, Any> {
+                val map = mutableMapOf<String, Any>()
+                try {
+                    val obj = org.json.JSONObject(jsonStr)
+                    for (key in obj.keys()) {
+                        map[key] = obj.get(key)
+                    }
+                } catch (e: Exception) {}
+                return map
+            }
+
             for (feature in unsyncedFeatures) {
-                val dataMap = hashMapOf(
+                val dataMap = hashMapOf<String, Any>(
                     "date" to feature.date,
                     "screenTimeHours" to feature.screenTimeHours,
                     "unlockCount" to feature.unlockCount,
@@ -59,7 +70,18 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     "chargeDurationHours" to feature.chargeDurationHours,
                     "memoryUsagePercent" to feature.memoryUsagePercent,
                     "networkWifiMB" to feature.networkWifiMB,
-                    "networkMobileMB" to feature.networkMobileMB
+                    "networkMobileMB" to feature.networkMobileMB,
+                    
+                    "downloadsToday" to feature.downloadsToday,
+                    "storageUsedGB" to feature.storageUsedGB,
+                    "appUninstallsToday" to feature.appUninstallsToday,
+                    "upiTransactionsToday" to feature.upiTransactionsToday,
+                    "nightInterruptions" to feature.nightInterruptions,
+                    "dailySteps" to feature.dailySteps,
+
+                    "appBreakdown" to jsonToMap(feature.appBreakdownJson),
+                    "notificationBreakdown" to jsonToMap(feature.notificationBreakdownJson),
+                    "appLaunchesBreakdown" to jsonToMap(feature.appLaunchesBreakdownJson)
                 )
                 
                 dailyDataRef.document(feature.date).set(dataMap).await()
@@ -82,6 +104,10 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 resultsRef.document(result.date).set(resultMap).await()
                 db.analysisResultDao().markSynced(result.id)
             }
+
+            // 4. Update total recorded days (baseline progress)
+            val baselineProgress = db.dailyFeaturesDao().count(uid)
+            firestore.collection("users").document(uid).update("baseline_progress", baselineProgress).await()
 
             return Result.success()
 

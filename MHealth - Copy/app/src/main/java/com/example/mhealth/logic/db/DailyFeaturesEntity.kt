@@ -54,6 +54,12 @@ data class DailyFeaturesEntity(
     val upiTransactionsToday: Float = 0f,
     val nightInterruptions: Float = 0f,
 
+    // Missed Sensory Data (Captured for Cloud Sync / Backup)
+    val dailySteps: Float = 0f,
+    val appBreakdownJson: String = "{}",
+    val notificationBreakdownJson: String = "{}",
+    val appLaunchesBreakdownJson: String = "{}",
+
     // Sync flag (for future Firebase cloud sync)
     val syncedToCloud: Boolean = false,
 

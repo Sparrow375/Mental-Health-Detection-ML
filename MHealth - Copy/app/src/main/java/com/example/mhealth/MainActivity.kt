@@ -371,20 +371,16 @@ fun LoginScreen(
                                 val authManager = com.example.mhealth.logic.AuthManager(context)
                                 val result = authManager.signInExistingUser(email)
                                 if (result.isSuccess) {
-                                    val recoveredName = result.getOrNull() ?: "Recovered User"
+                                    val recoveredProfile = result.getOrNull()
+                                        ?: com.example.mhealth.models.UserProfile(email = email, name = "Recovered User")
                                     credDao.register(
                                         UserCredentialsEntity(
                                             email = email,
-                                            name = recoveredName,
+                                            name = recoveredProfile.name,
                                             passwordHash = hash
                                         )
                                     )
-                                    DataRepository.saveUserProfile(
-                                        com.example.mhealth.models.UserProfile(
-                                            email = email,
-                                            name = recoveredName
-                                        )
-                                    )
+                                    DataRepository.saveUserProfile(recoveredProfile)
                                     isLoading = false
                                     onSignedIn()
                                 } else {
@@ -478,6 +474,7 @@ fun LoginScreen(
 
 @Composable
 fun QuestionnaireScreen(onComplete: () -> Unit) {
+    val ctx = LocalContext.current
     var name by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -573,6 +570,7 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                         showErrors = true
                     } else {
                         val profile = com.example.mhealth.models.UserProfile(
+                            email = DataRepository.userProfile.value?.email ?: "",
                             name = name,
                             gender = gender,
                             age = age.toIntOrNull() ?: 0,
@@ -580,6 +578,14 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                             country = country
                         )
                         DataRepository.saveUserProfile(profile)
+                        // Sync full profile to Firestore so it can be recovered on reinstall
+                        kotlinx.coroutines.MainScope().launch {
+                            try {
+                                com.example.mhealth.logic.AuthManager(ctx).updateFirestoreFullProfile(profile)
+                            } catch (e: Exception) {
+                                android.util.Log.e("QuestionnaireScreen", "Failed to sync profile: ${e.message}")
+                            }
+                        }
                         onComplete()
                     }
                 },

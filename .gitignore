@@ -10,3 +10,9 @@ local.properties
 /MHealth - Copy/local.properties
 /MHealth - Copy/.idea/
 *.class
+
+# Python bytecode (should never be committed)
+__pycache__/
+*.py[cod]
+*.pyc
+*.pyo

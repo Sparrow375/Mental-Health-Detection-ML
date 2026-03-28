@@ -64,6 +64,9 @@ data class PersonalityVector(
     val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
     val nightInterruptions: Float = 0f,    // phone unlocks between 00:00–05:00
 
+    // ── MISC / RECOVERED ──────────────────────────────────────────────────────
+    val dailySteps: Float = 0f,            // steps elapsed since morning baseline
+
     // ── OPTIONAL ─────────────────────────────────────────────────────────────
     val moodScore: Int? = null,
 
@@ -103,7 +106,8 @@ data class PersonalityVector(
         "nightInterruptions"   to nightInterruptions,
         // Previously missing — now included in model
         "mediaCountToday"      to mediaCountToday,
-        "appInstallsToday"     to appInstallsToday
+        "appInstallsToday"     to appInstallsToday,
+        "dailySteps"           to dailySteps
     )
 }
 

@@ -215,13 +215,12 @@ personality_vector = {
     # ════════════════════════════════════════════════════════════════════════
     # GROUP F — Behavioural Signals  (new — added in latest Android update)
     # ════════════════════════════════════════════════════════════════════════
-    "nightInterruptions": {
+    "totalAppsCount": {
         "type":   float,
         "unit":   "count",
-        "source": "UsageEvents KEYGUARD_HIDDEN events between 22:00–05:00",
-        "notes":  "Phone unlocks during sleep hours. Strong sleep disturbance indicator. "
-                  "Queried over yesterday 22:00 → today 05:00 window.",
-        "s1_weight": 1.5,
+        "source": "PackageManager.getInstalledPackages()",
+        "notes":  "Total number of installed apps on the device.",
+        "s1_weight": 0.8,
     },
     "upiTransactionsToday": {
         "type":   float,

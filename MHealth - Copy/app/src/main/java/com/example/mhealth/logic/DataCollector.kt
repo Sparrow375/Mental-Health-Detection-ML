@@ -95,7 +95,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val storageGB     = getStorageUsedGB()
         val appUninstalls = countAppUninstalls()
         val upiLaunches   = countUpiLaunches(events.appLaunches)
-        val nightChecks   = countNightInterruptions(startOfDay)
+        val totalApps     = countTotalApps()
 
         // Notification count natively parsed from UsageEvents (Type 12)
         val notifCount = events.notificationCount.toFloat()
@@ -143,7 +143,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             storageUsedGB        = storageGB,
             appUninstallsToday   = appUninstalls.toFloat(),
             upiTransactionsToday = upiLaunches.toFloat(),
-            nightInterruptions   = nightChecks.toFloat(),
+            totalAppsCount       = totalApps.toFloat(),
 
             dailySteps           = dailySteps,
 
@@ -776,22 +776,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
     private fun countUpiLaunches(appLaunches: Map<String, Int>): Int =
         appLaunches.filterKeys { pkg -> UPI_PACKAGES.any { pkg.startsWith(it) } }.values.sum()
 
-    private fun countNightInterruptions(startOfDay: Long): Int {
-        // Query the PREVIOUS night window: yesterday 22:00 to today 05:00
-        // This ensures a meaningful value is always available during daytime ticks
-        val nightStart = startOfDay - 2 * 3600_000L  // yesterday 22:00
-        val nightEnd   = startOfDay + 5 * 3600_000L  // today 05:00
-        val queryEnd   = minOf(nightEnd, System.currentTimeMillis())
-        if (queryEnd <= nightStart) return 0
-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        val events = usm.queryEvents(nightStart, queryEnd)
-        val event = UsageEvents.Event()
-        var count = 0
-        while (events.hasNextEvent()) {
-            events.getNextEvent(event)
-            if (event.eventType == 18) count++ // KEYGUARD_HIDDEN = unlock
+    private fun countTotalApps(): Int {
+        return try {
+            context.packageManager.getInstalledPackages(0).size
+        } catch (e: Exception) {
+            0
         }
-        return count
     }
 
     // ── Category-based storage breakdown ──────────────────────────────────────

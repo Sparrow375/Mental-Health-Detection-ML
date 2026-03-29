@@ -52,7 +52,7 @@ data class DailyFeaturesEntity(
     val storageUsedGB: Float = 0f,
     val appUninstallsToday: Float = 0f,
     val upiTransactionsToday: Float = 0f,
-    val nightInterruptions: Float = 0f,
+    val totalAppsCount: Float = 0f,
 
     // Missed Sensory Data (Captured for Cloud Sync / Backup)
     val dailySteps: Float = 0f,

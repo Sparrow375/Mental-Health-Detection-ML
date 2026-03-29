@@ -766,39 +766,10 @@ fun HomeScreen() {
                 }
             }
 
-            // App usage bar chart
-            if (v.appBreakdown.isNotEmpty()) {
+            // Individual App Usage Patterns (Replaces the 3 aggregate bar charts)
+            if (v.appBreakdown.isNotEmpty() || v.appLaunchesBreakdown.isNotEmpty() || v.notificationBreakdown.isNotEmpty()) {
                 item {
-                    InfoCard("App Usage Breakdown", headerColor = ChartOrange) {
-                        val top = v.appBreakdown.entries.sortedByDescending { it.value }.take(6)
-                            .map { it.key to it.value.toFloat() }
-                        val max = top.firstOrNull()?.second ?: 1f
-                        HorizontalBarChart(top, max, ChartOrange, unitSuffix = "m")
-                    }
-                }
-            }
-
-            // App Launches bar chart
-            if (v.appLaunchesBreakdown.isNotEmpty()) {
-                item {
-                    InfoCard("Top App Launches (Times Opened)", headerColor = LavenderPurple) {
-                        val top = v.appLaunchesBreakdown.entries.sortedByDescending { it.value }.take(6)
-                            .map { it.key to it.value.toFloat() }
-                        val max = top.firstOrNull()?.second ?: 1f
-                        HorizontalBarChart(top, max, LavenderPurple)
-                    }
-                }
-            }
-
-            // Notifications bar chart
-            if (v.notificationBreakdown.isNotEmpty()) {
-                item {
-                    InfoCard("Top Notifications", headerColor = ChartOrange.copy(alpha = 0.8f)) {
-                        val top = v.notificationBreakdown.entries.sortedByDescending { it.value }.take(6)
-                            .map { it.key to it.value.toFloat() }
-                        val max = top.firstOrNull()?.second ?: 1f
-                        HorizontalBarChart(top, max, ChartOrange.copy(alpha = 0.8f))
-                    }
+                    PerAppBreakdownCard(vector = v)
                 }
             }
 
@@ -905,7 +876,7 @@ fun HomeScreen() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
                         MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", MintGreen)
-                        MetricPill("🌙 Night Checks", "${v.nightInterruptions.toInt()}", LavenderPurple)
+                        MetricPill("📱 Total Apps", "${v.totalAppsCount.toInt()}", LavenderPurple)
                     }
                 }
             }
@@ -1205,7 +1176,7 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "storageUsedGB"        to Pair("Storage Used",          "GB"),
     "appUninstallsToday"  to Pair("App Uninstalls",         ""),
     "upiTransactionsToday" to Pair("UPI / Payments",        ""),
-    "nightInterruptions"  to Pair("Night Check-ins",        ""),
+    "totalAppsCount"      to Pair("Total Apps",             ""),
     "mediaCountToday"      to Pair("Media Files",           ""),
     "appInstallsToday"     to Pair("App Installs",          "")
 )

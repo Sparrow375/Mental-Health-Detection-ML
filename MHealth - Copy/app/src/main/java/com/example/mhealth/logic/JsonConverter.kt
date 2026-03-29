@@ -70,33 +70,47 @@ object JsonConverter {
 
     /** Converts a DailyFeaturesEntity to a flat JSON object of feature → value */
     private fun featureEntityToJson(e: DailyFeaturesEntity): JSONObject = JSONObject().apply {
-        put("screen_time_hours", e.screenTimeHours)
-        put("unlock_count", e.unlockCount)
-        put("app_launch_count", e.appLaunchCount)
-        put("notifications_today", e.notificationsToday)
-        put("social_app_ratio", e.socialAppRatio)
-        put("calls_per_day", e.callsPerDay)
-        put("call_duration_minutes", e.callDurationMinutes)
-        put("unique_contacts", e.uniqueContacts)
-        put("conversation_frequency", e.conversationFrequency)
-        put("daily_displacement_km", e.dailyDisplacementKm)
-        put("location_entropy", e.locationEntropy)
-        put("home_time_ratio", e.homeTimeRatio)
-        put("places_visited", e.placesVisited)
-        put("wake_time_hour", e.wakeTimeHour)
-        put("sleep_time_hour", e.sleepTimeHour)
-        put("sleep_duration_hours", e.sleepDurationHours)
-        put("dark_duration_hours", e.darkDurationHours)
-        put("charge_duration_hours", e.chargeDurationHours)
-        put("memory_usage_percent", e.memoryUsagePercent)
-        put("network_wifi_mb", e.networkWifiMB)
-        put("network_mobile_mb", e.networkMobileMB)
-        put("conversation_duration_hours", e.callDurationMinutes / 60f)
-        put("downloads_today", e.downloadsToday)
-        put("storage_used_gb", e.storageUsedGB)
-        put("app_uninstalls_today", e.appUninstallsToday)
-        put("upi_transactions_today", e.upiTransactionsToday)
-        put("night_interruptions", e.nightInterruptions)
+        put("screenTimeHours", e.screenTimeHours)
+        put("unlockCount", e.unlockCount)
+        put("appLaunchCount", e.appLaunchCount)
+        put("notificationsToday", e.notificationsToday)
+        put("socialAppRatio", e.socialAppRatio)
+        put("callsPerDay", e.callsPerDay)
+        put("callDurationMinutes", e.callDurationMinutes)
+        put("uniqueContacts", e.uniqueContacts)
+        put("conversationFrequency", e.conversationFrequency)
+        put("dailyDisplacementKm", e.dailyDisplacementKm)
+        put("locationEntropy", e.locationEntropy)
+        put("homeTimeRatio", e.homeTimeRatio)
+        put("placesVisited", e.placesVisited)
+        put("wakeTimeHour", e.wakeTimeHour)
+        put("sleepTimeHour", e.sleepTimeHour)
+        put("sleepDurationHours", e.sleepDurationHours)
+        put("darkDurationHours", e.darkDurationHours)
+        put("chargeDurationHours", e.chargeDurationHours)
+        put("memoryUsagePercent", e.memoryUsagePercent)
+        put("networkWifiMB", e.networkWifiMB)
+        put("networkMobileMB", e.networkMobileMB)
+        put("downloadsToday", e.downloadsToday)
+        put("storageUsedGB", e.storageUsedGB)
+        put("appUninstallsToday", e.appUninstallsToday)
+        put("upiTransactionsToday", e.upiTransactionsToday)
+        put("totalAppsCount", e.totalAppsCount)
+        put("mediaCountToday", 0f)  // Extracted dynamically by python or placeholder
+        put("appInstallsToday", 0f) // Extracted dynamically by python or placeholder
+        put("calendarEventsToday", 0f)
+        put("dailySteps", e.dailySteps)
+        
+        // Pass individual app usage dictionaries to python engine
+        try {
+            put("appBreakdown", JSONObject(e.appBreakdownJson))
+            put("notificationBreakdown", JSONObject(e.notificationBreakdownJson))
+            put("appLaunchesBreakdown", JSONObject(e.appLaunchesBreakdownJson))
+        } catch (ex: Exception) {
+            put("appBreakdown", JSONObject())
+            put("notificationBreakdown", JSONObject())
+            put("appLaunchesBreakdown", JSONObject())
+        }
     }
 
     /**
@@ -136,7 +150,7 @@ object JsonConverter {
         storageUsedGB = v.storageUsedGB,
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
-        nightInterruptions = v.nightInterruptions,
+        totalAppsCount = v.totalAppsCount,
         isSimulated = isSimulated,
         dailySteps = v.dailySteps,
         appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
@@ -172,7 +186,7 @@ object JsonConverter {
         storageUsedGB = e.storageUsedGB,
         appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
-        nightInterruptions = e.nightInterruptions,
+        totalAppsCount = e.totalAppsCount,
         dailySteps = e.dailySteps,
         appBreakdown = parseMapLong(e.appBreakdownJson),
         notificationBreakdown = parseMapInt(e.notificationBreakdownJson),

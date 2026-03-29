@@ -62,7 +62,7 @@ data class PersonalityVector(
     val storageUsedGB: Float = 0f,         // internal storage currently used (GB)
     val appUninstallsToday: Float = 0f,    // apps removed today
     val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
-    val nightInterruptions: Float = 0f,    // phone unlocks between 00:00–05:00
+    val totalAppsCount: Float = 0f,        // total installed apps
 
     // ── MISC / RECOVERED ──────────────────────────────────────────────────────
     val dailySteps: Float = 0f,            // steps elapsed since morning baseline
@@ -103,7 +103,7 @@ data class PersonalityVector(
         "storageUsedGB"        to storageUsedGB,
         "appUninstallsToday"   to appUninstallsToday,
         "upiTransactionsToday" to upiTransactionsToday,
-        "nightInterruptions"   to nightInterruptions,
+        "totalAppsCount"       to totalAppsCount,
         // Previously missing — now included in model
         "mediaCountToday"      to mediaCountToday,
         "appInstallsToday"     to appInstallsToday,

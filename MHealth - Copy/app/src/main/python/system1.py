@@ -76,7 +76,7 @@ FEATURE_META: Dict[str, Dict] = {
     "storageUsedGB":       {"group": "system",        "weight": 0.4},  # quasi-static
 
     # ── Group F: Behavioural Signals (new features from Android) ──────────
-    "nightInterruptions":  {"group": "behaviour",     "weight": 1.5},  # strong sleep disturbance indicator
+    "totalAppsCount":      {"group": "behaviour",     "weight": 0.8},  # total installed apps
     "upiTransactionsToday":{"group": "behaviour",     "weight": 1.1},  # financial engagement proxy
     "appUninstallsToday":  {"group": "behaviour",     "weight": 0.9},
     "appInstallsToday":    {"group": "behaviour",     "weight": 0.8},
@@ -96,7 +96,7 @@ CRITICAL_FEATURES = [
     "screenTimeHours",
     "dailyDisplacementKm",
     "socialAppRatio",
-    "nightInterruptions",
+    "totalAppsCount",
     "upiTransactionsToday",
     "wakeTimeHour",
     "callsPerDay",
@@ -147,7 +147,7 @@ class PersonalityVector:
     storageUsedGB: float = 0.0
 
     # ── Behavioural Signals ───────────────────────────────────────────────
-    nightInterruptions: float = 0.0
+    totalAppsCount: float = 0.0
     upiTransactionsToday: float = 0.0
     appUninstallsToday: float = 0.0
     appInstallsToday: float = 0.0
@@ -159,6 +159,11 @@ class PersonalityVector:
 
     # ── Internal: per-feature std deviation from baseline ─────────────────
     variances: Dict[str, float] = None   # actually std-dev, named for legacy compat
+    
+    # ── Individual App Usage Patterns ─────────────────────────────────────
+    appBreakdown: Dict[str, float] = field(default_factory=dict)
+    notificationBreakdown: Dict[str, float] = field(default_factory=dict)
+    appLaunchesBreakdown: Dict[str, float] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, float]:
         """Convert to dict, matching Android PersonalityVector.toMap() key names."""
@@ -185,7 +190,7 @@ class PersonalityVector:
             "networkWifiMB":       self.networkWifiMB,
             "networkMobileMB":     self.networkMobileMB,
             "storageUsedGB":       self.storageUsedGB,
-            "nightInterruptions":  self.nightInterruptions,
+            "totalAppsCount":      self.totalAppsCount,
             "upiTransactionsToday": self.upiTransactionsToday,
             "appUninstallsToday":  self.appUninstallsToday,
             "appInstallsToday":    self.appInstallsToday,
@@ -220,13 +225,16 @@ class PersonalityVector:
             networkWifiMB=       float(d.get("networkWifiMB", 0)),
             networkMobileMB=     float(d.get("networkMobileMB", 0)),
             storageUsedGB=       float(d.get("storageUsedGB", 0)),
-            nightInterruptions=  float(d.get("nightInterruptions", 0)),
+            totalAppsCount=      float(d.get("totalAppsCount", 0)),
             upiTransactionsToday= float(d.get("upiTransactionsToday", 0)),
             appUninstallsToday=  float(d.get("appUninstallsToday", 0)),
             appInstallsToday=    float(d.get("appInstallsToday", 0)),
             calendarEventsToday= float(d.get("calendarEventsToday", 0)),
             mediaCountToday=     float(d.get("mediaCountToday", 0)),
             downloadsToday=      float(d.get("downloadsToday", 0)),
+            appBreakdown=        d.get("appBreakdown", {}),
+            notificationBreakdown=d.get("notificationBreakdown", {}),
+            appLaunchesBreakdown=d.get("appLaunchesBreakdown", {}),
             variances=variances,
         )
 
@@ -433,8 +441,8 @@ class SyntheticDataGenerator:
                             val = mean_val * 1.7 + np.random.normal(0, std)
                         elif feat == "sleepDurationHours":
                             val = mean_val * 0.65 + np.random.normal(0, std)
-                        elif feat == "nightInterruptions":
-                            val = mean_val * 2.5 + np.random.normal(0, std)
+                        elif feat == "totalAppsCount":
+                            val = mean_val + np.random.normal(0, std)
                         elif feat == "dailyDisplacementKm":
                             val = mean_val * 1.4 + np.random.normal(0, std)
                         else:
@@ -474,8 +482,8 @@ class SyntheticDataGenerator:
                     elif feat == "screenTimeHours":
                         # Passive scrolling increases
                         val = mean_val * (1.0 + (i / days) * 0.30) + np.random.normal(0, std)
-                    elif feat == "nightInterruptions":
-                        val = mean_val * (1.0 + (i / days) * 1.5) + np.random.normal(0, std)
+                    elif feat == "totalAppsCount":
+                        val = mean_val + np.random.normal(0, std)
                     elif feat == "homeTimeRatio":
                         val = min(1.0, mean_val * (1.0 + (i / days) * 0.30) + np.random.normal(0, std))
                     else:
@@ -514,8 +522,8 @@ class SyntheticDataGenerator:
                         # Circadian shift — earlier wake, later sleep
                         shift = (i / days) * 1.5
                         val = mean_val + shift + np.random.normal(0, std)
-                    elif feat == "nightInterruptions":
-                        val = mean_val * (1.0 + (i / days) * 3.0) + np.random.normal(0, std)
+                    elif feat == "totalAppsCount":
+                        val = mean_val + np.random.normal(0, std)
                     elif feat in ["networkWifiMB", "networkMobileMB"]:
                         val = mean_val * (1.0 + (i / days) * 0.80) + np.random.normal(0, std)
                     else:
@@ -531,9 +539,8 @@ class SyntheticDataGenerator:
                     elif feat in ["callsPerDay", "uniqueContacts"]:
                         decline = 1.0 - (i / days) * 0.30
                         val = mean_val * decline + np.random.normal(0, std)
-                    elif feat == "nightInterruptions":
-                        # sporadic spikes
-                        val = mean_val + abs(np.random.normal(0, std * 2))
+                    elif feat == "totalAppsCount":
+                        val = mean_val + abs(np.random.normal(0, std))
                     else:
                         val = np.random.normal(mean_val, std * 1.5)
                     row[feat] = max(0.0, val)

@@ -47,6 +47,9 @@ class MonitoringService : Service() {
         
         startForegroundNotification()
         scheduleMonitoring()
+        
+        // Start passive continuous location tracking
+        dataCollector.startContinuousLocationTracking()
     }
 
     private fun restoreStateFromRoom() {
@@ -97,6 +100,9 @@ class MonitoringService : Service() {
                 collectedDailyVectors.addAll(pastVectors)
                 DataRepository.updateBaselineProgress(collectedDailyVectors.size)
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+                
+                // Sync any unsynced data from previous sessions on startup
+                syncUnstagedDailyFeaturesToFirebase()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -184,16 +190,14 @@ class MonitoringService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         serviceScope.cancel()
+        dataCollector.stopContinuousLocationTracking()
     }
 
     private fun runTick(isSimulated: Boolean = false) {
         try {
             collectionTickCount++
 
-            // 1) Capture a GPS point every tick
-            dataCollector.captureLocationSnapshot()
-
-            // 2) Collect a full snapshot using accumulated GPS track
+            // 1) Collect a full snapshot using accumulated GPS track
             val locationSnaps = DataRepository.locationSnapshots.value
             val snapshot = dataCollector.collectSnapshot(locationSnaps)
 
@@ -473,7 +477,12 @@ class MonitoringService : Service() {
                     "storageUsedGB" to entity.storageUsedGB,
                     "appUninstallsToday" to entity.appUninstallsToday,
                     "upiTransactionsToday" to entity.upiTransactionsToday,
-                    "nightInterruptions" to entity.nightInterruptions
+                    "nightInterruptions" to entity.nightInterruptions,
+                    // Previously missing fields — now synced to cloud
+                    "dailySteps" to entity.dailySteps,
+                    "appBreakdownJson" to entity.appBreakdownJson,
+                    "notificationBreakdownJson" to entity.notificationBreakdownJson,
+                    "appLaunchesBreakdownJson" to entity.appLaunchesBreakdownJson
                 )
                 
                 collectionRef.document(entity.date).set(data).await()

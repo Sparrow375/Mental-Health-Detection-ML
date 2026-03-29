@@ -238,7 +238,7 @@ object DataRepository {
     }
 
     fun addLocationSnapshot(point: LatLonPoint) {
-        val updated = (_locationSnapshots.value + point).takeLast(96) // max 24h @ 15min
+        val updated = (_locationSnapshots.value + point).takeLast(288) // 24h @ 5-min continuous tracking
         _locationSnapshots.value = updated
         saveLocationsToPrefs(updated)
     }

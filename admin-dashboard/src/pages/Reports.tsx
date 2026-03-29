@@ -4,17 +4,56 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 
 export const Reports: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
-
-  // Dummy aggregate data
-  const weeklyAnomalies = [
-    { day: 'Mon', anomalies: 2 },
-    { day: 'Tue', anomalies: 5 },
-    { day: 'Wed', anomalies: 1 },
-    { day: 'Thu', anomalies: 8 },
-    { day: 'Fri', anomalies: 3 },
+  const [loading, setLoading] = useState(true);
+  const [weeklyAnomalies, setWeeklyAnomalies] = useState([
+    { day: 'Mon', anomalies: 0 },
+    { day: 'Tue', anomalies: 0 },
+    { day: 'Wed', anomalies: 0 },
+    { day: 'Thu', anomalies: 0 },
+    { day: 'Fri', anomalies: 0 },
     { day: 'Sat', anomalies: 0 },
-    { day: 'Sun', anomalies: 4 },
-  ];
+    { day: 'Sun', anomalies: 0 },
+  ]);
+
+  React.useEffect(() => {
+    const fetchAggregateData = async () => {
+      try {
+        const { getUsers, getHistoricalResults } = await import('../firebase/dataHelper');
+        const users = await getUsers();
+        
+        const counts: Record<string, number> = {};
+        
+        for (const u of users) {
+          const hist = await getHistoricalResults(u.id, 7);
+          for (const res of hist) {
+             if (res.anomaly_score >= 0.4) { // Including elevated and critical
+                const d = new Date(res.date);
+                const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
+                counts[dayStr] = (counts[dayStr] || 0) + 1;
+             }
+          }
+        }
+
+        const past7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            const shortDay = d.toLocaleDateString('en-US', { weekday: 'short' });
+            past7Days.push({ 
+               day: shortDay, 
+               anomalies: counts[shortDay] || 0
+            });
+        }
+
+        setWeeklyAnomalies(past7Days);
+      } catch (err) {
+        console.error("Error fetching report data", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAggregateData();
+  }, []);
 
   const handleExportCSV = () => {
     setDownloading(true);

@@ -98,6 +98,8 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     "anomaly_message" to result.anomalyMessage,
                     "prototype_match" to result.prototypeMatch,
                     "match_message" to result.matchMessage,
+                    "anomaly_score" to result.anomalyScore,
+                    "alert_level" to result.alertLevel,
                     "date" to result.date
                 )
                 

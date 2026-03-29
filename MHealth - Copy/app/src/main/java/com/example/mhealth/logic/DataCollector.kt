@@ -778,7 +778,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private fun countTotalApps(): Int {
         return try {
-            context.packageManager.getInstalledPackages(0).size
+            context.packageManager.getInstalledPackages(0).count { pkg ->
+                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+                !isSystemApp
+            }
         } catch (e: Exception) {
             0
         }

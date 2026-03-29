@@ -29,7 +29,11 @@ import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult as GmsLocationResult
 import com.google.android.gms.tasks.Tasks
+import android.os.Looper
 import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.*
@@ -49,6 +53,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private val TAG = "MHealth.DataCollector"
     private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+
+    private var locationCallback: LocationCallback? = null
 
     // Cumulative steps since device boot — we take a daily delta
     private var rawStepsSinceBoot = 0f
@@ -139,61 +145,71 @@ class DataCollector(private val context: Context) : SensorEventListener {
             upiTransactionsToday = upiLaunches.toFloat(),
             nightInterruptions   = nightChecks.toFloat(),
 
+            dailySteps           = dailySteps,
+
             appBreakdown         = events.appMinutes,
             notificationBreakdown = events.notificationBreakdown,
             appLaunchesBreakdown = events.appLaunches
         )
     }
 
-    /** Capture a GPS fix and append to today's location track. */
+    /** Start passive continuous location tracking. */
     @SuppressLint("MissingPermission")
-    fun captureLocationSnapshot() {
-        // Guard: check that fine-location permission is actually granted
-        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED &&
-            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.w(TAG, "Location permission not granted — skipping GPS capture")
+    fun startContinuousLocationTracking() {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "Location permission not granted — skipping continuous GPS capture")
             return
         }
 
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            
+            // Re-use existing callback to prevent multiple registrations
+            if (locationCallback != null) return
 
-            // Try getCurrentLocation first (active fix)
-            var loc = try {
-                Tasks.await(
-                    fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null),
-                    10, TimeUnit.SECONDS
-                )
-            } catch (e: Exception) {
-                Log.w(TAG, "getCurrentLocation failed: ${e.message}")
-                null
-            }
+            // Request updates roughly every 5 minutes, or when moving >50 meters
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5 * 60 * 1000L)
+                .setMinUpdateDistanceMeters(50f)
+                .build()
 
-            // Fallback: use last known location if active fix returned null
-            if (loc == null) {
-                loc = try {
-                    Tasks.await(fusedClient.lastLocation, 5, TimeUnit.SECONDS)
-                } catch (e: Exception) {
-                    Log.w(TAG, "getLastLocation fallback failed: ${e.message}")
-                    null
+            locationCallback = object : LocationCallback() {
+                override fun onLocationResult(result: GmsLocationResult) {
+                    val loc = result.locations.lastOrNull() ?: return
+                    val ageMs = System.currentTimeMillis() - loc.time
+                    val accuracyOk = loc.accuracy.let { it in 0f..1000f }
+                    val freshnessOk = ageMs <= (15 * 60 * 1000L)
+
+                    // Filter out stale or highly inaccurate locations
+                    if (accuracyOk && freshnessOk) {
+                        DataRepository.addLocationSnapshot(
+                            LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
+                        )
+                        Log.i(TAG, "Continuous Location fix: %.5f, %.5f (acc: %.1fm)".format(loc.latitude, loc.longitude, loc.accuracy))
+                    } else {
+                        Log.w(TAG, "Continuous Location rejected: accuracy=${loc.accuracy}m, age=${ageMs / 1000}s")
+                    }
                 }
             }
 
-            if (loc != null) {
-                DataRepository.addLocationSnapshot(
-                    LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
-                )
-                Log.i(TAG, "GPS fix recorded: %.5f, %.5f".format(loc.latitude, loc.longitude))
-            } else {
-                Log.w(TAG, "GPS unavailable — both getCurrentLocation and lastLocation returned null")
-            }
+            fusedClient.requestLocationUpdates(locationRequest, locationCallback!!, Looper.getMainLooper())
+            Log.i(TAG, "Continuous location tracking started.")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException accessing location: ${e.message}")
         } catch (e: Exception) {
-            Log.w(TAG, "GPS capture error: ${e.message}")
+            Log.w(TAG, "GPS tracking start error: ${e.message}")
+        }
+    }
+
+    fun stopContinuousLocationTracking() {
+        try {
+            locationCallback?.let {
+                LocationServices.getFusedLocationProviderClient(context).removeLocationUpdates(it)
+                locationCallback = null
+                Log.i(TAG, "Continuous location tracking stopped.")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Error stopping location tracking: ${e.message}")
         }
     }
 

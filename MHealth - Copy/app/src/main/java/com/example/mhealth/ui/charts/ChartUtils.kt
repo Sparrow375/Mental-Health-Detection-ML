@@ -13,6 +13,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -151,20 +152,21 @@ fun SparklineChart(
 @Composable
 fun RadarChart(
     labels: List<String>,
-    values: List<Float>,      // normalised 0-1
-    baseline: List<Float>,    // normalised 0-1
+    values: List<Float>,                    // normalised 0-1 (current vs baseline)
+    baseline: List<Float>,                  // normalised 0-1 (personal baseline)
     color: Color = MintGreen,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    prototypeValues: List<Float>? = null    // 0-1 prototype shape — drawn ONLY when non-null
 ) {
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(values) {
         animProgress.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
     }
-    
+
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
         val cy = size.height / 2f
-        val maxRadius = minOf(cx, cy) * 0.90f // maximize web size
+        val maxRadius = minOf(cx, cy) * 0.90f
         val n = labels.size
         val angleStep = 2 * PI / n
 
@@ -184,11 +186,13 @@ fun RadarChart(
             path.close()
             drawPath(path, Color.Gray.copy(0.15f), style = Stroke(1f))
         }
+
         // Spokes
         for (i in 0 until n) {
             drawLine(Color.Gray.copy(0.2f), Offset(cx, cy), polarOffset(i, maxRadius), 1f)
         }
-        // Baseline polygon
+
+        // ── Baseline polygon (sky-blue fill) ────────────────────────────────
         val baselinePath = Path()
         for (i in 0 until n) {
             val r = maxRadius * (baseline.getOrElse(i) { 0.5f }).coerceIn(0f, 1f)
@@ -199,7 +203,26 @@ fun RadarChart(
         drawPath(baselinePath, SkyBlue.copy(0.15f))
         drawPath(baselinePath, SkyBlue.copy(0.5f), style = Stroke(2f))
 
-        // Current polygon (animated)
+        // ── Prototype polygon (dashed red) — only when a disorder is matched ─
+        if (prototypeValues != null) {
+            val dashEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f), 0f)
+            val prototypePath = Path()
+            for (i in 0 until n) {
+                val r = maxRadius * (prototypeValues.getOrElse(i) { 0.5f }).coerceIn(0f, 1f)
+                val pt = polarOffset(i, r)
+                if (i == 0) prototypePath.moveTo(pt.x, pt.y) else prototypePath.lineTo(pt.x, pt.y)
+            }
+            prototypePath.close()
+            // Subtle fill so the shape is visible without overwhelming the chart
+            drawPath(prototypePath, Color(0xFFEF5350).copy(alpha = 0.08f))
+            drawPath(
+                prototypePath,
+                Color(0xFFEF5350).copy(alpha = 0.85f),
+                style = Stroke(width = 2.2f, pathEffect = dashEffect)
+            )
+        }
+
+        // ── Current polygon (animated, colour-filled) ────────────────────────
         val valuePath = Path()
         for (i in 0 until n) {
             val r = maxRadius * (values.getOrElse(i) { 0f }).coerceIn(0f, 1f) * animProgress.value

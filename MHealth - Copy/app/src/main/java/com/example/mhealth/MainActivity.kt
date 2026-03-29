@@ -33,6 +33,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
@@ -371,20 +372,16 @@ fun LoginScreen(
                                 val authManager = com.example.mhealth.logic.AuthManager(context)
                                 val result = authManager.signInExistingUser(email)
                                 if (result.isSuccess) {
-                                    val recoveredName = result.getOrNull() ?: "Recovered User"
+                                    val recoveredProfile = result.getOrNull()
+                                        ?: com.example.mhealth.models.UserProfile(email = email, name = "Recovered User")
                                     credDao.register(
                                         UserCredentialsEntity(
                                             email = email,
-                                            name = recoveredName,
+                                            name = recoveredProfile.name,
                                             passwordHash = hash
                                         )
                                     )
-                                    DataRepository.saveUserProfile(
-                                        com.example.mhealth.models.UserProfile(
-                                            email = email,
-                                            name = recoveredName
-                                        )
-                                    )
+                                    DataRepository.saveUserProfile(recoveredProfile)
                                     isLoading = false
                                     onSignedIn()
                                 } else {
@@ -478,6 +475,7 @@ fun LoginScreen(
 
 @Composable
 fun QuestionnaireScreen(onComplete: () -> Unit) {
+    val ctx = LocalContext.current
     var name by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -573,6 +571,7 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                         showErrors = true
                     } else {
                         val profile = com.example.mhealth.models.UserProfile(
+                            email = DataRepository.userProfile.value?.email ?: "",
                             name = name,
                             gender = gender,
                             age = age.toIntOrNull() ?: 0,
@@ -580,6 +579,14 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                             country = country
                         )
                         DataRepository.saveUserProfile(profile)
+                        // Sync full profile to Firestore so it can be recovered on reinstall
+                        kotlinx.coroutines.MainScope().launch {
+                            try {
+                                com.example.mhealth.logic.AuthManager(ctx).updateFirestoreFullProfile(profile)
+                            } catch (e: Exception) {
+                                android.util.Log.e("QuestionnaireScreen", "Failed to sync profile: ${e.message}")
+                            }
+                        }
                         onComplete()
                     }
                 },
@@ -1408,9 +1415,40 @@ fun AnalysisScreen() {
                 }
             }
 
-            // Radar chart
+            // Radar chart — with optional disorder prototype overlay
             if (baseline != null && vector != null) {
                 item {
+                    // Read the latest classification result for the prototype overlay
+                    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+
+                    // Hardcoded Frame-2 z-scores for the 6 radar features per disorder.
+                    // Mirrors DISORDER_PROTOTYPES_FRAME2 in config.py (screen_time_hours,
+                    // social_app_ratio, places_visited, daily_displacement_km,
+                    // sleep_duration_hours, conversation_frequency).
+                    val PROTO_RADAR_ZSCORES: Map<String, List<Float>> = mapOf(
+                        "depression_type_1"    to listOf(-0.60f, -0.03f,  0.04f, -0.43f, -0.87f, -0.81f),
+                        "depression_type_2"    to listOf( 5.00f,  0.69f,  3.50f,  0.00f,  0.22f,  2.50f),
+                        "depression_type_3"    to listOf( 5.00f,  2.20f,  1.04f,  5.00f,  0.80f,  1.84f),
+                        "schizophrenia_type_1" to listOf(-0.08f, -0.16f,  1.04f,  0.04f,  0.35f,  0.18f),
+                        "schizophrenia_type_2" to listOf( 4.01f,  3.24f,  2.68f,  1.67f,  3.11f,  3.25f),
+                        "schizophrenia_type_3" to listOf( 5.00f,  1.14f,  1.17f,  0.99f, -2.92f,  1.46f)
+                    )
+
+                    // Convert a Frame-2 z-score to 0-1 radar scale
+                    // z=0 (baseline) → 0.5 centre; z=±5 → edges
+                    fun zToRadar(z: Float): Float = ((z / 5f) * 0.5f + 0.5f).coerceIn(0f, 1f)
+
+                    // Determine if a real clinical match has fired
+                    val matchedDisorder = latestResult?.prototypeMatch?.lowercase()?.trim()
+                    val isRealMatch = matchedDisorder != null &&
+                        matchedDisorder != "normal" &&
+                        matchedDisorder != "situational" &&
+                        !matchedDisorder.startsWith("healthy")
+
+                    val protoVals: List<Float>? = if (isRealMatch) {
+                        PROTO_RADAR_ZSCORES[matchedDisorder]?.map { zToRadar(it) }
+                    } else null
+
                     InfoCard("Feature Deviation Radar", headerColor = LavenderPurple) {
                         val b = baseline!!; val v = vector!!
                         val radarLabels = listOf("Screen\nTime", "Social", "Places", "Location", "Sleep", "Comms")
@@ -1430,22 +1468,57 @@ fun AnalysisScreen() {
                             normalizeDev(v.conversationFrequency, b.conversationFrequency)
                         )
                         val baseVals = listOf(0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f)
+
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             RadarChart(
-                                radarLabels, curVals, baseVals, LavenderPurple, 
-                                Modifier.fillMaxWidth(0.9f).aspectRatio(1f).padding(vertical = 16.dp)
+                                labels          = radarLabels,
+                                values          = curVals,
+                                baseline        = baseVals,
+                                color           = LavenderPurple,
+                                modifier        = Modifier.fillMaxWidth(0.9f).aspectRatio(1f).padding(vertical = 16.dp),
+                                prototypeValues = protoVals   // null → no red line drawn
                             )
                         }
+
                         Spacer(Modifier.height(8.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+
+                        // Legend — red prototype line is conditional
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
                             Box(Modifier.size(12.dp).background(LavenderPurple.copy(0.7f), CircleShape))
                             Text(" Current   ", fontSize = 11.sp, color = TextSecondary)
                             Box(Modifier.size(12.dp).background(SkyBlue.copy(0.5f), CircleShape))
                             Text(" Baseline", fontSize = 11.sp, color = TextSecondary)
+                            if (protoVals != null) {
+                                Spacer(Modifier.width(10.dp))
+                                // Dashed red legend swatch
+                                androidx.compose.foundation.Canvas(Modifier.width(20.dp).height(12.dp)) {
+                                    val dashEffect = androidx.compose.ui.graphics.PathEffect
+                                        .dashPathEffect(floatArrayOf(6f, 4f), 0f)
+                                    drawLine(
+                                        color = androidx.compose.ui.graphics.Color(0xFFEF5350),
+                                        start = Offset(0f, size.height / 2f),
+                                        end   = Offset(size.width, size.height / 2f),
+                                        strokeWidth = 2.5f,
+                                        pathEffect = dashEffect
+                                    )
+                                }
+                                Text(
+                                    " ${latestResult?.prototypeMatch
+                                        ?.replace("_", " ")
+                                        ?.replaceFirstChar { it.uppercase() }}",
+                                    fontSize = 11.sp,
+                                    color = androidx.compose.ui.graphics.Color(0xFFEF5350)
+                                )
+                            }
                         }
                     }
                 }
             }
+
 
             // Top deviations
             last?.let { report ->

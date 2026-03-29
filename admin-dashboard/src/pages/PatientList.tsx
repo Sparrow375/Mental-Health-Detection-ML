@@ -18,6 +18,8 @@ interface Patient {
   };
 }
 
+import { getLatestResult } from '../firebase/dataHelper';
+
 export const PatientList: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -27,35 +29,42 @@ export const PatientList: React.FC = () => {
 
   useEffect(() => {
     const fetchPatients = async () => {
-      const isMock = localStorage.getItem('mockAdminAuth') === 'true';
-      
-      const loadDummy = () => {
-        setPatients([
-          { id: '1', email: 'johndoe@example.com', patient_id: 'Patient_A1B2', status: 'Flagged', onboarding_date: Date.now() - 864000000, latest_analysis: { anomaly_score: 0.82 } },
-          { id: '2', email: 'sarah.m@example.com', patient_id: 'Patient_C3D4', status: 'Monitoring', onboarding_date: Date.now() - 3000000000, latest_analysis: { anomaly_score: 0.45 } },
-          { id: '3', email: 'mike_t@example.com', patient_id: 'Patient_E5F6', status: 'Collecting', onboarding_date: Date.now() - 86400000, latest_analysis: { anomaly_score: 0.12 } },
-          { id: '4', email: 'emily_r@example.com', patient_id: 'Patient_G7H8', status: 'Flagged', onboarding_date: Date.now() - 400000000, latest_analysis: { anomaly_score: 0.91 } }
-        ]);
-        setLoading(false);
-      };
-
-      if (isMock) {
-        loadDummy();
-        return;
-      }
-
       try {
-        const q = query(collection(db, 'users'), orderBy('onboarding_date', 'desc'));
+        const q = query(collection(db, 'users'));
         const querySnapshot = await getDocs(q);
-        const data = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Patient[];
+        
+        const dataPromises = querySnapshot.docs.map(async (docSnap) => {
+          const userData = docSnap.data();
+          const uid = docSnap.id;
+          
+          const latestResult = await getLatestResult(uid);
+          
+          let status = 'Collecting';
+          let score = 0;
+          
+          if (latestResult) {
+             score = latestResult.anomaly_score || 0;
+             status = score >= 0.7 ? 'Flagged' : 'Monitoring';
+          }
+          
+          const onboardingDate = userData.onboardingTimestamp || Date.now();
+
+          return {
+            id: uid,
+            email: userData.email || userData.name || 'Anonymous User',
+            patient_id: `PT-${uid.substring(0, 6).toUpperCase()}`,
+            status: status,
+            onboarding_date: onboardingDate,
+            latest_analysis: latestResult ? { anomaly_score: score } : undefined
+          } as Patient;
+        });
+
+        const data = await Promise.all(dataPromises);
         setPatients(data);
         setLoading(false);
       } catch (err) {
         console.error("Failed to fetch patients:", err);
-        loadDummy();
+        setLoading(false);
       }
     };
     fetchPatients();

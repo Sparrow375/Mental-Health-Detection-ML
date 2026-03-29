@@ -137,7 +137,11 @@ object JsonConverter {
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
         nightInterruptions = v.nightInterruptions,
-        isSimulated = isSimulated
+        isSimulated = isSimulated,
+        dailySteps = v.dailySteps,
+        appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
+        notificationBreakdownJson = mapToJson(v.notificationBreakdown as Map<String, Number>),
+        appLaunchesBreakdownJson = mapToJson(v.appLaunchesBreakdown as Map<String, Number>)
     )
 
     fun toPersonalityVector(
@@ -168,6 +172,36 @@ object JsonConverter {
         storageUsedGB = e.storageUsedGB,
         appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
-        nightInterruptions = e.nightInterruptions
+        nightInterruptions = e.nightInterruptions,
+        dailySteps = e.dailySteps,
+        appBreakdown = parseMapLong(e.appBreakdownJson),
+        notificationBreakdown = parseMapInt(e.notificationBreakdownJson),
+        appLaunchesBreakdown = parseMapInt(e.appLaunchesBreakdownJson)
     )
+
+    private fun mapToJson(map: Map<String, Number>): String {
+        return JSONObject(map as Map<*, *>).toString()
+    }
+
+    private fun parseMapLong(jsonStr: String): Map<String, Long> {
+        val map = mutableMapOf<String, Long>()
+        try {
+            val obj = JSONObject(jsonStr)
+            for (key in obj.keys()) {
+                map[key] = obj.getLong(key)
+            }
+        } catch (e: Exception) {}
+        return map
+    }
+
+    private fun parseMapInt(jsonStr: String): Map<String, Int> {
+        val map = mutableMapOf<String, Int>()
+        try {
+            val obj = JSONObject(jsonStr)
+            for (key in obj.keys()) {
+                map[key] = obj.getInt(key)
+            }
+        } catch (e: Exception) {}
+        return map
+    }
 }

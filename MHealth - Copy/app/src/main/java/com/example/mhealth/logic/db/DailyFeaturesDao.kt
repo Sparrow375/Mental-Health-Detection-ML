@@ -26,6 +26,9 @@ interface DailyFeaturesDao {
     @Query("SELECT * FROM daily_features WHERE userId = :userId ORDER BY date ASC")
     suspend fun getAllFeatures(userId: String): List<DailyFeaturesEntity>
 
+    @Query("SELECT COUNT(*) FROM daily_features WHERE userId = :userId")
+    suspend fun count(userId: String): Int
+
     @Query("DELETE FROM daily_features WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 

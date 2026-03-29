@@ -198,7 +198,7 @@ class AuthManager(private val context: Context) {
                 storageUsedGB        = doc.getDouble("storageUsedGB")?.toFloat()           ?: 0f,
                 appUninstallsToday   = doc.getDouble("appUninstallsToday")?.toFloat()      ?: 0f,
                 upiTransactionsToday = doc.getDouble("upiTransactionsToday")?.toFloat()    ?: 0f,
-                nightInterruptions   = doc.getDouble("nightInterruptions")?.toFloat()      ?: 0f,
+                totalAppsCount       = doc.getDouble("totalAppsCount")?.toFloat()      ?: 0f,
                 dailySteps           = doc.getDouble("dailySteps")?.toFloat()              ?: 0f,
                 syncedToCloud        = true  // already synced — don't re-upload
             )
@@ -255,7 +255,7 @@ class AuthManager(private val context: Context) {
                         storageUsedGB = doc.getDouble("storageUsedGB")?.toFloat() ?: 0f,
                         appUninstallsToday = doc.getDouble("appUninstallsToday")?.toFloat() ?: 0f,
                         upiTransactionsToday = doc.getDouble("upiTransactionsToday")?.toFloat() ?: 0f,
-                        nightInterruptions = doc.getDouble("nightInterruptions")?.toFloat() ?: 0f,
+                        totalAppsCount = doc.getDouble("totalAppsCount")?.toFloat() ?: 0f,
                         syncedToCloud = true,
                         isSimulated = false
                     )

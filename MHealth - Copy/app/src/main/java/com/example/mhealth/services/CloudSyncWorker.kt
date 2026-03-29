@@ -76,7 +76,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     "storageUsedGB" to feature.storageUsedGB,
                     "appUninstallsToday" to feature.appUninstallsToday,
                     "upiTransactionsToday" to feature.upiTransactionsToday,
-                    "nightInterruptions" to feature.nightInterruptions,
+                    "totalAppsCount" to feature.totalAppsCount,
                     "dailySteps" to feature.dailySteps,
 
                     "appBreakdown" to jsonToMap(feature.appBreakdownJson),

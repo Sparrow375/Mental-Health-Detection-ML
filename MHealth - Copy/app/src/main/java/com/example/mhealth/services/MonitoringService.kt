@@ -477,7 +477,7 @@ class MonitoringService : Service() {
                     "storageUsedGB" to entity.storageUsedGB,
                     "appUninstallsToday" to entity.appUninstallsToday,
                     "upiTransactionsToday" to entity.upiTransactionsToday,
-                    "nightInterruptions" to entity.nightInterruptions,
+                    "totalAppsCount" to entity.totalAppsCount,
                     // Previously missing fields — now synced to cloud
                     "dailySteps" to entity.dailySteps,
                     "appBreakdownJson" to entity.appBreakdownJson,

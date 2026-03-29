@@ -27,8 +27,8 @@ interface AnalysisResultDao {
     suspend fun getUnsynced(userId: String): List<AnalysisResultEntity>
 
     @Query("UPDATE analysis_results SET syncedToCloud = 1 WHERE id = :id")
-    suspend fun markSynced(id: Long)
+    suspend fun markSynced(id: Long): Int
 
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
-    suspend fun clearAll(userId: String)
+    suspend fun clearAll(userId: String): Int
 }

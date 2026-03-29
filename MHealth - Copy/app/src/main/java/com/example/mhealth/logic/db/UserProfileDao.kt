@@ -12,8 +12,8 @@ interface UserProfileDao {
     suspend fun get(userId: String): UserProfileEntity?
 
     @Query("UPDATE user_profile_db SET baselineReady = :ready WHERE userId = :userId")
-    suspend fun setBaselineReady(userId: String, ready: Boolean)
+    suspend fun setBaselineReady(userId: String, ready: Boolean): Int
 
     @Query("UPDATE user_profile_db SET currentStatus = :status WHERE userId = :userId")
-    suspend fun updateStatus(userId: String, status: String)
+    suspend fun updateStatus(userId: String, status: String): Int
 }

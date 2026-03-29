@@ -18,7 +18,7 @@ interface DailyFeaturesDao {
     suspend fun getUnsynced(userId: String): List<DailyFeaturesEntity>
 
     @Query("UPDATE daily_features SET syncedToCloud = 1 WHERE id = :id")
-    suspend fun markSynced(id: Long)
+    suspend fun markSynced(id: Long): Int
 
     @Query("SELECT * FROM daily_features WHERE userId = :userId ORDER BY date DESC LIMIT :limit")
     suspend fun getLatestN(userId: String, limit: Int): List<DailyFeaturesEntity>
@@ -27,8 +27,8 @@ interface DailyFeaturesDao {
     suspend fun getAllFeatures(userId: String): List<DailyFeaturesEntity>
 
     @Query("DELETE FROM daily_features WHERE userId = :userId")
-    suspend fun clearAll(userId: String)
+    suspend fun clearAll(userId: String): Int
 
     @Query("DELETE FROM daily_features WHERE userId = :userId AND isSimulated = 1")
-    suspend fun clearSimulated(userId: String)
+    suspend fun clearSimulated(userId: String): Int
 }

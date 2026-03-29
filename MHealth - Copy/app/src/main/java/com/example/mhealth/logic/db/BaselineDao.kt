@@ -12,8 +12,8 @@ interface BaselineDao {
     suspend fun getBaseline(userId: String): List<BaselineEntity>
 
     @Query("UPDATE baseline SET isContaminated = :contaminated WHERE userId = :userId")
-    suspend fun setContaminated(userId: String, contaminated: Boolean)
+    suspend fun setContaminated(userId: String, contaminated: Boolean): Int
 
     @Query("DELETE FROM baseline WHERE userId = :userId")
-    suspend fun clearBaseline(userId: String)
+    suspend fun clearBaseline(userId: String): Int
 }

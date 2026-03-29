@@ -1,0 +1,13 @@
+Starting a Gradle Daemon, 6 stopped Daemons could not be reused, use --status for details
+Daemon JVM discovery is an incubating feature.
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Cannot find a Java installation on your machine (Windows 11 10.0 amd64) matching: Compatible with Java 21, any vendor (from gradle/gradle-daemon-jvm.properties).
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.

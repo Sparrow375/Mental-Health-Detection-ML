@@ -85,6 +85,7 @@ FEATURE_META: Dict[str, Dict] = {
     "calendarEventsToday": {"group": "engagement",    "weight": 0.9},
     "mediaCountToday":     {"group": "engagement",    "weight": 0.7},
     "downloadsToday":      {"group": "engagement",    "weight": 0.6},
+    "backgroundAudioHours":{"group": "engagement",    "weight": 0.9},
 }
 
 # Ordered list matches Android's PersonalityVector.toMap() key order
@@ -156,6 +157,7 @@ class PersonalityVector:
     calendarEventsToday: float = 0.0
     mediaCountToday: float = 0.0
     downloadsToday: float = 0.0
+    backgroundAudioHours: float = 0.0
 
     # ── Internal: per-feature std deviation from baseline ─────────────────
     variances: Dict[str, float] = None   # actually std-dev, named for legacy compat
@@ -197,6 +199,7 @@ class PersonalityVector:
             "calendarEventsToday": self.calendarEventsToday,
             "mediaCountToday":     self.mediaCountToday,
             "downloadsToday":      self.downloadsToday,
+            "backgroundAudioHours": self.backgroundAudioHours,
         }
 
     @classmethod
@@ -232,6 +235,7 @@ class PersonalityVector:
             calendarEventsToday= float(d.get("calendarEventsToday", 0)),
             mediaCountToday=     float(d.get("mediaCountToday", 0)),
             downloadsToday=      float(d.get("downloadsToday", 0)),
+            backgroundAudioHours= float(d.get("backgroundAudioHours", 0)),
             appBreakdown=        d.get("appBreakdown", {}),
             notificationBreakdown=d.get("notificationBreakdown", {}),
             appLaunchesBreakdown=d.get("appLaunchesBreakdown", {}),
@@ -334,6 +338,7 @@ class SyntheticDataGenerator:
             "calendarEventsToday": 1.5,
             "mediaCountToday":     3.0,
             "downloadsToday":      1.0,
+            "backgroundAudioHours": 1.5,
         }
 
     def generate_baseline(self, days: int = 28) -> Tuple[PersonalityVector, pd.DataFrame]:
@@ -374,6 +379,7 @@ class SyntheticDataGenerator:
             "calendarEventsToday": 0.5,
             "mediaCountToday": 0.60,
             "downloadsToday": 0.80,
+            "backgroundAudioHours": 0.50,
         }
 
         for date in dates:
@@ -474,7 +480,7 @@ class SyntheticDataGenerator:
                     if feat in ["socialAppRatio", "callsPerDay", "callDurationMinutes",
                                 "uniqueContacts", "conversationFrequency",
                                 "dailyDisplacementKm", "placesVisited", "locationEntropy",
-                                "calendarEventsToday", "mediaCountToday"]:
+                                "calendarEventsToday", "mediaCountToday", "backgroundAudioHours"]:
                         val = mean_val * decline_factor + np.random.normal(0, std)
                     elif feat == "sleepDurationHours":
                         # Hypersomnia

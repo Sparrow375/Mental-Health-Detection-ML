@@ -99,8 +99,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
         // Notification count natively parsed from UsageEvents (Type 12)
         val notifCount = events.notificationCount.toFloat()
+        val bgAudioHours = events.backgroundAudioMs / 3_600_000f
 
-        Log.i(TAG, "Snapshot OK — screen:%.1fh unlocks:${events.unlockCount} launches:${events.launchCount} notifs:$notifCount steps:$dailySteps".format(events.screenTimeMs / 3_600_000.0))
+        Log.i(TAG, "Snapshot OK — screen:%.1fh unlocks:${events.unlockCount} launches:${events.launchCount} notifs:$notifCount steps:$dailySteps bgAudio:%.1fh".format(events.screenTimeMs / 3_600_000.0, bgAudioHours))
 
         return PersonalityVector(
             // Digital Wellbeing primary metrics
@@ -144,6 +145,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             appUninstallsToday   = appUninstalls.toFloat(),
             upiTransactionsToday = upiLaunches.toFloat(),
             totalAppsCount       = totalApps.toFloat(),
+            backgroundAudioHours = bgAudioHours,
 
             dailySteps           = dailySteps,
 
@@ -234,6 +236,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val launchCount: Int,
         val socialRatio: Float,
         val screenOffMs: Long,             // total time screen was off
+        val backgroundAudioMs: Long,       // duration intentional audio played in bg
         val appMinutes: Map<String, Long>, // package → foreground minutes
         val appLaunches: Map<String, Int>, // package → launch count
         val notificationCount: Int,        // total notification interruptions
@@ -341,6 +344,18 @@ class DataCollector(private val context: Context) : SensorEventListener {
         context.packageName
     )
 
+    private val INTENTIONAL_AUDIO_PACKAGES = setOf(
+        "com.spotify.music",
+        "com.apple.android.music",
+        "com.google.android.apps.youtube.music",
+        "com.amazon.mp3",
+        "com.jio.media.jiobeats",
+        "com.gaana",
+        "com.soundcloud.android",
+        "tunein.player",
+        "com.podcast.podcasts"
+    )
+
     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         
@@ -354,6 +369,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val appLaunches = mutableMapOf<String, Int>()
         val lastBgAt = mutableMapOf<String, Long>()
         val lastFgAt = mutableMapOf<String, Long>()
+
+        val audioServiceStart = mutableMapOf<String, Long>()
+        var bgAudioMs = 0L
 
         var unlocks      = 0
         var launches     = 0
@@ -432,6 +450,23 @@ class DataCollector(private val context: Context) : SensorEventListener {
                         appNotifications[pkg] = (appNotifications[pkg] ?: 0) + 1
                     }
                 }
+
+                // ── Foreground Service Start (19 = FOREGROUND_SERVICE_START) ──
+                19 -> {
+                    if (INTENTIONAL_AUDIO_PACKAGES.contains(pkg)) {
+                        audioServiceStart[pkg] = ts
+                    }
+                }
+
+                // ── Foreground Service Stop (20 = FOREGROUND_SERVICE_STOP) ──
+                20 -> {
+                    if (INTENTIONAL_AUDIO_PACKAGES.contains(pkg)) {
+                        val start = audioServiceStart.remove(pkg)
+                        if (start != null && start <= ts) {
+                            bgAudioMs += (ts - start)
+                        }
+                    }
+                }
             }
         }
 
@@ -441,6 +476,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 val duration = endMs - startFg
                 appMs[pkg] = (appMs[pkg] ?: 0L) + duration
                 totalInteractionMs += duration
+            }
+        }
+
+        // Add remaining in-progress audio services
+        for ((pkg, start) in audioServiceStart) {
+            if (start > 0L && start <= endMs) {
+                bgAudioMs += (endMs - start)
             }
         }
 
@@ -477,6 +519,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             launchCount  = launches,
             socialRatio  = if (totalInteractionMs > 0) socialInteractionMs.toFloat() / totalInteractionMs else 0f,
             screenOffMs  = totalOffMs,
+            backgroundAudioMs = bgAudioMs,
             appMinutes   = minutes,
             appLaunches  = appLaunches,
             notificationCount = notifications,

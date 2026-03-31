@@ -63,6 +63,7 @@ data class PersonalityVector(
     val appUninstallsToday: Float = 0f,    // apps removed today
     val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
     val totalAppsCount: Float = 0f,        // total installed apps
+    val backgroundAudioHours: Float = 0f,  // intentional audio apps in background
 
     // ── MISC / RECOVERED ──────────────────────────────────────────────────────
     val dailySteps: Float = 0f,            // steps elapsed since morning baseline
@@ -107,7 +108,8 @@ data class PersonalityVector(
         // Previously missing — now included in model
         "mediaCountToday"      to mediaCountToday,
         "appInstallsToday"     to appInstallsToday,
-        "dailySteps"           to dailySteps
+        "dailySteps"           to dailySteps,
+        "backgroundAudioHours" to backgroundAudioHours
     )
 }
 

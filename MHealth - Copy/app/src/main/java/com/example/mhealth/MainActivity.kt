@@ -1897,12 +1897,6 @@ fun SettingsScreen() {
                         Spacer(Modifier.width(16.dp))
                         Text("Export Local Data (JSON)", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
-                    HorizontalDivider(color = SurfaceBlue)
-                    Row(Modifier.fillMaxWidth().clickable {}.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Delete, null, tint = AlertRed)
-                        Spacer(Modifier.width(16.dp))
-                        Text("Delete All Data", color = AlertRed, fontSize = 14.sp, fontWeight = FontWeight.Medium)
-                    }
                 }
             }
         }

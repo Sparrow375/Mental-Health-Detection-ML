@@ -29,6 +29,9 @@ interface AnalysisResultDao {
     @Query("UPDATE analysis_results SET syncedToCloud = 1 WHERE id = :id")
     suspend fun markSynced(id: Long): Int
 
+    @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date ASC")
+    suspend fun getAll(userId: String): List<AnalysisResultEntity>
+
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 }

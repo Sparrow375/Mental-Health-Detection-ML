@@ -70,11 +70,17 @@ class DataCollector(private val context: Context) : SensorEventListener {
     //  Public API — called every 15 min by MonitoringService
     // =========================================================================
 
-    fun collectSnapshot(locationSnapshots: List<LatLonPoint>): PersonalityVector {
-        val now = System.currentTimeMillis()
-        val startOfDay = startOfDayMs()
+    fun collectSnapshot(
+        locationSnapshots: List<LatLonPoint>,
+        overrideStartMs: Long? = null,
+        overrideEndMs: Long? = null
+    ): PersonalityVector {
+        val now = overrideEndMs ?: System.currentTimeMillis()
+        val startOfDay = overrideStartMs ?: getStartOfDayMs()
 
         // Step delta — register baseline once per day, then subtract
+        // Note: For historical snapshots, dailySteps might be less accurate as rawStepsSinceBoot is live,
+        // but we prioritize screen time and app usage for baseline.
         DataRepository.setStepBaseline(rawStepsSinceBoot)
         val dailySteps = (rawStepsSinceBoot - (DataRepository.stepBaseline.value ?: rawStepsSinceBoot))
             .coerceAtLeast(0f)
@@ -99,10 +105,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
         // Notification count natively parsed from UsageEvents (Type 12)
         val notifCount = events.notificationCount.toFloat()
-        val bgAudioHours = events.backgroundAudioMs / 3_600_000f
 
-        Log.i(TAG, "Snapshot OK — screen:%.1fh unlocks:${events.unlockCount} launches:${events.launchCount} notifs:$notifCount steps:$dailySteps bgAudio:%.1fh".format(events.screenTimeMs / 3_600_000.0, bgAudioHours))
+        Log.i(TAG, "Snapshot OK [Range: $startOfDay to $now] — screen:%.1fh unlocks:${events.unlockCount} launches:${events.launchCount} notifs:$notifCount steps:$dailySteps"
+            .format(events.screenTimeMs / 3_600_000.0))
 
+        // Background audio: use AudioManager-based accumulation from MonitoringService ticks
+        val bgAudioHours = DataRepository.accumulatedBgAudioMs.value / 3_600_000f
         return PersonalityVector(
             // Digital Wellbeing primary metrics
             screenTimeHours      = events.screenTimeMs / 3_600_000f,
@@ -212,6 +220,38 @@ class DataCollector(private val context: Context) : SensorEventListener {
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping location tracking: ${e.message}")
+        }
+    }
+
+    /** Capture a one-shot GPS fix and save it as the user's HOME location. */
+    @SuppressLint("MissingPermission")
+    fun captureHomeLocation(onResult: (success: Boolean) -> Unit) {
+        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
+            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.w(TAG, "captureHomeLocation: location permission not granted")
+            onResult(false)
+            return
+        }
+        try {
+            val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                .addOnSuccessListener { loc ->
+                    if (loc != null) {
+                        DataRepository.setHomeLocation(loc.latitude, loc.longitude)
+                        Log.i(TAG, "Home location saved: %.5f, %.5f".format(loc.latitude, loc.longitude))
+                        onResult(true)
+                    } else {
+                        Log.w(TAG, "captureHomeLocation: no location fix obtained")
+                        onResult(false)
+                    }
+                }
+                .addOnFailureListener { e ->
+                    Log.e(TAG, "captureHomeLocation error: ${e.message}")
+                    onResult(false)
+                }
+        } catch (e: Exception) {
+            Log.e(TAG, "captureHomeLocation exception: ${e.message}")
+            onResult(false)
         }
     }
 
@@ -358,29 +398,28 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
         val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
-        
-        // 1. Exact raw event iteration (ensuring 100% boundary accuracy without overlapping days)
+
+        // Pure raw-event iteration — 100% boundary accurate (same as Digital Wellbeing)
+        // Screen time is computed from FOREGROUND/BACKGROUND event PAIRS, NOT from
+        // queryUsageStats(INTERVAL_DAILY) which does not honour exact ms boundaries.
         val events = usm.queryEvents(startMs, endMs)
         val event  = UsageEvents.Event()
 
-        val appMs = mutableMapOf<String, Long>()
-        var totalInteractionMs = 0L
+        // FG/BG session tracking — the source of truth for screen time
+        val appFgStart    = mutableMapOf<String, Long>() // pkg → foreground start timestamp
+        val finalAppMs    = mutableMapOf<String, Long>() // pkg → total foreground ms
+        var totalScreenMs = 0L
 
         val appLaunches = mutableMapOf<String, Int>()
-        val lastBgAt = mutableMapOf<String, Long>()
-        val lastFgAt = mutableMapOf<String, Long>()
+        val lastBgAt    = mutableMapOf<String, Long>()
 
-        val audioServiceStart = mutableMapOf<String, Long>()
-        var bgAudioMs = 0L
+        var unlocks     = 0
+        var launches    = 0
+        var screenOffAt = startMs   // track screen-off accumulation
+        var totalOffMs  = 0L
+        var screenIsOn  = true      // assume screen on at query start
 
-        var unlocks      = 0
-        var launches     = 0
-        var screenOffAt  = startMs     // track screen-off accumulation
-        var totalOffMs   = 0L
-        
-        var screenIsOn   = true        // assume screen on at query start
-
-        var notifications = 0
+        var notifications    = 0
         val appNotifications = mutableMapOf<String, Int>()
 
         while (events.hasNextEvent()) {
@@ -392,37 +431,38 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 // ── App comes to foreground (1) ────────────────────────────────
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> {
                     if (!isExcluded(pkg)) {
-                        // Scientific debounce: only count as a new launch if it was in the background for > 1.5s
+                        // Record foreground start for FG/BG session tracking
+                        appFgStart[pkg] = ts
+
+                        // Launch counting: debounce — only a new launch if was in bg > 1.5s
                         val lastBg = lastBgAt[pkg] ?: 0L
                         if (lastBg == 0L || (ts - lastBg > 1500L)) {
                             launches++
                             appLaunches[pkg] = (appLaunches[pkg] ?: 0) + 1
                         }
-                        lastFgAt[pkg] = ts
                     }
                 }
 
                 // ── App goes to background (2) ─────────────────────────────────
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
                     if (!isExcluded(pkg)) {
-                        lastBgAt[pkg] = ts
-                        val startFg = lastFgAt[pkg] ?: 0L
-                        if (startFg > 0L && startFg <= ts) {
-                            val duration = ts - startFg
-                            appMs[pkg] = (appMs[pkg] ?: 0L) + duration
-                            totalInteractionMs += duration
-                            lastFgAt.remove(pkg)
+                        val fgStart = appFgStart.remove(pkg)
+                        if (fgStart != null && fgStart <= ts) {
+                            val duration = ts - fgStart
+                            finalAppMs[pkg] = (finalAppMs[pkg] ?: 0L) + duration
+                            totalScreenMs  += duration
                         }
+                        lastBgAt[pkg] = ts
                     }
                 }
 
                 // ── Screen Unlock (18 = KEYGUARD_HIDDEN) ───────────────────────
-                18 -> { 
+                18 -> {
                     unlocks++
                 }
 
                 // ── Screen Turned ON (15 = SCREEN_INTERACTIVE) ─────────────────
-                15 -> { 
+                15 -> {
                     if (!screenIsOn) {
                         val gap = ts - screenOffAt
                         totalOffMs += gap
@@ -431,16 +471,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 }
 
                 // ── Screen Turned OFF (16 = SCREEN_NON_INTERACTIVE) ────────────
-                16 -> { 
+                16 -> {
                     if (screenIsOn) {
                         screenOffAt = ts
                         screenIsOn  = false
                     }
-                }
-
-                // Device Shutdown (26 = DEVICE_SHUTDOWN, API 29+) ────────────
-                26 -> {
-                    // Safe cleanup if needed
                 }
 
                 // ── Notification Interruption (12 = NOTIFICATION_INTERRUPTION) ──
@@ -450,78 +485,50 @@ class DataCollector(private val context: Context) : SensorEventListener {
                         appNotifications[pkg] = (appNotifications[pkg] ?: 0) + 1
                     }
                 }
-
-                // ── Foreground Service Start (19 = FOREGROUND_SERVICE_START) ──
-                19 -> {
-                    if (INTENTIONAL_AUDIO_PACKAGES.contains(pkg)) {
-                        audioServiceStart[pkg] = ts
-                    }
-                }
-
-                // ── Foreground Service Stop (20 = FOREGROUND_SERVICE_STOP) ──
-                20 -> {
-                    if (INTENTIONAL_AUDIO_PACKAGES.contains(pkg)) {
-                        val start = audioServiceStart.remove(pkg)
-                        if (start != null && start <= ts) {
-                            bgAudioMs += (ts - start)
-                        }
-                    }
-                }
             }
         }
 
-        // Add remaining in-progress foreground time for any apps still active at endMs
-        for ((pkg, startFg) in lastFgAt) {
-            if (startFg > 0L && startFg <= endMs) {
-                val duration = endMs - startFg
-                appMs[pkg] = (appMs[pkg] ?: 0L) + duration
-                totalInteractionMs += duration
+        // ── Apps still in foreground at end of query window ───────────────────
+        for ((pkg, fgStart) in appFgStart) {
+            if (!isExcluded(pkg) && fgStart <= endMs) {
+                val duration = endMs - fgStart
+                finalAppMs[pkg] = (finalAppMs[pkg] ?: 0L) + duration
+                totalScreenMs  += duration
             }
         }
 
-        // Add remaining in-progress audio services
-        for ((pkg, start) in audioServiceStart) {
-            if (start > 0L && start <= endMs) {
-                bgAudioMs += (endMs - start)
-            }
-        }
-
-        // If screen was off at end of window, add remaining off time
+        // ── Remaining screen-off time at end of window ────────────────────────
         if (!screenIsOn) totalOffMs += endMs - screenOffAt
-        
+
+        // ── Social ratio: fraction of screen time in social/messaging apps ─────
         val pm = context.packageManager
-        val socialInteractionMs = appMs.filterKeys { pkg ->
+        val socialInteractionMs = finalAppMs.filterKeys { pkg ->
             try {
                 val appInfo = pm.getApplicationInfo(pkg, 0)
-                // Android 8+ official app categorization
                 val isSocialCat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                     appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_SOCIAL
                 } else false
-                
-                // Fallback for messaging apps that mis-categorize or older devices
                 val lower = pkg.lowercase()
                 val isSocialName = lower.contains("facebook") || lower.contains("instagram") ||
                                    lower.contains("whatsapp") || lower.contains("twitter") ||
                                    lower.contains("snapchat") || lower.contains("tiktok") ||
                                    lower.contains("messenger") || lower.contains("reddit") ||
                                    lower.contains("telegram") || lower.contains("discord")
-
                 isSocialCat || isSocialName
-            } catch (e: Exception) {
-                false
-            }
+            } catch (e: Exception) { false }
         }.values.sum()
-        val minutes   = appMs.mapValues { it.value / 60_000L }.filter { it.value > 0 }
+
+        val minutes = finalAppMs.mapValues { it.value / 60_000L }.filter { it.value > 0 }
 
         return EventsResult(
-            screenTimeMs = totalInteractionMs,
-            unlockCount  = unlocks,
-            launchCount  = launches,
-            socialRatio  = if (totalInteractionMs > 0) socialInteractionMs.toFloat() / totalInteractionMs else 0f,
-            screenOffMs  = totalOffMs,
-            backgroundAudioMs = bgAudioMs,
-            appMinutes   = minutes,
-            appLaunches  = appLaunches,
+            screenTimeMs      = totalScreenMs,
+            unlockCount       = unlocks,
+            launchCount       = launches,
+            socialRatio       = if (totalScreenMs > 0) socialInteractionMs.toFloat() / totalScreenMs else 0f,
+            screenOffMs       = totalOffMs,
+            backgroundAudioMs = 0L, // Audio tracking moved to AudioManager.isMusicActive() in MonitoringService
+            appMinutes        = minutes,
+            appLaunches       = appLaunches,
             notificationCount = notifications,
             notificationBreakdown = appNotifications
         )
@@ -590,23 +597,57 @@ class DataCollector(private val context: Context) : SensorEventListener {
     private fun calculateLocationMetrics(snaps: List<LatLonPoint>): LocationResult {
         if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
+        // ── Displacement: cumulative haversine polyline ────────────────────────
         var distKm = 0.0
         for (i in 1 until snaps.size) {
             distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
         }
 
-        // Cell-based Shannon entropy (0.001° ≈ 110m grid)
-        val cells = mutableMapOf<String, Int>()
-        snaps.forEach { pt ->
-            val key = "${"%.3f".format(pt.lat)},${"%.3f".format(pt.lon)}"
-            cells[key] = (cells[key] ?: 0) + 1
-        }
-        val total   = snaps.size.toDouble()
-        val entropy = cells.values.sumOf { c -> val p = c / total; -p * ln(p) }.toFloat()
-        val homeCell= cells.maxByOrNull { it.value }?.key
-        val homeRatio = (cells[homeCell] ?: 0) / total.toFloat()
+        // ── 500m-radius greedy clustering for time-at-place calculation ────────
+        // Each GPS reading is assigned to the nearest existing cluster within 500m,
+        // or creates a new cluster. Number of readings per cluster ≈ time spent there
+        // (GPS is polled at regular intervals via startContinuousLocationTracking).
+        data class Cluster(var lat: Double, var lon: Double, var count: Int)
+        val clusters = mutableListOf<Cluster>()
 
-        return LocationResult(distKm.toFloat(), entropy, homeRatio, cells.size)
+        for (snap in snaps) {
+            var nearestIdx  = -1
+            var nearestDist = Double.MAX_VALUE
+            for ((idx, cluster) in clusters.withIndex()) {
+                val d = haversine(snap.lat, snap.lon, cluster.lat, cluster.lon)
+                if (d < 0.5 && d < nearestDist) { // 0.5 km = 500 m threshold
+                    nearestDist = d
+                    nearestIdx  = idx
+                }
+            }
+            if (nearestIdx == -1) {
+                clusters.add(Cluster(snap.lat, snap.lon, 1))
+            } else {
+                clusters[nearestIdx].count++
+            }
+        }
+
+        val total = snaps.size.toDouble()
+
+        // ── Shannon entropy over cluster distribution ──────────────────────────
+        val entropy = clusters.sumOf { c ->
+            val p = c.count / total
+            -p * ln(p)
+        }.toFloat()
+
+        // ── homeTimeRatio ──────────────────────────────────────────────────────
+        // Use the saved home GPS coordinates if available; otherwise fall back to
+        // the most-visited cluster (so metric stays non-zero even before home is set)
+        val homeLat = DataRepository.getHomeLatitude()
+        val homeLon = DataRepository.getHomeLongitude()
+        val homeCount = if (homeLat != null && homeLon != null) {
+            clusters.firstOrNull { c -> haversine(c.lat, c.lon, homeLat, homeLon) < 0.5 }?.count ?: 0
+        } else {
+            clusters.maxByOrNull { it.count }?.count ?: 0
+        }
+        val homeRatio = (homeCount / total).toFloat()
+
+        return LocationResult(distKm.toFloat(), entropy, homeRatio, clusters.size)
     }
 
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -760,7 +801,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
     // =========================================================================
     //  Helpers
     // =========================================================================
-    private fun startOfDayMs(): Long {
+    fun getStartOfDayMs(): Long {
         return Calendar.getInstance().apply {
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)

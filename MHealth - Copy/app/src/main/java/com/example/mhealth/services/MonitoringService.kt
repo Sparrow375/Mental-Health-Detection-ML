@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.mhealth.MainActivity
 import com.example.mhealth.logic.AnomalyDetector
@@ -100,6 +101,12 @@ class MonitoringService : Service() {
                 collectedDailyVectors.addAll(pastVectors)
                 DataRepository.updateBaselineProgress(collectedDailyVectors.size)
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+
+                // Immediate check for baseline readiness on startup
+                if (DataRepository.isBuildingBaseline.value) {
+                    val target = DataRepository.baselineDaysRequired.value
+                    checkAndFinalizeBaseline(target)
+                }
                 
                 // Sync any unsynced data from previous sessions on startup
                 syncUnstagedDailyFeaturesToFirebase()
@@ -144,6 +151,13 @@ class MonitoringService : Service() {
                 }
             }
         }
+
+        // ── Baseline days observer: build baseline immediately if requirement is met ──
+        serviceScope.launch {
+            DataRepository.baselineDaysRequired.collect { target ->
+                checkAndFinalizeBaseline(target)
+            }
+        }
         
         // dev force new-day trigger listener
         serviceScope.launch {
@@ -179,6 +193,10 @@ class MonitoringService : Service() {
                         }
                         
                         restoreStateFromRoom()
+
+                        // IMPORTANT: Refresh the "Live" UI snapshots immediately so the user 
+                        // sees their current day's progress (distance, etc.) right after reset.
+                        runTick()
                     } catch (e: Exception) {
                         e.printStackTrace()
                     }
@@ -197,38 +215,62 @@ class MonitoringService : Service() {
         try {
             collectionTickCount++
 
-            // 1) Collect a full snapshot using accumulated GPS track
+            // 1) Collect a "Live" snapshot (Midnight to Now) for UI updates
             val locationSnaps = DataRepository.locationSnapshots.value
-            val snapshot = dataCollector.collectSnapshot(locationSnaps)
+            val liveSnapshot = dataCollector.collectSnapshot(locationSnaps)
 
             // Always update live data for home screen
-            DataRepository.updateLatestVector(snapshot)
-            DataRepository.addHourlySnapshot(snapshot)
+            DataRepository.updateLatestVector(liveSnapshot)
+            DataRepository.addHourlySnapshot(liveSnapshot)
 
-            // 3) Accumulate charging time
+            // 2) Battery tracking (accumulate charging time)
             val battery = dataCollector.getBatteryInfo()
             if (battery.isCharging) {
-                // assume tick duration matches current repository interval in hours
                 val hoursPerTick = DataRepository.monitoringIntervalMinutes.value / 60f
                 DataRepository.addChargeTime(hoursPerTick)
+            }
+
+            // 3) Background audio: ONLY count time when media is ACTUALLY playing.
+            //    AudioManager.isMusicActive() checks the hardware audio mixer — reliable
+            //    regardless of which app is playing (Spotify, YouTube, system, etc.)
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
+            if (audioManager.isMusicActive) {
+                val msPerTick = DataRepository.monitoringIntervalMinutes.value * 60 * 1000L
+                DataRepository.addBgAudioTime(msPerTick)
+                Log.i("MHealth.Service", "Background audio active — adding ${msPerTick}ms")
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
             val savedDay = DataRepository.lastProcessedDay.value
 
-            // On new day, reset daily accumulators
+            // 3) Day Transition Logic: Capture the FULL profile of the day that just ended
             if (today != savedDay && savedDay != -1) {
+                // Determine the 24-hour range for the day that ended (Midnight to Midnight)
+                val startOfToday = dataCollector.getStartOfDayMs()
+                val yesterdayStart = startOfToday - 24 * 3600_000L
+                val yesterdayEnd = startOfToday - 1L
+
+                Log.i("MHealth.Service", "Day Transition Detected: Capturing full profile for Day $savedDay [Range: $yesterdayStart to $yesterdayEnd]")
+                
+                // Collect a 100% accurate snapshot for the entire prior day
+                val fullDaySnapshot = dataCollector.collectSnapshot(locationSnaps, yesterdayStart, yesterdayEnd)
+
+                // Record this full day in history/baseline
+                if (DataRepository.isBuildingBaseline.value) {
+                    handleBaselineBuilding(fullDaySnapshot, today, savedDay, isSimulated)
+                } else {
+                    handleAnomalyDetection(fullDaySnapshot, today, savedDay, isSimulated)
+                }
+
+                // Reset daily accumulators for the new day
                 DataRepository.resetDailyState()
-            }
-
-            if (DataRepository.isBuildingBaseline.value) {
-                handleBaselineBuilding(snapshot, today, savedDay, isSimulated)
-            } else {
-                handleAnomalyDetection(snapshot, today, savedDay, isSimulated)
-            }
-
-            if (today != savedDay) {
                 DataRepository.setLastProcessedDay(today)
+            } else {
+                // Regular tick within the same day: just check if baseline was completed by manual settings change
+                if (DataRepository.isBuildingBaseline.value) {
+                    val target = DataRepository.baselineDaysRequired.value
+                    checkAndFinalizeBaseline(target)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -246,10 +288,22 @@ class MonitoringService : Service() {
 
                 // Persist end-of-day snapshot to Room
                 persistDailySnapshot(snapshot, savedDay, isSimulated)
+                
+                // Check if this latest addition completed the baseline
+                checkAndFinalizeBaseline(targetBaselineDays)
             }
+        } else {
+            // Even if it's not a new day, check if the baseline is now ready (e.g. user lowered the setting)
+            checkAndFinalizeBaseline(targetBaselineDays)
         }
+    }
 
-        if (collectedDailyVectors.size >= targetBaselineDays) {
+    /**
+     * Finalizes the baseline building phase if requirements are met.
+     * Sets P₀ in DataRepository and Room, and flips the isBuilding flag.
+     */
+    private fun checkAndFinalizeBaseline(targetBaselineDays: Int) {
+        if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
             val baseline = buildBaseline(collectedDailyVectors)
             DataRepository.setBaseline(baseline)
             detector = AnomalyDetector(baseline)

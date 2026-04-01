@@ -46,7 +46,10 @@ import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.services.MonitoringService
 import com.example.mhealth.ui.charts.*
 import com.example.mhealth.ui.theme.*
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.security.MessageDigest
 
 class MainActivity : ComponentActivity() {
@@ -482,6 +485,9 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
     var profession by remember { mutableStateOf("") }
     var country by remember { mutableStateOf("") }
     var showErrors by remember { mutableStateOf(false) }
+    var step by remember { mutableStateOf(1) }  // 1 = profile, 2 = home location
+    var homeCapturing by remember { mutableStateOf(false) }
+    var homeSet by remember { mutableStateOf(DataRepository.getHomeLatitude() != null) }
 
     val genderOptions = listOf("Male", "Female", "Non-binary", "Prefer not to say")
 
@@ -489,112 +495,210 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
         Box(Modifier.fillMaxWidth().background(Brush.horizontalGradient(listOf(MintGreen, SkyBlue))).padding(horizontal = 24.dp, vertical = 24.dp)) {
             Column {
                 Spacer(Modifier.height(16.dp))
-                Text("Let's personalize MHealth", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                Text("Just a few details to set up your baseline metrics", fontSize = 14.sp, color = Color.White.copy(0.85f))
+                Text(
+                    if (step == 1) "Let's personalize MHealth" else "Set Your Home Location",
+                    fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White
+                )
+                Text(
+                    if (step == 1) "Just a few details to set up your baseline metrics"
+                    else "Used to accurately calculate time spent at home each day",
+                    fontSize = 14.sp, color = Color.White.copy(0.85f)
+                )
             }
         }
 
-        LazyColumn(Modifier.weight(1f).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            item {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it },
-                    label = { Text("Full Name") },
-                    isError = showErrors && name.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
-                )
-            }
-            item {
-                Text("Gender", fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-                Column(Modifier.fillMaxWidth().border(1.dp, if (showErrors && gender.isBlank()) AlertRed else SurfaceBlue, RoundedCornerShape(8.dp)).padding(8.dp)) {
-                    genderOptions.forEach { option ->
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { gender = option }.padding(vertical = 4.dp)) {
-                            RadioButton(
-                                selected = gender == option,
-                                onClick = { gender = option },
-                                colors = RadioButtonDefaults.colors(selectedColor = MintGreen)
-                            )
-                            Text(option, fontSize = 14.sp, color = TextSecondary)
-                        }
-                    }
-                }
-            }
-            item {
-                OutlinedTextField(
-                    value = age, onValueChange = { age = it.filter { ch -> ch.isDigit() } },
-                    label = { Text("Age") },
-                    isError = showErrors && age.isBlank(),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
-                )
-            }
-            item {
-                var expanded by remember { mutableStateOf(false) }
-                val profOptions = listOf("Student", "Employed", "Self-employed", "Other")
-                Box(Modifier.fillMaxWidth()) {
+        if (step == 1) {
+            // ── Step 1: Profile ────────────────────────────────────────────────
+            LazyColumn(Modifier.weight(1f).padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                item {
                     OutlinedTextField(
-                        value = profession, onValueChange = {},
-                        label = { Text("Profession") },
-                        isError = showErrors && profession.isBlank(),
-                        readOnly = true,
-                        trailingIcon = { IconButton(onClick = { expanded = !expanded }) { Icon(Icons.Default.ArrowDropDown, null) } },
+                        value = name, onValueChange = { name = it },
+                        label = { Text("Full Name") },
+                        isError = showErrors && name.isBlank(),
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
                     )
-                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                        profOptions.forEach { opt ->
-                            DropdownMenuItem(
-                                text = { Text(opt) },
-                                onClick = { profession = opt; expanded = false }
+                }
+                item {
+                    Text("Gender", fontSize = 14.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
+                    Column(Modifier.fillMaxWidth().border(1.dp, if (showErrors && gender.isBlank()) AlertRed else SurfaceBlue, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                        genderOptions.forEach { option ->
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth().clickable { gender = option }.padding(vertical = 4.dp)) {
+                                RadioButton(
+                                    selected = gender == option,
+                                    onClick = { gender = option },
+                                    colors = RadioButtonDefaults.colors(selectedColor = MintGreen)
+                                )
+                                Text(option, fontSize = 14.sp, color = TextSecondary)
+                            }
+                        }
+                    }
+                }
+                item {
+                    OutlinedTextField(
+                        value = age, onValueChange = { age = it.filter { ch -> ch.isDigit() } },
+                        label = { Text("Age") },
+                        isError = showErrors && age.isBlank(),
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
+                    )
+                }
+                item {
+                    var expanded by remember { mutableStateOf(false) }
+                    val profOptions = listOf("Student", "Employed", "Self-employed", "Other")
+                    Box(Modifier.fillMaxWidth()) {
+                        OutlinedTextField(
+                            value = profession, onValueChange = {},
+                            label = { Text("Profession") },
+                            isError = showErrors && profession.isBlank(),
+                            readOnly = true,
+                            trailingIcon = { IconButton(onClick = { expanded = !expanded }) { Icon(Icons.Default.ArrowDropDown, null) } },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
+                        )
+                        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                            profOptions.forEach { opt ->
+                                DropdownMenuItem(
+                                    text = { Text(opt) },
+                                    onClick = { profession = opt; expanded = false }
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
+                    OutlinedTextField(
+                        value = country, onValueChange = { country = it },
+                        label = { Text("Country") },
+                        isError = showErrors && country.isBlank(),
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
+                    )
+                }
+                item { Spacer(Modifier.height(16.dp)) }
+            }
+
+            Box(Modifier.fillMaxWidth().padding(24.dp)) {
+                Button(
+                    onClick = {
+                        if (name.isBlank() || gender.isBlank() || age.isBlank() || profession.isBlank() || country.isBlank()) {
+                            showErrors = true
+                        } else {
+                            val profile = com.example.mhealth.models.UserProfile(
+                                email = DataRepository.userProfile.value?.email ?: "",
+                                name = name,
+                                gender = gender,
+                                age = age.toIntOrNull() ?: 0,
+                                profession = profession,
+                                country = country
+                            )
+                            DataRepository.saveUserProfile(profile)
+                            kotlinx.coroutines.MainScope().launch {
+                                try {
+                                    com.example.mhealth.logic.AuthManager(ctx).updateFirestoreFullProfile(profile)
+                                } catch (e: Exception) {
+                                    android.util.Log.e("QuestionnaireScreen", "Failed to sync profile: ${e.message}")
+                                }
+                            }
+                            step = 2  // advance to home location step
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MintGreen),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Next: Set Home Location", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            // ── Step 2: Home Location ──────────────────────────────────────────
+            Column(
+                Modifier.weight(1f).padding(24.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Card(
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = SurfaceBlue),
+                    elevation = CardDefaults.cardElevation(2.dp)
+                ) {
+                    Column(Modifier.padding(20.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Home, null, tint = SkyBlue, modifier = Modifier.size(28.dp))
+                            Spacer(Modifier.width(12.dp))
+                            Text("Why set a home location?", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Text(
+                            "MHealth tracks your daily movement using GPS. Knowing where home is lets the app calculate how much time you spend at home each day — a key behavioural health indicator.\n\nYour home coordinates are stored only on this device and never leave it.",
+                            fontSize = 13.sp, color = TextSecondary, lineHeight = 18.sp
+                        )
+                    }
+                }
+
+                if (homeSet) {
+                    val loc = DataRepository.homeLocation.value
+                    Card(
+                        Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = MintGreen.copy(alpha = 0.1f))
+                    ) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, null, tint = MintGreen, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(10.dp))
+                            Text(
+                                "✓ Home saved: %.4f, %.4f".format(loc?.first ?: 0.0, loc?.second ?: 0.0),
+                                fontSize = 13.sp, color = MintGreen, fontWeight = FontWeight.Medium
                             )
                         }
                     }
                 }
-            }
-            item {
-                OutlinedTextField(
-                    value = country, onValueChange = { country = it },
-                    label = { Text("Country") },
-                    isError = showErrors && country.isBlank(),
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MintGreen, cursorColor = MintGreen)
-                )
-            }
-            item { Spacer(Modifier.height(16.dp)) }
-        }
 
-        Box(Modifier.fillMaxWidth().padding(24.dp)) {
-            Button(
-                onClick = {
-                    if (name.isBlank() || gender.isBlank() || age.isBlank() || profession.isBlank() || country.isBlank()) {
-                        showErrors = true
-                    } else {
-                        val profile = com.example.mhealth.models.UserProfile(
-                            email = DataRepository.userProfile.value?.email ?: "",
-                            name = name,
-                            gender = gender,
-                            age = age.toIntOrNull() ?: 0,
-                            profession = profession,
-                            country = country
-                        )
-                        DataRepository.saveUserProfile(profile)
-                        // Sync full profile to Firestore so it can be recovered on reinstall
-                        kotlinx.coroutines.MainScope().launch {
-                            try {
-                                com.example.mhealth.logic.AuthManager(ctx).updateFirestoreFullProfile(profile)
-                            } catch (e: Exception) {
-                                android.util.Log.e("QuestionnaireScreen", "Failed to sync profile: ${e.message}")
+                Button(
+                    onClick = {
+                        homeCapturing = true
+                        com.example.mhealth.logic.DataCollector(ctx).captureHomeLocation { success ->
+                            homeCapturing = false
+                            homeSet = success
+                            if (!success) {
+                                android.widget.Toast.makeText(ctx, "❌ Could not get GPS fix, try outdoors or skip for now", android.widget.Toast.LENGTH_SHORT).show()
                             }
                         }
-                        onComplete()
+                    },
+                    enabled = !homeCapturing,
+                    colors = ButtonDefaults.buttonColors(containerColor = SkyBlue),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    if (homeCapturing) {
+                        CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                        Spacer(Modifier.width(10.dp))
                     }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = MintGreen),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("Complete Setup", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(
+                        if (homeCapturing) "Getting GPS fix..." else if (homeSet) "Update Home Location" else "📍 Set Current Location as Home",
+                        color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Column(Modifier.padding(horizontal = 24.dp).padding(bottom = 24.dp)) {
+                Button(
+                    onClick = { onComplete() },
+                    colors = ButtonDefaults.buttonColors(containerColor = MintGreen),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(if (homeSet) "Complete Setup" else "Skip for Now", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                }
+                if (!homeSet) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "You can always set it later in Settings → Home Location",
+                        fontSize = 12.sp, color = TextMuted,
+                        modifier = Modifier.fillMaxWidth(),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                    )
+                }
             }
         }
     }
@@ -731,13 +835,14 @@ fun HomeScreen() {
                 }
             }
 
-            // Communication
+            // Communication & Media
             item {
-                InfoCard("Communication", headerColor = SkyBlue) {
+                InfoCard("Communication & Media", headerColor = SkyBlue) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SkyBlue)
                         MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", CoralPink)
                         MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", LavenderPurple)
+                        MetricPill("🎧 Bg Audio", "${(v.backgroundAudioHours * 60).toInt()}m", ChartGreen)
                     }
                 }
             }
@@ -1870,6 +1975,73 @@ fun SettingsScreen() {
             }
         }
 
+        // Home Location
+        item {
+            val context = LocalContext.current
+            val homeLocation by DataRepository.homeLocation.collectAsState()
+            var homeCapturing by remember { mutableStateOf(false) }
+
+            InfoCard("Home Location", headerColor = SkyBlue) {
+                Column(Modifier.fillMaxWidth()) {
+                    if (homeLocation != null) {
+                        val (lat, lon) = homeLocation!!
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Home, null, tint = MintGreen, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "✓ Home set: %.4f, %.4f".format(lat, lon),
+                                fontSize = 13.sp, color = MintGreen, fontWeight = FontWeight.Medium
+                            )
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Used to calculate homeTimeRatio in location metrics (500m radius cluster)",
+                            fontSize = 11.sp, color = TextMuted, lineHeight = 14.sp
+                        )
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocationOff, null, tint = AlertRed, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Home not set — using most-visited location as fallback",
+                                fontSize = 13.sp, color = TextSecondary)
+                        }
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Set your home location so homeTimeRatio is calculated accurately",
+                            fontSize = 11.sp, color = TextMuted, lineHeight = 14.sp
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            homeCapturing = true
+                            com.example.mhealth.logic.DataCollector(context).captureHomeLocation { success ->
+                                homeCapturing = false
+                                android.widget.Toast.makeText(
+                                    context,
+                                    if (success) "🏠 Home location saved!" else "❌ Could not get GPS fix, try again outdoors",
+                                    android.widget.Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        },
+                        enabled = !homeCapturing,
+                        colors = ButtonDefaults.buttonColors(containerColor = SkyBlue),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (homeCapturing) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(
+                            if (homeCapturing) "Getting GPS fix..." else if (homeLocation != null) "Update Home Location" else "Set Current Location as Home",
+                            color = Color.White, fontSize = 13.sp
+                        )
+                    }
+                }
+            }
+        }
+
         // Collection Toggles
         item {
             InfoCard("Data Collection", headerColor = TextSecondary) {
@@ -1906,67 +2078,174 @@ fun SettingsScreen() {
 }
 
 private fun exportDataAsJson(context: Context) {
-    try {
-        val data = org.json.JSONObject().apply {
-            val latestRaw = DataRepository.latestVector.value
+    if (context !is androidx.activity.ComponentActivity) return
+    
+    context.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+        try {
+            val db = MHealthDatabase.getInstance(context)
+            val userId = DataRepository.userProfile.value?.email ?: "default_user"
             
-            put("voice", org.json.JSONObject().apply {
-                put("pitch_mean", 0.0)
-                put("pitch_std", 0.0)
-                put("energy_mean", 0.0)
-                put("speaking_rate", 0.0)
-                put("pause_rate", 0.0)
+            // 1. Fetch All Historical Data
+            val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
+            val baselineRows = db.baselineDao().getBaseline(userId)
+            val analysisReports = db.analysisResultDao().getAll(userId)
+            val profile = db.userProfileDao().get(userId)
+            
+            // 2. Construct Master JSON
+            val masterJson = org.json.JSONObject()
+            
+            // A. Identity & Profile
+            masterJson.put("profile", org.json.JSONObject().apply {
+                put("userId", userId)
+                put("baselineReady", profile?.baselineReady ?: false)
+                put("onboardingDate", profile?.onboardingDate ?: "")
             })
 
-            put("activity", org.json.JSONObject().apply {
-                put("screen_time_daily", latestRaw?.screenTimeHours ?: 0.0)
-                put("unlock_frequency", latestRaw?.unlockCount ?: 0.0)
-                put("social_app_ratio", latestRaw?.socialAppRatio ?: 0.0)
-                put("calls_per_day", latestRaw?.callsPerDay ?: 0.0)
-                put("texts_per_day", 0.0) // SMS historically restricted by Google Play policy
-                put("unique_contacts", latestRaw?.uniqueContacts?.toInt() ?: 0)
-                put("avg_response_time", 0.0)
-            })
+            // B. Baseline (P₀)
+            val baselineArr = org.json.JSONArray()
+            baselineRows.forEach { row ->
+                baselineArr.put(org.json.JSONObject().apply {
+                    put("feature", row.featureName)
+                    put("mean", row.baselineValue)
+                    put("std", row.stdDeviation)
+                })
+            }
+            masterJson.put("baseline", baselineArr)
 
-            put("movement", org.json.JSONObject().apply {
-                put("daily_displacement", latestRaw?.dailyDisplacementKm ?: 0.0)
-                put("location_entropy", latestRaw?.locationEntropy ?: 0.0)
-                put("home_time_ratio", latestRaw?.homeTimeRatio ?: 0.0)
-                put("places_visited", latestRaw?.placesVisited?.toInt() ?: 0)
-            })
+            // C. Daily Behavioral History (The "Big Data" part)
+            val historyArr = org.json.JSONArray()
+            dailyHistory.forEach { day ->
+                val dayObj = org.json.JSONObject()
+                dayObj.put("date", day.date)
+                dayObj.put("isSimulated", day.isSimulated)
+                
+                // All 30+ Features
+                val features = org.json.JSONObject().apply {
+                    put("screenTimeHours", day.screenTimeHours)
+                    put("unlockCount", day.unlockCount)
+                    put("appLaunchCount", day.appLaunchCount)
+                    put("notifications", day.notificationsToday)
+                    put("socialRatio", day.socialAppRatio)
+                    put("callsPerDay", day.callsPerDay)
+                    put("callDurationMins", day.callDurationMinutes)
+                    put("uniqueContacts", day.uniqueContacts)
+                    put("displacementKm", day.dailyDisplacementKm)
+                    put("locationEntropy", day.locationEntropy)
+                    put("homeTimeRatio", day.homeTimeRatio)
+                    put("placesVisited", day.placesVisited)
+                    put("wakeTimeHour", day.wakeTimeHour)
+                    put("sleepTimeHour", day.sleepTimeHour)
+                    put("sleepDurationHours", day.sleepDurationHours)
+                    put("darkDurationHours", day.darkDurationHours)
+                    put("chargeDurationHours", day.chargeDurationHours)
+                    put("memoryUsagePercent", day.memoryUsagePercent)
+                    put("networkWifiMB", day.networkWifiMB)
+                    put("networkMobileMB", day.networkMobileMB)
+                    put("downloads", day.downloadsToday)
+                    put("storageUsedGB", day.storageUsedGB)
+                    put("appUninstalls", day.appUninstallsToday)
+                    put("upiTransactions", day.upiTransactionsToday)
+                    put("totalApps", day.totalAppsCount)
+                    put("backgroundAudioHours", day.backgroundAudioHours)
+                    put("mediaCount", day.mediaCountToday)
+                    put("appInstalls", day.appInstallsToday)
+                    put("steps", day.dailySteps)
+                }
+                dayObj.put("metrics", features)
 
-            put("circadian", org.json.JSONObject().apply {
-                put("wake_time_mean", latestRaw?.wakeTimeHour ?: 0.0)
-                put("wake_time_std", 0.0)
-                put("sleep_time_mean", latestRaw?.sleepTimeHour ?: 0.0)
-                put("sleep_duration", latestRaw?.sleepDurationHours ?: 0.0)
-            })
+                // Detailed Sensor Logs (Raw JSON strings from Room)
+                dayObj.put("detailed_logs", org.json.JSONObject().apply {
+                    put("app_breakdown", org.json.JSONObject(day.appBreakdownJson))
+                    put("notifications_breakdown", org.json.JSONObject(day.notificationBreakdownJson))
+                    put("app_launches_breakdown", org.json.JSONObject(day.appLaunchesBreakdownJson))
+                })
+                
+                historyArr.put(dayObj)
+            }
+            masterJson.put("daily_history", historyArr)
 
-            put("regularity", org.json.JSONObject().apply {
-                put("daily_routine_variance", 0.0) // Aggregated over 28-day baseline
-                put("week_to_week_consistency", 0.0)
-            })
+            // D. Today's LIVE snapshot (current-day data even before midnight rollover)
+            // This ensures the export always reflects reality at the time of export,
+            // not just completed historical days stored in Room.
+            val liveVector = DataRepository.latestVector.value
+            if (liveVector != null) {
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
+                    .format(java.util.Date())
+                val todayObj = org.json.JSONObject()
+                todayObj.put("date", todayStr)
+                todayObj.put("is_live_snapshot", true)  // marks this as in-progress, not a completed day
+                todayObj.put("isSimulated", false)
+                todayObj.put("metrics", org.json.JSONObject().apply {
+                    put("screenTimeHours",    liveVector.screenTimeHours)
+                    put("unlockCount",         liveVector.unlockCount)
+                    put("appLaunchCount",      liveVector.appLaunchCount)
+                    put("notifications",       liveVector.notificationsToday)
+                    put("socialRatio",         liveVector.socialAppRatio)
+                    put("callsPerDay",         liveVector.callsPerDay)
+                    put("callDurationMins",    liveVector.callDurationMinutes)
+                    put("uniqueContacts",      liveVector.uniqueContacts)
+                    put("displacementKm",      liveVector.dailyDisplacementKm)
+                    put("locationEntropy",     liveVector.locationEntropy)
+                    put("homeTimeRatio",       liveVector.homeTimeRatio)
+                    put("placesVisited",       liveVector.placesVisited)
+                    put("wakeTimeHour",        liveVector.wakeTimeHour)
+                    put("sleepTimeHour",       liveVector.sleepTimeHour)
+                    put("sleepDurationHours",  liveVector.sleepDurationHours)
+                    put("darkDurationHours",   liveVector.darkDurationHours)
+                    put("chargeDurationHours", liveVector.chargeDurationHours)
+                    put("backgroundAudioHours",liveVector.backgroundAudioHours)
+                    put("dailySteps",          liveVector.dailySteps)
+                    put("storageUsedGB",       liveVector.storageUsedGB)
+                    put("networkWifiMB",       liveVector.networkWifiMB)
+                    put("networkMobileMB",     liveVector.networkMobileMB)
+                })
+                masterJson.put("today_live", todayObj)
+            }
+
+            // D. Analysis History (Anomaly detections)
+            val reportsArr = org.json.JSONArray()
+            analysisReports.forEach { report ->
+                reportsArr.put(org.json.JSONObject().apply {
+                    put("date", report.date)
+                    put("anomalyDetected", report.anomalyDetected)
+                    put("anomalyScore", report.anomalyScore)
+                    put("anomalyMessage", report.anomalyMessage)
+                    put("alertLevel", report.alertLevel)
+                    put("sustainedDays", report.sustainedDays)
+                    put("prototypeMatch", report.prototypeMatch)
+                    put("matchMessage", report.matchMessage)
+                    put("prototypeConfidence", report.prototypeConfidence)
+                    // Nested JSON blob from engine
+                    put("gateResults", org.json.JSONObject(report.gateResults))
+                })
+            }
+            masterJson.put("analysis_reports", reportsArr)
+
+            // 3. Save and Share
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                val file = java.io.File(context.cacheDir, "mhealth_detailed_dump_${System.currentTimeMillis()}.json")
+                file.writeText(masterJson.toString(4))
+
+                val uri = androidx.core.content.FileProvider.getUriForFile(
+                    context,
+                    "${context.packageName}.provider",
+                    file
+                )
+
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    type = "application/json"
+                    putExtra(Intent.EXTRA_STREAM, uri)
+                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                }
+                
+                context.startActivity(Intent.createChooser(intent, "Export Full MHealth Data"))
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            withContext(kotlinx.coroutines.Dispatchers.Main) {
+                android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+            }
         }
-
-        val file = java.io.File(context.cacheDir, "mhealth_export_${System.currentTimeMillis()}.json")
-        file.writeText(data.toString(4))
-
-        val uri = androidx.core.content.FileProvider.getUriForFile(
-            context,
-            "${context.packageName}.provider",
-            file
-        )
-
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/json"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        
-        context.startActivity(Intent.createChooser(intent, "Export Data"))
-    } catch (e: Exception) {
-        e.printStackTrace()
-        android.widget.Toast.makeText(context, "Export failed: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 

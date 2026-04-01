@@ -96,8 +96,9 @@ object JsonConverter {
         put("appUninstallsToday", e.appUninstallsToday)
         put("upiTransactionsToday", e.upiTransactionsToday)
         put("totalAppsCount", e.totalAppsCount)
-        put("mediaCountToday", 0f)  // Extracted dynamically by python or placeholder
-        put("appInstallsToday", 0f) // Extracted dynamically by python or placeholder
+        put("mediaCountToday", e.mediaCountToday)
+        put("appInstallsToday", e.appInstallsToday)
+        put("backgroundAudioHours", e.backgroundAudioHours)
         put("calendarEventsToday", 0f)
         put("dailySteps", e.dailySteps)
         
@@ -151,6 +152,9 @@ object JsonConverter {
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
         totalAppsCount = v.totalAppsCount,
+        backgroundAudioHours = v.backgroundAudioHours,
+        mediaCountToday = v.mediaCountToday,
+        appInstallsToday = v.appInstallsToday,
         isSimulated = isSimulated,
         dailySteps = v.dailySteps,
         appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
@@ -187,6 +191,9 @@ object JsonConverter {
         appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
         totalAppsCount = e.totalAppsCount,
+        backgroundAudioHours = e.backgroundAudioHours,
+        mediaCountToday = e.mediaCountToday,
+        appInstallsToday = e.appInstallsToday,
         dailySteps = e.dailySteps,
         appBreakdown = parseMapLong(e.appBreakdownJson),
         notificationBreakdown = parseMapInt(e.notificationBreakdownJson),

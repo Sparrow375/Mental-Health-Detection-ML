@@ -98,6 +98,14 @@ object DataRepository {
     private val _accumulatedChargeHours = MutableStateFlow(0f)
     val accumulatedChargeHours: StateFlow<Float> = _accumulatedChargeHours
 
+    // Accumulated background audio ms — updated per tick by AudioManager.isMusicActive()
+    private val _accumulatedBgAudioMs = MutableStateFlow(0L)
+    val accumulatedBgAudioMs: StateFlow<Long> = _accumulatedBgAudioMs
+
+    // Saved home location (lat/lon) for homeTimeRatio calculation
+    private val _homeLocation = MutableStateFlow<Pair<Double, Double>?>(null)
+    val homeLocation: StateFlow<Pair<Double, Double>?> = _homeLocation
+
     // Track the last processed Calendar Day of Year stringently across app reboots
     private val _lastProcessedDay = MutableStateFlow(-1)
     val lastProcessedDay: StateFlow<Int> = _lastProcessedDay
@@ -167,6 +175,16 @@ object DataRepository {
 
         // Restore accumulated charge hours
         _accumulatedChargeHours.value = prefs?.getFloat("charge_hours_today", 0f) ?: 0f
+
+        // Restore accumulated background audio ms
+        _accumulatedBgAudioMs.value = prefs?.getLong("bg_audio_ms_today", 0L) ?: 0L
+
+        // Restore home location (stored as Float to use NaN as sentinel)
+        val homeLat = prefs?.getFloat("home_location_lat", Float.NaN) ?: Float.NaN
+        val homeLon = prefs?.getFloat("home_location_lon", Float.NaN) ?: Float.NaN
+        if (!homeLat.isNaN() && !homeLon.isNaN()) {
+            _homeLocation.value = Pair(homeLat.toDouble(), homeLon.toDouble())
+        }
 
         // Restore last processed calendar day
         _lastProcessedDay.value = prefs?.getInt("last_processed_day", -1) ?: -1
@@ -263,6 +281,23 @@ object DataRepository {
         prefs?.edit()?.putFloat("charge_hours_today", newTotal)?.apply()
     }
 
+    fun addBgAudioTime(ms: Long) {
+        val newTotal = _accumulatedBgAudioMs.value + ms
+        _accumulatedBgAudioMs.value = newTotal
+        prefs?.edit()?.putLong("bg_audio_ms_today", newTotal)?.apply()
+    }
+
+    fun setHomeLocation(lat: Double, lon: Double) {
+        _homeLocation.value = Pair(lat, lon)
+        prefs?.edit()?.apply {
+            putFloat("home_location_lat", lat.toFloat())
+            putFloat("home_location_lon", lon.toFloat())
+        }?.apply()
+    }
+
+    fun getHomeLatitude(): Double? = _homeLocation.value?.first
+    fun getHomeLongitude(): Double? = _homeLocation.value?.second
+
     fun setStepBaseline(steps: Float) {
         if (_stepBaseline.value == null) {
             _stepBaseline.value = steps
@@ -281,11 +316,13 @@ object DataRepository {
         _stepBaseline.value = null
         _moodScore.value = null
         _accumulatedChargeHours.value = 0f
+        _accumulatedBgAudioMs.value = 0L
         
         prefs?.edit()?.apply {
             remove("step_baseline_today")
             remove("loc_snapshots_today")
             remove("charge_hours_today")
+            remove("bg_audio_ms_today")
             remove("prev_pkg_count")   // reset so appUninstalls recalculates fresh each day
         }?.apply()
     }

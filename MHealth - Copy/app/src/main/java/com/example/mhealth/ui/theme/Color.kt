@@ -2,32 +2,32 @@ package com.example.mhealth.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ── Brand / Primary ─────────────────────────────────────────────────────────
-val MintGreen      = Color(0xFF00C49A)  // Primary teal-mint
-val SkyBlue        = Color(0xFF42A5F5)  // Secondary sky blue
-val CoralPink      = Color(0xFFFF7043)  // Accent coral
-val LavenderPurple = Color(0xFF7E57C2)  // Insights / purple
+// ── Brand / Primary (Cove Theme) ────────────────────────────────────────────
+val OceanBlue      = Color(0xFF005C8A)  // Deep calming blue
+val SoftCyan       = Color(0xFF48CAE4)  // Refreshing ocean water
+val SandWhite      = Color(0xFFF3EBE1)  // Warm beach sand
+val SereneTeal     = Color(0xFF00B4D8)  // Bright water accent
 
-// ── Backgrounds / Surfaces (light theme) ────────────────────────────────────
-val BackgroundWhite = Color(0xFFF4F7FB)  // App background — soft white
-val SurfaceMint     = Color(0xFFE8FAF6)  // Tinted card surface
-val SurfaceBlue     = Color(0xFFEDF4FD)  // Blue tinted surface
-val CardWhite       = Color(0xFFFFFFFF)  // Pure white card
+// ── Backgrounds / Surfaces (Cove light theme) ───────────────────────────────
+val BackgroundWhite = Color(0xFFF6FAF9)  // Soothing off-white / seafoam
+val SurfaceMint     = Color(0xFFE0F7FA)  // Cool pastel cyan
+val SurfaceBlue     = Color(0xFFE8F1F5)  // Cool airy blue
+val CardWhite       = Color(0xFFFFFFFF)  // Pure glass white
 
 // ── Alert / Status colors ────────────────────────────────────────────────────
-val AlertGreen  = Color(0xFF22C55E)
-val AlertYellow = Color(0xFFEAB308)
+val AlertGreen  = Color(0xFF2DD4BF) // Teal-ish green to fit water theme
+val AlertYellow = Color(0xFFFBBF24)
 val AlertOrange = Color(0xFFF97316)
-val AlertRed    = Color(0xFFEF4444)
+val AlertRed    = Color(0xFFFB7185) // Softer calming red
 
 // ── Chart accent colors ──────────────────────────────────────────────────────
-val ChartBlue   = Color(0xFF60A5FA)
-val ChartPurple = Color(0xFFA78BFA)
+val ChartBlue   = Color(0xFF38BDF8)
+val ChartPurple = Color(0xFF818CF8)
 val ChartGreen  = Color(0xFF34D399)
-val ChartOrange = Color(0xFFFBBF24)
-val ChartRed    = Color(0xFFF87171)
+val ChartOrange = Color(0xFFFCD34D)
+val ChartRed    = Color(0xFFFDA4AF)
 
 // ── Text (light theme) ───────────────────────────────────────────────────────
-val TextPrimary   = Color(0xFF1A2332)   // Dark navy — readable on white
+val TextPrimary   = Color(0xFF0F172A)   // Deep slate / navy
 val TextSecondary = Color(0xFF64748B)   // Slate gray
 val TextMuted     = Color(0xFF94A3B8)   // Lightest text

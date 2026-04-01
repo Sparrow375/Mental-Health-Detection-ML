@@ -56,6 +56,7 @@ data class DailyFeaturesEntity(
     val backgroundAudioHours: Float = 0f,
     val mediaCountToday: Float = 0f,
     val appInstallsToday: Float = 0f,
+    val calendarEventsToday: Float = 0f,
 
     // Missed Sensory Data (Captured for Cloud Sync / Backup)
     val dailySteps: Float = 0f,

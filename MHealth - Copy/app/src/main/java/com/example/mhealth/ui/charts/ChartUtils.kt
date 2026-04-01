@@ -44,7 +44,7 @@ fun ArcProgressRing(
     LaunchedEffect(value) {
         animProgress.animateTo(
             (value / maxValue.coerceAtLeast(0.01f)).coerceIn(0f, 1f),
-            animationSpec = tween(1000, easing = FastOutSlowInEasing)
+            animationSpec = tween(2000, easing = LinearOutSlowInEasing)
         )
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -154,13 +154,13 @@ fun RadarChart(
     labels: List<String>,
     values: List<Float>,                    // normalised 0-1 (current vs baseline)
     baseline: List<Float>,                  // normalised 0-1 (personal baseline)
-    color: Color = MintGreen,
+    color: Color = OceanBlue,
     modifier: Modifier = Modifier,
     prototypeValues: List<Float>? = null    // 0-1 prototype shape — drawn ONLY when non-null
 ) {
     val animProgress = remember { Animatable(0f) }
     LaunchedEffect(values) {
-        animProgress.animateTo(1f, tween(1200, easing = FastOutSlowInEasing))
+        animProgress.animateTo(1f, tween(2400, easing = LinearOutSlowInEasing))
     }
 
     Canvas(modifier = modifier) {
@@ -200,8 +200,8 @@ fun RadarChart(
             if (i == 0) baselinePath.moveTo(pt.x, pt.y) else baselinePath.lineTo(pt.x, pt.y)
         }
         baselinePath.close()
-        drawPath(baselinePath, SkyBlue.copy(0.15f))
-        drawPath(baselinePath, SkyBlue.copy(0.5f), style = Stroke(2f))
+        drawPath(baselinePath, SoftCyan.copy(0.15f))
+        drawPath(baselinePath, SoftCyan.copy(0.5f), style = Stroke(2f))
 
         // ── Prototype polygon (dashed red) — only when a disorder is matched ─
         if (prototypeValues != null) {
@@ -250,12 +250,12 @@ fun RadarChart(
 fun HorizontalBarChart(
     items: List<Pair<String, Float>>,  // label → value
     maxValue: Float,
-    color: Color = MintGreen,
+    color: Color = OceanBlue,
     unitSuffix: String = "",
     modifier: Modifier = Modifier
 ) {
     val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(items) { animProgress.animateTo(1f, tween(900)) }
+    LaunchedEffect(items) { animProgress.animateTo(1f, tween(1800, easing = LinearOutSlowInEasing)) }
 
     val pm = LocalContext.current.packageManager
 
@@ -302,7 +302,7 @@ fun AnomalyScoreGauge(
     modifier: Modifier = Modifier
 ) {
     val animScore = remember { Animatable(0f) }
-    LaunchedEffect(score) { animScore.animateTo(score.coerceIn(0f, 1f), tween(1200)) }
+    LaunchedEffect(score) { animScore.animateTo(score.coerceIn(0f, 1f), tween(2000, easing = LinearOutSlowInEasing)) }
 
     Canvas(modifier = modifier) {
         val cx = size.width / 2; val cy = size.height * 0.85f
@@ -353,7 +353,7 @@ fun PieChart(
     LaunchedEffect(data) {
         animProgress.animateTo(
             1f, 
-            animationSpec = tween(1200, easing = FastOutSlowInEasing)
+            animationSpec = tween(2000, easing = LinearOutSlowInEasing)
         )
     }
 

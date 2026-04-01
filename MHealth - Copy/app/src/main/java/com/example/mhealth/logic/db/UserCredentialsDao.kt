@@ -16,6 +16,9 @@ interface UserCredentialsDao {
     @Query("SELECT * FROM user_credentials WHERE email = :email LIMIT 1")
     suspend fun findByEmail(email: String): UserCredentialsEntity?
 
+    @Query("DELETE FROM user_credentials WHERE email = :email")
+    suspend fun deleteByEmail(email: String)
+
     /** Returns true if at least one account exists — used to detect first launch. */
     @Query("SELECT COUNT(*) FROM user_credentials")
     suspend fun count(): Int

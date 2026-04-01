@@ -19,7 +19,7 @@ import androidx.room.RoomDatabase
         UserProfileEntity::class,
         UserCredentialsEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -47,6 +47,12 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE daily_features ADD COLUMN calendarEventsToday REAL NOT NULL DEFAULT 0.0")
+            }
+        }
+
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -54,7 +60,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                     MHealthDatabase::class.java,
                     "mhealth_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

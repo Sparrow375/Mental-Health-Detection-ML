@@ -20,7 +20,7 @@ Groups
   F  Behavioural Signals        (4 features)   ← new, from expanded Android collector
   G  Calendar & Engagement      (3 features)   ← new, from expanded Android collector
 
-Total: 29 real-valued features per day.
+Total: 31 real-valued features per day.
 """
 
 personality_vector = {
@@ -275,6 +275,21 @@ personality_vector = {
         "notes":  "Files downloaded today. Bypasses MediaStore index lag "
                   "by checking the filesystem layer directly.",
         "s1_weight": 0.6,
+    },
+    "backgroundAudioHours": {
+        "type":   float,
+        "unit":   "hours",
+        "source": "AudioManager.isMusicActive() debounced across 15-min ticks",
+        "notes":  "Total time intentional audio (Spotify/YouTube/etc) was playing "
+                  "in the background. High indicator of 'digital cocooning'.",
+        "s1_weight": 1.1,
+    },
+    "dailySteps": {
+        "type":   float,
+        "unit":   "count",
+        "source": "Sensor.TYPE_STEP_COUNTER (delta since midnight)",
+        "notes":  "Total physical steps taken today. Core physical activity metric.",
+        "s1_weight": 1.4,
     },
 }
 

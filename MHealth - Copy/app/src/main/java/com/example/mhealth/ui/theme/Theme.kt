@@ -10,15 +10,15 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = MintGreen,
+    primary = OceanBlue,
     onPrimary = CardWhite,
     primaryContainer = SurfaceMint,
     onPrimaryContainer = TextPrimary,
-    secondary = SkyBlue,
+    secondary = SoftCyan,
     onSecondary = TextPrimary,
     secondaryContainer = SurfaceBlue,
     onSecondaryContainer = TextPrimary,
-    tertiary = LavenderPurple,
+    tertiary = SereneTeal,
     onTertiary = TextPrimary,
     background = BackgroundWhite,
     onBackground = TextPrimary,
@@ -30,7 +30,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 @Composable
-fun MHealthTheme(content: @Composable () -> Unit) {
+fun CoveTheme(content: @Composable () -> Unit) {
     val colorScheme = LightColorScheme
     val view = LocalView.current
 

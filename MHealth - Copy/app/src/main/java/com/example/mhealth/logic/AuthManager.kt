@@ -16,16 +16,12 @@ class AuthManager(private val context: Context) {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
-    // Login or Create with Email + Default Password
-    suspend fun signInOrCreateUser(email: String, name: String = ""): Result<Boolean> {
+    // Create new account strictly. Fail if email exists.
+    suspend fun createUser(email: String, name: String = ""): Result<Boolean> {
         return try {
-            // TODO: Temporary hardcoded password for testing phase. Must be replaced with OTP/Email link before production.
+            // Temporary hardcoded password for testing phase
             val password = "user1234"
-            try {
-                auth.createUserWithEmailAndPassword(email, password).await()
-            } catch (e: Exception) {
-                auth.signInWithEmailAndPassword(email, password).await()
-            }
+            auth.createUserWithEmailAndPassword(email, password).await()
             setupFirestoreProfile(name)
             Result.success(true)
         } catch (e: Exception) {

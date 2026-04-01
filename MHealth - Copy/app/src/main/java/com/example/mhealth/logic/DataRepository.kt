@@ -327,6 +327,22 @@ object DataRepository {
         }?.apply()
     }
 
+    fun restoreTodayState(locs: List<LatLonPoint>, chargeHrs: Float, bgAudio: Long, stepBase: Float) {
+        _locationSnapshots.value = locs
+        saveLocationsToPrefs(locs)
+        
+        _accumulatedChargeHours.value = chargeHrs
+        prefs?.edit()?.putFloat("charge_hours_today", chargeHrs)?.apply()
+        
+        _accumulatedBgAudioMs.value = bgAudio
+        prefs?.edit()?.putLong("bg_audio_ms_today", bgAudio)?.apply()
+        
+        if (stepBase >= 0f) {
+            _stepBaseline.value = stepBase
+            prefs?.edit()?.putFloat("step_baseline_today", stepBase)?.apply()
+        }
+    }
+
     fun clearAllState() {
         _baselineProgress.value = 0
         _collectedBaselineVectors.value = emptyList()

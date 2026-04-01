@@ -87,6 +87,16 @@ class MonitoringService : Service() {
                             memoryUsagePercent = baselineFields["memoryUsagePercent"] ?: 0f,
                             networkWifiMB = baselineFields["networkWifiMB"] ?: 0f,
                             networkMobileMB = baselineFields["networkMobileMB"] ?: 0f,
+                            downloadsToday = baselineFields["downloadsToday"] ?: 0f,
+                            storageUsedGB = baselineFields["storageUsedGB"] ?: 0f,
+                            appUninstallsToday = baselineFields["appUninstallsToday"] ?: 0f,
+                            upiTransactionsToday = baselineFields["upiTransactionsToday"] ?: 0f,
+                            totalAppsCount = baselineFields["totalAppsCount"] ?: 0f,
+                            backgroundAudioHours = baselineFields["backgroundAudioHours"] ?: 0f,
+                            mediaCountToday = baselineFields["mediaCountToday"] ?: 0f,
+                            appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
+                            dailySteps = baselineFields["dailySteps"] ?: 0f,
+                            calendarEventsToday = baselineFields["calendarEventsToday"] ?: 0f,
                             variances = variances as MutableMap<String, Float>
                         )
                         DataRepository.setBaseline(baseline)
@@ -460,8 +470,16 @@ class MonitoringService : Service() {
             memoryUsagePercent = averages["memoryUsagePercent"] ?: 0f,
             networkWifiMB = averages["networkWifiMB"] ?: 0f,
             networkMobileMB = averages["networkMobileMB"] ?: 0f,
+            downloadsToday = averages["downloadsToday"] ?: 0f,
+            storageUsedGB = averages["storageUsedGB"] ?: 0f,
+            appUninstallsToday = averages["appUninstallsToday"] ?: 0f,
+            upiTransactionsToday = averages["upiTransactionsToday"] ?: 0f,
+            totalAppsCount = averages["totalAppsCount"] ?: 0f,
+            backgroundAudioHours = averages["backgroundAudioHours"] ?: 0f,
             mediaCountToday = averages["mediaCountToday"] ?: 0f,
             appInstallsToday = averages["appInstallsToday"] ?: 0f,
+            dailySteps = averages["dailySteps"] ?: 0f,
+            calendarEventsToday = averages["calendarEventsToday"] ?: 0f,
             variances = variances
         )
     }
@@ -532,7 +550,10 @@ class MonitoringService : Service() {
                     "appUninstallsToday" to entity.appUninstallsToday,
                     "upiTransactionsToday" to entity.upiTransactionsToday,
                     "totalAppsCount" to entity.totalAppsCount,
-                    // Previously missing fields — now synced to cloud
+                    "backgroundAudioHours" to entity.backgroundAudioHours,
+                    "mediaCountToday" to entity.mediaCountToday,
+                    "appInstallsToday" to entity.appInstallsToday,
+                    "calendarEventsToday" to entity.calendarEventsToday,
                     "dailySteps" to entity.dailySteps,
                     "appBreakdownJson" to entity.appBreakdownJson,
                     "notificationBreakdownJson" to entity.notificationBreakdownJson,

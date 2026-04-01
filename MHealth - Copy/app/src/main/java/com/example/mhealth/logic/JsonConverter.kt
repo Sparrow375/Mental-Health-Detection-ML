@@ -99,7 +99,7 @@ object JsonConverter {
         put("mediaCountToday", e.mediaCountToday)
         put("appInstallsToday", e.appInstallsToday)
         put("backgroundAudioHours", e.backgroundAudioHours)
-        put("calendarEventsToday", 0f)
+        put("calendarEventsToday", e.calendarEventsToday)
         put("dailySteps", e.dailySteps)
         
         // Pass individual app usage dictionaries to python engine
@@ -155,6 +155,7 @@ object JsonConverter {
         backgroundAudioHours = v.backgroundAudioHours,
         mediaCountToday = v.mediaCountToday,
         appInstallsToday = v.appInstallsToday,
+        calendarEventsToday = v.calendarEventsToday,
         isSimulated = isSimulated,
         dailySteps = v.dailySteps,
         appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
@@ -194,6 +195,7 @@ object JsonConverter {
         backgroundAudioHours = e.backgroundAudioHours,
         mediaCountToday = e.mediaCountToday,
         appInstallsToday = e.appInstallsToday,
+        calendarEventsToday = e.calendarEventsToday,
         dailySteps = e.dailySteps,
         appBreakdown = parseMapLong(e.appBreakdownJson),
         notificationBreakdown = parseMapInt(e.notificationBreakdownJson),

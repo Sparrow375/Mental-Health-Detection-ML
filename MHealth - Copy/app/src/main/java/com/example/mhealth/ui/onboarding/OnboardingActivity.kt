@@ -52,7 +52,7 @@ fun OnboardingScreen(authManager: AuthManager) {
                     isLoading = true
                     errorMessage = null
                     coroutineScope.launch {
-                        val result = authManager.signInOrCreateUser(email)
+                        val result = authManager.createUser(email)
                         isLoading = false
                         if (result.isSuccess) {
                             context.startActivity(android.content.Intent(context, com.example.mhealth.MainActivity::class.java))

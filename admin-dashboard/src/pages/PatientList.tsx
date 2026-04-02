@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { collection, getDocs, query, orderBy } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
-import { Search, FileText, AlertTriangle, ShieldCheck, Clock, EyeOff } from 'lucide-react';
+import { Search, FileText, AlertTriangle, ShieldCheck, Clock, EyeOff, Trash2 } from 'lucide-react';
 import { usePrivacy } from '../context/PrivacyContext';
 
 interface Patient {
@@ -18,7 +18,7 @@ interface Patient {
   };
 }
 
-import { getLatestResult } from '../firebase/dataHelper';
+import { getLatestResult, deletePatient } from '../firebase/dataHelper';
 
 export const PatientList: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -69,6 +69,19 @@ export const PatientList: React.FC = () => {
     };
     fetchPatients();
   }, []);
+
+  const handleDelete = async (uid: string) => {
+    if (window.confirm("Are you sure you want to permanently delete this user's data? It will wipe everything from the cloud and reset their device App from Day 1 on their next sync.")) {
+      setLoading(true);
+      const success = await deletePatient(uid);
+      if (success) {
+        setPatients(prev => prev.filter(p => p.id !== uid));
+      } else {
+        alert("Failed to delete patient from database. Please check console.");
+      }
+      setLoading(false);
+    }
+  };
 
   const filteredPatients = patients.filter(p => 
     p.email?.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -151,13 +164,20 @@ export const PatientList: React.FC = () => {
                   <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
                     {new Date(patient.onboarding_date).toLocaleDateString()}
                   </td>
-                  <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                  <td style={{ padding: '1rem 1.5rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => navigate(`/patients/${patient.id}`)}
                       className="btn btn-secondary" 
                       style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
                     >
                       <FileText size={16} /> View Data
+                    </button>
+                    <button 
+                      onClick={() => handleDelete(patient.id)}
+                      className="btn btn-secondary" 
+                      style={{ padding: '0.5rem 1rem', fontSize: '0.875rem', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}
+                    >
+                      <Trash2 size={16} /> Delete
                     </button>
                   </td>
                 </tr>

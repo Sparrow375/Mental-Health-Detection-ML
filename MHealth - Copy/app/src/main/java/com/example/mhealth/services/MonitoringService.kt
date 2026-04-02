@@ -1,8 +1,12 @@
 package com.example.mhealth.services
 
-import android.app.*
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -19,10 +23,18 @@ import com.example.mhealth.models.PersonalityVector
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 
 class MonitoringService : Service() {
 
@@ -97,7 +109,7 @@ class MonitoringService : Service() {
                             appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
                             dailySteps = baselineFields["dailySteps"] ?: 0f,
                             calendarEventsToday = baselineFields["calendarEventsToday"] ?: 0f,
-                            variances = variances as MutableMap<String, Float>
+                            variances = variances.toMutableMap()
                         )
                         DataRepository.setBaseline(baseline)
                         detector = AnomalyDetector(baseline)
@@ -121,7 +133,7 @@ class MonitoringService : Service() {
                 // Sync any unsynced data from previous sessions on startup
                 syncUnstagedDailyFeaturesToFirebase()
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MHealth.Service", "Error restoring state from Room", e)
             }
         }
     }
@@ -136,7 +148,7 @@ class MonitoringService : Service() {
         }
         val notification = NotificationCompat.Builder(this, channelId)
             .setContentTitle("MHealth Active")
-            .setContentText("Passively monitoring device patterns…")
+            .setContentText("Passively monitoring device patterns")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
             .setContentIntent(
                 PendingIntent.getActivity(
@@ -145,7 +157,12 @@ class MonitoringService : Service() {
             )
             .setOngoing(true)
             .build()
-        startForeground(1, notification)
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(1, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION or ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
+        } else {
+            startForeground(1, notification)
+        }
     }
 
     private fun scheduleMonitoring() {
@@ -208,7 +225,7 @@ class MonitoringService : Service() {
                         // sees their current day's progress (distance, etc.) right after reset.
                         runTick()
                     } catch (e: Exception) {
-                        e.printStackTrace()
+                        Log.e("MHealth.Service", "Error during master reset", e)
                     }
                 }
             }
@@ -243,8 +260,8 @@ class MonitoringService : Service() {
             // 3) Background audio: ONLY count time when media is ACTUALLY playing.
             //    AudioManager.isMusicActive() checks the hardware audio mixer — reliable
             //    regardless of which app is playing (Spotify, YouTube, system, etc.)
-            val audioManager = getSystemService(Context.AUDIO_SERVICE) as android.media.AudioManager
-            if (audioManager.isMusicActive) {
+            val audioManager = getSystemService(android.media.AudioManager::class.java)
+            if (audioManager?.isMusicActive == true) {
                 val msPerTick = DataRepository.monitoringIntervalMinutes.value * 60 * 1000L
                 DataRepository.addBgAudioTime(msPerTick)
                 Log.i("MHealth.Service", "Background audio active — adding ${msPerTick}ms")
@@ -283,7 +300,7 @@ class MonitoringService : Service() {
                 }
             }
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("MHealth.Service", "Error in runTick", e)
         }
     }
 
@@ -359,7 +376,7 @@ class MonitoringService : Service() {
                 // Automatically push un-synced data to Firebase database
                 syncUnstagedDailyFeaturesToFirebase()
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MHealth.Service", "Error persisting daily snapshot", e)
             }
         }
     }
@@ -412,7 +429,7 @@ class MonitoringService : Service() {
                     baselineRef.document(feature).set(data).await()
                 }
             } catch (e: Exception) {
-                e.printStackTrace()
+                Log.e("MHealth.Service", "Error syncing baseline to Firebase", e)
             }
         }
     }
@@ -453,6 +470,8 @@ class MonitoringService : Service() {
         return PersonalityVector(
             screenTimeHours = averages["screenTimeHours"] ?: 0f,
             unlockCount = averages["unlockCount"] ?: 0f,
+            appLaunchCount = averages["appLaunchCount"] ?: 0f,
+            notificationsToday = averages["notificationsToday"] ?: 0f,
             socialAppRatio = averages["socialAppRatio"] ?: 0f,
             callsPerDay = averages["callsPerDay"] ?: 0f,
             callDurationMinutes = averages["callDurationMinutes"] ?: 0f,

@@ -4,11 +4,13 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.usage.NetworkStatsManager
+import android.app.usage.StorageStatsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.hardware.Sensor
 import android.hardware.SensorEvent
@@ -18,7 +20,10 @@ import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.os.Looper
+import android.os.Process
 import android.os.StatFs
+import android.os.storage.StorageManager
 import android.provider.CalendarContract
 import android.provider.CallLog
 import android.provider.ContactsContract
@@ -33,10 +38,15 @@ import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult as GmsLocationResult
 import com.google.android.gms.tasks.Tasks
-import android.os.Looper
-import java.util.*
+import java.util.Calendar
+import java.util.Locale
 import java.util.concurrent.TimeUnit
-import kotlin.math.*
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.ln
+import kotlin.math.pow
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * DataCollector — All metrics sourced from the same Android APIs that
@@ -52,7 +62,7 @@ import kotlin.math.*
 class DataCollector(private val context: Context) : SensorEventListener {
 
     private val TAG = "MHealth.DataCollector"
-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
+    private val sensorManager = checkNotNull(context.getSystemService(SensorManager::class.java)) { "SensorManager not available" }
 
     private var locationCallback: LocationCallback? = null
 
@@ -202,7 +212,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 }
             }
 
-            fusedClient.requestLocationUpdates(locationRequest, locationCallback!!, Looper.getMainLooper())
+            locationCallback?.let { fusedClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
             Log.i(TAG, "Continuous location tracking started.")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException accessing location: ${e.message}")
@@ -294,7 +304,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val windowStartMs = startOfDayMs - (4 * 3600_000L)   // yesterday 20:00
         val windowEndMs   = minOf(now, startOfDayMs + (12 * 3600_000L)) // today 12:00
 
-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
         val events = usm.queryEvents(windowStartMs, windowEndMs)
         val ev = UsageEvents.Event()
 
@@ -397,7 +407,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
     )
 
     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
+        val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
 
         // Pure raw-event iteration — 100% boundary accurate (same as Digital Wellbeing)
         // Screen time is computed from FOREGROUND/BACKGROUND event PAIRS, NOT from
@@ -504,9 +514,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val pm = context.packageManager
         val socialInteractionMs = finalAppMs.filterKeys { pkg ->
             try {
-                val appInfo = pm.getApplicationInfo(pkg, 0)
+                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
+                } else {
+                    pm.getApplicationInfo(pkg, 0)
+                }
                 val isSocialCat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_SOCIAL
+                    appInfo.category == ApplicationInfo.CATEGORY_SOCIAL
                 } else false
                 val lower = pkg.lowercase()
                 val isSocialName = lower.contains("facebook") || lower.contains("instagram") ||
@@ -747,14 +761,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val storagePct = if (total > 0) (total - avail) * 100f / total else 0f
 
         // Memory — same as Settings → Memory
-        val am   = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        val am = checkNotNull(context.getSystemService(ActivityManager::class.java)) { "ActivityManager not available" }
         val mem  = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
         val memPct = if (mem.totalMem > 0) (mem.totalMem - mem.availMem) * 100f / mem.totalMem else 0f
 
         // Network — same as Settings → Network & Internet → Data usage
         var wifiMB = 0f; var mobileMB = 0f
         try {
-            val nsm = context.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
+            val nsm = checkNotNull(context.getSystemService(NetworkStatsManager::class.java)) { "NetworkStatsManager not available" }
             nsm.querySummaryForDevice(NetworkCapabilities.TRANSPORT_WIFI, null, startMs, endMs)
                 .let { wifiMB = (it.rxBytes + it.txBytes) / (1024f * 1024f) }
             nsm.querySummaryForDevice(NetworkCapabilities.TRANSPORT_CELLULAR, null, startMs, endMs)
@@ -774,7 +788,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
     } catch (e: Exception) { 0 }
 
     private fun countAppInstalls(since: Long): Int = try {
-        context.packageManager.getInstalledPackages(0).count { it.firstInstallTime >= since }
+        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+        } else {
+            context.packageManager.getInstalledPackages(0)
+        }
+        packages.count { it.firstInstallTime >= since }
     } catch (e: Exception) { 0 }
 
     private fun countCalendarEvents(startMs: Long, endMs: Long): Int = try {
@@ -833,7 +852,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private fun countAppUninstalls(): Int = try {
         val prefs = context.getSharedPreferences("mhealth_prefs", Context.MODE_PRIVATE)
-        val currentCount = context.packageManager.getInstalledPackages(0).size
+        val currentCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L)).size
+        } else {
+            context.packageManager.getInstalledPackages(0).size
+        }
         val prevKey = "prev_pkg_count"
         val storedCount = prefs.getInt(prevKey, currentCount)
         prefs.edit().putInt(prevKey, currentCount).apply()
@@ -862,8 +885,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private fun countTotalApps(): Int {
         return try {
-            context.packageManager.getInstalledPackages(0).count { pkg ->
-                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+            val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+            } else {
+                context.packageManager.getInstalledPackages(0)
+            }
+            packages.count { pkg ->
+                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
                 !isSystemApp
             }
         } catch (e: Exception) {
@@ -877,13 +905,19 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val result = mutableMapOf<String, Float>()
         val pm = context.packageManager
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            val ssm = context.getSystemService(Context.STORAGE_STATS_SERVICE) as? android.app.usage.StorageStatsManager
-            val storageUuid = android.os.storage.StorageManager.UUID_DEFAULT
+        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+        } else {
+            pm.getInstalledPackages(0)
+        }
 
-            for (pkg in pm.getInstalledPackages(0)) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val ssm = context.getSystemService(StorageStatsManager::class.java)
+            val storageUuid = StorageManager.UUID_DEFAULT
+
+            for (pkg in packages) {
                 // Efficiently skip system-level packages so OS Bloat doesn't skew metric
-                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
                 if (isSystemApp) continue
 
                 var usedBytes = 0L
@@ -912,7 +946,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
     fun getAppInstallsByCategory(since: Long): Map<String, Int> {
         val result = mutableMapOf<String, Int>()
         val pm = context.packageManager
-        for (pkg in pm.getInstalledPackages(0)) {
+        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+        } else {
+            pm.getInstalledPackages(0)
+        }
+        for (pkg in packages) {
             if (pkg.firstInstallTime < since) continue
             val label = getCategoryLabel(pkg.applicationInfo, pm)
             result[label] = (result[label] ?: 0) + 1
@@ -925,10 +964,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
     fun getAllAppsByCategory(): Map<String, Int> {
         val result = mutableMapOf<String, Int>()
         val pm = context.packageManager
-        for (pkg in pm.getInstalledPackages(0)) {
+        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
+        } else {
+            pm.getInstalledPackages(0)
+        }
+        for (pkg in packages) {
             // Only count user-installed apps (exclude system apps)
-            val isSystemApp = (pkg.applicationInfo?.flags
-                ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
+            val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
             if (isSystemApp) continue
             val label = getCategoryLabel(pkg.applicationInfo, pm)
             result[label] = (result[label] ?: 0) + 1
@@ -937,7 +980,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         return result.toList().sortedByDescending { it.second }.toMap()
     }
 
-    private fun getCategoryLabel(info: android.content.pm.ApplicationInfo?,
+    private fun getCategoryLabel(info: ApplicationInfo?,
                                   pm: PackageManager): String {
         if (info == null) return "Other"
         val name = info.packageName?.lowercase() ?: ""
@@ -963,14 +1006,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 || name.contains("steps") || name.contains("workout") -> "Health"
             else -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
                 when (info.category) {
-                    android.content.pm.ApplicationInfo.CATEGORY_GAME -> "Games"
-                    android.content.pm.ApplicationInfo.CATEGORY_SOCIAL -> "Social"
-                    android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
-                    android.content.pm.ApplicationInfo.CATEGORY_MAPS -> "Maps"
-                    android.content.pm.ApplicationInfo.CATEGORY_NEWS -> "News"
-                    android.content.pm.ApplicationInfo.CATEGORY_AUDIO -> "Media"
-                    android.content.pm.ApplicationInfo.CATEGORY_VIDEO -> "Media"
-                    android.content.pm.ApplicationInfo.CATEGORY_IMAGE -> "Photos"
+                    ApplicationInfo.CATEGORY_GAME -> "Games"
+                    ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+                    ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+                    ApplicationInfo.CATEGORY_MAPS -> "Maps"
+                    ApplicationInfo.CATEGORY_NEWS -> "News"
+                    ApplicationInfo.CATEGORY_AUDIO -> "Media"
+                    ApplicationInfo.CATEGORY_VIDEO -> "Media"
+                    ApplicationInfo.CATEGORY_IMAGE -> "Photos"
                     else -> "Other"
                 }
             } else "Other"

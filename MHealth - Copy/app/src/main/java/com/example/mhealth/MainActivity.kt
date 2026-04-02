@@ -13,19 +13,73 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.animation.*
-import androidx.compose.foundation.*
-import androidx.compose.foundation.layout.*
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.automirrored.filled.ShowChart
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.HourglassEmpty
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.LocationOff
+import androidx.compose.material.icons.filled.Sensors
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Timeline
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.WaterDrop
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,8 +100,19 @@ import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.services.MonitoringService
 import com.example.mhealth.ui.charts.*
+import com.example.mhealth.ui.components.*
 import com.example.mhealth.ui.theme.*
 import androidx.lifecycle.lifecycleScope
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.aspectRatio
+import kotlin.math.*
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -712,7 +777,7 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                         Spacer(Modifier.width(10.dp))
                     }
                     Text(
-                        if (homeCapturing) "Getting GPS fix..." else if (homeSet) "Update Home Location" else "📍 Set Current Location as Home",
+                        if (homeCapturing) "Getting GPS fix" else if (homeSet) "Update Home Location" else "📍 Set Current Location as Home",
                         color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
                     )
                 }
@@ -836,7 +901,7 @@ fun HomeScreen() {
                 }
             }
         } else {
-            val v = vector!!
+            val v = checkNotNull(vector) { "Live vector missing for chart" }
 
             // Digital Wellbeing primary metrics — 6-up (matches DW dashboard exactly)
             item {
@@ -955,7 +1020,7 @@ fun HomeScreen() {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(color = AlertOrange, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
                                 Spacer(Modifier.height(8.dp))
-                                Text("Analyzing Deep Sensors...", fontSize = 11.sp, color = TextSecondary)
+                                Text("Analyzing Deep Sensors", fontSize = 11.sp, color = TextSecondary)
                             }
                         }
                     } else if (storageByCategory.isNotEmpty()) {
@@ -1103,12 +1168,13 @@ fun MonitorScreen() {
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val statusText = if (latestResult != null) {
-                            "Baseline Locked - ${latestResult!!.alertLevel.uppercase()} Status"
+                            "Baseline Locked - ${latestResult?.alertLevel?.uppercase() ?: "UNKNOWN"} Status"
                         } else {
                             "Scientific Baseline Established"
                         }
-                        val statusColor = if (latestResult != null) alertColor(latestResult!!.alertLevel) else AlertGreen
-                        val icon = if (latestResult != null && latestResult!!.alertLevel.lowercase() in listOf("orange", "red")) Icons.Default.Warning else Icons.Default.CheckCircle
+                        val statusColor = latestResult?.let { alertColor(it.alertLevel) } ?: AlertGreen
+                        val isHighRisk = latestResult?.alertLevel?.lowercase() in listOf("orange", "red")
+                        val icon = if (isHighRisk) Icons.Default.Warning else Icons.Default.CheckCircle
                         
                         Icon(icon, null, tint = statusColor, modifier = Modifier.size(40.dp))
                         Spacer(Modifier.width(12.dp))
@@ -1117,7 +1183,7 @@ fun MonitorScreen() {
                             
                             val descriptionText = if (latestResult != null) {
                                 "Your current behavioral vector is being compared against your ${baselineDaysReq}-day P₀ baseline. " + 
-                                when(latestResult!!.alertLevel.lowercase()) {
+                                when(latestResult?.alertLevel?.lowercase()) {
                                     "green" -> "Data indicates high alignment with your normal routines."
                                     "yellow" -> "Slight deviations from your baseline detected. Tracking for potential shifts."
                                     "orange" -> "Moderate departure from baseline established. Behavioral patterns show significant variance."
@@ -1175,7 +1241,7 @@ fun MonitorScreen() {
         if (!isBuilding && baseline != null && vector != null) {
             item {
                 InfoCard("Current vs Baseline", headerColor = OceanBlue) {
-                    val v = vector!!; val b = baseline!!
+                    val v = checkNotNull(vector); val b = checkNotNull(baseline)
                     val rows = listOf(
                         Triple("Screen Time", v.screenTimeHours, b.screenTimeHours),
                         Triple("Places Visited", v.placesVisited, b.placesVisited),
@@ -1194,14 +1260,14 @@ fun MonitorScreen() {
         // Full baseline feature table (all features, mean ± σ vs current)
         if (!isBuilding && baseline != null && vector != null) {
             item {
-                FeatureTableCard(baseline = baseline!!, current = vector!!)
+                baseline?.let { b -> vector?.let { v -> FeatureTableCard(baseline = b, current = v) } }
             }
         }
 
         // Per-App Breakdown section
         if (!isBuilding && vector != null) {
             item {
-                PerAppBreakdownCard(vector = vector!!)
+                vector?.let { v -> PerAppBreakdownCard(vector = v) }
             }
         }
 
@@ -1563,7 +1629,7 @@ fun AnalysisScreen() {
                     } else null
 
                     InfoCard("Feature Deviation Radar", headerColor = ChartPurple) {
-                        val b = baseline!!; val v = vector!!
+                        val b = checkNotNull(baseline); val v = checkNotNull(vector)
                         val radarLabels = listOf("Screen\nTime", "Social", "Places", "Location", "Sleep", "Comms")
                         val normalizeDev: (Float, Float) -> Float = { cur, base ->
                             if (base <= 0.01f) {
@@ -2021,7 +2087,7 @@ fun SettingsScreen() {
             InfoCard("Home Location", headerColor = SoftCyan) {
                 Column(Modifier.fillMaxWidth()) {
                     if (homeLocation != null) {
-                        val (lat, lon) = homeLocation!!
+                        val (lat, lon) = checkNotNull(homeLocation) { "Home location required for insights" }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Home, null, tint = OceanBlue, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
@@ -2071,7 +2137,7 @@ fun SettingsScreen() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(
-                            if (homeCapturing) "Getting GPS fix..." else if (homeLocation != null) "Update Home Location" else "Set Current Location as Home",
+                            if (homeCapturing) "Getting GPS fix" else if (homeLocation != null) "Update Home Location" else "Set Current Location as Home",
                             color = Color.White, fontSize = 13.sp
                         )
                     }
@@ -2308,7 +2374,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
 private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
     if (context !is androidx.activity.ComponentActivity) return
     
-    android.widget.Toast.makeText(context, "Importing backup...", android.widget.Toast.LENGTH_SHORT).show()
+    android.widget.Toast.makeText(context, "Importing backup", android.widget.Toast.LENGTH_SHORT).show()
 
     context.lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
         try {
@@ -2481,7 +2547,7 @@ fun ToggleRow(title: String, subtitle: String, checked: Boolean, color: Color, o
 // Utility helpers
 // =============================================================================
 fun hasUsageStatsPermission(context: Context): Boolean {
-    val appOps = context.getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+    val appOps = checkNotNull(context.getSystemService(AppOpsManager::class.java)) { "AppOpsManager not available" }
     val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
         appOps.unsafeCheckOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS, Process.myUid(), context.packageName)
     } else {

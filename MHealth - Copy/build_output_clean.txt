@@ -1,0 +1,1584 @@
+﻿
+> Configure project :app
+Warning: Python version 3.11 may have fewer packages available. If you experience problems, try switching to version 3.8.
+
+> Task :app:checkKotlinGradlePluginConfigurationErrors SKIPPED
+> Task :app:extractDebugPythonBuildPackages UP-TO-DATE
+> Task :app:generateDebugPythonRequirements UP-TO-DATE
+> Task :app:mergeDebugPythonSources UP-TO-DATE
+> Task :app:generateDebugPythonProxies UP-TO-DATE
+> Task :app:preBuild UP-TO-DATE
+> Task :app:preDebugBuild UP-TO-DATE
+> Task :app:checkDebugAarMetadata UP-TO-DATE
+> Task :app:generateDebugResValues UP-TO-DATE
+> Task :app:processDebugGoogleServices UP-TO-DATE
+> Task :app:mapDebugSourceSetPaths UP-TO-DATE
+> Task :app:generateDebugResources UP-TO-DATE
+> Task :app:mergeDebugResources UP-TO-DATE
+> Task :app:packageDebugResources UP-TO-DATE
+> Task :app:parseDebugLocalResources UP-TO-DATE
+> Task :app:createDebugCompatibleScreenManifests UP-TO-DATE
+> Task :app:extractDeepLinksDebug UP-TO-DATE
+> Task :app:processDebugMainManifest UP-TO-DATE
+> Task :app:processDebugManifest UP-TO-DATE
+> Task :app:processDebugManifestForPackage UP-TO-DATE
+> Task :app:processDebugResources UP-TO-DATE
+> Task :app:kspDebugKotlin UP-TO-DATE
+> Task :app:javaPreCompileDebug UP-TO-DATE
+> Task :app:mergeDebugShaders UP-TO-DATE
+> Task :app:compileDebugShaders NO-SOURCE
+> Task :app:generateDebugAssets UP-TO-DATE
+> Task :app:generateDebugPythonMiscAssets UP-TO-DATE
+> Task :app:generateDebugPythonRequirementsAssets UP-TO-DATE
+> Task :app:generateDebugPythonSourceAssets UP-TO-DATE
+> Task :app:generateDebugPythonBuildAssets UP-TO-DATE
+> Task :app:mergeDebugAssets UP-TO-DATE
+> Task :app:compressDebugAssets UP-TO-DATE
+> Task :app:checkDebugDuplicateClasses UP-TO-DATE
+> Task :app:desugarDebugFileDependencies UP-TO-DATE
+> Task :app:mergeExtDexDebug UP-TO-DATE
+> Task :app:mergeLibDexDebug UP-TO-DATE
+> Task :app:generateDebugPythonJniLibs UP-TO-DATE
+> Task :app:mergeDebugJniLibFolders UP-TO-DATE
+> Task :app:mergeDebugNativeLibs UP-TO-DATE
+> Task :app:stripDebugDebugSymbols UP-TO-DATE
+> Task :app:validateSigningDebug UP-TO-DATE
+> Task :app:writeDebugAppMetadata UP-TO-DATE
+> Task :app:writeDebugSigningConfigVersions UP-TO-DATE
+
+> Task :app:compileDebugKotlin
+.\gradlew.bat : e: file:///C:/Users/SRIRAM/Documents
+/GitHub/Mental-Health-Detection-ML/MHealth%20-%20Cop
+y/app/src/main/java/com/example/mhealth/MainActivity
+.kt:7:28 Unresolved reference 'data'.
+At line:1 char:1
++ .\gradlew.bat installDebug > build_output.txt 2>&1
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (e: fil 
+   e:///C:/U...ference 'data'.:String) [], RemoteE  
+  xception
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/MainActivity.kt:20:9 
+Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:21:28 
+Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:43:28 
+Property delegate must have a 'getValue(Nothing?, 
+KProperty0<ERROR CLASS: Cannot infer argument for 
+type parameter T>)' method. None of the following 
+functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:43:31 
+Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:43:31 
+Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:43:65 
+Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/MhealthApp.kt:45:28 
+Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:39:3
+7 Unresolved reference 'OceanBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:41:3
+7 Unresolved reference 'CoveTheme'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:173:
+20 Unresolved reference 'OceanBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:219:
+32 Unresolved reference 'SoftCyan'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:220:
+32 Unresolved reference 'SoftCyan'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:269:
+20 Unresolved reference 'OceanBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:278:
+55 Unresolved reference 'Arrangement'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:289:
+13 Unresolved reference 'Row'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:290:
+17 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:293:
+41 Unresolved reference 'width'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:295:
+17 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:296:
+37 Unresolved reference 'fillMaxSize'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:305:
+17 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:305:
+33 Unresolved reference 'width'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:306:
+17 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:306:
+140 Unresolved reference 'width'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:345:
+13 Unresolved reference 'TextPrimary'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:349:
+20 Unresolved reference 'TextPrimary'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:376:
+5 Unresolved reference 'Row'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:377:
+29 Unresolved reference 'fillMaxWidth'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:381:
+9 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:385:
+40 Unresolved reference 'fillMaxSize'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:410:
+99 Unresolved reference 'TextPrimary'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:418:
+9 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:418:
+36 Unresolved reference 'width'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:421:
+9 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:422:
+33 Unresolved reference 'fillMaxWidth'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:423:
+35 Unresolved reference 'Arrangement'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:428:
+17 Unresolved reference 'Row'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:429:
+21 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:430:
+21 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:430:
+37 Unresolved reference 'width'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:431:
+21 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:432:
+21 @Composable invocations can only happen from the 
+context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/charts/ChartUtils.kt:434:
+51 Unresolved reference 'TextPrimary'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/components/SharedComponen
+ts.kt:283:49 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/onboarding/OnboardingActi
+vity.kt:60:33 Unresolved reference 'fillMaxWidth'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/onboarding/OnboardingActi
+vity.kt:80:33 Unresolved reference 'fillMaxWidth'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/onboarding/OnboardingActi
+vity.kt:84:63 Unresolved reference 'size'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:22:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:30:17 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:30:20 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:30:20 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:30:43 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:31:20 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:31:23 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:31:23 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:31:57 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:32:18 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:32:21 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:32:21 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:32:45 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:33:16 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:33:19 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:33:19 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:33:47 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:40:65 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:51:13 Argument type mismatch: actual type is 
+'kotlin.Unit', but 'K' was expected.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:63:57 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:64:39 Unresolved reference 'anomalyScore'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:77:85 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:80:48 Unresolved reference 'patternType'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:90:38 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:90:41 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:90:41 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:90:77 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:100:57 Unresolved reference 'prototypeMatch'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:104:71 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:105:33 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:105:33 Not enough information to infer type 
+argument for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:105:65 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:105:65 Not enough information to infer type 
+argument for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:111:44 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:111:63 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:112:44 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:112:62 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:113:44 Unresolved reference 'placesVisited'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:113:71 Unresolved reference 'placesVisited'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:114:44 Unresolved reference 'dailyDisplacementKm'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:114:67 Unresolved reference 'dailyDisplacementKm'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:115:44 Unresolved reference 'sleepDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:115:66 Unresolved reference 'sleepDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:116:44 Unresolved reference 
+'conversationFrequency'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:116:69 Unresolved reference 
+'conversationFrequency'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:125:51 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:132:65 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:142:13 Argument type mismatch: actual type is 
+'R?', but 'K' was expected.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:142:19 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:142:19 Unresolved reference. None of the following 
+candidates is applicable because of a receiver type 
+mismatch:
+fun <T, R> T.let(block: (T) -> R): R
+    [R|Contract description]
+     <
+        CallsInPlace(block, EXACTLY_ONCE)
+    >
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:142:25 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:145:36 Unresolved reference 'topDeviations'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:148:36 Unresolved reference 'topDeviations'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:148:95 Unresolved reference 'it'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:148:125 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:148:125 Function 'component1()' is ambiguous for 
+this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:148:125 Function 'component2()' is ambiguous for 
+this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:149:33 @Composable invocations can only happen 
+from the context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:160:45 Unresolved reference 'patternType'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:161:74 Unresolved reference 
+'sustainedDeviationDays'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:162:84 Unresolved reference 'evidenceAccumulated'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:172:30 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:172:33 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:172:33 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:172:69 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:173:64 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:177:73 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:182:37 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:183:37 Unresolved reference 'prototypeMatch'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:183:229 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:186:62 Unresolved reference 'prototypeConfidence'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:188:65 Unresolved reference 'prototypeConfidence'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:188:193 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:188:219 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:189:32 Unresolved reference 'matchMessage'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/AnalysisScreen.kt
+:191:37 Unresolved reference 'matchMessage'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:18:
+28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:25:
+16 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:25:
+19 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:25:
+19 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:25:
+47 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:58:
+21 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:58:
+21 Not enough information to infer type argument 
+for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:63:
+43 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:64:
+43 Unresolved reference 'unlockCount'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:65:
+43 Unresolved reference 'appLaunchCount'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:65:
+65 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:69:
+43 Unresolved reference 'notificationsToday'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:70:
+43 Unresolved reference 'placesVisited'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:70:
+63 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:71:
+43 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:79:
+43 Unresolved reference 'dailyDisplacementKm'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:79:
+69 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:80:
+43 Unresolved reference 'locationEntropy'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:81:
+43 Unresolved reference 'homeTimeRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:85:
+54 Unresolved reference 'placesVisited'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:85:
+79 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:86:
+66 Unresolved reference 'locationEntropy'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:94:
+53 Unresolved reference 'callsPerDay'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:95:
+56 Unresolved reference 'callDurationMinutes'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:95:
+88 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:96:
+56 Unresolved reference 'uniqueContacts'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:96:
+82 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:97:
+57 Unresolved reference 'backgroundAudioHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:97:
+96 Unresolved reference 'ChartGreen'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:103
+:55 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:106
+:47 Unresolved reference 'sleepDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:106
+:72 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:107
+:47 Unresolved reference 'darkDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:108
+:47 Unresolved reference 'chargeDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:114
+:57 Unresolved reference 'sleepTimeHour'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:118
+:57 Unresolved reference 'wakeTimeHour'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:118
+:128 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:125
+:19 Unresolved reference 'appBreakdown'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:125
+:50 Unresolved reference 'appLaunchesBreakdown'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:125
+:89 Unresolved reference 'notificationBreakdown'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:145
+:38 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:145
+:63 Unresolved reference 'ChartRed'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:146
+:88 Unresolved reference 'ChartGreen'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:147
+:39 Unresolved reference 'ChartBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:170
+:57 Unresolved reference 'downloadsToday'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:171
+:55 Unresolved reference 'upiTransactionsToday'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:172
+:58 Unresolved reference 'totalAppsCount'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:172
+:84 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:178
+:50 Unresolved reference 'ChartBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:180
+:71 Unresolved reference 'networkWifiMB'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:180
+:87 Unresolved reference 'ChartBlue'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/HomeScreen.kt:181
+:73 Unresolved reference 'networkMobileMB'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:20:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:27:17 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:27:20 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:27:20 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:27:43 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:29:26 Unresolved reference 'alertLevel'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:79:27 Unresolved reference 'notes'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:79:34 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:79:40 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:114:25 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:114:28 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:114:28 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:114:59 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:117:59 Unresolved reference 'it'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:120:47 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:121:25 @Composable invocations can only happen 
+from the context of a @Composable function
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:122:62 Unresolved reference 'alertLevel'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:125:41 Unresolved reference 'date'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:126:41 Unresolved reference 'prototypeMatch'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:126:137 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/InsightsScreen.kt
+:128:41 Unresolved reference 'alertLevel'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:21
+:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:22
+:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:23
+:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:35
+:14 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:35
+:25 Unresolved reference 'MHealthDatabase'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:41
+:24 Unresolved reference 'userCredentialsDao'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:42
+:28 'operator' modifier is required on 
+'FirNamedFunctionSymbol kotlin/compareTo' in 
+'compareTo'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:43
+:28 'operator' modifier is required on 
+'FirNamedFunctionSymbol kotlin/compareTo' in 
+'compareTo'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:15
+8:38 Unresolved reference 'userCredentialsDao'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:17
+1:41 Unresolved reference 'UserCredentialsEntity'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:17
+7:37 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:18
+5:36 Unresolved reference 'passwordHash'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:19
+0:33 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:19
+1:37 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:19
+1:71 Unresolved reference 'copy'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:19
+2:112 Unresolved reference 'name'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:20
+6:29 Unresolved reference 'UserCredentialsEntity'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/LoginScreen.kt:21
+8:33 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+10:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+17:16 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+17:19 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+17:19 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+17:47 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+18:18 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+18:21 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+18:21 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+18:45 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+27:29 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+27:29 Not enough information to infer type argument 
+for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+27:35 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+28:43 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+29:43 Unresolved reference 'sleepDurationHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+30:43 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+30:72 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+40:29 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+40:29 Not enough information to infer type argument 
+for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+40:35 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+41:52 Unresolved reference 'unlockCount'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+42:51 Unresolved reference 'placesVisited'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+43:66 Unresolved reference 'dailyDisplacementKm'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+51:25 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+51:28 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+51:28 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+51:64 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+54:70 Unresolved reference 'it'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+55:72 Unresolved reference 'it'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+56:75 Unresolved reference 'it'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+65:29 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+65:29 Not enough information to infer type argument 
+for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+66:29 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+66:29 Not enough information to infer type argument 
+for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+68:56 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+68:75 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+69:57 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+69:75 Unresolved reference 'socialAppRatio'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+70:63 Unresolved reference 'locationEntropy'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/MonitorScreen.kt:
+70:82 Unresolved reference 'locationEntropy'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:23:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:166:41 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:166:75 Unresolved reference 'email'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:173:29 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:187:34 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:187:37 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:187:37 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:187:65 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:194:75 Not enough information to infer type 
+argument for 'K'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:194:90 Function invocation 'first()' expected.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:194:97 Not enough information to infer type 
+argument for 'K'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/QuestionnaireScre
+en.kt:194:112 Unresolved reference 'second'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:24:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:25:28 Unresolved reference 'data'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:33:18 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:33:21 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:33:21 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:33:53 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:34:20 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:34:23 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:34:23 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:34:57 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:39:25 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:39:28 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:39:28 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:39:64 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:40:22 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:40:25 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:40:25 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:40:66 Cannot infer type for this parameter. Please 
+specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:70:40 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:78:63 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:87:43 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:90:69 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:90:101 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:98:43 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:101:69 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:101:101 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:107:37 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:108:79 Unresolved reference 'ChartPurple'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:120:30 Property delegate must have a 
+'getValue(Nothing?, KProperty0<ERROR CLASS: Cannot 
+infer argument for type parameter T>)' method. None 
+of the following functions is applicable:
+fun <T> State<T>.getValue(thisObj: Any?, property: 
+KProperty<*>): T
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:120:33 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:120:33 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:120:61 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:126:42 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:126:42 Not enough information to infer type 
+argument for 'T'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:126:42 Function 'component1()' is ambiguous for 
+this expression: 
+fun <T> Array<out T>.component1(): T
+fun ByteArray.component1(): Byte
+fun ShortArray.component1(): Short
+fun IntArray.component1(): Int
+fun LongArray.component1(): Long
+fun FloatArray.component1(): Float
+fun DoubleArray.component1(): Double
+fun BooleanArray.component1(): Boolean
+fun CharArray.component1(): Char
+fun <T> List<T>.component1(): T
+fun <K, V> Map.Entry<K, V>.component1(): K
+fun UIntArray.component1(): UInt
+fun ULongArray.component1(): ULong
+fun UByteArray.component1(): UByte
+fun UShortArray.component1(): UShort.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:126:42 Function 'component2()' is ambiguous for 
+this expression: 
+fun <T> Array<out T>.component2(): T
+fun ByteArray.component2(): Byte
+fun ShortArray.component2(): Short
+fun IntArray.component2(): Int
+fun LongArray.component2(): Long
+fun FloatArray.component2(): Float
+fun DoubleArray.component2(): Double
+fun BooleanArray.component2(): Boolean
+fun CharArray.component2(): Char
+fun <T> List<T>.component2(): T
+fun <K, V> Map.Entry<K, V>.component2(): V
+fun UIntArray.component2(): UInt
+fun ULongArray.component2(): ULong
+fun UByteArray.component2(): UByte
+fun UShortArray.component2(): UShort.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:169:92 Unresolved reference 'ChartOrange'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:178:63 Unresolved reference 'SoftCyan'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:193:22 Unresolved reference 'MHealthDatabase'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:194:26 Unresolved reference 'DataRepository'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:194:60 Unresolved reference 'email'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:202:47 Unresolved reference 'baselineReady'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:206:36 Cannot infer type for this parameter. 
+Please specify it explicitly.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:208:37 Unresolved reference 'date'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:209:48 Unresolved reference 'screenTimeHours'.
+e: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-H
+ealth-Detection-ML/MHealth%20-%20Copy/app/src/main/j
+ava/com/example/mhealth/ui/screens/SettingsScreen.kt
+:210:51 Unresolved reference 'sleepDurationHours'.
+
+> Task :app:compileDebugKotlin FAILED
+[Incubating] Problems report is available at: file:///C:/Users/SRIRAM/Documents/GitHub/Mental-Health-Detection-ML/MHealth%20-%20Copy/build/reports/problems/problems-report.html
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':app:compileDebugKotlin'.
+> A failure occurred while executing org.jetbrains.k
+otlin.compilerRunner.GradleCompilerRunnerWithWorkers
+$GradleKotlinCompilerWorkAction
+   > Compilation error. See log for more details
+
+* Try:
+> Run with --stacktrace option to get the stack 
+trace.
+> Run with --info or --debug option to get more log 
+output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+Deprecated Gradle features were used in this build, making it incompatible with Gradle 9.0.
+
+You can use '--warning-mode all' to show the individual deprecation warnings and determine if they come from your own scripts or plugins.
+
+For more on this, please refer to https://docs.gradle.org/8.11.1/userguide/command_line_interface.html#sec:command_line_warnings in the Gradle documentation.
+
+BUILD FAILED in 8s
+39 actionable tasks: 1 executed, 38 up-to-date

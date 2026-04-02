@@ -2,7 +2,16 @@ package com.example.mhealth.services
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.example.mhealth.logic.JsonConverter
 import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataRepository
@@ -10,7 +19,9 @@ import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**

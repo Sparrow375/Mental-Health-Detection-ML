@@ -1,27 +1,22 @@
 package com.example.mhealth.ui.charts
 
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.*
 import androidx.compose.ui.platform.LocalContext
 import android.content.pm.PackageManager
 import com.example.mhealth.ui.theme.*
@@ -154,7 +149,7 @@ fun RadarChart(
     labels: List<String>,
     values: List<Float>,                    // normalised 0-1 (current vs baseline)
     baseline: List<Float>,                  // normalised 0-1 (personal baseline)
-    color: Color = OceanBlue,
+    color: Color = MhealthIndigo,
     modifier: Modifier = Modifier,
     prototypeValues: List<Float>? = null    // 0-1 prototype shape — drawn ONLY when non-null
 ) {
@@ -250,7 +245,7 @@ fun RadarChart(
 fun HorizontalBarChart(
     items: List<Pair<String, Float>>,  // label → value
     maxValue: Float,
-    color: Color = OceanBlue,
+    color: Color = MhealthIndigo,
     unitSuffix: String = "",
     modifier: Modifier = Modifier
 ) {

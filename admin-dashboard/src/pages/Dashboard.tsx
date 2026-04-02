@@ -2,12 +2,13 @@ import React from 'react';
 import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
-import { Activity, Users, Settings, LogOut, BarChart3, Eye, EyeOff } from 'lucide-react';
+import { Activity, Users, Settings as SettingsIcon, LogOut, BarChart3, Eye, EyeOff } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { PatientDetail } from './PatientDetail';
 import { Reports } from './Reports';
 import { Overview } from './Overview';
 import { UserDashboard } from './UserDashboard';
+import { Settings } from './Settings';
 import { usePrivacy } from '../context/PrivacyContext';
 
 export const Dashboard: React.FC = () => {
@@ -66,7 +67,7 @@ export const Dashboard: React.FC = () => {
             </>
           )}
           <NavLink to="/settings" style={navStyle}>
-            <Settings size={20} /> Settings
+            <SettingsIcon size={20} /> Settings
           </NavLink>
         </nav>
 
@@ -110,7 +111,7 @@ export const Dashboard: React.FC = () => {
               <Route path="/reports" element={<Reports />} />
             </>
           )}
-          <Route path="/settings" element={<div className="animate-fade-in"><h1 className="page-title">Settings</h1></div>} />
+          <Route path="/settings" element={<Settings />} />
         </Routes>
       </main>
     </div>

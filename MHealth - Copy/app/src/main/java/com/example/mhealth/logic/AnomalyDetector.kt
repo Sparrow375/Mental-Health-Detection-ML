@@ -2,8 +2,12 @@ package com.example.mhealth.logic
 
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
-import java.util.*
-import kotlin.math.*
+import java.util.Date
+import kotlin.math.abs
+import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
+import kotlin.math.sqrt
 
 class AnomalyDetector(private val baseline: PersonalityVector) {
     private val historyWindow = 7
@@ -28,7 +32,7 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
             "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
             "memoryUsagePercent", "networkWifiMB", "networkMobileMB", "calendarEventsToday",
             "downloadsToday", "storageUsedGB", "appUninstallsToday",
-            "upiTransactionsToday", "nightInterruptions"
+            "upiTransactionsToday"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
     }
@@ -126,7 +130,7 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
     private fun determineAlertLevel(anomalyScore: Float, deviations: Map<String, Float>): String {
         val criticalFeatures = listOf(
             "sleepDurationHours", "screenTimeHours", "dailyDisplacementKm",
-            "socialAppRatio", "nightInterruptions", "upiTransactionsToday"
+            "socialAppRatio", "notificationsToday", "upiTransactionsToday"
         )
         val criticalDeviation = criticalFeatures.map { abs(deviations[it] ?: 0f) }.maxOrNull() ?: 0f
 

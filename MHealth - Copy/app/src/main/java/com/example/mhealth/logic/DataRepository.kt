@@ -3,6 +3,7 @@ package com.example.mhealth.logic
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.mhealth.logic.db.AnalysisResultEntity
+import com.example.mhealth.logic.db.DailyFeaturesEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.LatLonPoint
@@ -31,6 +32,10 @@ object DataRepository {
     private val _analysisHistory = MutableStateFlow<List<AnalysisResultEntity>>(emptyList())
     val analysisHistory: StateFlow<List<AnalysisResultEntity>> = _analysisHistory
 
+    /** Emits the last 7 daily feature vectors for trend sparklines on the Monitor screen. */
+    private val _weeklyFeatureHistory = MutableStateFlow<List<PersonalityVector>>(emptyList())
+    val weeklyFeatureHistory: StateFlow<List<PersonalityVector>> = _weeklyFeatureHistory
+
     /**
      * Wire the Room-backed StateFlows after the DB is available (call from MonitoringService/Application).
      * Safe to call multiple times — subsequent calls are no-ops.
@@ -51,7 +56,47 @@ object DataRepository {
                 _analysisHistory.value = list
             }
         }
+        scope.launch {
+            // Room does not have a native Flow for getLatestN, so we poll or use a simpler getAll flow
+            // For now, we'll just fetch once or use a simple periodically-updated list
+            val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
+            _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
+        }
     }
+
+    private fun DailyFeaturesEntity.toPersonalityVector() = PersonalityVector(
+        screenTimeHours = screenTimeHours,
+        unlockCount = unlockCount,
+        appLaunchCount = appLaunchCount,
+        notificationsToday = notificationsToday,
+        socialAppRatio = socialAppRatio,
+        callsPerDay = callsPerDay,
+        callDurationMinutes = callDurationMinutes,
+        uniqueContacts = uniqueContacts,
+        conversationFrequency = conversationFrequency,
+        dailyDisplacementKm = dailyDisplacementKm,
+        locationEntropy = locationEntropy,
+        homeTimeRatio = homeTimeRatio,
+        placesVisited = placesVisited,
+        wakeTimeHour = wakeTimeHour,
+        sleepTimeHour = sleepTimeHour,
+        sleepDurationHours = sleepDurationHours,
+        darkDurationHours = darkDurationHours,
+        chargeDurationHours = chargeDurationHours,
+        memoryUsagePercent = memoryUsagePercent,
+        networkWifiMB = networkWifiMB,
+        networkMobileMB = networkMobileMB,
+        downloadsToday = downloadsToday,
+        storageUsedGB = storageUsedGB,
+        appUninstallsToday = appUninstallsToday,
+        upiTransactionsToday = upiTransactionsToday,
+        totalAppsCount = totalAppsCount,
+        backgroundAudioHours = backgroundAudioHours,
+        mediaCountToday = mediaCountToday,
+        appInstallsToday = appInstallsToday,
+        calendarEventsToday = calendarEventsToday,
+        dailySteps = dailySteps
+    )
 
 
 

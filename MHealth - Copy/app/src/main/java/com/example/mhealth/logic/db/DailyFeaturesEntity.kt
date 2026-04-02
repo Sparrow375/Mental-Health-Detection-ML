@@ -1,14 +1,23 @@
 package com.example.mhealth.logic.db
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
- * Stores one row of 22 behavioural features per user per day.
- * Maps directly to the 22 features in PersonalityVector.toMap().
+ * Stores one row of 31 behavioural features per user per day.
+ * Maps directly to the 31 features in PersonalityVector.toMap().
  * Used as the daily input to the Python analysis engine.
+ *
+ * The unique index on (userId, date) enforces one row per user per calendar day.
+ * Room's OnConflictStrategy.REPLACE respects this index — inserting a duplicate
+ * date silently replaces the existing row instead of creating a second one.
+ * This prevents count() inflation from cloud-download duplicates.
  */
-@Entity(tableName = "daily_features")
+@Entity(
+    tableName = "daily_features",
+    indices = [Index(value = ["userId", "date"], unique = true)]
+)
 data class DailyFeaturesEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
 

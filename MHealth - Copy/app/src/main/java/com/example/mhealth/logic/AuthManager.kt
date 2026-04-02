@@ -29,13 +29,27 @@ class AuthManager(private val context: Context) {
         }
     }
 
-    // Cloud recovery for users who reinstalled the app — returns the full UserProfile
+    // Cloud recovery for users who reinstalled the app, or login from a new device.
+    // After successful sign-in this device becomes the authoritative sync device by
+    // writing its ID to Firestore. The previous device's CloudSyncWorker will then
+    // detect the mismatch and stop syncing — preventing data corruption.
     suspend fun signInExistingUser(email: String): Result<UserProfile> {
         return try {
             val password = "user1234"
             auth.signInWithEmailAndPassword(email, password).await()
             val user = auth.currentUser ?: return Result.failure(Exception("No user found"))
             val uid = user.uid
+
+            // ✅ FIX: Claim this device as the active sync device.
+            // This is the key step that allows the same email to log in on a new
+            // device. The old device's CloudSyncWorker will stop when it detects
+            // its local device_id no longer matches active_device_id in Firestore.
+            val localDeviceId = getLocalDeviceId()
+            firestore.collection("users").document(uid)
+                .set(
+                    mapOf("active_device_id" to localDeviceId),
+                    com.google.firebase.firestore.SetOptions.merge()
+                ).await()
 
             val doc = firestore.collection("users").document(uid).get().await()
 
@@ -79,18 +93,19 @@ class AuthManager(private val context: Context) {
         val user = auth.currentUser ?: return
         val uid = user.uid
         val docRef = firestore.collection("users").document(uid)
+        val localDeviceId = getLocalDeviceId()
 
         val docSnapshot = docRef.get().await()
         if (docSnapshot.exists()) {
-            val existingDeviceId = docSnapshot.getString("active_device_id")
-            val localDeviceId = getLocalDeviceId()
-            if (existingDeviceId != null && existingDeviceId != localDeviceId) {
-                // For now, override it
-            }
-            docRef.update("active_device_id", localDeviceId).await()
+            // Account already exists in Firestore (e.g. user registered on another device).
+            // Claim this device as the active sync device and download existing data.
+            docRef.set(
+                mapOf("active_device_id" to localDeviceId),
+                com.google.firebase.firestore.SetOptions.merge()
+            ).await()
             downloadDataToRoom(uid)
         } else {
-            val localDeviceId = getLocalDeviceId()
+            // Brand-new account — create the Firestore document.
             val patientId = "Patient_${UUID.randomUUID().toString().take(6)}"
             val profileData = hashMapOf(
                 "email"            to user.email,

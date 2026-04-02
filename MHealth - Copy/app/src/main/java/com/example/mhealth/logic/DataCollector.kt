@@ -99,7 +99,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val events = parseUsageEvents(startOfDay, now)
         val sleepData = calculateSleepProxy(startOfDay, now)
 
-        val locationData  = calculateLocationMetrics(locationSnapshots)
+        val locationData  = calculateLocationMetrics(locationSnapshots, startOfDay, now)
         val comms         = collectCommunicationStats(startOfDay)
         val batteryInfo   = getBatteryInfo()
         val systemInfo    = getSystemInfo(startOfDay, now)
@@ -608,7 +608,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val homeRatio: Float, val placesCount: Int
     )
 
-    private fun calculateLocationMetrics(snaps: List<LatLonPoint>): LocationResult {
+    private fun calculateLocationMetrics(
+        snaps: List<LatLonPoint>,
+        startOfDayMs: Long,
+        nowMs: Long
+    ): LocationResult {
         if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
         // ── Displacement: cumulative haversine polyline ────────────────────────
@@ -617,10 +621,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
         }
 
-        // ── 500m-radius greedy clustering for time-at-place calculation ────────
-        // Each GPS reading is assigned to the nearest existing cluster within 500m,
-        // or creates a new cluster. Number of readings per cluster ≈ time spent there
-        // (GPS is polled at regular intervals via startContinuousLocationTracking).
+        // ── 500m-radius greedy clustering (for entropy and placesVisited) ─────
         data class Cluster(var lat: Double, var lon: Double, var count: Int)
         val clusters = mutableListOf<Cluster>()
 
@@ -629,7 +630,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             var nearestDist = Double.MAX_VALUE
             for ((idx, cluster) in clusters.withIndex()) {
                 val d = haversine(snap.lat, snap.lon, cluster.lat, cluster.lon)
-                if (d < 0.5 && d < nearestDist) { // 0.5 km = 500 m threshold
+                if (d < 0.5 && d < nearestDist) {
                     nearestDist = d
                     nearestIdx  = idx
                 }
@@ -650,16 +651,61 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }.toFloat()
 
         // ── homeTimeRatio ──────────────────────────────────────────────────────
-        // Use the saved home GPS coordinates if available; otherwise fall back to
-        // the most-visited cluster (so metric stays non-zero even before home is set)
+        // CORRECT formula: total wall-clock time within 500m of home / 24 hours.
+        //
+        // Uses GPS snap timestamps to measure actual duration at home:
+        //  1. Bridge midnight → first snap if first snap is near home.
+        //     (Captures overnight/sleep hours when GPS doesn't poll in Doze mode.)
+        //  2. For each consecutive pair, if snap[i] is near home add the gap
+        //     between snap[i] and snap[i+1] (capped to prevent absurd bridging).
+        //  3. Bridge last snap → now if last snap is near home.
+        //     (Ratio keeps updating in real-time even if GPS goes quiet at home.)
         val homeLat = DataRepository.getHomeLatitude()
         val homeLon = DataRepository.getHomeLongitude()
-        val homeCount = if (homeLat != null && homeLon != null) {
-            clusters.firstOrNull { c -> haversine(c.lat, c.lon, homeLat, homeLon) < 0.5 }?.count ?: 0
+
+        val homeRatio: Float
+        if (homeLat != null && homeLon != null) {
+            // Cap each individual gap at 12 hours to avoid bridging multi-day absences
+            val BRIDGE_CAP_MS = 12L * 3600_000L
+            val DAY_MS        = 24L * 3600_000L
+
+            fun isNearHome(s: LatLonPoint) = haversine(s.lat, s.lon, homeLat, homeLon) < 0.5
+
+            // Filter to today's window and sort chronologically
+            val todaySnaps = snaps
+                .filter { it.timeMs in startOfDayMs..nowMs }
+                .sortedBy { it.timeMs }
+
+            var homeTimeMs = 0L
+
+            if (todaySnaps.isNotEmpty()) {
+                // 1. Bridge: midnight → first snap (sleep/overnight)
+                val firstSnap = todaySnaps.first()
+                if (isNearHome(firstSnap)) {
+                    homeTimeMs += minOf(firstSnap.timeMs - startOfDayMs, BRIDGE_CAP_MS)
+                }
+
+                // 2. Consecutive snap pairs
+                for (i in 0 until todaySnaps.size - 1) {
+                    if (isNearHome(todaySnaps[i])) {
+                        val gap = todaySnaps[i + 1].timeMs - todaySnaps[i].timeMs
+                        homeTimeMs += minOf(gap, BRIDGE_CAP_MS)
+                    }
+                }
+
+                // 3. Bridge: last snap → now (so ratio updates in real-time)
+                val lastSnap = todaySnaps.last()
+                if (isNearHome(lastSnap)) {
+                    homeTimeMs += minOf(nowMs - lastSnap.timeMs, BRIDGE_CAP_MS)
+                }
+            }
+
+            homeRatio = (homeTimeMs.toFloat() / DAY_MS).coerceIn(0f, 1f)
         } else {
-            clusters.maxByOrNull { it.count }?.count ?: 0
+            // Home location not set — fall back to most-visited cluster fraction
+            val maxCount = clusters.maxByOrNull { it.count }?.count?.toFloat() ?: 0f
+            homeRatio = (maxCount / total).toFloat().coerceIn(0f, 1f)
         }
-        val homeRatio = (homeCount / total).toFloat()
 
         return LocationResult(distKm.toFloat(), entropy, homeRatio, clusters.size)
     }

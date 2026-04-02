@@ -393,7 +393,7 @@ fun LoginScreen(
         // ── Password ───────────────────────────────────────────────────────
         OutlinedTextField(
             value = password, onValueChange = { password = it; passError = false; statusMsg = "" },
-            label = { Text("Password (Use 'user1234')") },
+            label = { Text("Password") },
             isError = passError,
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),

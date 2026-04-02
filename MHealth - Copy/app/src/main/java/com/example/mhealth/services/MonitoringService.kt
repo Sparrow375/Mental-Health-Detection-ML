@@ -55,12 +55,35 @@ class MonitoringService : Service() {
         // Wire Room-backed StateFlows so AnalysisScreen/InsightsScreen update reactively
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         DataRepository.initWithDb(applicationContext, userId)
-        
+
         restoreStateFromRoom()
-        
+
         startForegroundNotification()
         scheduleMonitoring()
-        
+
+        // ── Reactive slider: two-way status sync on every slider move ─────────
+        // • collected >= newTarget  →  immediately switch to "Active Monitoring"
+        // • collected <  newTarget  →  immediately revert to "Building Baseline"
+        // No button click or tick wait required in either direction.
+        serviceScope.launch {
+            DataRepository.baselineDaysRequired.collectLatest { newTarget ->
+                val collected = collectedDailyVectors.size
+                when {
+                    // Forward: enough days collected — finalize baseline immediately
+                    collected >= newTarget && DataRepository.isBuildingBaseline.value -> {
+                        Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — finalizing baseline now")
+                        checkAndFinalizeBaseline(newTarget)
+                    }
+                    // Backward: slider raised above what we have — revert to Building Baseline
+                    collected < newTarget && !DataRepository.isBuildingBaseline.value -> {
+                        Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — reverting to Building Baseline")
+                        nightlyWorkerScheduled = false
+                        DataRepository.setIsBuildingBaseline(true)
+                    }
+                }
+            }
+        }
+
         // Start passive continuous location tracking
         dataCollector.startContinuousLocationTracking()
     }
@@ -132,6 +155,20 @@ class MonitoringService : Service() {
                 
                 // Sync any unsynced data from previous sessions on startup
                 syncUnstagedDailyFeaturesToFirebase()
+
+                // FIX 1: Prime lastProcessedDay on first run so midnight day-transitions fire correctly.
+                // If the service is killed before the first midnight cycle completes, lastProcessedDay
+                // stays -1 and the guard (savedDay != -1) permanently skips all future transitions.
+                if (DataRepository.lastProcessedDay.value == -1) {
+                    val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+                    DataRepository.setLastProcessedDay(todayDoy)
+                    Log.i("MHealth.Service", "Primed lastProcessedDay=$todayDoy on first service start")
+                }
+
+                // FIX 4: Recover missed yesterday snapshot if the service was killed before the
+                // midnight transition had a chance to fire (e.g., Android Doze / battery optimiser).
+                recoverMissedDayIfNeeded(userId, db)
+
             } catch (e: Exception) {
                 Log.e("MHealth.Service", "Error restoring state from Room", e)
             }
@@ -305,9 +342,9 @@ class MonitoringService : Service() {
     }
 
     private fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
-        val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
         val targetBaselineDays = DataRepository.baselineDaysRequired.value
         if (today != savedDay && savedDay != -1) {
+            // Only add the vector if we still need more days for the baseline
             if (collectedDailyVectors.size < targetBaselineDays) {
                 collectedDailyVectors.add(snapshot)
                 DataRepository.updateBaselineProgress(collectedDailyVectors.size)
@@ -315,12 +352,13 @@ class MonitoringService : Service() {
 
                 // Persist end-of-day snapshot to Room
                 persistDailySnapshot(snapshot, savedDay, isSimulated)
-                
-                // Check if this latest addition completed the baseline
-                checkAndFinalizeBaseline(targetBaselineDays)
             }
+            // FIX 2: Always attempt finalization after a day transition — not just when the last
+            // vector was added. This handles the case where the user lowered baselineDaysRequired
+            // before the previous midnight cycle ran (size was already >= target at transition).
+            checkAndFinalizeBaseline(targetBaselineDays)
         } else {
-            // Even if it's not a new day, check if the baseline is now ready (e.g. user lowered the setting)
+            // Same-day tick: check if baseline is now ready (e.g. user lowered the setting mid-day)
             checkAndFinalizeBaseline(targetBaselineDays)
         }
     }
@@ -332,15 +370,28 @@ class MonitoringService : Service() {
     private fun checkAndFinalizeBaseline(targetBaselineDays: Int) {
         if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
             val baseline = buildBaseline(collectedDailyVectors)
-            DataRepository.setBaseline(baseline)
-            detector = AnomalyDetector(baseline)
 
-            // Persist baseline to Room and schedule nightly worker
+            // FIX 1: Do NOT flip isBuildingBaseline or set detector here.
+            // If we do it before Room is written and the coroutine fails silently,
+            // isBuildingBaseline stays false, this block never re-enters, and the
+            // baseline is permanently lost in memory only.
+            // Instead, set the flag first to prevent concurrent launch, then
+            // flip state only AFTER Room write succeeds.
             if (!nightlyWorkerScheduled) {
+                nightlyWorkerScheduled = true // guard against double-launch
                 serviceScope.launch {
-                    persistBaselineToRoom(baseline, targetBaselineDays)
-                    scheduleNightlyWorker()
-                    nightlyWorkerScheduled = true
+                    try {
+                        persistBaselineToRoom(baseline, targetBaselineDays)
+                        // Only flip the live state AFTER Room is confirmed written
+                        DataRepository.setBaseline(baseline)
+                        detector = AnomalyDetector(baseline)
+                        scheduleNightlyWorker()
+                        Log.i("MHealth.Service", "Baseline established and persisted to Room (${targetBaselineDays}d)")
+                    } catch (e: Exception) {
+                        // Allow retry on the next tick by resetting the guard
+                        nightlyWorkerScheduled = false
+                        Log.e("MHealth.Service", "Failed to persist baseline to Room — will retry on next tick: ${e.message}", e)
+                    }
                 }
             }
         }
@@ -365,8 +416,23 @@ class MonitoringService : Service() {
 
     private fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int, isSimulated: Boolean) {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
-        val cal = Calendar.getInstance().apply { set(Calendar.DAY_OF_YEAR, dayOfYear) }
+
+        // FIX 3: Safe year-boundary-proof date computation.
+        // set(DAY_OF_YEAR, x) is wrong on Jan 1 when dayOfYear refers to the previous Dec 31.
+        // Instead, compute how many days ago dayOfYear was and subtract that many days from today.
+        val nowCal   = Calendar.getInstance()
+        val todayDoy = nowCal.get(Calendar.DAY_OF_YEAR)
+        val daysAgo  = if (todayDoy >= dayOfYear) {
+            todayDoy - dayOfYear
+        } else {
+            // dayOfYear is from the previous year (e.g., recording wraps Dec->Jan)
+            val prevYearCal      = Calendar.getInstance().apply { set(Calendar.YEAR, nowCal.get(Calendar.YEAR) - 1) }
+            val daysInPrevYear   = prevYearCal.getActualMaximum(Calendar.DAY_OF_YEAR)
+            daysInPrevYear - dayOfYear + todayDoy
+        }
+        val cal     = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -daysAgo.coerceAtLeast(0)) }
         val dateStr = dateFmt.format(cal.time)
+
         val entity = JsonConverter.fromPersonalityVector(userId, dateStr, snapshot, isSimulated)
         serviceScope.launch {
             try {
@@ -414,7 +480,10 @@ class MonitoringService : Service() {
         if (uid != null) {
             try {
                 val firestore = FirebaseFirestore.getInstance()
-                firestore.collection("users").document(uid).update("baseline_ready", true).await()
+                // Use set(merge=true) instead of update() so this works even when the
+                // user document doesn't exist yet in Firestore (update() throws if missing).
+                firestore.collection("users").document(uid)
+                    .set(mapOf("baseline_ready" to true), com.google.firebase.firestore.SetOptions.merge()).await()
                 
                 val baselineRef = firestore.collection("users").document(uid).collection("baseline")
                 baseline.toMap().forEach { (feature, mean) ->
@@ -584,6 +653,46 @@ class MonitoringService : Service() {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    // ── Missed-day recovery ───────────────────────────────────────────────────
+
+    /**
+     * FIX 4: If the MonitoringService was killed by Android (Doze mode, battery optimiser,
+     * or a reboot) before the midnight day-transition fired, yesterday's data will be missing
+     * from Room. This function detects that gap and re-collects it from UsageEvents.
+     *
+     * UsageStatsManager retains a 14-day rolling window, so recovery is possible for up to
+     * 14 days after the missed night.
+     */
+    private suspend fun recoverMissedDayIfNeeded(userId: String, db: MHealthDatabase) {
+        val lastDay = DataRepository.lastProcessedDay.value
+        if (lastDay == -1) return // Fresh install — no prior day to recover.
+
+        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val yesterdayStr = dateFmt.format(yesterdayCal.time)
+        val savedYesterday = db.dailyFeaturesDao().getByDate(userId, yesterdayStr)
+
+        if (savedYesterday == null) {
+            Log.w("MHealth.Service", "Missed-day recovery: no snapshot found for $yesterdayStr — recovering from UsageEvents")
+            try {
+                val startOfToday   = dataCollector.getStartOfDayMs()
+                val yesterdayStart = startOfToday - 24 * 3600_000L
+                val yesterdayEnd   = startOfToday - 1L
+                val locationSnaps  = DataRepository.locationSnapshots.value
+
+                // Re-collect the full prior day from system APIs — still available in the 14-day window
+                val missedSnapshot = dataCollector.collectSnapshot(locationSnaps, yesterdayStart, yesterdayEnd)
+                val entity = JsonConverter.fromPersonalityVector(userId, yesterdayStr, missedSnapshot, false)
+                db.dailyFeaturesDao().insert(entity)
+                Log.i("MHealth.Service", "Missed-day recovery: saved snapshot for $yesterdayStr — syncing to Firebase")
+
+                // Immediately push the recovered data to Firestore
+                syncUnstagedDailyFeaturesToFirebase()
+            } catch (e: Exception) {
+                Log.e("MHealth.Service", "Missed-day recovery failed for $yesterdayStr: ${e.message}", e)
+            }
         }
     }
 

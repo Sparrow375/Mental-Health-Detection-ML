@@ -101,14 +101,17 @@ class NightlyAnalysisWorker(
             return Result.failure()
         }
 
-        val today = DATE_FMT.format(Date())
-        Log.i(TAG, "Running nightly analysis for user=$userId date=$today")
+        // The day that just ended is always "yesterday" when this worker fires at 00:05.
+        // persistDailySnapshot() stores data under yesterday's date string, so we must match it.
+        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val targetDate = DATE_FMT.format(yesterdayCal.time)
+        Log.i(TAG, "Running nightly analysis for user=$userId date=$targetDate")
 
         return try {
             // ── 1. Load today's features ───────────────────────────────────────
-            val todayFeatures = db.dailyFeaturesDao().getByDate(userId, today)
+            val todayFeatures = db.dailyFeaturesDao().getByDate(userId, targetDate)
             if (todayFeatures == null) {
-                Log.w(TAG, "No feature data for today ($today) — skipping analysis")
+                Log.w(TAG, "No feature data for $targetDate — skipping analysis")
                 return Result.success()
             }
 
@@ -124,7 +127,7 @@ class NightlyAnalysisWorker(
 
             // ── 3. Fetch history (last 14 days) ────────────────────────────────
             val history = db.dailyFeaturesDao().getLatestN(userId, limit = 15)
-                .filter { it.date != today }   // exclude today from history
+                .filter { it.date != targetDate }   // exclude the analysis day from history
                 .sortedBy { it.date }           // oldest first
 
             // ── 4. Build JSON input ────────────────────────────────────────────
@@ -152,7 +155,7 @@ class NightlyAnalysisWorker(
             // ── 6. Store result in Room ────────────────────────────────────────
             val resultEntity = AnalysisResultEntity(
                 userId              = userId,
-                date                = today,
+                date                = targetDate,
                 anomalyDetected     = engineResult.anomalyDetected,
                 anomalyMessage      = engineResult.anomalyMessage,
                 anomalyScore        = engineResult.anomalyScore,
@@ -191,7 +194,7 @@ class NightlyAnalysisWorker(
             WorkManager.getInstance(applicationContext).enqueue(syncWork)
             Log.d(TAG, "Enqueued CloudSyncWorker for data upload")
 
-            Log.i(TAG, "Nightly analysis complete for $today")
+            Log.i(TAG, "Nightly analysis complete for $targetDate")
             Result.success()
 
         } catch (e: Exception) {

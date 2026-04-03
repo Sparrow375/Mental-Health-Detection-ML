@@ -39,6 +39,7 @@
     <!-- ── Network stats (same as Settings → Data usage) ─────────── -->
     <uses-permission android:name="android.permission.READ_NETWORK_USAGE_HISTORY"
         tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -80,6 +81,10 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name="com.example.mhealth.services.MidnightReceiver"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

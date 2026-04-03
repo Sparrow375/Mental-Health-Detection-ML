@@ -1230,7 +1230,10 @@ fun MonitorScreen() {
                 } else {
                     val screenTimes = hourly.map { it.screenTimeHours }
                     val places = hourly.map { it.placesVisited }
+                    val distances = hourly.map { it.dailyDisplacementKm }
                     SparklineLabel("Screen Time (hrs)", screenTimes, OceanBlue)
+                    Spacer(Modifier.height(12.dp))
+                    SparklineLabel("Distance (km)", distances, ChartRed)
                     Spacer(Modifier.height(12.dp))
                     SparklineLabel("Places Visited", places, ChartPurple)
                 }

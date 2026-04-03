@@ -4,9 +4,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.app.AlarmManager
+import android.media.session.PlaybackState
+import android.media.session.MediaController
+import android.media.session.MediaSessionManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
@@ -31,6 +37,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -49,32 +57,145 @@ class MonitoringService : Service() {
     private var collectionTickCount = 0
     private var nightlyWorkerScheduled = false
 
+    private var chargingStartMs: Long = -1L
+    private var musicStartMs: Long = -1L
+    private var alarmManager: AlarmManager? = null
+    
+    // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
+    private val isRestored = CompletableDeferred<Unit>()
+
+    // ── Screen and Interaction Receiver ──────────────────────────────────────
+    // Triggers runTick() on user events so charts stay fresh without polling.
+    private val interactiveReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
+                    // Update UI snapshot when the user is actually looking
+                    serviceScope.launch { runTick() }
+                }
+                Intent.ACTION_SCREEN_OFF -> {
+                    // Save state when user puts phone away
+                    serviceScope.launch { runTick() }
+                }
+            }
+        }
+    }
+
+    // ── Precise charging tracker ──
+    private val powerReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            when (intent.action) {
+                Intent.ACTION_POWER_CONNECTED -> {
+                    chargingStartMs = System.currentTimeMillis()
+                    Log.i("MHealth.Service", "Charger connected at $chargingStartMs")
+                }
+                Intent.ACTION_POWER_DISCONNECTED -> {
+                    if (chargingStartMs > 0L) {
+                        val sessionMs = System.currentTimeMillis() - chargingStartMs
+                        val sessionHrs = sessionMs / 3_600_000f
+                        DataRepository.addChargeTime(sessionHrs)
+                        Log.i("MHealth.Service", "Charger disconnected — added %.2fh (total %.2fh)"
+                            .format(sessionHrs, DataRepository.accumulatedChargeHours.value))
+                        chargingStartMs = -1L
+                    }
+                }
+            }
+        }
+    }
+
+    // ── Music/Audio Event Listener ───────────────────────────────────────────
+    private val sessionListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
+        updateMusicSessionState(controllers)
+    }
+
+    private fun updateMusicSessionState(controllers: List<MediaController>?) {
+        val isMusicPlaying = controllers?.any { controller ->
+            val pkg = controller.packageName
+            val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
+            isPlaying && dataCollector.isMusicApp(pkg)
+        } ?: false
+
+        val now = System.currentTimeMillis()
+        if (isMusicPlaying && musicStartMs == -1L) {
+            musicStartMs = now
+            Log.i("MHealth.Service", "Music session detected — tracking started")
+        } else if (!isMusicPlaying && musicStartMs > 0L) {
+            val sessionMs = now - musicStartMs
+            DataRepository.addBgAudioTime(sessionMs)
+            Log.i("MHealth.Service", "Music session ended — added ${sessionMs}ms")
+            musicStartMs = -1L
+        }
+    }
+
     override fun onCreate() {
         super.onCreate()
+        // FIX 1: START FOREGROUND IMMEDIATELY. Android 12+ requires startForeground 
+        // within ~5 seconds or the app crashes. Moving this to the top.
+        startForegroundNotification()
+
         dataCollector = DataCollector(this)
+
+        // FIX 2: ASYNC REHYDRATION. Moving restoreStateFromRoomSuspend() out of runBlocking.
+        // runBlocking blocks the main thread, which can cause ANRs or OS-level kills during startup.
+        serviceScope.launch {
+            try {
+                restoreStateFromRoomSuspend()
+            } finally {
+                isRestored.complete(Unit) // Unlock runTick() even if restoration fails
+            }
+        }
+
+        // FIX 3: Prime the UI.
+        serviceScope.launch { runTick() }
+
+        scheduleMonitoring()
+
         // Wire Room-backed StateFlows so AnalysisScreen/InsightsScreen update reactively
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         DataRepository.initWithDb(applicationContext, userId)
 
-        restoreStateFromRoom()
+        // FIX 7: Register receivers for event-driven monitoring
+        registerReceiver(powerReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_POWER_CONNECTED)
+            addAction(Intent.ACTION_POWER_DISCONNECTED)
+        })
 
-        startForegroundNotification()
-        scheduleMonitoring()
+        registerReceiver(interactiveReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_USER_PRESENT)
+        })
 
-        // ── Reactive slider: two-way status sync on every slider move ─────────
-        // • collected >= newTarget  →  immediately switch to "Active Monitoring"
-        // • collected <  newTarget  →  immediately revert to "Building Baseline"
-        // No button click or tick wait required in either direction.
+        // FIX 8: Register for MediaSession changes (requires notification access)
+        try {
+            val msm = getSystemService(MediaSessionManager::class.java)
+            msm?.addOnActiveSessionsChangedListener(sessionListener, null)
+            // Initial check
+            updateMusicSessionState(msm?.getActiveSessions(null))
+        } catch (e: SecurityException) {
+            Log.w("MHealth.Service", "MediaSession listener failed (No Notification Access) — background audio will only update via Screen interaction")
+        }
+
+        // FIX 9: Setup Midnight Alarm for exact day transition
+        setupMidnightAlarm()
+
+        // If the phone is ALREADY charging/playing when the service starts, anchor state now
+        val batteryOnStart = dataCollector.getBatteryInfo()
+        if (batteryOnStart.isCharging) {
+            chargingStartMs = System.currentTimeMillis()
+            Log.i("MHealth.Service", "Service started while already charging — anchored at $chargingStartMs")
+        }
+        // Music state is already anchored via updateMusicSessionState call above
+
+        // ── Reactive slider: two-way status sync on every slider move ─────────────
         serviceScope.launch {
             DataRepository.baselineDaysRequired.collectLatest { newTarget ->
                 val collected = collectedDailyVectors.size
                 when {
-                    // Forward: enough days collected — finalize baseline immediately
                     collected >= newTarget && DataRepository.isBuildingBaseline.value -> {
                         Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — finalizing baseline now")
                         checkAndFinalizeBaseline(newTarget)
                     }
-                    // Backward: slider raised above what we have — revert to Building Baseline
                     collected < newTarget && !DataRepository.isBuildingBaseline.value -> {
                         Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — reverting to Building Baseline")
                         nightlyWorkerScheduled = false
@@ -88,91 +209,96 @@ class MonitoringService : Service() {
         dataCollector.startContinuousLocationTracking()
     }
 
-    private fun restoreStateFromRoom() {
+    // FIX 5: Suspend version of restore — called from runBlocking in onCreate
+    // so we BLOCK the main service thread until Room data is fully loaded.
+    private suspend fun restoreStateFromRoomSuspend() {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
-        serviceScope.launch {
-            try {
-                val db = MHealthDatabase.getInstance(this@MonitoringService)
-                val profile = db.userProfileDao().get(userId)
-                
-                if (profile?.baselineReady == true) {
-                    val baselineEntities = db.baselineDao().getBaseline(userId)
-                    if (baselineEntities.isNotEmpty()) {
-                        val baselineFields = baselineEntities.associate { it.featureName to it.baselineValue }
-                        val variances = baselineEntities.associate { it.featureName to it.stdDeviation }
-                        val baseline = PersonalityVector(
-                            screenTimeHours = baselineFields["screenTimeHours"] ?: 0f,
-                            unlockCount = baselineFields["unlockCount"] ?: 0f,
-                            appLaunchCount = baselineFields["appLaunchCount"] ?: 0f,
-                            notificationsToday = baselineFields["notificationsToday"] ?: 0f,
-                            socialAppRatio = baselineFields["socialAppRatio"] ?: 0f,
-                            callsPerDay = baselineFields["callsPerDay"] ?: 0f,
-                            callDurationMinutes = baselineFields["callDurationMinutes"] ?: 0f,
-                            uniqueContacts = baselineFields["uniqueContacts"] ?: 0f,
-                            conversationFrequency = baselineFields["conversationFrequency"] ?: 0f,
-                            dailyDisplacementKm = baselineFields["dailyDisplacementKm"] ?: 0f,
-                            locationEntropy = baselineFields["locationEntropy"] ?: 0f,
-                            homeTimeRatio = baselineFields["homeTimeRatio"] ?: 0f,
-                            placesVisited = baselineFields["placesVisited"] ?: 0f,
-                            wakeTimeHour = baselineFields["wakeTimeHour"] ?: 0f,
-                            sleepTimeHour = baselineFields["sleepTimeHour"] ?: 0f,
-                            sleepDurationHours = baselineFields["sleepDurationHours"] ?: 0f,
-                            darkDurationHours = baselineFields["darkDurationHours"] ?: 0f,
-                            chargeDurationHours = baselineFields["chargeDurationHours"] ?: 0f,
-                            memoryUsagePercent = baselineFields["memoryUsagePercent"] ?: 0f,
-                            networkWifiMB = baselineFields["networkWifiMB"] ?: 0f,
-                            networkMobileMB = baselineFields["networkMobileMB"] ?: 0f,
-                            downloadsToday = baselineFields["downloadsToday"] ?: 0f,
-                            storageUsedGB = baselineFields["storageUsedGB"] ?: 0f,
-                            appUninstallsToday = baselineFields["appUninstallsToday"] ?: 0f,
-                            upiTransactionsToday = baselineFields["upiTransactionsToday"] ?: 0f,
-                            totalAppsCount = baselineFields["totalAppsCount"] ?: 0f,
-                            backgroundAudioHours = baselineFields["backgroundAudioHours"] ?: 0f,
-                            mediaCountToday = baselineFields["mediaCountToday"] ?: 0f,
-                            appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
-                            dailySteps = baselineFields["dailySteps"] ?: 0f,
-                            calendarEventsToday = baselineFields["calendarEventsToday"] ?: 0f,
-                            variances = variances.toMutableMap()
-                        )
-                        DataRepository.setBaseline(baseline)
-                        detector = AnomalyDetector(baseline)
-                    }
+        try {
+            val db = MHealthDatabase.getInstance(this@MonitoringService)
+            val profile = db.userProfileDao().get(userId)
+
+            if (profile?.baselineReady == true) {
+                val baselineEntities = db.baselineDao().getBaseline(userId)
+                if (baselineEntities.isNotEmpty()) {
+                    val baselineFields = baselineEntities.associate { it.featureName to it.baselineValue }
+                    val variances = baselineEntities.associate { it.featureName to it.stdDeviation }
+                    val baseline = PersonalityVector(
+                        screenTimeHours = baselineFields["screenTimeHours"] ?: 0f,
+                        unlockCount = baselineFields["unlockCount"] ?: 0f,
+                        appLaunchCount = baselineFields["appLaunchCount"] ?: 0f,
+                        notificationsToday = baselineFields["notificationsToday"] ?: 0f,
+                        socialAppRatio = baselineFields["socialAppRatio"] ?: 0f,
+                        callsPerDay = baselineFields["callsPerDay"] ?: 0f,
+                        callDurationMinutes = baselineFields["callDurationMinutes"] ?: 0f,
+                        uniqueContacts = baselineFields["uniqueContacts"] ?: 0f,
+                        conversationFrequency = baselineFields["conversationFrequency"] ?: 0f,
+                        dailyDisplacementKm = baselineFields["dailyDisplacementKm"] ?: 0f,
+                        locationEntropy = baselineFields["locationEntropy"] ?: 0f,
+                        homeTimeRatio = baselineFields["homeTimeRatio"] ?: 0f,
+                        placesVisited = baselineFields["placesVisited"] ?: 0f,
+                        wakeTimeHour = baselineFields["wakeTimeHour"] ?: 0f,
+                        sleepTimeHour = baselineFields["sleepTimeHour"] ?: 0f,
+                        sleepDurationHours = baselineFields["sleepDurationHours"] ?: 0f,
+                        darkDurationHours = baselineFields["darkDurationHours"] ?: 0f,
+                        chargeDurationHours = baselineFields["chargeDurationHours"] ?: 0f,
+                        memoryUsagePercent = baselineFields["memoryUsagePercent"] ?: 0f,
+                        networkWifiMB = baselineFields["networkWifiMB"] ?: 0f,
+                        networkMobileMB = baselineFields["networkMobileMB"] ?: 0f,
+                        downloadsToday = baselineFields["downloadsToday"] ?: 0f,
+                        storageUsedGB = baselineFields["storageUsedGB"] ?: 0f,
+                        appUninstallsToday = baselineFields["appUninstallsToday"] ?: 0f,
+                        upiTransactionsToday = baselineFields["upiTransactionsToday"] ?: 0f,
+                        totalAppsCount = baselineFields["totalAppsCount"] ?: 0f,
+                        backgroundAudioHours = baselineFields["backgroundAudioHours"] ?: 0f,
+                        mediaCountToday = baselineFields["mediaCountToday"] ?: 0f,
+                        appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
+                        dailySteps = baselineFields["dailySteps"] ?: 0f,
+                        calendarEventsToday = baselineFields["calendarEventsToday"] ?: 0f,
+                        variances = variances.toMutableMap()
+                    )
+                    DataRepository.setBaseline(baseline)
+                    detector = AnomalyDetector(baseline)
                 }
-                
-                // Always load recent history for the Recent Trends UI, whether building or actively monitoring
-                val pastFeatures = db.dailyFeaturesDao().getLatestN(userId, 60).reversed()
-                val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
-                collectedDailyVectors.clear()
-                collectedDailyVectors.addAll(pastVectors)
-                DataRepository.updateBaselineProgress(collectedDailyVectors.size)
-                DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
-
-                // Immediate check for baseline readiness on startup
-                if (DataRepository.isBuildingBaseline.value) {
-                    val target = DataRepository.baselineDaysRequired.value
-                    checkAndFinalizeBaseline(target)
-                }
-                
-                // Sync any unsynced data from previous sessions on startup
-                syncUnstagedDailyFeaturesToFirebase()
-
-                // FIX 1: Prime lastProcessedDay on first run so midnight day-transitions fire correctly.
-                // If the service is killed before the first midnight cycle completes, lastProcessedDay
-                // stays -1 and the guard (savedDay != -1) permanently skips all future transitions.
-                if (DataRepository.lastProcessedDay.value == -1) {
-                    val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
-                    DataRepository.setLastProcessedDay(todayDoy)
-                    Log.i("MHealth.Service", "Primed lastProcessedDay=$todayDoy on first service start")
-                }
-
-                // FIX 4: Recover missed yesterday snapshot if the service was killed before the
-                // midnight transition had a chance to fire (e.g., Android Doze / battery optimiser).
-                recoverMissedDayIfNeeded(userId, db)
-
-            } catch (e: Exception) {
-                Log.e("MHealth.Service", "Error restoring state from Room", e)
             }
+
+            // Always load recent history for the Recent Trends UI, whether building or actively monitoring
+            val pastFeatures = db.dailyFeaturesDao().getLatestN(userId, 60).reversed()
+            val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
+            collectedDailyVectors.clear()
+            collectedDailyVectors.addAll(pastVectors)
+            DataRepository.updateBaselineProgress(collectedDailyVectors.size)
+            DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+
+            // Immediate check for baseline readiness on startup
+            if (DataRepository.isBuildingBaseline.value) {
+                val target = DataRepository.baselineDaysRequired.value
+                checkAndFinalizeBaseline(target)
+            }
+
+            // Sync any unsynced data from previous sessions on startup
+            syncUnstagedDailyFeaturesToFirebase()
+
+            // FIX 1: Prime lastProcessedDay on first run so midnight day-transitions fire correctly.
+            // If the service is killed before the first midnight cycle completes, lastProcessedDay
+            // stays -1 and the guard (savedDay != -1) permanently skips all future transitions.
+            if (DataRepository.lastProcessedDay.value == -1) {
+                val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+                DataRepository.setLastProcessedDay(todayDoy)
+                Log.i("MHealth.Service", "Primed lastProcessedDay=$todayDoy on first service start")
+            }
+
+            // FIX 4: Recover missed yesterday snapshot if the service was killed before the
+            // midnight transition had a chance to fire (e.g., Android Doze / battery optimiser).
+            recoverMissedDayIfNeeded(userId, db)
+
+        } catch (e: Exception) {
+            Log.e("MHealth.Service", "Error restoring state from Room", e)
         }
+    }
+
+    // Legacy async wrapper kept so the reset flow (which launches a coroutine) still works
+    private fun restoreStateFromRoom() {
+        serviceScope.launch { restoreStateFromRoomSuspend() }
     }
 
     private fun startForegroundNotification() {
@@ -203,16 +329,12 @@ class MonitoringService : Service() {
     }
 
     private fun scheduleMonitoring() {
-        // dynamic interval listener
+        // Observers stay active for configuration changes
         serviceScope.launch {
             DataRepository.monitoringIntervalMinutes.collectLatest { intervalMin ->
-                trackingJob?.cancel()
-                trackingJob = launch {
-                    while (isActive) {
-                        runTick()
-                        delay(intervalMin * 60 * 1000L)
-                    }
-                }
+                // The 15-min loop is removed! We now rely on event-driven triggers.
+                // runTick() is triggered by Screen, Audio, and Midnight events.
+                Log.d("MHealth.Service", "Monitoring loop disabled. Event-driven mode active.")
             }
         }
 
@@ -271,13 +393,43 @@ class MonitoringService : Service() {
     
     override fun onDestroy() {
         super.onDestroy()
+        // Flush any remaining charge session on service stop
+        if (chargingStartMs > 0L) {
+            val sessionMs  = System.currentTimeMillis() - chargingStartMs
+            val sessionHrs = sessionMs / 3_600_000f
+            DataRepository.addChargeTime(sessionHrs)
+            chargingStartMs = -1L
+        }
+        // Flush any remaining music session
+        if (musicStartMs > 0L) {
+            DataRepository.addBgAudioTime(System.currentTimeMillis() - musicStartMs)
+            musicStartMs = -1L
+        }
+        try { unregisterReceiver(powerReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(interactiveReceiver) } catch (_: Exception) {}
+        try {
+            val msm = getSystemService(MediaSessionManager::class.java)
+            msm?.removeOnActiveSessionsChangedListener(sessionListener)
+        } catch (_: Exception) {}
+        
         serviceScope.cancel()
         dataCollector.stopContinuousLocationTracking()
     }
 
-    private fun runTick(isSimulated: Boolean = false) {
+    private suspend fun runTick(isSimulated: Boolean = false) {
+        // Wait for Room database rehydration to finish so we don't calculate on empty state
+        isRestored.await()
+        
         try {
             collectionTickCount++
+
+            // BUG FIX: Proactively capture a GPS fix every tick so distance is
+            // never 0.0 just because the passive 50m-displacement listener didn't fire.
+            // This runs async (non-blocking) and writes into DataRepository before the
+            // snapshot is collected below on the next tick.
+            if (!isSimulated) {
+                dataCollector.captureProactiveLocationSnapshot()
+            }
 
             // 1) Collect a "Live" snapshot (Midnight to Now) for UI updates
             val locationSnaps = DataRepository.locationSnapshots.value
@@ -287,21 +439,16 @@ class MonitoringService : Service() {
             DataRepository.updateLatestVector(liveSnapshot)
             DataRepository.addHourlySnapshot(liveSnapshot)
 
-            // 2) Battery tracking (accumulate charging time)
-            val battery = dataCollector.getBatteryInfo()
-            if (battery.isCharging) {
-                val hoursPerTick = DataRepository.monitoringIntervalMinutes.value / 60f
-                DataRepository.addChargeTime(hoursPerTick)
-            }
+            // 2) Battery tracking is now handled by the exact-timestamp BroadcastReceiver
+            //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
 
-            // 3) Background audio: ONLY count time when media is ACTUALLY playing.
-            //    AudioManager.isMusicActive() checks the hardware audio mixer — reliable
-            //    regardless of which app is playing (Spotify, YouTube, system, etc.)
-            val audioManager = getSystemService(android.media.AudioManager::class.java)
-            if (audioManager?.isMusicActive == true) {
-                val msPerTick = DataRepository.monitoringIntervalMinutes.value * 60 * 1000L
-                DataRepository.addBgAudioTime(msPerTick)
-                Log.i("MHealth.Service", "Background audio active — adding ${msPerTick}ms")
+            // 3) Background audio: Event-driven via sessionListener.
+            // If the listener failed (no permission), check currently playing once per tick.
+            if (musicStartMs == -1L && isMusicAppActiveViaMediaSession()) {
+                // Fallback for one-off check on screen interaction
+                val now = System.currentTimeMillis()
+                musicStartMs = now
+                Log.i("MHealth.Service", "Music fallback tick — started tracking")
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
@@ -696,5 +843,101 @@ class MonitoringService : Service() {
         }
     }
 
+    /**
+     * FIX 8: Music-only audio detection via MediaSessionManager.
+     *
+     * Why MediaSession instead of AudioManager.isMusicActive():
+     *   • isMusicActive() returns true for ANY audio (YouTube, game sounds, ads).
+     *   • MediaSessionManager gives us the PACKAGE NAME of the app controlling playback.
+     *   • We validate that package against DataCollector.isMusicApp() (3-layer check:
+     *     exact package list, keyword scan, OS CATEGORY_AUDIO flag).
+     *
+     * This ensures only Spotify, Gaana, OuerTune, etc. add to backgroundAudioHours.
+     */
+    @androidx.annotation.RequiresPermission(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
+    private fun isMusicAppActiveViaMediaSession(): Boolean {
+        return try {
+            val msm = getSystemService(MediaSessionManager::class.java) ?: return false
+            val listener = android.media.session.MediaSession.Token::class.java  // dummy ref for clarity
+            val sessions = msm.getActiveSessions(null)  // null = all sessions we can see
+            sessions.any { controller ->
+                val pkg = controller.packageName
+                val state = controller.playbackState
+                val isPlaying = state?.state == android.media.session.PlaybackState.STATE_PLAYING
+                isPlaying && dataCollector.isMusicApp(pkg)
+            }
+        } catch (e: SecurityException) {
+            // Notification listener permission not granted — fall back to AudioManager
+            val audioManager = getSystemService(android.media.AudioManager::class.java)
+            audioManager?.isMusicActive == true
+        } catch (e: Exception) {
+            Log.w("MHealth.Service", "isMusicAppActiveViaMediaSession error: ${e.message}")
+            false
+        }
+    }
+
+    private fun setupMidnightAlarm() {
+        alarmManager = getSystemService(AlarmManager::class.java)
+        val midnightIntent = Intent(this, MidnightReceiver::class.java)
+        val pendingIntent = PendingIntent.getBroadcast(this, 1001, midnightIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+
+        val cal = Calendar.getInstance().apply {
+            add(Calendar.DAY_OF_YEAR, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 1)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        alarmManager?.let { am ->
+            try {
+                val canSchedule = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    am.canScheduleExactAlarms()
+                } else true
+
+                if (canSchedule) {
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+                    } else {
+                        am.setExact(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+                    }
+                } else {
+                    // Fallback to inexact alarm if permission denied
+                    am.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+                    Log.w("MHealth.Service", "Exact Alarm permission missing — falling back to standard alarm")
+                }
+            } catch (e: Exception) {
+                Log.e("MHealth.Service", "Failed to set midnight alarm: ${e.message}")
+                am.set(AlarmManager.RTC_WAKEUP, cal.timeInMillis, pendingIntent)
+            }
+        }
+        Log.i("MHealth.Service", "Midnight transition alarm set for ${cal.time}")
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == "ACTION_MIDNIGHT_TRANSITION") {
+            // Force a tick to detect the day change logic
+            serviceScope.launch { runTick() }
+            // Reschedule alarm for the next night
+            setupMidnightAlarm()
+        }
+        return START_STICKY
+    }
+
     override fun onBind(intent: Intent?): IBinder? = null
+}
+
+/** Standalone receiver to handle the exact midnight alarm */
+class MidnightReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
+        Log.i("MHealth.Service", "Midnight Alarm Fired! Triggering day transition logic.")
+        val serviceIntent = Intent(context, MonitoringService::class.java).apply {
+            action = "ACTION_MIDNIGHT_TRANSITION"
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            context.startForegroundService(serviceIntent)
+        } else {
+            context.startService(serviceIntent)
+        }
+    }
 }

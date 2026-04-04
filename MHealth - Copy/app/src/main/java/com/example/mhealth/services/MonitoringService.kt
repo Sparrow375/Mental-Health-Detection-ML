@@ -59,6 +59,7 @@ class MonitoringService : Service() {
 
     private var chargingStartMs: Long = -1L
     private var musicStartMs: Long = -1L
+    private var activeMusicPackage: String? = null
     private var alarmManager: AlarmManager? = null
     
     // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
@@ -103,27 +104,55 @@ class MonitoringService : Service() {
         }
     }
 
+    // ── DND (Interruption Filter) Receiver ───────────────────────────────────
+    private val dndReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            if (intent.action == NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED) {
+                val notifManager = context.getSystemService(NotificationManager::class.java)
+                val filter = notifManager.currentInterruptionFilter
+                val now = System.currentTimeMillis()
+                
+                // If DND is ON (PRIORITY, ALARMS, or NONE)
+                if (filter == NotificationManager.INTERRUPTION_FILTER_PRIORITY || 
+                    filter == NotificationManager.INTERRUPTION_FILTER_ALARMS || 
+                    filter == NotificationManager.INTERRUPTION_FILTER_NONE) {
+                    DataRepository.setDndOnTimestamp(now)
+                    Log.i("MHealth.Service", "DND turned ON at $now")
+                } 
+                // If DND is OFF (ALL)
+                else if (filter == NotificationManager.INTERRUPTION_FILTER_ALL) {
+                    DataRepository.setDndOffTimestamp(now)
+                    Log.i("MHealth.Service", "DND turned OFF at $now")
+                }
+            }
+        }
+    }
+
     // ── Music/Audio Event Listener ───────────────────────────────────────────
     private val sessionListener = MediaSessionManager.OnActiveSessionsChangedListener { controllers ->
         updateMusicSessionState(controllers)
     }
 
     private fun updateMusicSessionState(controllers: List<MediaController>?) {
-        val isMusicPlaying = controllers?.any { controller ->
+        val activeMusicController = controllers?.firstOrNull { controller ->
             val pkg = controller.packageName
             val isPlaying = controller.playbackState?.state == PlaybackState.STATE_PLAYING
             isPlaying && dataCollector.isMusicApp(pkg)
-        } ?: false
+        }
+        val isMusicPlaying = activeMusicController != null
+        val pkg = activeMusicController?.packageName
 
         val now = System.currentTimeMillis()
         if (isMusicPlaying && musicStartMs == -1L) {
             musicStartMs = now
-            Log.i("MHealth.Service", "Music session detected — tracking started")
+            activeMusicPackage = pkg
+            Log.i("MHealth.Service", "Music session detected: $activeMusicPackage — tracking started")
         } else if (!isMusicPlaying && musicStartMs > 0L) {
             val sessionMs = now - musicStartMs
-            DataRepository.addBgAudioTime(sessionMs)
-            Log.i("MHealth.Service", "Music session ended — added ${sessionMs}ms")
+            DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
+            Log.i("MHealth.Service", "Music session ended: $activeMusicPackage — added ${sessionMs}ms")
             musicStartMs = -1L
+            activeMusicPackage = null
         }
     }
 
@@ -165,6 +194,8 @@ class MonitoringService : Service() {
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
         })
+
+        registerReceiver(dndReceiver, IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED))
 
         // FIX 8: Register for MediaSession changes (requires notification access)
         try {
@@ -402,11 +433,12 @@ class MonitoringService : Service() {
         }
         // Flush any remaining music session
         if (musicStartMs > 0L) {
-            DataRepository.addBgAudioTime(System.currentTimeMillis() - musicStartMs)
+            DataRepository.addBgAudioTime(activeMusicPackage, System.currentTimeMillis() - musicStartMs)
             musicStartMs = -1L
         }
         try { unregisterReceiver(powerReceiver) } catch (_: Exception) {}
         try { unregisterReceiver(interactiveReceiver) } catch (_: Exception) {}
+        try { unregisterReceiver(dndReceiver) } catch (_: Exception) {}
         try {
             val msm = getSystemService(MediaSessionManager::class.java)
             msm?.removeOnActiveSessionsChangedListener(sessionListener)
@@ -443,12 +475,14 @@ class MonitoringService : Service() {
             //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
 
             // 3) Background audio: Event-driven via sessionListener.
-            // If the listener failed (no permission), check currently playing once per tick.
-            if (musicStartMs == -1L && isMusicAppActiveViaMediaSession()) {
+            // if the listener failed (no permission), check currently playing once per tick.
+            val fallbackPkg = isMusicAppActiveViaMediaSession()
+            if (musicStartMs == -1L && fallbackPkg != null) {
                 // Fallback for one-off check on screen interaction
                 val now = System.currentTimeMillis()
                 musicStartMs = now
-                Log.i("MHealth.Service", "Music fallback tick — started tracking")
+                activeMusicPackage = fallbackPkg
+                Log.i("MHealth.Service", "Music fallback tick — started tracking $activeMusicPackage")
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
@@ -855,24 +889,24 @@ class MonitoringService : Service() {
      * This ensures only Spotify, Gaana, OuerTune, etc. add to backgroundAudioHours.
      */
     @androidx.annotation.RequiresPermission(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
-    private fun isMusicAppActiveViaMediaSession(): Boolean {
+    private fun isMusicAppActiveViaMediaSession(): String? {
         return try {
-            val msm = getSystemService(MediaSessionManager::class.java) ?: return false
-            val listener = android.media.session.MediaSession.Token::class.java  // dummy ref for clarity
-            val sessions = msm.getActiveSessions(null)  // null = all sessions we can see
-            sessions.any { controller ->
+            val msm = getSystemService(MediaSessionManager::class.java) ?: return null
+            val sessions = msm.getActiveSessions(null)
+            val controller = sessions.firstOrNull { controller ->
                 val pkg = controller.packageName
                 val state = controller.playbackState
                 val isPlaying = state?.state == android.media.session.PlaybackState.STATE_PLAYING
                 isPlaying && dataCollector.isMusicApp(pkg)
             }
+            controller?.packageName
         } catch (e: SecurityException) {
             // Notification listener permission not granted — fall back to AudioManager
             val audioManager = getSystemService(android.media.AudioManager::class.java)
-            audioManager?.isMusicActive == true
+            if (audioManager?.isMusicActive == true) "unknown_music_app" else null
         } catch (e: Exception) {
             Log.w("MHealth.Service", "isMusicAppActiveViaMediaSession error: ${e.message}")
-            false
+            null
         }
     }
 

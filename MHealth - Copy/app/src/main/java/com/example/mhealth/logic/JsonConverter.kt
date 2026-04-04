@@ -107,10 +107,12 @@ object JsonConverter {
             put("appBreakdown", JSONObject(e.appBreakdownJson))
             put("notificationBreakdown", JSONObject(e.notificationBreakdownJson))
             put("appLaunchesBreakdown", JSONObject(e.appLaunchesBreakdownJson))
+            put("bgAudioBreakdown", JSONObject(e.bgAudioBreakdownJson))
         } catch (ex: Exception) {
             put("appBreakdown", JSONObject())
             put("notificationBreakdown", JSONObject())
             put("appLaunchesBreakdown", JSONObject())
+            put("bgAudioBreakdown", JSONObject())
         }
     }
 
@@ -160,7 +162,8 @@ object JsonConverter {
         dailySteps = v.dailySteps,
         appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
         notificationBreakdownJson = mapToJson(v.notificationBreakdown as Map<String, Number>),
-        appLaunchesBreakdownJson = mapToJson(v.appLaunchesBreakdown as Map<String, Number>)
+        appLaunchesBreakdownJson = mapToJson(v.appLaunchesBreakdown as Map<String, Number>),
+        bgAudioBreakdownJson = mapToJson(v.bgAudioBreakdown as Map<String, Number>)
     )
 
     fun toPersonalityVector(
@@ -199,7 +202,8 @@ object JsonConverter {
         dailySteps = e.dailySteps,
         appBreakdown = parseMapLong(e.appBreakdownJson),
         notificationBreakdown = parseMapInt(e.notificationBreakdownJson),
-        appLaunchesBreakdown = parseMapInt(e.appLaunchesBreakdownJson)
+        appLaunchesBreakdown = parseMapInt(e.appLaunchesBreakdownJson),
+        bgAudioBreakdown = parseMapLong(e.bgAudioBreakdownJson)
     )
 
     private fun mapToJson(map: Map<String, Number>): String {

@@ -95,7 +95,9 @@ object DataRepository {
         mediaCountToday = mediaCountToday,
         appInstallsToday = appInstallsToday,
         calendarEventsToday = calendarEventsToday,
-        dailySteps = dailySteps
+        dailySteps = dailySteps,
+        appBreakdown = emptyMap(), // This is usually null-filled from DB row, but we add our local one
+        bgAudioBreakdown = _bgAudioBreakdown.value
     )
 
 
@@ -147,6 +149,10 @@ object DataRepository {
     private val _accumulatedBgAudioMs = MutableStateFlow(0L)
     val accumulatedBgAudioMs: StateFlow<Long> = _accumulatedBgAudioMs
 
+    // Per-app background audio breakdown: package -> ms
+    private val _bgAudioBreakdown = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val bgAudioBreakdown: StateFlow<Map<String, Long>> = _bgAudioBreakdown
+
     // Saved home location (lat/lon) for homeTimeRatio calculation
     private val _homeLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val homeLocation: StateFlow<Pair<Double, Double>?> = _homeLocation
@@ -154,6 +160,13 @@ object DataRepository {
     // Track the last processed Calendar Day of Year stringently across app reboots
     private val _lastProcessedDay = MutableStateFlow(-1)
     val lastProcessedDay: StateFlow<Int> = _lastProcessedDay
+
+    // DND On/Off Timestamps for Sleep Detection
+    private val _dndOnMs = MutableStateFlow(-1L)
+    val dndOnMs: StateFlow<Long> = _dndOnMs
+
+    private val _dndOffMs = MutableStateFlow(-1L)
+    val dndOffMs: StateFlow<Long> = _dndOffMs
 
     // User Profile & Onboarding
     private val _userProfile = MutableStateFlow<com.example.mhealth.models.UserProfile?>(null)
@@ -223,6 +236,7 @@ object DataRepository {
 
         // Restore accumulated background audio ms
         _accumulatedBgAudioMs.value = prefs?.getLong("bg_audio_ms_today", 0L) ?: 0L
+        _bgAudioBreakdown.value = loadMapFromPrefs("bg_audio_breakdown_today")
 
         // Restore home location (stored as Float to use NaN as sentinel)
         val homeLat = prefs?.getFloat("home_location_lat", Float.NaN) ?: Float.NaN
@@ -233,6 +247,10 @@ object DataRepository {
 
         // Restore last processed calendar day
         _lastProcessedDay.value = prefs?.getInt("last_processed_day", -1) ?: -1
+
+        // Restore DND timestamps
+        _dndOnMs.value = prefs?.getLong("dnd_on_ts", -1L) ?: -1L
+        _dndOffMs.value = prefs?.getLong("dnd_off_ts", -1L) ?: -1L
     }
 
     // --- Mutators ---
@@ -326,10 +344,18 @@ object DataRepository {
         prefs?.edit()?.putFloat("charge_hours_today", newTotal)?.apply()
     }
 
-    fun addBgAudioTime(ms: Long) {
+    fun addBgAudioTime(packageName: String?, ms: Long) {
         val newTotal = _accumulatedBgAudioMs.value + ms
         _accumulatedBgAudioMs.value = newTotal
         prefs?.edit()?.putLong("bg_audio_ms_today", newTotal)?.apply()
+
+        if (packageName != null) {
+            val currentMap = _bgAudioBreakdown.value.toMutableMap()
+            val existing = currentMap[packageName] ?: 0L
+            currentMap[packageName] = existing + ms
+            _bgAudioBreakdown.value = currentMap
+            saveMapToPrefs("bg_audio_breakdown_today", currentMap)
+        }
     }
 
     fun setHomeLocation(lat: Double, lon: Double) {
@@ -355,6 +381,16 @@ object DataRepository {
         prefs?.edit()?.putInt("last_processed_day", day)?.apply()
     }
 
+    fun setDndOnTimestamp(ts: Long) {
+        _dndOnMs.value = ts
+        prefs?.edit()?.putLong("dnd_on_ts", ts)?.apply()
+    }
+
+    fun setDndOffTimestamp(ts: Long) {
+        _dndOffMs.value = ts
+        prefs?.edit()?.putLong("dnd_off_ts", ts)?.apply()
+    }
+
     fun resetDailyState() {
         _hourlySnapshots.value = emptyList()
         _locationSnapshots.value = emptyList()
@@ -362,12 +398,18 @@ object DataRepository {
         _moodScore.value = null
         _accumulatedChargeHours.value = 0f
         _accumulatedBgAudioMs.value = 0L
+        _bgAudioBreakdown.value = emptyMap()
+        _dndOnMs.value = -1L
+        _dndOffMs.value = -1L
         
         prefs?.edit()?.apply {
             remove("step_baseline_today")
             remove("loc_snapshots_today")
             remove("charge_hours_today")
             remove("bg_audio_ms_today")
+            remove("bg_audio_breakdown_today")
+            remove("dnd_on_ts")
+            remove("dnd_off_ts")
             remove("prev_pkg_count")   // reset so appUninstalls recalculates fresh each day
         }?.apply()
     }
@@ -394,5 +436,23 @@ object DataRepository {
         _baseline.value = null
         _isBuildingBaseline.value = true
         resetDailyState()
+    }
+
+    private fun saveMapToPrefs(key: String, map: Map<String, Long>) {
+        val json = org.json.JSONObject()
+        map.forEach { (k, v) -> json.put(k, v) }
+        prefs?.edit()?.putString(key, json.toString())?.apply()
+    }
+
+    private fun loadMapFromPrefs(key: String): Map<String, Long> {
+        val jsonStr = prefs?.getString(key, "{}") ?: "{}"
+        try {
+            val json = org.json.JSONObject(jsonStr)
+            val map = mutableMapOf<String, Long>()
+            json.keys().forEach { k -> map[k] = json.getLong(k) }
+            return map
+        } catch (e: Exception) {
+            return emptyMap()
+        }
     }
 }

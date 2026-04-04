@@ -642,24 +642,15 @@ class DataCollector(private val context: Context) : SensorEventListener {
     data class SleepResult(val sleepTimeHour: Float, val wakeTimeHour: Float, val sleepDurationHours: Float)
 
     /**
-     * Production-grade sleep proxy.
-     *
-     * Design decisions:
-     *   • Query window starts at 9 PM YESTERDAY so we never miss a pre-midnight bedtime
-     *     (fixes "The Midnight Wall" bug — e.g. sleeping at 11:47 PM showed as 10 PM).
-     *   • Core Sleep Constraint: only gaps that contain at least one minute between
-     *     02:00 and 10:00 qualify as the main sleep episode. This prevents afternoon
-     *     idle periods from being mistaken for sleep.
-     *   • Micro-wake merge: consecutive gaps separated by ≤ 2 minutes of screen-on
-     *     time are joined into a single sleep episode (handles alarm checks, etc.).
-     *   • Longest qualifying gap wins.
+     * 3-Signal Fusion Sleep Proxy (Unlock + DND + Screen Gap)
+     * Rolling 24-hour window natively supports shift workers and naps.
      */
     private fun calculateSleepProxy(todayStartMs: Long, nowMs: Long): SleepResult {
         val usm = context.getSystemService(UsageStatsManager::class.java)
             ?: return SleepResult(0f, 0f, 0f)
 
-        // ── Window: 9 PM yesterday → now (or noon today at the latest) ────────
-        val windowStartMs = todayStartMs - (3L * 3600_000L)   // 9 PM yesterday = midnight - 3h
+        // ── Window: Rolling 24 hours ────────
+        val windowStartMs = nowMs - (24L * 3600_000L)
         val windowEndMs   = nowMs
 
         val events = usm.queryEvents(windowStartMs, windowEndMs)
@@ -705,15 +696,15 @@ class DataCollector(private val context: Context) : SensorEventListener {
             gaps.add(Gap(sessions.last().offMs, windowEndMs))
         }
 
-        // ── Step 3: Merge gaps separated by ≤ 2-minute micro-wakes ───────────
-        val MICRO_WAKE_MS = 2 * 60_000L  // 2 minutes
+        // ── Step 3: Merge gaps separated by short 5-minute micro-wakes ────────
+        val MICRO_WAKE_MS = 5 * 60_000L  // 5 minutes
         val mergedGaps = mutableListOf<Gap>()
         var current = gaps.firstOrNull() ?: return SleepResult(0f, 0f, 0f)
 
         for (i in 1 until gaps.size) {
             val bridgeOnMs = gaps[i].startMs - current.endMs
             if (bridgeOnMs <= MICRO_WAKE_MS) {
-                current = Gap(current.startMs, gaps[i].endMs)
+                current = Gap(current.startMs, gaps[i].endMs) // Merge
             } else {
                 mergedGaps.add(current)
                 current = gaps[i]
@@ -721,29 +712,40 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }
         mergedGaps.add(current)
 
-        // ── Step 4: Apply Core Sleep Filter (2 AM – 10 AM) ───────────────────
-        // A qualifying gap must OVERLAP with the 2 AM – 10 AM window on today's date.
-        val coreSleepStart = todayStartMs + (2L  * 3600_000L)  // 2:00 AM today
-        val coreSleepEnd   = todayStartMs + (10L * 3600_000L)  // 10:00 AM today
-
-        val qualifyingGaps = mergedGaps.filter { g ->
-            // The gap overlaps [2AM, 10AM] if its end is after 2AM AND its start is before 10AM
-            g.endMs > coreSleepStart && g.startMs < coreSleepEnd
-        }
-
-        // Fall back to all merged gaps if none pass the core-sleep filter
-        // (e.g. user did a night shift and slept after 10 AM)
-        val candidateGaps = qualifyingGaps.ifEmpty { mergedGaps }
-
-        val bestGap = candidateGaps.maxByOrNull { it.endMs - it.startMs }
+        // ── Step 4: Pick the longest gap (primary sleep episode) ──────────────
+        val bestGap = mergedGaps.maxByOrNull { it.endMs - it.startMs }
             ?: return SleepResult(0f, 0f, 0f)
 
-        val durationMs = bestGap.endMs - bestGap.startMs
+        var sleepTs = bestGap.startMs
+        var wakeTs  = bestGap.endMs
+
+        // ── Step 5: DND Fusion (Action Interruption Filter) ───────────────────
+        val dndOnMs = DataRepository.dndOnMs.value
+        val dndOffMs = DataRepository.dndOffMs.value
+        val FORTY_FIVE_MINS = 45L * 60_000L
+
+        // Fuse sleep time if DND was enabled today
+        if (dndOnMs > 0 && kotlin.math.abs(dndOnMs - sleepTs) <= FORTY_FIVE_MINS) {
+            sleepTs = (sleepTs + dndOnMs) / 2
+        } else if (dndOnMs > 0 && dndOnMs > sleepTs && dndOnMs < wakeTs) {
+            // Conservative: user was definitely asleep when BOTH matched
+            sleepTs = maxOf(sleepTs, dndOnMs)
+        }
+
+        // Fuse wake time if DND was disabled today
+        if (dndOffMs > 0 && kotlin.math.abs(dndOffMs - wakeTs) <= FORTY_FIVE_MINS) {
+            wakeTs = (wakeTs + dndOffMs) / 2
+        } else if (dndOffMs > 0 && dndOffMs < wakeTs && dndOffMs > sleepTs) {
+            // Wake up as soon as EITHER triggered
+            wakeTs = minOf(wakeTs, dndOffMs)
+        }
+
+        val durationHrs = ((wakeTs - sleepTs).toFloat() / 3_600_000f).coerceIn(0f, 16f)
 
         return SleepResult(
-            sleepTimeHour      = msToHour(bestGap.startMs),
-            wakeTimeHour       = msToHour(bestGap.endMs),
-            sleepDurationHours = durationMs / 3_600_000f
+            sleepTimeHour      = msToHour(sleepTs),
+            wakeTimeHour       = msToHour(wakeTs),
+            sleepDurationHours = durationHrs
         )
     }
 
@@ -761,44 +763,27 @@ class DataCollector(private val context: Context) : SensorEventListener {
         startOfDayMs: Long,
         nowMs: Long
     ): LocationResult {
-        // BUG FIX: Filter to today's window only — prevents cross-day accumulation
-        // when the service is killed and snapshots from yesterday are still in the list.
-        val todaySnaps = snaps.filter { it.timeMs in startOfDayMs..nowMs }.sortedBy { it.timeMs }
+        // We use the full snaps array (which reset at midnight anyway) for true polyline.
+        if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
-        if (todaySnaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
-
-        // ── Displacement: cumulative haversine polyline (today only) ──────────
+        // ── Displacement: cumulative haversine polyline ──────────
         var distKm = 0.0
-        for (i in 1 until todaySnaps.size) {
-            distKm += haversine(todaySnaps[i-1].lat, todaySnaps[i-1].lon, todaySnaps[i].lat, todaySnaps[i].lon)
+        for (i in 1 until snaps.size) {
+            distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
         }
 
-        // ── 500m-radius greedy clustering (for entropy and placesVisited) ─────
-        data class Cluster(var lat: Double, var lon: Double, var count: Int)
-        val clusters = mutableListOf<Cluster>()
-
-        for (snap in todaySnaps) {
-            var nearestIdx  = -1
-            var nearestDist = Double.MAX_VALUE
-            for ((idx, cluster) in clusters.withIndex()) {
-                val d = haversine(snap.lat, snap.lon, cluster.lat, cluster.lon)
-                if (d < 0.5 && d < nearestDist) {
-                    nearestDist = d
-                    nearestIdx  = idx
-                }
-            }
-            if (nearestIdx == -1) {
-                clusters.add(Cluster(snap.lat, snap.lon, 1))
-            } else {
-                clusters[nearestIdx].count++
-            }
+        // ── Grid-based Fast Clustering (approx 110m cells) ─────
+        val cells = mutableMapOf<String, Int>()
+        snaps.forEach { pt ->
+            // Truncate to 3 decimal places = ~110m resolution
+            val key = "${"%.3f".format(pt.lat)},${"%.3f".format(pt.lon)}"
+            cells[key] = (cells[key] ?: 0) + 1
         }
-
-        val total = todaySnaps.size.toDouble()
+        val total = snaps.size.toDouble()
 
         // ── Shannon entropy over cluster distribution ──────────────────────────
-        val entropy = clusters.sumOf { c ->
-            val p = c.count / total
+        val entropy = cells.values.sumOf { count ->
+            val p = count / total
             -p * ln(p)
         }.toFloat()
 
@@ -854,12 +839,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
             homeRatio = (homeTimeMs.toFloat() / DAY_MS).coerceIn(0f, 1f)
         } else {
-            // Home location not set — fall back to most-visited cluster fraction
-            val maxCount = clusters.maxByOrNull { it.count }?.count?.toFloat() ?: 0f
+            // Home location not set — fall back to most-visited grid cell fraction
+            val maxCount = cells.maxByOrNull { it.value }?.value?.toFloat() ?: 0f
             homeRatio = (maxCount / total).toFloat().coerceIn(0f, 1f)
         }
 
-        return LocationResult(distKm.toFloat(), entropy, homeRatio, clusters.size)
+        return LocationResult(distKm.toFloat(), entropy, homeRatio, cells.size)
     }
 
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

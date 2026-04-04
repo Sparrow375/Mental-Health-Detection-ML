@@ -1,0 +1,882 @@
+﻿commit 0ce0c75b2562d1d1bceb7f0c3d0f10f422d006f5
+Author: Sriram-2090 <gsriram209@gmail.com>
+Date:   Sat Apr 4 00:01:52 2026 +0530
+
+    sleep time corrections
+
+diff --git a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt
+index 4fb9dd8..39fd68f 100644
+--- a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
++++ b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
+@@ -233,6 +233,43 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         }
+     }
+ 
++    /**
++     * BUG FIX: Proactive one-shot GPS poll called every monitoring tick.
++     * The passive tracker only fires on 50m displacement, so stationary users
++     * accumulate zero points and get 0.0km distance. This fills the gap by
++     * requesting a fresh fix unconditionally every 15 minutes.
++     */
++    @SuppressLint("MissingPermission")
++    fun captureProactiveLocationSnapshot() {
++        if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
++            context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
++            return
++        }
++        try {
++            val fusedClient = LocationServices.getFusedLocationProviderClient(context)
++            fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
++                .addOnSuccessListener { loc ->
++                    if (loc != null) {
++                        val ageMs = System.currentTimeMillis() - loc.time
++                        if (ageMs <= 10 * 60 * 1000L && loc.accuracy <= 500f) {
++                            DataRepository.addLocationSnapshot(
++                                LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
++                            )
++                            Log.i(TAG, "Proactive location fix: %.5f, %.5f (acc: %.1fm)"
++                                .format(loc.latitude, loc.longitude, loc.accuracy))
++                        } else {
++                            Log.w(TAG, "Proactive fix rejected: age=${ageMs/1000}s acc=${loc.accuracy}m")
++                        }
++                    }
++                }
++                .addOnFailureListener { e ->
++                    Log.w(TAG, "Proactive location fix failed: ${e.message}")
++                }
++        } catch (e: Exception) {
++            Log.w(TAG, "captureProactiveLocationSnapshot error: ${e.message}")
++        }
++    }
++
+     /** Capture a one-shot GPS fix and save it as the user's HOME location. */
+     @SuppressLint("MissingPermission")
+     fun captureHomeLocation(onResult: (success: Boolean) -> Unit) {
+@@ -293,119 +330,115 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val notificationBreakdown: Map<String, Int> // package ΓåÆ notification count
+     )
+ 
+-    private data class SleepResult(
+-        val sleepTimeHour: Float,
+-        val wakeTimeHour: Float,
+-        val sleepDurationHours: Float
+-    )
++    // calculateSleepProxy is defined lower in this file (production version with Core Sleep filter)
+ 
+-    private fun calculateSleepProxy(startOfDayMs: Long, now: Long): SleepResult {
+-        // Sleep window: Yesterday 20:00 ΓåÆ Today 12:00
+-        val windowStartMs = startOfDayMs - (4 * 3600_000L)   // yesterday 20:00
+-        val windowEndMs   = minOf(now, startOfDayMs + (12 * 3600_000L)) // today 12:00
+ 
+-        val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
+-        val events = usm.queryEvents(windowStartMs, windowEndMs)
+-        val ev = UsageEvents.Event()
+-
+-        // ΓöÇΓöÇ Step 1: collect raw screen-on/off timestamps ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        // screenOn  = device became interactive (user picked up phone)
+-        // screenOff = device went non-interactive (screen turned off)
+-        data class ScreenSession(val onMs: Long, val offMs: Long)
+-        val sessions = mutableListOf<ScreenSession>()
+-
+-        var screenOnAt  = windowStartMs
+-        var screenIsOn  = true  // assume screen is on at start
+-
+-        while (events.hasNextEvent()) {
+-            events.getNextEvent(ev)
+-            when (ev.eventType) {
+-                15 -> { // SCREEN_INTERACTIVE ΓÇö screen turned on
+-                    if (!screenIsOn) { screenOnAt = ev.timeStamp; screenIsOn = true }
+-                }
+-                16 -> { // SCREEN_NON_INTERACTIVE ΓÇö screen turned off
+-                    if (screenIsOn) {
+-                        sessions.add(ScreenSession(screenOnAt, ev.timeStamp))
+-                        screenIsOn = false
+-                    }
+-                }
+-            }
+-        }
+-        // If screen is still on at end of window
+-        if (screenIsOn) sessions.add(ScreenSession(screenOnAt, windowEndMs))
+-
+-        // ΓöÇΓöÇ Step 2: Identify sleep gaps (screen-off periods) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        // A gap = interval between two consecutive screen sessions.
+-        // Brief interruptions Γëñ MICRO_WAKE_THRESHOLD are merged into the surrounding sleep.
+-        val MICRO_WAKE_MS = 10 * 60_000L  // 10 minutes ΓÇö brief checks (e.g. checking time at night) don't break sleep
+-
+-        // Build list of "off" intervals from consecutive sessions
+-        data class Gap(val startMs: Long, val endMs: Long)
+-        val gaps = mutableListOf<Gap>()
+-        for (i in 0 until sessions.size - 1) {
+-            gaps.add(Gap(sessions[i].offMs, sessions[i + 1].onMs))
+-        }
+-        // Also gap from window start to first session (if phone was off initially)
+-        if (sessions.isNotEmpty() && sessions[0].onMs > windowStartMs) {
+-            gaps.add(0, Gap(windowStartMs, sessions[0].onMs))
+-        }
+-        // And from last session to window end
+-        if (sessions.isNotEmpty()) {
+-            gaps.add(Gap(sessions.last().offMs, windowEndMs))
+-        }
+-        if (sessions.isEmpty()) {
+-            gaps.add(Gap(windowStartMs, windowEndMs))
+-        }
+-
+-        // ΓöÇΓöÇ Step 3: Merge gaps separated only by micro-wakes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        // Walk through gaps: if the "on" session between two gaps is Γëñ MICRO_WAKE_MS,
+-        // merge the two gaps into one continuous sleep episode.
+-        val mergedGaps = mutableListOf<Gap>()
+-        var current = gaps.firstOrNull() ?: return SleepResult(0f, 0f, 0f)
+-
+-        for (i in 1 until gaps.size) {
+-            val bridgeOnMs = gaps[i].startMs - current.endMs  // how long was screen on between gaps
+-            if (bridgeOnMs <= MICRO_WAKE_MS) {
+-                // merge: extend current gap to swallow the micro-wake
+-                current = Gap(current.startMs, gaps[i].endMs)
+-            } else {
+-                mergedGaps.add(current)
+-                current = gaps[i]
+-            }
+-        }
+-        mergedGaps.add(current)
+-
+-        // ΓöÇΓöÇ Step 4: Pick the longest merged gap = sleep episode ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        val bestGap = mergedGaps.maxByOrNull { it.endMs - it.startMs }
+-            ?: return SleepResult(0f, 0f, 0f)
+-
+-        val durationMs = bestGap.endMs - bestGap.startMs
+-
+-        return SleepResult(
+-            sleepTimeHour      = msToHour(bestGap.startMs),
+-            wakeTimeHour       = msToHour(bestGap.endMs),
+-            sleepDurationHours = durationMs / 3_600_000f
+-        )
+-    }
+ 
+     private val EXCLUDED_PACKAGES = setOf(
+-        "android", "com.android.systemui", "com.google.android.gms",
+-        "com.android.launcher", "com.google.android.apps.nexuslauncher",
++        "android",
++        "com.android.systemui",
++        "com.google.android.gms",
++        // Stock / AOSP launchers
++        "com.android.launcher",
++        "com.android.launcher2",
++        "com.android.launcher3",
++        "com.google.android.apps.nexuslauncher",
++        // Samsung
++        "com.sec.android.app.launcher",
++        // MIUI / Xiaomi
++        "com.miui.home",
++        // OnePlus / OxygenOS
++        "net.oneplus.launcher",
++        // Realme
++        "com.realme.launcher",
++        // Oppo / ColorOS
++        "com.oppo.launcher",
++        // Vivo / FuntouchOS
++        "com.vivo.launcher",
++        // Huawei
++        "com.huawei.android.launcher",
++        // Nokia
++        "com.evenwell.powersaving.g3",
++        // Sony
++        "com.sonyericsson.home",
++        // LG
++        "com.lge.launcher3",
+         context.packageName
+     )
+ 
+-    private val INTENTIONAL_AUDIO_PACKAGES = setOf(
++    /**
++     * MUSIC-ONLY audio apps ΓÇö used by MonitoringService to decide whether the
++     * currently active MediaSession should count as background audio.
++     *
++     * Strategy (3-layer):
++     *   1. Exact package match against this list (covers side-loaded / regional apps).
++     *   2. Package name keyword scan ("music", "player", "fm", "radio", "audio").
++     *   3. OS ApplicationInfo.CATEGORY_AUDIO flag (Android 8+).
++     */
++    val MUSIC_APP_PACKAGES = setOf(
++        // Global / mainstream
+         "com.spotify.music",
+-        "com.apple.android.music",
+         "com.google.android.apps.youtube.music",
+         "com.amazon.mp3",
+-        "com.jio.media.jiobeats",
+-        "com.gaana",
+         "com.soundcloud.android",
++        "com.apple.android.music",             // Apple Music Android
++        "com.deezer.android",
++        "com.tidal.music",
++        "com.pandora.android",
++        "com.lastfm.android",
++        // India-specific
++        "com.gaana",
++        "in.hungama.music",
++        "com.jio.media.jiobeats",
++        "com.wynk.music",
++        "in.sharpcollective.app",              // JioSaavn
++        // Open-source / alternative
++        "com.maxmpz.audioplayer",              // Poweramp
++        "org.outertune.app",
++        "com.kabouzeid.gramophone",             // Gramophone
++        "code.name.monkey.retromusic",          // RetroMusicPlayer
++        "com.ichi2.anki",                      // Anki (excluded by keyword anyway)
++        "com.mp3player.musicplayer.free",
++        "com.bxtech.music",                    // BlackHole
++        "io.github.muntashirakon.Music",        // Auxio
++        "com.yandex.music",
++        "com.naver.music.phone",               // Naver VIBE
++        "com.melon.android",
++        "com.bugs.android.player",             // Bugs Music
++        // Podcast / radio that should count
+         "tunein.player",
+-        "com.podcast.podcasts"
++        "com.anchor.android",
++        "com.audible.application",
++        "com.acast.podcast",
++        "com.podbean.app.podcast"
+     )
+ 
++    /** Returns true if the given package should be counted as intentional music/audio listening. */
++    fun isMusicApp(pkg: String): Boolean {
++        if (pkg.isBlank()) return false
++        val lower = pkg.lowercase()
++        // 1. Exact match
++        if (lower in MUSIC_APP_PACKAGES) return true
++        // 2. Keyword heuristic ΓÇö catches regional / sideloaded players
++        if (lower.contains("music") || lower.contains("player") ||
++            lower.contains(".fm") || lower.contains("radio") ||
++            lower.contains("audio") || lower.contains("podcast") ||
++            lower.contains("spotify") || lower.contains("gaana") ||
++            lower.contains("saavn") || lower.contains("hungama")) return true
++        // 3. OS category (Android 8+)
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++            return try {
++                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                    context.packageManager.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
++                } else {
++                    context.packageManager.getApplicationInfo(pkg, 0)
++                }
++                info.category == ApplicationInfo.CATEGORY_AUDIO
++            } catch (e: Exception) { false }
++        }
++        return false
++    }
++
+     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
+         val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
+ 
+@@ -548,55 +581,170 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         )
+     }
+ 
++    private val pm = context.packageManager
++    private val labelCache = mutableMapOf<String, String>()
++
+     private fun isExcluded(pkg: String): Boolean {
+         if (pkg.isBlank()) return true
+         val lower = pkg.lowercase()
+-        return lower == "android" ||
+-               EXCLUDED_PACKAGES.any { lower == it } ||
+-               lower.contains("launcher") ||
+-               lower.contains("systemui") ||
+-               lower.startsWith("com.android.providers") ||
+-               lower.startsWith("com.android.server") ||
+-               lower.startsWith("com.android.permission") ||
+-               lower.contains("quicksearchbox")
++
++        // 1. Exact matches (fastest) ΓÇö captures standard system pkgs and known launchers
++        if (lower == "android" || lower in EXCLUDED_PACKAGES) return true
++
++        // 2. Keyword/Prefix matches (fast)
++        if (lower.contains("launcher") ||
++            lower.contains("systemui") ||
++            lower.startsWith("com.android.providers") ||
++            lower.startsWith("com.android.server") ||
++            lower.startsWith("com.android.permission") ||
++            lower.contains("quicksearchbox")) return true
++
++        // 3. Label-based Catch-all: fetches the display name (e.g. "Home", "System Launcher")
++        // Uses a cache to avoid expensive PackageManager calls in the event loop.
++        val label = labelCache[pkg] ?: try {
++            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
++            } else {
++                pm.getApplicationInfo(pkg, 0)
++            }
++            val l = pm.getApplicationLabel(info).toString().lowercase(Locale.ROOT).trim()
++            labelCache[pkg] = l
++            l
++        } catch (e: Exception) { "" }
++
++        if (label == "home" || label == "launcher" || label == "system launcher" || label == "system home") {
++            return true
++        }
++
++        return false
+     }
+ 
+     // =========================================================================
+-    //  Sleep estimation from screen-off gap (phone dark hours)
++    //  Sleep estimation ΓÇö event-pair based, Core Sleep window 2AMΓÇô10AM
+     // =========================================================================
+ 
+-    /**
+-     * Helper to convert an epoch ms timestamp to an hour float (e.g., 8:30am -> 8.5)
+-     */
++    /** Convert epoch-ms ΓåÆ hour-of-day float  (e.g. 23:47 ΓåÆ 23.78) */
+     private fun msToHour(ms: Long): Float {
+-        if (ms == Long.MAX_VALUE || ms == Long.MIN_VALUE || ms == 0L) return 0f
++        if (ms == 0L || ms == Long.MAX_VALUE || ms == Long.MIN_VALUE) return 0f
+         val cal = Calendar.getInstance()
+         cal.timeInMillis = ms
+         return cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60f
+     }
+ 
+     /**
+-     * Estimates dark hours from the total screen-off accumulation during the day.
+-     * Anything under 4h is considered not meaningful (device just idle while awake).
++     * Dark duration = total screen-off minutes today.
++     * Uses the raw screenOffMs already computed by parseUsageEvents ΓÇö no heuristics.
+      */
+     private fun estimateDark(screenOffMs: Long): Float {
+-        return (screenOffMs / 3_600_000f).coerceIn(0f, 16f)
++        return (screenOffMs / 3_600_000f).coerceIn(0f, 24f)
+     }
+ 
++    data class SleepResult(val sleepTimeHour: Float, val wakeTimeHour: Float, val sleepDurationHours: Float)
++
+     /**
+-     * Estimates sleep duration: the main nocturnal gap between last use and first morning use.
+-     * Assumes wake is between 4amΓÇô12pm, sleep after 8pm.
++     * Production-grade sleep proxy.
++     *
++     * Design decisions:
++     *   ΓÇó Query window starts at 9 PM YESTERDAY so we never miss a pre-midnight bedtime
++     *     (fixes "The Midnight Wall" bug ΓÇö e.g. sleeping at 11:47 PM showed as 10 PM).
++     *   ΓÇó Core Sleep Constraint: only gaps that contain at least one minute between
++     *     02:00 and 10:00 qualify as the main sleep episode. This prevents afternoon
++     *     idle periods from being mistaken for sleep.
++     *   ΓÇó Micro-wake merge: consecutive gaps separated by Γëñ 2 minutes of screen-on
++     *     time are joined into a single sleep episode (handles alarm checks, etc.).
++     *   ΓÇó Longest qualifying gap wins.
+      */
+-    private fun estimateSleep(firstHour: Float, lastHour: Float): Float {
+-        if (firstHour == 0f) return 7f
+-        // last use was in evening/night ΓåÆ add hours to midnight + morning hours
+-        val sleepStart = if (lastHour > 20f || lastHour < 3f) lastHour else 23f
+-        return if (firstHour > 4f) {
+-            val fromMidnight = if (sleepStart < 24f) 24f - sleepStart else 0f
+-            (fromMidnight + firstHour).coerceIn(3f, 12f)
++    private fun calculateSleepProxy(todayStartMs: Long, nowMs: Long): SleepResult {
++        val usm = context.getSystemService(UsageStatsManager::class.java)
++            ?: return SleepResult(0f, 0f, 0f)
++
++        // ΓöÇΓöÇ Window: 9 PM yesterday ΓåÆ now (or noon today at the latest) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        val windowStartMs = todayStartMs - (3L * 3600_000L)   // 9 PM yesterday = midnight - 3h
++        val windowEndMs   = nowMs
++
++        val events = usm.queryEvents(windowStartMs, windowEndMs)
++        val ev     = UsageEvents.Event()
++
++        // ΓöÇΓöÇ Step 1: Build screen sessions from raw events ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        data class ScreenSession(val onMs: Long, val offMs: Long)
++        val sessions = mutableListOf<ScreenSession>()
++
++        var screenOnAt  = windowStartMs
++        var screenIsOn  = true  // assume screen is on at start
++
++        while (events.hasNextEvent()) {
++            events.getNextEvent(ev)
++            when (ev.eventType) {
++                15 -> { // SCREEN_INTERACTIVE ΓÇö screen turned on
++                    if (!screenIsOn) { screenOnAt = ev.timeStamp; screenIsOn = true }
++                }
++                16 -> { // SCREEN_NON_INTERACTIVE ΓÇö screen turned off
++                    if (screenIsOn) {
++                        sessions.add(ScreenSession(screenOnAt, ev.timeStamp))
++                        screenIsOn = false
++                    }
++                }
++            }
++        }
++        // If screen is still on at end of window
++        if (screenIsOn) sessions.add(ScreenSession(screenOnAt, windowEndMs))
++
++        // ΓöÇΓöÇ Step 2: Identify screen-off gaps ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        data class Gap(val startMs: Long, val endMs: Long)
++        val gaps = mutableListOf<Gap>()
++
++        if (sessions.isEmpty()) {
++            gaps.add(Gap(windowStartMs, windowEndMs))
+         } else {
+-            7f // fallback
++            if (sessions[0].onMs > windowStartMs) {
++                gaps.add(Gap(windowStartMs, sessions[0].onMs))
++            }
++            for (i in 0 until sessions.size - 1) {
++                gaps.add(Gap(sessions[i].offMs, sessions[i + 1].onMs))
++            }
++            gaps.add(Gap(sessions.last().offMs, windowEndMs))
++        }
++
++        // ΓöÇΓöÇ Step 3: Merge gaps separated by Γëñ 2-minute micro-wakes ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        val MICRO_WAKE_MS = 2 * 60_000L  // 2 minutes
++        val mergedGaps = mutableListOf<Gap>()
++        var current = gaps.firstOrNull() ?: return SleepResult(0f, 0f, 0f)
++
++        for (i in 1 until gaps.size) {
++            val bridgeOnMs = gaps[i].startMs - current.endMs
++            if (bridgeOnMs <= MICRO_WAKE_MS) {
++                current = Gap(current.startMs, gaps[i].endMs)
++            } else {
++                mergedGaps.add(current)
++                current = gaps[i]
++            }
+         }
++        mergedGaps.add(current)
++
++        // ΓöÇΓöÇ Step 4: Apply Core Sleep Filter (2 AM ΓÇô 10 AM) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        // A qualifying gap must OVERLAP with the 2 AM ΓÇô 10 AM window on today's date.
++        val coreSleepStart = todayStartMs + (2L  * 3600_000L)  // 2:00 AM today
++        val coreSleepEnd   = todayStartMs + (10L * 3600_000L)  // 10:00 AM today
++
++        val qualifyingGaps = mergedGaps.filter { g ->
++            // The gap overlaps [2AM, 10AM] if its end is after 2AM AND its start is before 10AM
++            g.endMs > coreSleepStart && g.startMs < coreSleepEnd
++        }
++
++        // Fall back to all merged gaps if none pass the core-sleep filter
++        // (e.g. user did a night shift and slept after 10 AM)
++        val candidateGaps = qualifyingGaps.ifEmpty { mergedGaps }
++
++        val bestGap = candidateGaps.maxByOrNull { it.endMs - it.startMs }
++            ?: return SleepResult(0f, 0f, 0f)
++
++        val durationMs = bestGap.endMs - bestGap.startMs
++
++        return SleepResult(
++            sleepTimeHour      = msToHour(bestGap.startMs),
++            wakeTimeHour       = msToHour(bestGap.endMs),
++            sleepDurationHours = durationMs / 3_600_000f
++        )
+     }
+ 
+     // =========================================================================
+@@ -613,19 +761,23 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         startOfDayMs: Long,
+         nowMs: Long
+     ): LocationResult {
+-        if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
++        // BUG FIX: Filter to today's window only ΓÇö prevents cross-day accumulation
++        // when the service is killed and snapshots from yesterday are still in the list.
++        val todaySnaps = snaps.filter { it.timeMs in startOfDayMs..nowMs }.sortedBy { it.timeMs }
++
++        if (todaySnaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
+ 
+-        // ΓöÇΓöÇ Displacement: cumulative haversine polyline ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
++        // ΓöÇΓöÇ Displacement: cumulative haversine polyline (today only) ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+         var distKm = 0.0
+-        for (i in 1 until snaps.size) {
+-            distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
++        for (i in 1 until todaySnaps.size) {
++            distKm += haversine(todaySnaps[i-1].lat, todaySnaps[i-1].lon, todaySnaps[i].lat, todaySnaps[i].lon)
+         }
+ 
+         // ΓöÇΓöÇ 500m-radius greedy clustering (for entropy and placesVisited) ΓöÇΓöÇΓöÇΓöÇΓöÇ
+         data class Cluster(var lat: Double, var lon: Double, var count: Int)
+         val clusters = mutableListOf<Cluster>()
+ 
+-        for (snap in snaps) {
++        for (snap in todaySnaps) {
+             var nearestIdx  = -1
+             var nearestDist = Double.MAX_VALUE
+             for ((idx, cluster) in clusters.withIndex()) {
+@@ -642,7 +794,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+             }
+         }
+ 
+-        val total = snaps.size.toDouble()
++        val total = todaySnaps.size.toDouble()
+ 
+         // ΓöÇΓöÇ Shannon entropy over cluster distribution ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+         val entropy = clusters.sumOf { c ->
+
+commit e36c465adf0c1fa9ec2c5ffb5d06c9332667dc8b
+Author: Sriram-2090 <gsriram209@gmail.com>
+Date:   Fri Apr 3 00:24:50 2026 +0530
+
+    DOne
+
+diff --git a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt
+index e3b4f6a..4fb9dd8 100644
+--- a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
++++ b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
+@@ -99,7 +99,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val events = parseUsageEvents(startOfDay, now)
+         val sleepData = calculateSleepProxy(startOfDay, now)
+ 
+-        val locationData  = calculateLocationMetrics(locationSnapshots)
++        val locationData  = calculateLocationMetrics(locationSnapshots, startOfDay, now)
+         val comms         = collectCommunicationStats(startOfDay)
+         val batteryInfo   = getBatteryInfo()
+         val systemInfo    = getSystemInfo(startOfDay, now)
+@@ -608,7 +608,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val homeRatio: Float, val placesCount: Int
+     )
+ 
+-    private fun calculateLocationMetrics(snaps: List<LatLonPoint>): LocationResult {
++    private fun calculateLocationMetrics(
++        snaps: List<LatLonPoint>,
++        startOfDayMs: Long,
++        nowMs: Long
++    ): LocationResult {
+         if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
+ 
+         // ΓöÇΓöÇ Displacement: cumulative haversine polyline ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+@@ -617,10 +621,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+             distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
+         }
+ 
+-        // ΓöÇΓöÇ 500m-radius greedy clustering for time-at-place calculation ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        // Each GPS reading is assigned to the nearest existing cluster within 500m,
+-        // or creates a new cluster. Number of readings per cluster Γëê time spent there
+-        // (GPS is polled at regular intervals via startContinuousLocationTracking).
++        // ΓöÇΓöÇ 500m-radius greedy clustering (for entropy and placesVisited) ΓöÇΓöÇΓöÇΓöÇΓöÇ
+         data class Cluster(var lat: Double, var lon: Double, var count: Int)
+         val clusters = mutableListOf<Cluster>()
+ 
+@@ -629,7 +630,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+             var nearestDist = Double.MAX_VALUE
+             for ((idx, cluster) in clusters.withIndex()) {
+                 val d = haversine(snap.lat, snap.lon, cluster.lat, cluster.lon)
+-                if (d < 0.5 && d < nearestDist) { // 0.5 km = 500 m threshold
++                if (d < 0.5 && d < nearestDist) {
+                     nearestDist = d
+                     nearestIdx  = idx
+                 }
+@@ -650,16 +651,61 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         }.toFloat()
+ 
+         // ΓöÇΓöÇ homeTimeRatio ΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇΓöÇ
+-        // Use the saved home GPS coordinates if available; otherwise fall back to
+-        // the most-visited cluster (so metric stays non-zero even before home is set)
++        // CORRECT formula: total wall-clock time within 500m of home / 24 hours.
++        //
++        // Uses GPS snap timestamps to measure actual duration at home:
++        //  1. Bridge midnight ΓåÆ first snap if first snap is near home.
++        //     (Captures overnight/sleep hours when GPS doesn't poll in Doze mode.)
++        //  2. For each consecutive pair, if snap[i] is near home add the gap
++        //     between snap[i] and snap[i+1] (capped to prevent absurd bridging).
++        //  3. Bridge last snap ΓåÆ now if last snap is near home.
++        //     (Ratio keeps updating in real-time even if GPS goes quiet at home.)
+         val homeLat = DataRepository.getHomeLatitude()
+         val homeLon = DataRepository.getHomeLongitude()
+-        val homeCount = if (homeLat != null && homeLon != null) {
+-            clusters.firstOrNull { c -> haversine(c.lat, c.lon, homeLat, homeLon) < 0.5 }?.count ?: 0
++
++        val homeRatio: Float
++        if (homeLat != null && homeLon != null) {
++            // Cap each individual gap at 12 hours to avoid bridging multi-day absences
++            val BRIDGE_CAP_MS = 12L * 3600_000L
++            val DAY_MS        = 24L * 3600_000L
++
++            fun isNearHome(s: LatLonPoint) = haversine(s.lat, s.lon, homeLat, homeLon) < 0.5
++
++            // Filter to today's window and sort chronologically
++            val todaySnaps = snaps
++                .filter { it.timeMs in startOfDayMs..nowMs }
++                .sortedBy { it.timeMs }
++
++            var homeTimeMs = 0L
++
++            if (todaySnaps.isNotEmpty()) {
++                // 1. Bridge: midnight ΓåÆ first snap (sleep/overnight)
++                val firstSnap = todaySnaps.first()
++                if (isNearHome(firstSnap)) {
++                    homeTimeMs += minOf(firstSnap.timeMs - startOfDayMs, BRIDGE_CAP_MS)
++                }
++
++                // 2. Consecutive snap pairs
++                for (i in 0 until todaySnaps.size - 1) {
++                    if (isNearHome(todaySnaps[i])) {
++                        val gap = todaySnaps[i + 1].timeMs - todaySnaps[i].timeMs
++                        homeTimeMs += minOf(gap, BRIDGE_CAP_MS)
++                    }
++                }
++
++                // 3. Bridge: last snap ΓåÆ now (so ratio updates in real-time)
++                val lastSnap = todaySnaps.last()
++                if (isNearHome(lastSnap)) {
++                    homeTimeMs += minOf(nowMs - lastSnap.timeMs, BRIDGE_CAP_MS)
++                }
++            }
++
++            homeRatio = (homeTimeMs.toFloat() / DAY_MS).coerceIn(0f, 1f)
+         } else {
+-            clusters.maxByOrNull { it.count }?.count ?: 0
++            // Home location not set ΓÇö fall back to most-visited cluster fraction
++            val maxCount = clusters.maxByOrNull { it.count }?.count?.toFloat() ?: 0f
++            homeRatio = (maxCount / total).toFloat().coerceIn(0f, 1f)
+         }
+-        val homeRatio = (homeCount / total).toFloat()
+ 
+         return LocationResult(distKm.toFloat(), entropy, homeRatio, clusters.size)
+     }
+
+commit 5521b36d9e3de86fc0e07c19774d809113487e2c
+Author: Sriram-2090 <gsriram209@gmail.com>
+Date:   Fri Apr 3 00:24:33 2026 +0530
+
+    Done dona done
+
+diff --git a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt
+index 1025b34..e3b4f6a 100644
+--- a/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
++++ b/MHealth - Copy/app/src/main/java/com/example/mhealth/logic/DataCollector.kt	
+@@ -4,11 +4,13 @@ import android.Manifest
+ import android.annotation.SuppressLint
+ import android.app.ActivityManager
+ import android.app.usage.NetworkStatsManager
++import android.app.usage.StorageStatsManager
+ import android.app.usage.UsageEvents
+ import android.app.usage.UsageStatsManager
+ import android.content.Context
+ import android.content.Intent
+ import android.content.IntentFilter
++import android.content.pm.ApplicationInfo
+ import android.content.pm.PackageManager
+ import android.hardware.Sensor
+ import android.hardware.SensorEvent
+@@ -18,7 +20,10 @@ import android.net.NetworkCapabilities
+ import android.os.BatteryManager
+ import android.os.Build
+ import android.os.Environment
++import android.os.Looper
++import android.os.Process
+ import android.os.StatFs
++import android.os.storage.StorageManager
+ import android.provider.CalendarContract
+ import android.provider.CallLog
+ import android.provider.ContactsContract
+@@ -33,10 +38,15 @@ import com.google.android.gms.location.LocationCallback
+ import com.google.android.gms.location.LocationRequest
+ import com.google.android.gms.location.LocationResult as GmsLocationResult
+ import com.google.android.gms.tasks.Tasks
+-import android.os.Looper
+-import java.util.*
++import java.util.Calendar
++import java.util.Locale
+ import java.util.concurrent.TimeUnit
+-import kotlin.math.*
++import kotlin.math.atan2
++import kotlin.math.cos
++import kotlin.math.ln
++import kotlin.math.pow
++import kotlin.math.sin
++import kotlin.math.sqrt
+ 
+ /**
+  * DataCollector ΓÇö All metrics sourced from the same Android APIs that
+@@ -52,7 +62,7 @@ import kotlin.math.*
+ class DataCollector(private val context: Context) : SensorEventListener {
+ 
+     private val TAG = "MHealth.DataCollector"
+-    private val sensorManager = context.getSystemService(Context.SENSOR_SERVICE) as SensorManager
++    private val sensorManager = checkNotNull(context.getSystemService(SensorManager::class.java)) { "SensorManager not available" }
+ 
+     private var locationCallback: LocationCallback? = null
+ 
+@@ -202,7 +212,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+                 }
+             }
+ 
+-            fusedClient.requestLocationUpdates(locationRequest, locationCallback!!, Looper.getMainLooper())
++            locationCallback?.let { fusedClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
+             Log.i(TAG, "Continuous location tracking started.")
+         } catch (e: SecurityException) {
+             Log.e(TAG, "SecurityException accessing location: ${e.message}")
+@@ -294,7 +304,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val windowStartMs = startOfDayMs - (4 * 3600_000L)   // yesterday 20:00
+         val windowEndMs   = minOf(now, startOfDayMs + (12 * 3600_000L)) // today 12:00
+ 
+-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
++        val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
+         val events = usm.queryEvents(windowStartMs, windowEndMs)
+         val ev = UsageEvents.Event()
+ 
+@@ -397,7 +407,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+     )
+ 
+     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
+-        val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
++        val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
+ 
+         // Pure raw-event iteration ΓÇö 100% boundary accurate (same as Digital Wellbeing)
+         // Screen time is computed from FOREGROUND/BACKGROUND event PAIRS, NOT from
+@@ -504,9 +514,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val pm = context.packageManager
+         val socialInteractionMs = finalAppMs.filterKeys { pkg ->
+             try {
+-                val appInfo = pm.getApplicationInfo(pkg, 0)
++                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                    pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
++                } else {
++                    pm.getApplicationInfo(pkg, 0)
++                }
+                 val isSocialCat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+-                    appInfo.category == android.content.pm.ApplicationInfo.CATEGORY_SOCIAL
++                    appInfo.category == ApplicationInfo.CATEGORY_SOCIAL
+                 } else false
+                 val lower = pkg.lowercase()
+                 val isSocialName = lower.contains("facebook") || lower.contains("instagram") ||
+@@ -747,14 +761,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val storagePct = if (total > 0) (total - avail) * 100f / total else 0f
+ 
+         // Memory ΓÇö same as Settings ΓåÆ Memory
+-        val am   = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
++        val am = checkNotNull(context.getSystemService(ActivityManager::class.java)) { "ActivityManager not available" }
+         val mem  = ActivityManager.MemoryInfo().also { am.getMemoryInfo(it) }
+         val memPct = if (mem.totalMem > 0) (mem.totalMem - mem.availMem) * 100f / mem.totalMem else 0f
+ 
+         // Network ΓÇö same as Settings ΓåÆ Network & Internet ΓåÆ Data usage
+         var wifiMB = 0f; var mobileMB = 0f
+         try {
+-            val nsm = context.getSystemService(Context.NETWORK_STATS_SERVICE) as NetworkStatsManager
++            val nsm = checkNotNull(context.getSystemService(NetworkStatsManager::class.java)) { "NetworkStatsManager not available" }
+             nsm.querySummaryForDevice(NetworkCapabilities.TRANSPORT_WIFI, null, startMs, endMs)
+                 .let { wifiMB = (it.rxBytes + it.txBytes) / (1024f * 1024f) }
+             nsm.querySummaryForDevice(NetworkCapabilities.TRANSPORT_CELLULAR, null, startMs, endMs)
+@@ -774,7 +788,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
+     } catch (e: Exception) { 0 }
+ 
+     private fun countAppInstalls(since: Long): Int = try {
+-        context.packageManager.getInstalledPackages(0).count { it.firstInstallTime >= since }
++        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++            context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
++        } else {
++            context.packageManager.getInstalledPackages(0)
++        }
++        packages.count { it.firstInstallTime >= since }
+     } catch (e: Exception) { 0 }
+ 
+     private fun countCalendarEvents(startMs: Long, endMs: Long): Int = try {
+@@ -833,7 +852,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
+ 
+     private fun countAppUninstalls(): Int = try {
+         val prefs = context.getSharedPreferences("mhealth_prefs", Context.MODE_PRIVATE)
+-        val currentCount = context.packageManager.getInstalledPackages(0).size
++        val currentCount = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++            context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L)).size
++        } else {
++            context.packageManager.getInstalledPackages(0).size
++        }
+         val prevKey = "prev_pkg_count"
+         val storedCount = prefs.getInt(prevKey, currentCount)
+         prefs.edit().putInt(prevKey, currentCount).apply()
+@@ -862,8 +885,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
+ 
+     private fun countTotalApps(): Int {
+         return try {
+-            context.packageManager.getInstalledPackages(0).count { pkg ->
+-                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
++            val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++                context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
++            } else {
++                context.packageManager.getInstalledPackages(0)
++            }
++            packages.count { pkg ->
++                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
+                 !isSystemApp
+             }
+         } catch (e: Exception) {
+@@ -877,13 +905,19 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         val result = mutableMapOf<String, Float>()
+         val pm = context.packageManager
+ 
+-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+-            val ssm = context.getSystemService(Context.STORAGE_STATS_SERVICE) as? android.app.usage.StorageStatsManager
+-            val storageUuid = android.os.storage.StorageManager.UUID_DEFAULT
++        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
++        } else {
++            pm.getInstalledPackages(0)
++        }
++
++        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
++            val ssm = context.getSystemService(StorageStatsManager::class.java)
++            val storageUuid = StorageManager.UUID_DEFAULT
+ 
+-            for (pkg in pm.getInstalledPackages(0)) {
++            for (pkg in packages) {
+                 // Efficiently skip system-level packages so OS Bloat doesn't skew metric
+-                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
++                val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
+                 if (isSystemApp) continue
+ 
+                 var usedBytes = 0L
+@@ -912,7 +946,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
+     fun getAppInstallsByCategory(since: Long): Map<String, Int> {
+         val result = mutableMapOf<String, Int>()
+         val pm = context.packageManager
+-        for (pkg in pm.getInstalledPackages(0)) {
++        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
++        } else {
++            pm.getInstalledPackages(0)
++        }
++        for (pkg in packages) {
+             if (pkg.firstInstallTime < since) continue
+             val label = getCategoryLabel(pkg.applicationInfo, pm)
+             result[label] = (result[label] ?: 0) + 1
+@@ -925,10 +964,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
+     fun getAllAppsByCategory(): Map<String, Int> {
+         val result = mutableMapOf<String, Int>()
+         val pm = context.packageManager
+-        for (pkg in pm.getInstalledPackages(0)) {
++        val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
++            pm.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
++        } else {
++            pm.getInstalledPackages(0)
++        }
++        for (pkg in packages) {
+             // Only count user-installed apps (exclude system apps)
+-            val isSystemApp = (pkg.applicationInfo?.flags
+-                ?: 0) and android.content.pm.ApplicationInfo.FLAG_SYSTEM != 0
++            val isSystemApp = (pkg.applicationInfo?.flags ?: 0) and ApplicationInfo.FLAG_SYSTEM != 0
+             if (isSystemApp) continue
+             val label = getCategoryLabel(pkg.applicationInfo, pm)
+             result[label] = (result[label] ?: 0) + 1
+@@ -937,7 +980,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
+         return result.toList().sortedByDescending { it.second }.toMap()
+     }
+ 
+-    private fun getCategoryLabel(info: android.content.pm.ApplicationInfo?,
++    private fun getCategoryLabel(info: ApplicationInfo?,
+                                   pm: PackageManager): String {
+         if (info == null) return "Other"
+         val name = info.packageName?.lowercase() ?: ""
+@@ -963,14 +1006,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
+                 || name.contains("steps") || name.contains("workout") -> "Health"
+             else -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                 when (info.category) {
+-                    android.content.pm.ApplicationInfo.CATEGORY_GAME -> "Games"
+-                    android.content.pm.ApplicationInfo.CATEGORY_SOCIAL -> "Social"
+-                    android.content.pm.ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
+-                    android.content.pm.ApplicationInfo.CATEGORY_MAPS -> "Maps"
+-                    android.content.pm.ApplicationInfo.CATEGORY_NEWS -> "News"
+-                    android.content.pm.ApplicationInfo.CATEGORY_AUDIO -> "Media"
+-                    android.content.pm.ApplicationInfo.CATEGORY_VIDEO -> "Media"
+-                    android.content.pm.ApplicationInfo.CATEGORY_IMAGE -> "Photos"
++                    ApplicationInfo.CATEGORY_GAME -> "Games"
++                    ApplicationInfo.CATEGORY_SOCIAL -> "Social"
++                    ApplicationInfo.CATEGORY_PRODUCTIVITY -> "Productivity"
++                    ApplicationInfo.CATEGORY_MAPS -> "Maps"
++                    ApplicationInfo.CATEGORY_NEWS -> "News"
++                    ApplicationInfo.CATEGORY_AUDIO -> "Media"
++                    ApplicationInfo.CATEGORY_VIDEO -> "Media"
++                    ApplicationInfo.CATEGORY_IMAGE -> "Photos"
+                     else -> "Other"
+                 }
+             } else "Other"

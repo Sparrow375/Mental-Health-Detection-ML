@@ -72,6 +72,7 @@ data class DailyFeaturesEntity(
     val appBreakdownJson: String = "{}",
     val notificationBreakdownJson: String = "{}",
     val appLaunchesBreakdownJson: String = "{}",
+    val bgAudioBreakdownJson: String = "{}",
 
     // Sync flag (for future Firebase cloud sync)
     val syncedToCloud: Boolean = false,

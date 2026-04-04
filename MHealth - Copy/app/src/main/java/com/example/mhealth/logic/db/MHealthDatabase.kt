@@ -19,7 +19,7 @@ import androidx.room.RoomDatabase
         UserProfileEntity::class,
         UserCredentialsEntity::class
     ],
-    version = 7,
+    version = 8,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -74,6 +74,12 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_7_8 = object : androidx.room.migration.Migration(7, 8) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE daily_features ADD COLUMN bgAudioBreakdownJson TEXT NOT NULL DEFAULT '{}'")
+            }
+        }
+
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -81,7 +87,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                     MHealthDatabase::class.java,
                     "mhealth_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

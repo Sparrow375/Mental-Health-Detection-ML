@@ -1270,7 +1270,10 @@ fun MonitorScreen() {
         // Per-App Breakdown section
         if (!isBuilding && vector != null) {
             item {
-                vector?.let { v -> PerAppBreakdownCard(vector = v) }
+                vector?.let { v -> 
+                    PerAppBreakdownCard(vector = v)
+                    BgAudioBreakdownCard(vector = v)
+                }
             }
         }
 
@@ -1486,37 +1489,79 @@ fun PerAppBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
         .sortedByDescending { it.second }
         .take(7)
 
-    if (topApps.isEmpty()) return
+    if (topApps.isEmpty() && vector.bgAudioBreakdown.isEmpty()) return
 
-    InfoCard("Per-App Breakdown", headerColor = ChartPurple) {
+    if (topApps.isNotEmpty()) {
+        InfoCard("Per-App Screen Breakdown", headerColor = ChartPurple) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                Text("App",      fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
+                Text("Screen",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
+                Text("Notifs",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+            }
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
+            Spacer(Modifier.height(4.dp))
+
+            topApps.forEach { (pkg, minutes) ->
+                val appName = try {
+                    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                } catch (e: Exception) { pkg.substringAfterLast(".") }
+                val launches = vector.appLaunchesBreakdown[pkg] ?: 0
+                val notifs   = vector.notificationBreakdown[pkg] ?: 0
+                val hrs  = minutes / 60L
+                val mins = minutes % 60L
+                val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
+
+                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(appName,   fontSize = 11.sp, color = TextPrimary,   modifier = Modifier.weight(2.5f),
+                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
+                    Text(timeStr,   fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                    Text("$launches", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
+                    Text("$notifs",   fontSize = 11.sp,
+                        color = if (notifs > 30) AlertOrange else TextSecondary,
+                        fontWeight = if (notifs > 30) FontWeight.Bold else FontWeight.Normal,
+                        modifier = Modifier.weight(1.2f))
+                }
+                HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
+            }
+        }
+    }
+}
+
+@Composable
+fun BgAudioBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
+    val pm = androidx.compose.ui.platform.LocalContext.current.packageManager
+    val audioApps = vector.bgAudioBreakdown
+        .filterKeys { it.isNotBlank() }
+        .toList()
+        .sortedByDescending { it.second }
+        .take(5)
+
+    if (audioApps.isEmpty()) return
+
+    InfoCard("Background Audio Breakdown", headerColor = MhealthIndigo) {
         Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-            Text("App",      fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
-            Text("Screen",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
-            Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
-            Text("Notifs",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+            Text("Music App", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(3f))
+            Text("Duration", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1f))
         }
         HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
         Spacer(Modifier.height(4.dp))
 
-        topApps.forEach { (pkg, minutes) ->
+        audioApps.forEach { (pkg, ms) ->
             val appName = try {
-                pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                if (pkg == "unknown_music_app") "Other Audio"
+                else pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
             } catch (e: Exception) { pkg.substringAfterLast(".") }
-            val launches = vector.appLaunchesBreakdown[pkg] ?: 0
-            val notifs   = vector.notificationBreakdown[pkg] ?: 0
-            val hrs  = minutes / 60L
-            val mins = minutes % 60L
-            val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
+            
+            val totalSec = ms / 1000
+            val minutes = totalSec / 60
+            val seconds = totalSec % 60
+            val timeStr = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
 
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(appName,   fontSize = 11.sp, color = TextPrimary,   modifier = Modifier.weight(2.5f),
+                Text(appName, fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(3f),
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(timeStr,   fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
-                Text("$launches", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                Text("$notifs",   fontSize = 11.sp,
-                    color = if (notifs > 30) AlertOrange else TextSecondary,
-                    fontWeight = if (notifs > 30) FontWeight.Bold else FontWeight.Normal,
-                    modifier = Modifier.weight(1.2f))
+                Text(timeStr, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
             }
             HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
         }

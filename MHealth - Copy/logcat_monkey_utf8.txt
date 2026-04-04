@@ -1,0 +1,810 @@
+﻿--------- beginning of main
+04-04 11:11:12.936  9652  9652 E app_process: BBinder_init Processname  app_process  
+04-04 11:11:12.936  9652  9652 E app_process: BBinder_init hasGetProcessName  app_process
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv get_baksize open file /data/dalvik-cache/classpath failed , error(Permission denied)
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv write_classpathbak open file failed:Permission denied
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv get_baksize open file /data/dalvik-cache/classpath2 failed , error(Permission denied)
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv write_classpathbak open file failed:Permission denied
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv get_baksize open file /data/dalvik-cache/classpath3 failed , error(Permission denied)
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv write_classpathbak open file failed:Permission denied
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv get_baksize open file /data/dalvik-cache/classpath4 failed , error(Permission denied)
+04-04 11:11:13.004  9652  9652 E appproc : checkAndSetEnv write_classpathbak open file failed:Permission denied
+04-04 11:11:13.005  9652  9652 W app_process: Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: settings
+04-04 11:11:13.024  9652  9652 I AndroidRuntime: Using default boot image
+04-04 11:11:13.024  9652  9652 I AndroidRuntime: Leaving lock profiling enabled
+04-04 11:11:13.033  9652  9652 I app_process: Using CollectorTypeCC GC.
+04-04 11:11:13.033  9652  9652 I app_process: MMAP_TRYLOCK is supported in uffd errno:2 addr:0x7dd9bd3000 size:4096
+04-04 11:11:13.222  9652  9652 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+04-04 11:11:13.249  9652  9652 E VivoConfigStore: it is Zygote,don't need init
+04-04 11:11:13.250  9652  9652 E VivoConfigStore: the feature vivo.software.commonradius is used in zygote, but you did't add attribute is_support_zygote=1 in vivo_config.ini ,please play attention to check your vivo_config.ini for the feature!!!
+04-04 11:11:13.250  9652  9652 I VivoSystemFrameworkFactory: Instance implClass com.vivo.VivoSystemFrameworkFactoryImpl
+04-04 11:11:13.263  9652  9652 W libc    : Access denied finding property "ro.vendor.mtk.hbt_binfmt_misc_support"
+04-04 11:11:13.264  9652  9652 E VivoConfigStore: it is Zygote,don't need init
+04-04 11:11:13.264  9652  9652 E VivoConfigStore: the feature vivo.hardware.display.xdr is used in zygote, but you did't add attribute is_support_zygote=1 in vivo_config.ini ,please play attention to check your vivo_config.ini for the feature!!!
+04-04 11:11:13.286  9652  9652 W Monkey  : args: [-p, com.example.mhealth, -c, android.intent.category.LAUNCHER, 1]
+04-04 11:11:13.291  9652  9652 W PlatformAconfigPackage: android.os.flagging.AconfigStorageReadException: ERROR_CANNOT_READ_STORAGE_FILE: Fail to mmap storage
+04-04 11:11:13.293  9652  9652 I AconfigPackage: com.android.wifi.flags is mapped to com.android.wifi
+04-04 11:11:13.294  9652  9652 I AconfigPackage: android.uprobestats.mainline.flags is mapped to com.android.uprobestats
+04-04 11:11:13.295  9652  9652 I AconfigPackage: com.android.os.statsd.flags is mapped to com.android.os.statsd
+04-04 11:11:13.295  9652  9652 I AconfigPackage: com.android.art.flags is mapped to com.android.art
+04-04 11:11:13.295  9652  9652 I AconfigPackage: com.android.art.rw.flags is mapped to com.android.art
+04-04 11:11:13.295  9652  9652 I AconfigPackage: com.android.libcore is mapped to com.android.art
+04-04 11:11:13.296  9652  9652 I AconfigPackage: com.android.appsearch.flags is mapped to com.android.appsearch
+04-04 11:11:13.296  9652  9652 I AconfigPackage: android.graphics.pdf.flags is mapped to com.android.mediaprovider
+04-04 11:11:13.296  9652  9652 I AconfigPackage: com.android.providers.media.flags is mapped to com.android.mediaprovider
+04-04 11:11:13.296  9652  9652 I AconfigPackage: android.graphics.pdf.flags.readonly is mapped to com.android.mediaprovider
+04-04 11:11:13.297  9652  9652 I AconfigPackage: com.android.media.extractor.flags is mapped to com.android.media
+04-04 11:11:13.297  9652  9652 I AconfigPackage: com.android.media.mainline.flags is mapped to com.android.media
+04-04 11:11:13.298  9652  9652 I AconfigPackage: android.os.profiling is mapped to com.android.profiling
+04-04 11:11:13.298  9652  9652 I AconfigPackage: com.android.permission.flags is mapped to com.android.permission
+04-04 11:11:13.298  9652  9652 I AconfigPackage: com.android.permissioncontroller.flags is mapped to com.android.permission
+04-04 11:11:13.298  9652  9652 I AconfigPackage: com.android.ipsec.flags is mapped to com.android.ipsec
+04-04 11:11:13.299  9652  9652 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast
+04-04 11:11:13.299  9652  9652 I AconfigPackage: android.media.swcodec.flags is mapped to com.android.media.swcodec
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.tethering.mainline.beta is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: android.net.http is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.tethering.readonly.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: android.net.vcn is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.net.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.tethering.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.tethering.beta.test is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.nearby.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.net.thread.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.net.ct.flags is mapped to com.android.tethering
+04-04 11:11:13.300  9652  9652 I AconfigPackage: android.provider.flags is mapped to com.android.configinfrastructure
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.server.deviceconfig is mapped to com.android.configinfrastructure
+04-04 11:11:13.300  9652  9652 I AconfigPackage: com.android.rkpd.flags is mapped to com.android.rkpd
+04-04 11:11:13.301  9652  9652 I AconfigPackage: com.android.adservices.ondevicepersonalization.flags is mapped to com.android.ondevicepersonalization
+04-04 11:11:13.301  9652  9652 I AconfigPackage: com.android.healthfitness.flags is mapped to com.android.healthfitness
+04-04 11:11:13.302  9652  9652 I AconfigPackage: com.android.uwb.flags is mapped to com.android.uwb
+04-04 11:11:13.302  9652  9652 I AconfigPackage: com.android.ranging.flags is mapped to com.android.uwb
+04-04 11:11:13.302  9652  9652 I AconfigPackage: com.android.devicelock.flags is mapped to com.android.devicelock
+04-04 11:11:13.302  9652  9652 I AconfigPackage: com.android.adservices.flags is mapped to com.android.adservices
+04-04 11:11:13.303  9652  9652 I AconfigPackage: com.android.sdksandbox.flags is mapped to com.android.adservices
+04-04 11:11:13.303  9652  9652 I AconfigPackage: com.android.bluetooth.flags is mapped to com.android.bt
+04-04 11:11:13.304  9652  9652 I AconfigPackage: com.android.org.conscrypt.flags is mapped to com.android.conscrypt
+04-04 11:11:13.304  9652  9652 I AconfigPackage: com.android.org.conscrypt.net.flags is mapped to com.android.conscrypt
+04-04 11:11:13.304  9652  9652 I AconfigPackage: com.android.icu is mapped to com.android.i18n
+04-04 11:11:13.305  9652  9652 I AconfigPackage: com.android.system.virtualmachine.flags is mapped to com.android.virt
+04-04 11:11:13.305  9652  9652 I AconfigPackage: com.android.adbd.flags is mapped to com.android.adbd
+04-04 11:11:13.305  9652  9652 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+04-04 11:11:13.307  9652  9652 W libc    : Access denied finding property "qemu.sf.lcd_density"
+04-04 11:11:13.307  9652  9652 W libc    : Access denied finding property "qemu.sf.lcd_density"
+04-04 11:11:13.317  9652  9652 W Monkey  :  arg: "-p"
+04-04 11:11:13.317  9652  9652 W Monkey  :  arg: "com.example.mhealth"
+04-04 11:11:13.317  9652  9652 W Monkey  :  arg: "-c"
+04-04 11:11:13.318  9652  9652 W Monkey  :  arg: "android.intent.category.LAUNCHER"
+04-04 11:11:13.318  9652  9652 W Monkey  :  arg: "1"
+04-04 11:11:13.318  9652  9652 W Monkey  : data="com.example.mhealth"
+04-04 11:11:13.318  9652  9652 W Monkey  : data="android.intent.category.LAUNCHER"
+04-04 11:11:13.432  7621  7621 I PkDeviceHelper: PkDeviceHelper.refreshDevices():87 refreshing devices
+04-04 11:11:13.461  9652  9652 E VivoConfigStore: it is Zygote,don't need init
+04-04 11:11:13.462  9652  9652 E VivoConfigStore: it is Zygote,don't need init
+04-04 11:11:13.494  9652  9652 I Monkey  : Events injected: 1
+04-04 11:11:13.499  9652  9652 I Monkey  : ## Network stats: elapsed time=30ms (0ms mobile, 0ms wifi, 30ms not connected)
+04-04 11:11:13.500  9652  9652 I app_process: System.exit called, status: 0
+04-04 11:11:13.500  9652  9652 I AndroidRuntime: VM exiting with result code 0.
+04-04 11:11:13.533  9681  9681 I example.mhealth: Late-enabling -Xcheck:jni
+04-04 11:11:13.566  9681  9681 I example.mhealth: Using CollectorTypeCC GC.
+04-04 11:11:13.588  9681  9681 E example.mhealth: BBinder_init Processname  com.example.mhealth  
+04-04 11:11:13.588  9681  9681 E example.mhealth: BBinder_init hasGetProcessName  com.example.mhealth
+04-04 11:11:13.697  7621  7621 I PkDeviceHelper: PkDeviceHelper.refreshDevices():87 refreshing devices
+04-04 11:11:13.779 30498 30498 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda13@d8d1e48
+04-04 11:11:13.804 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:13.853 30498 30498 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda13@36ae3d5
+04-04 11:11:13.879 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:14.061 30498 30498 I Choreographer: Skipped 32 frames!  The application may be doing too much work on its main thread.
+04-04 11:11:14.074  9980  6052 W adservices: Skip logging because Cobalt logger is null
+04-04 11:11:14.079  9980  6051 W adservices: Skip logging because Cobalt is disabled.
+04-04 11:11:14.107  9980  6052 W adservices: Skip logging because Cobalt is disabled.
+04-04 11:11:14.123 26708 32692 I AdvertisingIdClient: shouldSendLog 164278787
+04-04 11:11:14.126 26708 32692 I AdvertisingIdClient: GetInfoInternal elapse 363ms
+04-04 11:11:14.146  9980  6051 W adservices: Skip logging because Cobalt logger is null
+04-04 11:11:14.352  9681  9681 I example.mhealth: AssetManager2(0xb400007339dc5238) locale list changing from [] to [en-US]
+04-04 11:11:14.356  9681  9681 W Bundle  : Key enable expected ArrayList<java.lang.String> but value was of a different type.  The default value <null> was returned.
+04-04 11:11:14.357  9681  9681 W Bundle  : Attempt to cast generated internal exception:
+04-04 11:11:14.357  9681  9681 W Bundle  : java.lang.ClassCastException: Cannot cast java.lang.Boolean to java.util.ArrayList
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at java.lang.Class.cast(Class.java:4178)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.BaseBundle.getValueAt(BaseBundle.java:439)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.BaseBundle.getValue(BaseBundle.java:401)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.BaseBundle.getArrayList(BaseBundle.java:1569)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.BaseBundle.getStringArrayList(BaseBundle.java:1599)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.Bundle.getStringArrayList(Bundle.java:1385)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at com.vivo.vspa.VspaManager.parseBundles(VspaManager.java:201)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at com.vivo.vspa.VspaManager.initialize(VspaManager.java:105)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.app.VivoActivityThreadImpl.initialize(VivoActivityThreadImpl.java:142)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:8835)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.app.ActivityThread.-$$Nest$mhandleBindApplication(Unknown Source:0)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:3062)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.Handler.dispatchMessage(Handler.java:114)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.Looper.loopOnce(Looper.java:266)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.os.Looper.loop(Looper.java:361)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at android.app.ActivityThread.main(ActivityThread.java:10381)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at java.lang.reflect.Method.invoke(Native Method)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+04-04 11:11:14.357  9681  9681 W Bundle  : 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+04-04 11:11:14.358  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.358  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.405  9681  9681 I FirebaseApp: Device unlocked: initializing all Firebase APIs for app [DEFAULT]
+04-04 11:11:14.409  9681  9681 I FirebaseInitProvider: FirebaseApp initialization successful
+04-04 11:11:14.496  9681  9744 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+--------- beginning of system
+04-04 11:11:14.496  9681  9745 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+04-04 11:11:14.499  9681  9745 I GameManager: __progname=com.example.mhealth
+04-04 11:11:14.499  9681  9681 I example.mhealth: AssetManager2(0xb400007339dcfaf8) locale list changing from [] to [en-US]
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: QUALCOMM build                   : bad34dcf83, I1064ae0a1f
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Build Date                       : 11/28/25
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: OpenGL ES Shader Compiler Version: E031.41.03.64
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Local Branch                     : 
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Remote Branch                    : refs/tags/AU_LINUX_ANDROID_LA.VENDOR.13.2.0.11.00.00.856.062
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Remote Branch                    : NONE
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Reconstruct Branch               : NOTHING
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Build Config                     : S P 14.1.4 AArch64
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Driver Path                      : /vendor/lib64/egl/libGLESv2_adreno.so
+04-04 11:11:14.501  9681  9745 I AdrenoGLES-0: Driver Version                   : 0676.76.1
+04-04 11:11:14.506  9681  9745 I AdrenoGLES-0: PFP: 0x01200182, ME: 0x00000000
+04-04 11:11:14.523  9681  9745 I AdrenoUtils: <ReadGpuID:407>: Reading chip ID through GSL
+04-04 11:11:14.524  9681  9745 I libEGL  : skip_priority_level=0, isWorkaroundEnable=1
+04-04 11:11:14.547  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.548  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.565  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.578  9681  9744 W JobInfo : Requested important-while-foreground flag for job1 is ignored and takes no effect
+04-04 11:11:14.585  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:14.640  9681  9681 W libc    : Access denied finding property "persist.vivo.ltw.enabled"
+04-04 11:11:14.836 27591 27788 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+04-04 11:11:14.878 27591 27725 I repa.band.dafit: AssetManager2(0x7339dcc5d8) locale list changing from [] to [en-US]
+04-04 11:11:14.985  9681  9681 W example.mhealth: Method boolean androidx.compose.runtime.snapshots.SnapshotStateList.conditionalUpdate(boolean, kotlin.jvm.functions.Function1) failed lock verification and will run slower.
+04-04 11:11:14.985  9681  9681 W example.mhealth: Common causes for lock verification issues are non-optimized dex code
+04-04 11:11:14.985  9681  9681 W example.mhealth: and incorrect proguard optimizations.
+04-04 11:11:14.985  9681  9681 W example.mhealth: Method boolean androidx.compose.runtime.snapshots.SnapshotStateList.conditionalUpdate$default(androidx.compose.runtime.snapshots.SnapshotStateList, boolean, kotlin.jvm.functions.Function1, int, java.lang.Object) failed lock verification and will run slower.
+04-04 11:11:14.985  9681  9681 W example.mhealth: Method java.lang.Object androidx.compose.runtime.snapshots.SnapshotStateList.mutate(kotlin.jvm.functions.Function1) failed lock verification and will run slower.
+04-04 11:11:14.985  9681  9681 W example.mhealth: Method void androidx.compose.runtime.snapshots.SnapshotStateList.update(boolean, kotlin.jvm.functions.Function1) failed lock verification and will run slower.
+04-04 11:11:14.985  9681  9681 W example.mhealth: Method void androidx.compose.runtime.snapshots.SnapshotStateList.update$default(androidx.compose.runtime.snapshots.SnapshotStateList, boolean, kotlin.jvm.functions.Function1, int, java.lang.Object) failed lock verification and will run slower.
+04-04 11:11:15.060  9681  9681 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:15.061  9681  9681 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:15.064  9681  9745 W BLASTBufferQueue: Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.064  9681  9745 I BLASTBufferQueue: QoSAllocBuff Successful. Ret 0 
+04-04 11:11:15.083  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.085  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.115  9681  9745 E MEMCWrapper: MEMC_POST_PROCESSING_ENABLE_PROPERTY false.
+04-04 11:11:15.131  3200  3380 I ActivityTaskManager: Displayed com.example.mhealth/.MainActivity for user 0: +1s651ms
+04-04 11:11:15.185  9681  9681 W MHealth.Service: MediaSession listener failed (No Notification Access) ΓÇö background audio will only update via Screen interaction
+04-04 11:11:15.188  9681  9681 W MHealth.Service: Exact Alarm permission missing ΓÇö falling back to standard alarm
+04-04 11:11:15.193  9681  9681 I MHealth.Service: Midnight transition alarm set for Sun Apr 05 00:00:01 GMT+05:30 2026
+04-04 11:11:15.193  9681  9681 I MHealth.Service: Service started while already charging ΓÇö anchored at 1775281275193
+04-04 11:11:15.200  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.200  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.204  9681  9681 I MHealth.DataCollector: Continuous location tracking started.
+04-04 11:11:15.223 26861 16586 I FontLog : (REDACTED) Received query %s, URI %s
+04-04 11:11:15.223  9681  9681 I MHealth : Background location permission granted: true
+04-04 11:11:15.223 26861 16586 I FontLog : (REDACTED) Query [%s] resolved to %s
+04-04 11:11:15.224  9681  9800 I MHealth.NightlyWorker: Running nightly analysis for user=gsriram209@gmail.com date=2026-04-03
+04-04 11:11:15.227 26861 16586 I FontLog : (REDACTED) Fetch %s end status %s
+04-04 11:11:15.227  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2159 
+04-04 11:11:15.228  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 0, locked = false
+04-04 11:11:15.228  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1434 onStartInput(EditorInfo{EditorInfo{packageName=com.example.mhealth, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+04-04 11:11:15.228  7621  7621 W AndroidIME: LatinIMEBase.updateInputViewCoverNavigation():317 Null input view, cannot update padding!
+04-04 11:11:15.229  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 1, locked = false
+04-04 11:11:15.231  9681  9681 I ImeTracker: com.example.mhealth:5eb428e2: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+04-04 11:11:15.236 26861 16586 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+04-04 11:11:15.241 26861 16586 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+04-04 11:11:15.264  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.264  9681  9681 W VSPA    : Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:15.265  9681  9681 I MHealth.DataCollector: Continuous Location fix: 17.46145, 78.53490 (acc: 16.3m)
+04-04 11:11:15.410 27591 27599 I repa.band.dafit: Background young concurrent copying GC freed 12MB AllocSpace bytes, 27(924KB) LOS objects, 45% free, 15MB/29MB, paused 130us,81us total 110.242ms
+04-04 11:11:15.411 27591 27599 W repa.band.dafit: Reducing the number of considered missed Gc histogram windows from 383 to 100
+04-04 11:11:15.495  7559  7571 I eesk    : (REDACTED) appOpsListener %s %s
+04-04 11:11:15.495  7559  7571 I eesk    : (REDACTED) Ignoring irrelevant audio permission changes for package %s
+04-04 11:11:15.495  7559  7571 I eesk    : (REDACTED) appOpsListener %s %s
+04-04 11:11:15.496  7559  7571 I eesk    : (REDACTED) Ignoring irrelevant audio permission changes for package %s
+04-04 11:11:15.503 21555 21579 W native  : W0000 00:00:1775281275.503635   21579 lag_detector.cc:58] Pipeline lagging by 2.186624172s. Continue processing samples.
+04-04 11:11:15.509  9824  9824 I soft.appmanager: Using CollectorTypeCC GC.
+04-04 11:11:15.515  7559  7571 I eesk    : (REDACTED) appOpsListener %s %s
+04-04 11:11:15.516  7559  7571 I eesk    : (REDACTED) Ignoring irrelevant audio permission changes for package %s
+04-04 11:11:15.531  9824  9824 E soft.appmanager: BBinder_init Processname  com.microsoft.appmanager  
+04-04 11:11:15.531  9824  9824 E soft.appmanager: BBinder_init hasGetProcessName  com.microsoft.appmanager
+04-04 11:11:15.561  7998  8365 I PermissionControllerServiceImpl: Updating user sensitive for uid 10428
+04-04 11:11:15.610  9824  9824 I soft.appmanager: AssetManager2(0xb400007339dc5238) locale list changing from [] to [en-US]
+04-04 11:11:15.614  9824  9824 W Bundle  : Key enable expected ArrayList<java.lang.String> but value was of a different type.  The default value <null> was returned.
+04-04 11:11:15.614  9824  9824 W Bundle  : Attempt to cast generated internal exception:
+04-04 11:11:15.614  9824  9824 W Bundle  : java.lang.ClassCastException: Cannot cast java.lang.Boolean to java.util.ArrayList
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at java.lang.Class.cast(Class.java:4178)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.BaseBundle.getValueAt(BaseBundle.java:439)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.BaseBundle.getValue(BaseBundle.java:401)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.BaseBundle.getArrayList(BaseBundle.java:1569)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.BaseBundle.getStringArrayList(BaseBundle.java:1599)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.Bundle.getStringArrayList(Bundle.java:1385)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at com.vivo.vspa.VspaManager.parseBundles(VspaManager.java:201)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at com.vivo.vspa.VspaManager.initialize(VspaManager.java:105)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.app.VivoActivityThreadImpl.initialize(VivoActivityThreadImpl.java:142)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:8835)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.app.ActivityThread.-$$Nest$mhandleBindApplication(Unknown Source:0)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:3062)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.Handler.dispatchMessage(Handler.java:114)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.Looper.loopOnce(Looper.java:266)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.os.Looper.loop(Looper.java:361)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at android.app.ActivityThread.main(ActivityThread.java:10381)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at java.lang.reflect.Method.invoke(Native Method)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+04-04 11:11:15.614  9824  9824 W Bundle  : 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+04-04 11:11:15.624  9824  9824 I LoadedApk: No resource references to update in package com.microsoft.appmanager.ext
+04-04 11:11:15.624  9824  9824 I LoadedApk: No resource references to update in package com.microsoft.appmanager.extgeneric
+04-04 11:11:15.624  9824  9824 I LoadedApk: No resource references to update in package com.microsoft.appmanager.extcn
+04-04 11:11:15.624  9824  9824 I LoadedApk: No resource references to update in package com.microsoft.appmanager.extop
+04-04 11:11:15.645  9824  9843 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+04-04 11:11:15.661  9824  9824 E ActivityThread: Failed to find provider info for com.microsoft.yourphonecompanion.contentprovider.featureoverride
+04-04 11:11:15.681  9824  9824 E ActivityThread: Failed to find provider info for com.samsung.android.mdx.windowslink.Tile.Provider
+04-04 11:11:15.695  9681  9693 I example.mhealth: Compiler allocated 7174KB to compile void android.view.ViewRootImpl.performTraversals()
+04-04 11:11:15.705  9273  9376 E msys    : E[N mns:TigonMNS]_OnResolverSuccess(291)=>Cache refresh succeeded with system DNS resolver. IP count: 2
+--------- beginning of crash
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: FATAL EXCEPTION: DefaultDispatcher-worker-4
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: Process: com.example.mhealth, PID: 9681
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: java.lang.IllegalStateException: Room cannot verify the data integrity. Looks like you've changed schema but forgot to update the version number. You can simply fix this by increasing the version number. Expected identity hash: d9e539434877b5d2d1b7bcf5f56a2d4f, found: 7dac445ca25d81021e3ee978c6a5c885
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.BaseRoomConnectionManager.checkIdentity(RoomConnectionManager.kt:291)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.BaseRoomConnectionManager.onOpen(RoomConnectionManager.kt:270)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.RoomConnectionManager$SupportOpenHelperCallback.onOpen(RoomConnectionManager.android.kt:177)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.db.framework.FrameworkSQLiteOpenHelper$OpenHelper.onOpen(FrameworkSQLiteOpenHelper.android.kt:279)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at android.database.sqlite.SQLiteOpenHelper.getDatabaseLocked(SQLiteOpenHelper.java:448)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at android.database.sqlite.SQLiteOpenHelper.getWritableDatabase(SQLiteOpenHelper.java:336)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.db.framework.FrameworkSQLiteOpenHelper$OpenHelper.getWritableOrReadableDatabase(FrameworkSQLiteOpenHelper.android.kt:224)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.db.framework.FrameworkSQLiteOpenHelper$OpenHelper.innerGetDatabase(FrameworkSQLiteOpenHelper.android.kt:180)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.db.framework.FrameworkSQLiteOpenHelper$OpenHelper.getSupportDatabase(FrameworkSQLiteOpenHelper.android.kt:141)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.db.framework.FrameworkSQLiteOpenHelper.getWritableDatabase(FrameworkSQLiteOpenHelper.android.kt:96)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.driver.SupportSQLiteDriver.open(SupportSQLiteDriver.android.kt:57)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.sqlite.driver.SupportSQLiteDriver.open(SupportSQLiteDriver.android.kt:33)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.coroutines.PassthroughConnectionPool.connection$lambda$0(PassthroughConnectionPool.kt:47)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.coroutines.PassthroughConnectionPool.$r8$lambda$5PfN97KPsXXXOapSC9IzcedL70w(Unknown Source:0)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.coroutines.PassthroughConnectionPool$$ExternalSyntheticLambda0.invoke(D8$$SyntheticClass:0)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at kotlin.SynchronizedLazyImpl.getValue(LazyJVM.kt:83)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.coroutines.PassthroughConnectionPool.useConnection(PassthroughConnectionPool.kt:58)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.RoomConnectionManager.useConnection(RoomConnectionManager.android.kt:138)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.RoomDatabase.useConnection(RoomDatabase.android.kt:619)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at androidx.room.util.DBUtil__DBUtil_androidKt$performSuspending$$inlined$compatCoroutineExecute$DBUtil__DBUtil_androidKt$1.invokeSuspend(DBUtil.android.kt:261)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(ContinuationImpl.kt:33)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at kotlinx.coroutines.DispatchedTask.run(DispatchedTask.kt:104)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1154)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:652)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	at java.lang.Thread.run(Thread.java:1564)
+04-04 11:11:15.717  9681  9800 E AndroidRuntime: 	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [StandaloneCoroutine{Cancelling}@be3a2b0, Dispatchers.IO]
+04-04 11:11:15.747  9681  9800 I Process : Sending signal. PID: 9681 SIG: 9
+04-04 11:11:15.766  1889  2087 I Finsky  : [336] User is not an active Play Pass subscriber
+04-04 11:11:15.837  9824  9824 I soft.appmanager: AssetManager2(0xb400007339dca698) locale list changing from [] to [en-US]
+04-04 11:11:15.878  9824  9824 I soft.appmanager: AssetManager2(0xb400007339dccc18) locale list changing from [] to [en-US]
+04-04 11:11:15.883  9824  9824 I soft.appmanager: AssetManager2(0xb400007339dcacd8) locale list changing from [] to [en-US]
+04-04 11:11:16.826 30498 30498 W ube:assistantui: type=1400 audit(0.0:285194): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=489 scontext=u:r:system_app:s0 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0
+04-04 11:11:16.830 30498 30498 W ube:assistantui: type=1400 audit(0.0:285195): avc:  denied  { read } for  name="u:object_r:vendor_display_prop:s0" dev="tmpfs" ino=489 scontext=u:r:system_app:s0 tcontext=u:object_r:vendor_display_prop:s0 tclass=file permissive=0
+04-04 11:11:15.932  1889  2087 I Finsky  : [336] User is not an active Play Pass subscriber
+04-04 11:11:15.935  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2159 
+04-04 11:11:15.936  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 0, locked = false
+04-04 11:11:15.937  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1434 onStartInput(EditorInfo{EditorInfo{packageName=com.miniclip.carrom, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+04-04 11:11:15.937  7621  7621 W AndroidIME: LatinIMEBase.updateInputViewCoverNavigation():317 Null input view, cannot update padding!
+04-04 11:11:15.938  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 1, locked = false
+04-04 11:11:16.032  9824  9932 D SQLiteQueryBuilder: SELECT oid FROM logs
+04-04 11:11:16.036  9824  9932 D SQLiteQueryBuilder: SELECT COUNT(*) FROM logs WHERE (persistence_group = ?)
+04-04 11:11:16.037  9824  9932 D SQLiteQueryBuilder: SELECT COUNT(*) FROM logs WHERE (persistence_group = ?)
+04-04 11:11:16.038  9824  9932 D SQLiteQueryBuilder: SELECT COUNT(*) FROM logs WHERE (persistence_group = ?)
+04-04 11:11:16.101  7559  8133 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+04-04 11:11:16.109  7559  8133 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+04-04 11:11:16.111 26708 32518 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+04-04 11:11:16.111 27591 27788 W AidlConversionCppNdk: aidl2legacy_AudioChannelLayout_audio_channel_mask_t: no legacy output audio_channel_mask_t found for AudioChannelLayout{layoutMask: 16}
+04-04 11:11:16.135  9946  9946 E dumpsys : BBinder_init Processname  dumpsys  
+04-04 11:11:16.136  9946  9946 E dumpsys : BBinder_init hasGetProcessName  dumpsys
+04-04 11:11:16.140  9946  9946 W dumpsys : Thread Pool max thread count is 0. Cannot cache binder as linkToDeath cannot be implemented. serviceName: window
+04-04 11:11:16.275 30498 30498 D EventBus: No subscribers registered for event class com.vivo.gameassistant.homegui.sideslide.panels.performance.modeshift.l
+04-04 11:11:16.275 30498 30498 D EventBus: No subscribers registered for event class yj.f
+04-04 11:11:16.278  9824  9853 I OneAuthLog: [OneAuth:0002:Info:48bf5:00000000] MATS DeviceProfileTelemetryId: 3dc4458b899123c0
+04-04 11:11:16.279  9824  9853 I OneAuthLog: [OneAuth:0002:Info:4md0u:00000000] MATS device telemetry enabled.
+04-04 11:11:16.288  9824  9853 I OneAuthLog: [OneAuth:0002:Info:4yqc4:4fe007ca] Starting transaction for Startup
+04-04 11:11:16.328  9824  9824 W System.err: SLF4J: No SLF4J providers were found.
+04-04 11:11:16.328  9824  9824 W System.err: SLF4J: Defaulting to no-operation (NOP) logger implementation
+04-04 11:11:16.328  9824  9824 W System.err: SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+04-04 11:11:16.331  9824  9853 I OneAuthLog: [MSAL:0002]	INFO   	CreateSingletonComponents:143	Starting up MSAL
+04-04 11:11:16.357 30498 30498 D EventBus: No subscribers registered for event class com.vivo.gameassistant.entity.UpdateItemStateEvent
+04-04 11:11:16.358 30498 30498 D EventBus: No subscribers registered for event class yj.f
+04-04 11:11:16.358  9824  9853 I OneAuthLog: [MSAL:0002]	INFO   	AddConfigurationWithStorageManager:269	Created a new public client application with ID ''
+04-04 11:11:16.361  9824  9853 I OneAuthLog: [OneAuth:0002:Info:8mqsd:4fe007ca] OneAuth Version 9.1.0 (com.microsoft.appmanager)
+04-04 11:11:16.361  9824  9853 I OneAuthLog: [OneAuth:0002:Info:9zj7z:4fe007ca] Language code 'en-US' is not supported, fall back to 'en'
+04-04 11:11:16.362  9824  9853 I OneAuthLog: [OneAuth:0002:Info:4yqdw:bd17cc68] Starting transaction for readaccountbyid
+04-04 11:11:16.372  9824  9853 I OneAuthLog: [OneAuth:0002:Info:4yqdw:4260b28a] Starting transaction for readaccountbyid
+04-04 11:11:16.376  9824  9862 I OneAuthLog: [OneAuth:0004:Info:4yqdw:49d715ac] Starting transaction for readaccountbyid
+04-04 11:11:16.394  9824 10006 I OneAuthLog: [OneAuth:0005:Info:4yqdn:0a6bee8d] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.402  9824 10006 I OneAuthLog: [OneAuth:0005:Info:9zkae:0a6bee8d] Start task AcquireCredentialSilently [0]
+04-04 11:11:16.402  9824 10006 I OneAuthLog: [MSAL:0005]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.402  9824 10006 I OneAuthLog: [MSAL:0005]	INFO   	SetCorrelationId:239	Set correlation ID: 0a6bee8d-63fe-49fb-a0bd-a4fa9c0ba3c4
+04-04 11:11:16.403  9824 10006 I OneAuthLog: [MSAL:0005]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.403  9824 10006 I OneAuthLog: [MSAL:0005]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.411 30498 30938 I ube:assistantui: AssetManager2(0xb400007339dcb638) locale list changing from [] to [en-US]
+04-04 11:11:16.412  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:9557739e] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.412  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:9557739e] Start task AcquireCredentialSilently [1]
+04-04 11:11:16.412  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:9557739e] isAdfs false
+04-04 11:11:16.412  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.417  9824 10018 I OneAuthLog: [OneAuth:0008:Info:4yqdw:aa0a236d] Starting transaction for readaccountbyid
+04-04 11:11:16.420  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: 9557739e-7ba0-4dd8-b731-3afe371a5f5b
+04-04 11:11:16.421  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:16.422  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.422  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.435  9824 10018 I OneAuthLog: [OneAuth:0008:Info:4yqdw:5a956c74] Starting transaction for readaccountbyid
+04-04 11:11:16.461 30498 30938 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.466  9824  9939 W JobInfo : Requested important-while-foreground flag for job8206 is ignored and takes no effect
+04-04 11:11:16.467  9824  9939 D CompatChangeReporter: Compat change id reported: 311402873; UID 10295; state: ENABLED
+04-04 11:11:16.467  9824  9939 D CompatChangeReporter: Compat change id reported: 323349338; UID 10295; state: ENABLED
+04-04 11:11:16.470 30498 30938 I ube:assistantui: AssetManager2(0xb400007339dca058) locale list changing from [] to [en-US]
+04-04 11:11:16.477  9824  9824 I Choreographer: Skipped 49 frames!  The application may be doing too much work on its main thread.
+04-04 11:11:16.485 30498 30938 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.495  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.495  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.495  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.495  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.500  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.500 30498 30938 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.512  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: 9557739e-7ba0-4dd8-b731-3afe371a5f5b
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-04T16:29:10.000Z
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 106
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: 9557739e-7ba0-4dd8-b731-3afe371a5f5b
+04-04 11:11:16.531  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:16.532  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":5,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":5,"s":2,"l":2},{"t":"4swgf","tid":6,"ts":5,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":11,"s":2,"l":2},{"t":"8b2yn","tid":9,"ts":11,"l":2},{"t":"4efdy","tid":9,"ts":12,"l":2},{"t":"4efe1","tid":9,"ts":21,"l":2},{"t":"4efez","tid":9,"ts":22,"l":2},{"t":"4efey","tid":9,"ts":22,"l":2},{"t":"4efew","tid":9,"ts":23,"l":2},{"t":"4efdx","tid":9,"ts":23,"l":2},{"t":"8dqkx","tid":9,"ts":73,"l":2},{"t":"4q2di","tid":9,"ts":73,"l":2},{"t":"4qnng","tid":9,"ts":73,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":89,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":90,"l":2},{"t":"8b2ht","tid":9,"ts":90,"l":2},{"t":"4qnno","tid":9,"ts":90,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":105,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":9,"ts":105,"l":2},{"t":"4c10b","tid":9,"ts":105,"l":2},{"t":"4c10a","tid":9,"ts":109,"l":2}
+04-04 11:11:16.532  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6qhvn:9557739e] Start DetermineFederationProvider
+04-04 11:11:16.533  9824 10021 I OneAuthLog: [OneAuth:0009:Info:5nhsl:9557739e] Hrd Parameters found in blob storage for domain = '(pii)', Authority host = login.microsoftonline.com
+04-04 11:11:16.534  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6b224:9557739e] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":5,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":5,"s":2,"l":2},{"t":"4swgf","tid":6,"ts":5,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":11,"s":2,"l":2},{"t":"8b2yn","tid":9,"ts":11,"l":2},{"t":"4efdy","tid":9,"ts":12,"l":2},{"t":"4efe1","tid":9,"ts":21,"l":2},{"t":"4efez","tid":9,"ts":22,"l":2},{"t":"4efey","tid":9,"ts":22,"l":2},{"t":"4efew","tid":9,"ts":23,"l":2},{"t":"4efdx","tid":9,"ts":23,"l":2},{"t":"8dqkx","tid":9,"ts":73,"l":2},{"t":"4q2di","tid":9,"ts":73,"l":2},{"t":"4qnng","tid":9,"ts":73,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":89,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":90,"l":2},{"t":"8b2ht","tid":9,"ts":90,"l":2},{"t":"4qnno","tid":9,"ts":90,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":105,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":9,"ts":105,"l":2},{"t":"4c10b","tid":9,"ts":105,"l":2},{"t":"4c10a","tid":9,"ts":109,"l":2}],"t":[]}
+04-04 11:11:16.557  1889  1993 I cn_CronetUrlRequestContext: destroyNativeStreamLocked android.net.http.internal.org.chromium.net.impl.CronetBidirectionalStream@fed80a5
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: 0a6bee8d-63fe-49fb-a0bd-a4fa9c0ba3c4
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-04T06:40:37.000Z
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:16.587  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.588  9824 10021 I OneAuthLog: [OneAuth:0009:Info:9zkad:9557739e] Finish task AcquireCredentialSilently [1]
+04-04 11:11:16.588  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:16.588  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:16.589  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 131
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:16.590  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: 0a6bee8d-63fe-49fb-a0bd-a4fa9c0ba3c4
+04-04 11:11:16.591  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:16.592  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":5,"ts":0,"l":2},{"t":"4sufd","tid":5,"ts":7,"s":2,"l":2},{"t":"4swgg","tid":5,"ts":7,"s":1,"l":2},{"t":"4swgf","tid":5,"ts":7,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":14,"s":1,"l":2},{"t":"8b2yn","tid":7,"ts":14,"l":2},{"t":"4efdy","tid":7,"ts":14,"l":2},{"t":"4efe1","tid":7,"ts":15,"l":2},{"t":"4efez","tid":7,"ts":16,"l":2},{"t":"4efey","tid":7,"ts":18,"l":2},{"t":"4efew","tid":7,"ts":38,"l":2},{"t":"4efdx","tid":7,"ts":39,"l":2},{"t":"8dqkx","tid":7,"ts":92,"l":2},{"t":"4q2di","tid":7,"ts":92,"l":2},{"t":"4qnng","tid":7,"ts":92,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":95,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":97,"l":2},{"t":"8b2ht","tid":7,"ts":97,"l":2},{"t":"4qnno","tid":7,"ts":97,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":128,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":131,"l":2},{"t":"4c10b","tid":7,"ts":131,"l":2},{"t":"4c10a","tid":7,"ts":183,"l":2}
+04-04 11:11:16.592  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6qhvn:0a6bee8d] Start DetermineFederationProvider
+04-04 11:11:16.592  9824 10019 I OneAuthLog: [OneAuth:0007:Info:5nhsm:0a6bee8d] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:16.593  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6b224:0a6bee8d] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":5,"ts":0,"l":2},{"t":"4sufd","tid":5,"ts":7,"s":2,"l":2},{"t":"4swgg","tid":5,"ts":7,"s":1,"l":2},{"t":"4swgf","tid":5,"ts":7,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":14,"s":1,"l":2},{"t":"8b2yn","tid":7,"ts":14,"l":2},{"t":"4efdy","tid":7,"ts":14,"l":2},{"t":"4efe1","tid":7,"ts":15,"l":2},{"t":"4efez","tid":7,"ts":16,"l":2},{"t":"4efey","tid":7,"ts":18,"l":2},{"t":"4efew","tid":7,"ts":38,"l":2},{"t":"4efdx","tid":7,"ts":39,"l":2},{"t":"8dqkx","tid":7,"ts":92,"l":2},{"t":"4q2di","tid":7,"ts":92,"l":2},{"t":"4qnng","tid":7,"ts":92,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":95,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":97,"l":2},{"t":"8b2ht","tid":7,"ts":97,"l":2},{"t":"4qnno","tid":7,"ts":97,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":128,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":131,"l":2},{"t":"4c10b","tid":7,"ts":131,"l":2},{"t":"4c10a","tid":7,"ts":183,"l":2}],"t":[]}
+04-04 11:11:16.593 30498 30938 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.595  9824 10019 I OneAuthLog: [OneAuth:0007:Info:9zkad:0a6bee8d] Finish task AcquireCredentialSilently [0]
+04-04 11:11:16.612  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:c3202592] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.613  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:c3202592] Start task AcquireCredentialSilently [2]
+04-04 11:11:16.613  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:c3202592] isAdfs false
+04-04 11:11:16.613  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.614  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: c3202592-f575-4fcd-b69e-d7d648fb5b1b
+04-04 11:11:16.614  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:16.614  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.615  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.635  9824  9862 D nativeloader: Load /data/app/~~G9P5aP4SVDq-eZbwcueFsw==/com.microsoft.appmanager-1GuYFAtt2gGXyQyP0dO9yw==/base.apk!/lib/arm64-v8a/libmaesdk.so using class loader ns clns-9 (caller=/data/app/~~G9P5aP4SVDq-eZbwcueFsw==/com.microsoft.appmanager-1GuYFAtt2gGXyQyP0dO9yw==/base.apk!classes2.dex): ok
+04-04 11:11:16.641  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.641  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.644  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.654 30498 30563 I ube:assistantui: Background concurrent copying GC freed 4318KB AllocSpace bytes, 16(1832KB) LOS objects, 49% free, 7975KB/15MB, paused 180us,81us total 232.850ms
+04-04 11:11:16.656 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:16.659 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:16.659  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	TryUseStorage:216	Access token in universal storage matches known, expired token: go to refresh tokens
+04-04 11:11:16.660 30498 30938 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.661  9824 10021 W OneAuthLog: [MSAL:0009]	WARNING	GetPlatformPropertiesFromStorage:2082	No account found in cache.
+04-04 11:11:16.668 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:16.673 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:16.739  9824  9990 I ed.t    : Provider GmsCore_OpenSSL not available
+04-04 11:11:16.792  9824 10061 I OneAuthLog: [OneAuth:0010:Info:4yqdw:21c3be34] Starting transaction for readaccountbyid
+04-04 11:11:16.795 30498 30498 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.800  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:10df8ef8] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.801  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:10df8ef8] Start task AcquireCredentialSilently [3]
+04-04 11:11:16.801  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:10df8ef8] isAdfs false
+04-04 11:11:16.801  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.802  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: 10df8ef8-ea80-4465-a58d-60dab230bb4d
+04-04 11:11:16.802  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:16.802  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.802  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.804  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.804  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.808  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.810  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: 10df8ef8-ea80-4465-a58d-60dab230bb4d
+04-04 11:11:16.811  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-05T05:40:36.000Z
+04-04 11:11:16.811  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:16.811  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:16.811  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:16.812  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:16.812  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.812  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:16.813  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:16.813  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 8
+04-04 11:11:16.814  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:16.814  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:16.815  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:16.815  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:16.815  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:16.815  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:16.815  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:16.816  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:16.817  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:16.817  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.818  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:16.818  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: 10df8ef8-ea80-4465-a58d-60dab230bb4d
+04-04 11:11:16.819  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:16.819  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":4,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":4,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":1,"l":2},{"t":"4efey","tid":7,"ts":1,"l":2},{"t":"4efew","tid":7,"ts":2,"l":2},{"t":"4efdx","tid":7,"ts":2,"l":2},{"t":"8dqkx","tid":7,"ts":2,"l":2},{"t":"4q2di","tid":7,"ts":2,"l":2},{"t":"4qnng","tid":7,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":3,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":6,"l":2},{"t":"8b2ht","tid":7,"ts":6,"l":2},{"t":"4qnno","tid":7,"ts":6,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":8,"l":2},{"t":"4c10b","tid":7,"ts":8,"l":2},{"t":"4c10a","tid":7,"ts":8,"l":2}
+04-04 11:11:16.820  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6qhvn:10df8ef8] Start DetermineFederationProvider
+04-04 11:11:16.820  9824 10019 I OneAuthLog: [OneAuth:0007:Info:5nhsm:10df8ef8] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:16.821  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6b224:10df8ef8] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":4,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":4,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":1,"l":2},{"t":"4efey","tid":7,"ts":1,"l":2},{"t":"4efew","tid":7,"ts":2,"l":2},{"t":"4efdx","tid":7,"ts":2,"l":2},{"t":"8dqkx","tid":7,"ts":2,"l":2},{"t":"4q2di","tid":7,"ts":2,"l":2},{"t":"4qnng","tid":7,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":3,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":6,"l":2},{"t":"8b2ht","tid":7,"ts":6,"l":2},{"t":"4qnno","tid":7,"ts":6,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":8,"l":2},{"t":"4c10b","tid":7,"ts":8,"l":2},{"t":"4c10a","tid":7,"ts":8,"l":2}],"t":[]}
+04-04 11:11:16.828  9824 10019 I OneAuthLog: [OneAuth:0007:Info:9zkad:10df8ef8] Finish task AcquireCredentialSilently [3]
+04-04 11:11:16.831  9824 10037 I OneAuthLog: [OneAuth:0011:Info:4yqdw:00aa6f94] Starting transaction for readaccountbyid
+04-04 11:11:16.832 30498 30498 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:16.833 30498 30498 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:16.834  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:7496525d] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.835  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:7496525d] Start task AcquireCredentialSilently [4]
+04-04 11:11:16.837  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:7496525d] isAdfs false
+04-04 11:11:16.837  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.839  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: 7496525d-3d56-49e2-a316-0755d322e39a
+04-04 11:11:16.841  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:16.841  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.844  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.854  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.854  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.855  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.857  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: 7496525d-3d56-49e2-a316-0755d322e39a
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-05T05:40:36.000Z
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 17
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: 7496525d-3d56-49e2-a316-0755d322e39a
+04-04 11:11:16.858  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:16.859  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":5,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":1,"s":5,"l":2},{"t":"8b2yn","tid":7,"ts":1,"l":2},{"t":"4efdy","tid":7,"ts":1,"l":2},{"t":"4efe1","tid":7,"ts":1,"l":2},{"t":"4efez","tid":7,"ts":4,"l":2},{"t":"4efey","tid":7,"ts":4,"l":2},{"t":"4efew","tid":7,"ts":5,"l":2},{"t":"4efdx","tid":7,"ts":7,"l":2},{"t":"8dqkx","tid":7,"ts":7,"l":2},{"t":"4q2di","tid":7,"ts":7,"l":2},{"t":"4qnng","tid":7,"ts":7,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":8,"l":2},{"t":"8b2ht","tid":7,"ts":8,"l":2},{"t":"4qnno","tid":7,"ts":8,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":10,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":10,"l":2},{"t":"4c10b","tid":7,"ts":10,"l":2},{"t":"4c10a","tid":7,"ts":10,"l":2}
+04-04 11:11:16.859  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6qhvn:7496525d] Start DetermineFederationProvider
+04-04 11:11:16.859  9824 10019 I OneAuthLog: [OneAuth:0007:Info:5nhsm:7496525d] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:16.861  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6b224:7496525d] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":5,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":1,"s":5,"l":2},{"t":"8b2yn","tid":7,"ts":1,"l":2},{"t":"4efdy","tid":7,"ts":1,"l":2},{"t":"4efe1","tid":7,"ts":1,"l":2},{"t":"4efez","tid":7,"ts":4,"l":2},{"t":"4efey","tid":7,"ts":4,"l":2},{"t":"4efew","tid":7,"ts":5,"l":2},{"t":"4efdx","tid":7,"ts":7,"l":2},{"t":"8dqkx","tid":7,"ts":7,"l":2},{"t":"4q2di","tid":7,"ts":7,"l":2},{"t":"4qnng","tid":7,"ts":7,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":8,"l":2},{"t":"8b2ht","tid":7,"ts":8,"l":2},{"t":"4qnno","tid":7,"ts":8,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":10,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":10,"l":2},{"t":"4c10b","tid":7,"ts":10,"l":2},{"t":"4c10a","tid":7,"ts":10,"l":2}],"t":[]}
+04-04 11:11:16.862  9824 10019 I OneAuthLog: [OneAuth:0007:Info:9zkad:7496525d] Finish task AcquireCredentialSilently [4]
+04-04 11:11:16.868  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:cd2bf22e] Starting transaction for acquirecredentialsilently
+04-04 11:11:16.870  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:cd2bf22e] Start task AcquireCredentialSilently [5]
+04-04 11:11:16.870  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:cd2bf22e] isAdfs false
+04-04 11:11:16.870  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:16.870  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: cd2bf22e-2f9d-4e6d-8c7d-ed0d81d9e612
+04-04 11:11:16.871  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:16.871  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:16.871  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:16.874  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:16.874  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:16.877  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:16.879  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:216	Access token in universal storage matches known, expired token: go to refresh tokens
+04-04 11:11:16.884  9824 10019 W OneAuthLog: [MSAL:0007]	WARNING	GetPlatformPropertiesFromStorage:2082	No account found in cache.
+04-04 11:11:17.010  1889  1993 I cn_CronetUrlRequestContext: destroyNativeStreamLocked android.net.http.internal.org.chromium.net.impl.CronetBidirectionalStream@8f42282
+04-04 11:11:16.809 30498 30498 W HWUI    : Image decoding logging dropped!
+04-04 11:11:16.831 30498 30498 D ViewRootImpl: AppSizeAfterRelayout, size: Point(33, 231), rotation: ROTATION_0
+04-04 11:11:16.837 30498 31711 W BLASTBufferQueue: Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:16.837 30498 31711 I BLASTBufferQueue: QoSAllocBuff Successful. Ret 0 
+04-04 11:11:16.842 30498 30498 D EventBus: No subscribers registered for event class ta.c
+04-04 11:11:16.842 30498 30498 D EventBus: No subscribers registered for event class yj.f
+04-04 11:11:17.063  9273  9376 E msys    : E[N mns:TigonMNS]_OnResolverSuccess(291)=>Cache refresh succeeded with system DNS resolver. IP count: 2
+04-04 11:11:18.302  7998  8365 I PermissionControllerServiceImpl: Updating user sensitive for uid 10295
+04-04 11:11:18.616  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: c3202592-f575-4fcd-b69e-d7d648fb5b1b
+04-04 11:11:18.617  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:18.617  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-04T06:41:18.000Z
+04-04 11:11:18.617  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: storage_write, Value: DRT|DRT|DAT|DID|DAC
+04-04 11:11:18.617  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: tenant_id, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:18.618  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 2001
+04-04 11:11:18.618  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: request_eligible_for_broker, Value: true
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID|DAMD|DAC
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:18.619  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: true
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_duration, Value: 1725
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:18.620  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: Broker
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:18.000Z
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: write_token, Value: ART-c59e1f94d2fd153c|FRT-c59e1f94d2fd153c|AT|ID
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_response_latency, Value: 19
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:18.621  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:18.622  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: c3202592-f575-4fcd-b69e-d7d648fb5b1b
+04-04 11:11:18.622  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:18.622  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":3,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":3,"s":3,"l":2},{"t":"4swgf","tid":6,"ts":3,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":3,"s":3,"l":2},{"t":"8b2yn","tid":9,"ts":3,"l":2},{"t":"4efdy","tid":9,"ts":3,"l":2},{"t":"4efe1","tid":9,"ts":4,"l":2},{"t":"4efez","tid":9,"ts":24,"l":2},{"t":"4efey","tid":9,"ts":24,"l":2},{"t":"4efew","tid":9,"ts":25,"l":2},{"t":"4efdx","tid":9,"ts":25,"l":2},{"t":"8dqkx","tid":9,"ts":25,"l":2},{"t":"4q2di","tid":9,"ts":26,"l":2},{"t":"4qnng","tid":9,"ts":26,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":29,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":29,"l":2},{"t":"8b2ht","tid":9,"ts":29,"l":2},{"t":"4qnno","tid":9,"ts":29,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":44,"l":2,"a":2,"ie":1},{"t":"8dqif","tid":9,"ts":44,"l":2},{"t":"8b2hu","tid":9,"ts":44,"l":2},{"t":"5b8fg","tid":9,"ts":45,"l":2},{"t":"8dqk0","tid":9,"ts":46,"l":2},{"t":"4qnng","tid":9,"ts":46,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":46,"l":2,"a":2,"ie":1},{"t":"8dqjd","tid":9,"ts":46,"l":2},{"t":"694nj","tid":9,"ts":48,"l":2,"a":10,"ie":0},{"t":"4efdy","tid":9,"ts":48,"l":2},{"t":"4efe1","tid":9,"ts":48,"l":2},{"t":"4efez","tid":9,"ts":49,"l":2},{"t":"4efey","tid":9,"ts":49,"l":2},{"t":"4efew","tid":9,"ts":50,"l":2},{"t":"4efdx","tid":9,"ts":68,"l":2},{"t":"694nk","tid":9,"ts":1988,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":9,"ts":1988,"l":2},{"t":"8dqlh","tid":9,"ts":1989,"l":2},{"t":"8dqli","tid":9,"ts":1989,"l":2},{"t":"8dqln","tid":9,"ts":1989,"l":2},{"t":"4qnna","tid":9,"ts":1989,"l":2,"a":2,"ie":0},{"t":"4qnm9","tid":9,"ts":1990,"l":2,"a":2,"ie":1},{"t":"8dqi9","tid":9,"ts":1990,"l":2},{"t":"4qnnm","tid":9,"ts":1990,"l":2,"a":3,"ie":0},{"t":"4qnnl","tid":9,"ts":1998,"l":2,"a":3,"ie":1},{"t":"4qnng","tid":9,"ts":1999,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":1999,"l":2,"a":2,"ie":1},{"t":"4qnne","tid":9,"ts":1999,"l":2,"a":3,"ie":0},{"t":"4qnnd","tid":9,"ts":2000,"l":2,"a":3,"ie":1},{"t":"6xuag","tid":9,"ts":2000,"l":2},{"t":"4c10b","tid":9,"ts":2000,"l":2},{"t":"4c10a","tid":9,"ts":2001,"l":2}
+04-04 11:11:18.622  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6qhvn:c3202592] Start DetermineFederationProvider
+04-04 11:11:18.623  9824 10021 I OneAuthLog: [OneAuth:0009:Info:5nhsm:c3202592] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:18.624  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: cd2bf22e-2f9d-4e6d-8c7d-ed0d81d9e612
+04-04 11:11:18.625  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:18.625  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-05T05:41:18.000Z
+04-04 11:11:18.625  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_write, Value: DRT|DRT|DAT|DID|DAC
+04-04 11:11:18.626  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: tenant_id, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:18.626  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 1752
+04-04 11:11:18.628  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_eligible_for_broker, Value: true
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID|DAMD|DAC
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:18.629  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:18.629  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6b224:c3202592] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":3,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":3,"s":3,"l":2},{"t":"4swgf","tid":6,"ts":3,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":3,"s":3,"l":2},{"t":"8b2yn","tid":9,"ts":3,"l":2},{"t":"4efdy","tid":9,"ts":3,"l":2},{"t":"4efe1","tid":9,"ts":4,"l":2},{"t":"4efez","tid":9,"ts":24,"l":2},{"t":"4efey","tid":9,"ts":24,"l":2},{"t":"4efew","tid":9,"ts":25,"l":2},{"t":"4efdx","tid":9,"ts":25,"l":2},{"t":"8dqkx","tid":9,"ts":25,"l":2},{"t":"4q2di","tid":9,"ts":26,"l":2},{"t":"4qnng","tid":9,"ts":26,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":29,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":29,"l":2},{"t":"8b2ht","tid":9,"ts":29,"l":2},{"t":"4qnno","tid":9,"ts":29,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":44,"l":2,"a":2,"ie":1},{"t":"8dqif","tid":9,"ts":44,"l":2},{"t":"8b2hu","tid":9,"ts":44,"l":2},{"t":"5b8fg","tid":9,"ts":45,"l":2},{"t":"8dqk0","tid":9,"ts":46,"l":2},{"t":"4qnng","tid":9,"ts":46,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":46,"l":2,"a":2,"ie":1},{"t":"8dqjd","tid":9,"ts":46,"l":2},{"t":"694nj","tid":9,"ts":48,"l":2,"a":10,"ie":0},{"t":"4efdy","tid":9,"ts":48,"l":2},{"t":"4efe1","tid":9,"ts":48,"l":2},{"t":"4efez","tid":9,"ts":49,"l":2},{"t":"4efey","tid":9,"ts":49,"l":2},{"t":"4efew","tid":9,"ts":50,"l":2},{"t":"4efdx","tid":9,"ts":68,"l":2},{"t":"694nk","tid":9,"ts":1988,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":9,"ts":1988,"l":2},{"t":"8dqlh","tid":9,"ts":1989,"l":2},{"t":"8dqli","tid":9,"ts":1989,"l":2},{"t":"8dqln","tid":9,"ts":1989,"l":2},{"t":"4qnna","tid":9,"ts":1989,"l":2,"a":2,"ie":0},{"t":"4qnm9","tid":9,"ts":1990,"l":2,"a":2,"ie":1},{"t":"8dqi9","tid":9,"ts":1990,"l":2},{"t":"4qnnm","tid":9,"ts":1990,"l":2,"a":3,"ie":0},{"t":"4qnnl","tid":9,"ts":1998,"l":2,"a":3,"ie":1},{"t":"4qnng","tid":9,"ts":1999,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":1999,"l":2,"a":2,"ie":1},{"t":"4qnne","tid":9,"ts":1999,"l":2,"a":3,"ie":0},{"t":"4qnnd","tid":9,"ts":2000,"l":2,"a":3,"ie":1},{"t":"6xuag","tid":9,"ts":2000,
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: true
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_duration, Value: 1693
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:16.000Z
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: Broker
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:18.000Z
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: write_token, Value: ART-c59e1f94d2fd153c|FRT-c59e1f94d2fd153c|AT|ID
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_response_latency, Value: 21
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: cd2bf22e-2f9d-4e6d-8c7d-ed0d81d9e612
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:18.630  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":6,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":6,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":1,"l":2},{"t":"4efey","tid":7,"ts":1,"l":2},{"t":"4efew","tid":7,"ts":2,"l":2},{"t":"4efdx","tid":7,"ts":3,"l":2},{"t":"8dqkx","tid":7,"ts":3,"l":2},{"t":"4q2di","tid":7,"ts":3,"l":2},{"t":"4qnng","tid":7,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":6,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":6,"l":2},{"t":"8b2ht","tid":7,"ts":6,"l":2},{"t":"4qnno","tid":7,"ts":6,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"8dqif","tid":7,"ts":8,"l":2},{"t":"8b2hu","tid":7,"ts":8,"l":2},{"t":"5b8fg","tid":7,"ts":10,"l":2},{"t":"8dqk0","tid":7,"ts":10,"l":2},{"t":"4qnng","tid":7,"ts":10,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":12,"l":2,"a":2,"ie":1},{"t":"8dqjd","tid":7,"ts":12,"l":2},{"t":"694nj","tid":7,"ts":13,"l":2,"a":10,"ie":0},{"t":"4efdy","tid":7,"ts":13,"l":2},{"t":"4efe1","tid":7,"ts":13,"l":2},{"t":"4efez","tid":7,"ts":15,"l":2},{"t":"4efey","tid":7,"ts":15,"l":2},{"t":"4efew","tid":7,"ts":16,"l":2},{"t":"4efdx","tid":7,"ts":16,"l":2},{"t":"694nk","tid":7,"ts":1734,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":7,"ts":1734,"l":2},{"t":"8dqlh","tid":7,"ts":1734,"l":2},{"t":"8dqli","tid":7,"ts":1734,"l":2},{"t":"8dqln","tid":7,"ts":1734,"l":2},{"t":"4qnna","tid":7,"ts":1734,"l":2,"a":2,"ie":0},{"t":"4qnm9","tid":7,"ts":1735,"l":2,"a":2,"ie":1},{"t":"8dqi9","tid":7,"ts":1735,"l":2},{"t":"4qnnm","tid":7,"ts":1735,"l":2,"a":3,"ie":0},{"t":"4qnnl","tid":7,"ts":1749,"l":2,"a":3,"ie":1},{"t":"4qnng","tid":7,"ts":1749,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":1750,"l":2,"a":2,"ie":1},{"t":"4qnne","tid":7,"ts":1750,"l":2,"a":3,"ie":0},{"t":"4qnnd","tid":7,"ts":1752,"l":2,"a":3,"ie":1},{"t":"6xuag","tid":7,"ts":1752,"l":2},{"t":"4c10b","tid":7,"ts":1752,"l":2},{"t":"4c10a","tid":7,"ts":1753,"l":2}
+04-04 11:11:18.630  9824 10021 I OneAuthLog: [OneAuth:0009:Info:9zkad:c3202592] Finish task AcquireCredentialSilently [2]
+04-04 11:11:18.631  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6qhvn:cd2bf22e] Start DetermineFederationProvider
+04-04 11:11:18.631  9824 10019 I OneAuthLog: [OneAuth:0007:Info:5nhsm:cd2bf22e] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:18.632  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6b224:cd2bf22e] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":2,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":6,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":6,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":1,"l":2},{"t":"4efey","tid":7,"ts":1,"l":2},{"t":"4efew","tid":7,"ts":2,"l":2},{"t":"4efdx","tid":7,"ts":3,"l":2},{"t":"8dqkx","tid":7,"ts":3,"l":2},{"t":"4q2di","tid":7,"ts":3,"l":2},{"t":"4qnng","tid":7,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":6,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":6,"l":2},{"t":"8b2ht","tid":7,"ts":6,"l":2},{"t":"4qnno","tid":7,"ts":6,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":8,"l":2,"a":2,"ie":1},{"t":"8dqif","tid":7,"ts":8,"l":2},{"t":"8b2hu","tid":7,"ts":8,"l":2},{"t":"5b8fg","tid":7,"ts":10,"l":2},{"t":"8dqk0","tid":7,"ts":10,"l":2},{"t":"4qnng","tid":7,"ts":10,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":12,"l":2,"a":2,"ie":1},{"t":"8dqjd","tid":7,"ts":12,"l":2},{"t":"694nj","tid":7,"ts":13,"l":2,"a":10,"ie":0},{"t":"4efdy","tid":7,"ts":13,"l":2},{"t":"4efe1","tid":7,"ts":13,"l":2},{"t":"4efez","tid":7,"ts":15,"l":2},{"t":"4efey","tid":7,"ts":15,"l":2},{"t":"4efew","tid":7,"ts":16,"l":2},{"t":"4efdx","tid":7,"ts":16,"l":2},{"t":"694nk","tid":7,"ts":1734,"l":2,"a":10,"ie":1},{"t":"8dqk1","tid":7,"ts":1734,"l":2},{"t":"8dqlh","tid":7,"ts":1734,"l":2},{"t":"8dqli","tid":7,"ts":1734,"l":2},{"t":"8dqln","tid":7,"ts":1734,"l":2},{"t":"4qnna","tid":7,"ts":1734,"l":2,"a":2,"ie":0},{"t":"4qnm9","tid":7,"ts":1735,"l":2,"a":2,"ie":1},{"t":"8dqi9","tid":7,"ts":1735,"l":2},{"t":"4qnnm","tid":7,"ts":1735,"l":2,"a":3,"ie":0},{"t":"4qnnl","tid":7,"ts":1749,"l":2,"a":3,"ie":1},{"t":"4qnng","tid":7,"ts":1749,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":1750,"l":2,"a":2,"ie":1},{"t":"4qnne","tid":7,"ts":1750,"l":2,"a":3,"ie":0},{"t":"4qnnd","tid":7,"ts":1752,"l":2,"a":3,"ie":1},{"t":"6xuag","tid":7,"ts":1752,"l":2},{"t":"4
+04-04 11:11:18.634  9824 10019 I OneAuthLog: [OneAuth:0007:Info:9zkad:cd2bf22e] Finish task AcquireCredentialSilently [5]
+04-04 11:11:19.082  9824  9932 D SQLiteQueryBuilder: SELECT * FROM logs WHERE (persistence_group = ?) ORDER BY priority DESC, oid
+04-04 11:11:19.182  9824 10061 I OneAuthLog: [OneAuth:0010:Info:4yqdw:fb811e44] Starting transaction for readaccountbyid
+04-04 11:11:19.184  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:aaa4c88e] Starting transaction for acquirecredentialsilently
+04-04 11:11:19.185  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:aaa4c88e] Start task AcquireCredentialSilently [6]
+04-04 11:11:19.185  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:aaa4c88e] isAdfs false
+04-04 11:11:19.185  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:19.185  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: aaa4c88e-de53-4c3d-87b0-8c37ed6359c3
+04-04 11:11:19.186  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:19.186  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:19.186  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:19.189  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:19.189  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:19.190  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:19.192  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: aaa4c88e-de53-4c3d-87b0-8c37ed6359c3
+04-04 11:11:19.192  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-05T05:41:18.000Z
+04-04 11:11:19.192  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:19.000Z
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 5
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:19.193  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:19.000Z
+04-04 11:11:19.194  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:19.195  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: aaa4c88e-de53-4c3d-87b0-8c37ed6359c3
+04-04 11:11:19.195  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:19.195  9824 10021 I OneAuthLog: [MSAL:0009]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":3,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":7,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":0,"s":7,"l":2},{"t":"8b2yn","tid":9,"ts":0,"l":2},{"t":"4efdy","tid":9,"ts":0,"l":2},{"t":"4efe1","tid":9,"ts":0,"l":2},{"t":"4efez","tid":9,"ts":1,"l":2},{"t":"4efey","tid":9,"ts":1,"l":2},{"t":"4efew","tid":9,"ts":2,"l":2},{"t":"4efdx","tid":9,"ts":2,"l":2},{"t":"8dqkx","tid":9,"ts":3,"l":2},{"t":"4q2di","tid":9,"ts":3,"l":2},{"t":"4qnng","tid":9,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":4,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":4,"l":2},{"t":"8b2ht","tid":9,"ts":4,"l":2},{"t":"4qnno","tid":9,"ts":4,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":5,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":9,"ts":5,"l":2},{"t":"4c10b","tid":9,"ts":5,"l":2},{"t":"4c10a","tid":9,"ts":6,"l":2}
+04-04 11:11:19.195  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6qhvn:aaa4c88e] Start DetermineFederationProvider
+04-04 11:11:19.195  9824 10021 I OneAuthLog: [OneAuth:0009:Info:5nhsm:aaa4c88e] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:19.197  9824 10021 I OneAuthLog: [OneAuth:0009:Info:6b224:aaa4c88e] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":3,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":7,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":9,"ts":0,"s":7,"l":2},{"t":"8b2yn","tid":9,"ts":0,"l":2},{"t":"4efdy","tid":9,"ts":0,"l":2},{"t":"4efe1","tid":9,"ts":0,"l":2},{"t":"4efez","tid":9,"ts":1,"l":2},{"t":"4efey","tid":9,"ts":1,"l":2},{"t":"4efew","tid":9,"ts":2,"l":2},{"t":"4efdx","tid":9,"ts":2,"l":2},{"t":"8dqkx","tid":9,"ts":3,"l":2},{"t":"4q2di","tid":9,"ts":3,"l":2},{"t":"4qnng","tid":9,"ts":3,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":9,"ts":4,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":9,"ts":4,"l":2},{"t":"8b2ht","tid":9,"ts":4,"l":2},{"t":"4qnno","tid":9,"ts":4,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":9,"ts":5,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":9,"ts":5,"l":2},{"t":"4c10b","tid":9,"ts":5,"l":2},{"t":"4c10a","tid":9,"ts":6,"l":2}],"t":[]}
+04-04 11:11:19.197  9824 10021 I OneAuthLog: [OneAuth:0009:Info:9zkad:aaa4c88e] Finish task AcquireCredentialSilently [6]
+04-04 11:11:19.201  9824 10037 I OneAuthLog: [OneAuth:0011:Info:4yqdw:2d21419c] Starting transaction for readaccountbyid
+04-04 11:11:19.203  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4yqdn:c9a55fb2] Starting transaction for acquirecredentialsilently
+04-04 11:11:19.204  9824 10015 I OneAuthLog: [OneAuth:0006:Info:9zkae:c9a55fb2] Start task AcquireCredentialSilently [7]
+04-04 11:11:19.205  9824 10015 I OneAuthLog: [OneAuth:0006:Info:4p5fv:c9a55fb2] isAdfs false
+04-04 11:11:19.205  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetAuthorityUri:78	Initializing authority from URI 'https://login.microsoftonline.com/consumers' without authority type, defaulting to MsSts
+04-04 11:11:19.205  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	SetCorrelationId:239	Set correlation ID: c9a55fb2-9a9b-45a6-8f76-4d686f9123cc
+04-04 11:11:19.205  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	EnqueueBackgroundRequest:1039	The original authority is 'https://login.microsoftonline.com/consumers'
+04-04 11:11:19.205  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	ModifyAndValidateAuthParameters:237	Authority Realm: consumers
+04-04 11:11:19.206  9824 10015 I OneAuthLog: [MSAL:0006]	INFO   	TryEnqueueMsaDeviceCredentialAcquisitionAndContinue:1113	MSA device registration is disabled.
+04-04 11:11:19.207  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	SetCanonicalRealm:1225	Normalize realm to: '9188040d-6c67-4c5b-b112-36a304b66dad'
+04-04 11:11:19.207  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	TryUseStorage:144	Try to read account from universal storage.
+04-04 11:11:19.208  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	StorageTokenResponse:84	StorageTokenResponse account constructor invoked. This is only expected in Runtime flows
+04-04 11:11:19.210  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:478	Printing Telemetry for Correlation ID: c9a55fb2-9a9b-45a6-8f76-4d686f9123cc
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: access_token_expiry_time, Value: 2026-04-05T05:41:18.000Z
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: device_idle_mode, Value: NotInDozeMode
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: read_token, Value: ID|AT
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authorization_type, Value: CachedRefreshToken
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: storage_read, Value: DAC|DAT|DID
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: stop_time, Value: 2026-04-04T05:41:19.000Z
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: normalized_realm, Value: 9188040d-6c67-4c5b-b112-36a304b66dad
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: additional_query_parameters_count, Value: 0
+04-04 11:11:19.211  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: request_duration, Value: 4
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_power_optimization, Value: OptOut
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: was_request_throttled, Value: false
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: is_successful, Value: true
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: auth_flow, Value: AT
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: authority_type, Value: MSA
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: original_authority, Value: https://login.microsoftonline.com/consumers
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: broker_app_used, Value: false
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: api_name, Value: AcquireTokenSilently
+04-04 11:11:19.212  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: msal_version, Value: 9.1.0
+04-04 11:11:19.213  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: start_time, Value: 2026-04-04T05:41:19.000Z
+04-04 11:11:19.213  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: client_id, Value: 8ec4ef98-53cc-4d15-a43b-dc15ea21a974
+04-04 11:11:19.213  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:486	Key: correlation_id, Value: c9a55fb2-9a9b-45a6-8f76-4d686f9123cc
+04-04 11:11:19.213  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:491	Printing Execution Flow:
+04-04 11:11:19.213  9824 10019 I OneAuthLog: [MSAL:0007]	INFO   	LogTelemetryData:499	{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":3,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":8,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":8,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":0,"l":2},{"t":"4efey","tid":7,"ts":0,"l":2},{"t":"4efew","tid":7,"ts":1,"l":2},{"t":"4efdx","tid":7,"ts":1,"l":2},{"t":"8dqkx","tid":7,"ts":1,"l":2},{"t":"4q2di","tid":7,"ts":1,"l":2},{"t":"4qnng","tid":7,"ts":2,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":2,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":2,"l":2},{"t":"8b2ht","tid":7,"ts":2,"l":2},{"t":"4qnno","tid":7,"ts":2,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":4,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":4,"l":2},{"t":"4c10b","tid":7,"ts":4,"l":2},{"t":"4c10a","tid":7,"ts":4,"l":2}
+04-04 11:11:19.214  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6qhvn:c9a55fb2] Start DetermineFederationProvider
+04-04 11:11:19.214  9824 10019 I OneAuthLog: [OneAuth:0007:Info:5nhsm:c9a55fb2] Hrd Parameters found in internal cache for domain = '(pii)', Authority Host = login.microsoftonline.com
+04-04 11:11:19.215  9824 10019 I OneAuthLog: [OneAuth:0007:Info:6b224:c9a55fb2] MSAL execution flow: {"de":0,"ef":[{"t":"4s7uc","tid":6,"ts":0,"l":2},{"t":"4sufd","tid":6,"ts":0,"s":3,"l":2},{"t":"4swgg","tid":6,"ts":0,"s":8,"l":2},{"t":"4swgf","tid":6,"ts":0,"s":1,"l":2},{"t":"4swgi","tid":7,"ts":0,"s":8,"l":2},{"t":"8b2yn","tid":7,"ts":0,"l":2},{"t":"4efdy","tid":7,"ts":0,"l":2},{"t":"4efe1","tid":7,"ts":0,"l":2},{"t":"4efez","tid":7,"ts":0,"l":2},{"t":"4efey","tid":7,"ts":0,"l":2},{"t":"4efew","tid":7,"ts":1,"l":2},{"t":"4efdx","tid":7,"ts":1,"l":2},{"t":"8dqkx","tid":7,"ts":1,"l":2},{"t":"4q2di","tid":7,"ts":1,"l":2},{"t":"4qnng","tid":7,"ts":2,"l":2,"a":2,"ie":0},{"t":"4qnnf","tid":7,"ts":2,"l":2,"a":2,"ie":1},{"t":"8dqit","tid":7,"ts":2,"l":2},{"t":"8b2ht","tid":7,"ts":2,"l":2},{"t":"4qnno","tid":7,"ts":2,"l":2,"a":2,"ie":0},{"t":"4qnnn","tid":7,"ts":4,"l":2,"a":2,"ie":1},{"t":"6xuag","tid":7,"ts":4,"l":2},{"t":"4c10b","tid":7,"ts":4,"l":2},{"t":"4c10a","tid":7,"ts":4,"l":2}],"t":[]}
+04-04 11:11:19.215  9824 10019 I OneAuthLog: [OneAuth:0007:Info:9zkad:c9a55fb2] Finish task AcquireCredentialSilently [7]
+04-04 11:11:19.240  9273  9505 E msys    : E[N MQTT]readErr(151)=>TCPStreamTransport readErr
+04-04 11:11:19.240  9273  9505 E msys    : E[N MQTT]onReadError(657)=>Read Error: AsyncSocketException: recv() failed (peer=[2a03:2880:f09e:f:face:b00c:0:8e]:443), type = Internal error, errno = 103 (Software caused connection abort)
+04-04 11:11:19.243  9273  9407 W RealtimeClientManager: Channel state: MqttChannelState{mConnectionState=DISCONNECTED, mDisconnectionReason=null, mLastConnectionMs=165089135, mLastDisconnectMs=165111271}
+04-04 11:11:19.249  9273  9407 W RealtimeClientManager: Channel state: MqttChannelState{mConnectionState=CONNECTING, mDisconnectionReason=null, mLastConnectionMs=165089135, mLastDisconnectMs=165111271}
+04-04 11:11:19.276  9273  9407 W RealtimeClientManager: Channel state: MqttChannelState{mConnectionState=CONNECTED, mDisconnectionReason=null, mLastConnectionMs=165089135, mLastDisconnectMs=165111271}
+04-04 11:11:19.496  9273  9407 W RealtimeClientManager: Channel state: MqttChannelState{mConnectionState=CONNECTED_AND_ACKED, mDisconnectionReason=null, mLastConnectionMs=165111524, mLastDisconnectMs=165111271}
+04-04 11:11:20.047  9824  9932 D SQLiteQueryBuilder: SELECT * FROM logs WHERE (persistence_group = ?) ORDER BY priority DESC, oid
+04-04 11:11:20.053  9824  9932 D SQLiteQueryBuilder: SELECT * FROM logs WHERE (persistence_group = ?) ORDER BY priority DESC, oid
+04-04 11:11:20.055  9824  9932 D SQLiteQueryBuilder: SELECT * FROM logs WHERE (persistence_group = ?) ORDER BY priority DESC, oid
+04-04 11:11:20.130 10186 10186 I .android.chrome: Using CollectorTypeCC GC.
+04-04 11:11:20.142 10186 10186 E .android.chrome: BBinder_init Processname  com.android.chrome  
+04-04 11:11:20.142 10186 10186 E .android.chrome: BBinder_init hasGetProcessName  com.android.chrome
+04-04 11:11:20.147 10187 10187 E cebook.services: BBinder_init Processname  com.facebook.services  
+04-04 11:11:20.147 10187 10187 E cebook.services: BBinder_init hasGetProcessName  com.facebook.services
+04-04 11:11:20.183 10186 10186 W .android.chrome: Failed to find entry 'classes.dex': Entry not found
+04-04 11:11:20.191 10186 10186 I .android.chrome: AssetManager2(0xb400007339dcfaf8) locale list changing from [] to [en-US]
+04-04 11:11:20.192 10186 10186 W Bundle  : Key enable expected ArrayList<java.lang.String> but value was of a different type.  The default value <null> was returned.
+04-04 11:11:20.192 10186 10186 W Bundle  : Attempt to cast generated internal exception:
+04-04 11:11:20.192 10186 10186 W Bundle  : java.lang.ClassCastException: Cannot cast java.lang.Boolean to java.util.ArrayList
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at java.lang.Class.cast(Class.java:4178)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.BaseBundle.getValueAt(BaseBundle.java:439)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.BaseBundle.getValue(BaseBundle.java:401)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.BaseBundle.getArrayList(BaseBundle.java:1569)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.BaseBundle.getStringArrayList(BaseBundle.java:1599)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.Bundle.getStringArrayList(Bundle.java:1385)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at com.vivo.vspa.VspaManager.parseBundles(VspaManager.java:201)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at com.vivo.vspa.VspaManager.initialize(VspaManager.java:105)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.app.VivoActivityThreadImpl.initialize(VivoActivityThreadImpl.java:142)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:8835)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.app.ActivityThread.-$$Nest$mhandleBindApplication(Unknown Source:0)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:3062)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.Handler.dispatchMessage(Handler.java:114)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.Looper.loopOnce(Looper.java:266)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.os.Looper.loop(Looper.java:361)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at android.app.ActivityThread.main(ActivityThread.java:10381)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at java.lang.reflect.Method.invoke(Native Method)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+04-04 11:11:20.192 10186 10186 W Bundle  : 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+04-04 11:11:20.197 10187 10187 I cebook.services: AssetManager2(0xb400007339dc5238) locale list changing from [] to [en-US]
+04-04 11:11:20.199 10187 10187 W Bundle  : Key enable expected ArrayList<java.lang.String> but value was of a different type.  The default value <null> was returned.
+04-04 11:11:20.199 10187 10187 W Bundle  : Attempt to cast generated internal exception:
+04-04 11:11:20.199 10187 10187 W Bundle  : java.lang.ClassCastException: Cannot cast java.lang.Boolean to java.util.ArrayList
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at java.lang.Class.cast(Class.java:4178)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.BaseBundle.getValueAt(BaseBundle.java:439)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.BaseBundle.getValue(BaseBundle.java:401)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.BaseBundle.getArrayList(BaseBundle.java:1569)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.BaseBundle.getStringArrayList(BaseBundle.java:1599)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.Bundle.getStringArrayList(Bundle.java:1385)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at com.vivo.vspa.VspaManager.parseBundles(VspaManager.java:201)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at com.vivo.vspa.VspaManager.initialize(VspaManager.java:105)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.app.VivoActivityThreadImpl.initialize(VivoActivityThreadImpl.java:142)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.app.ActivityThread.handleBindApplication(ActivityThread.java:8835)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.app.ActivityThread.-$$Nest$mhandleBindApplication(Unknown Source:0)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:3062)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.Handler.dispatchMessage(Handler.java:114)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.Looper.loopOnce(Looper.java:266)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.os.Looper.loop(Looper.java:361)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at android.app.ActivityThread.main(ActivityThread.java:10381)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at java.lang.reflect.Method.invoke(Native Method)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:675)
+04-04 11:11:20.199 10187 10187 W Bundle  : 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:1002)
+04-04 11:11:20.201 10186 10186 I LoadedApk: No resource references to update in package com.google.android.trichromelibrary
+04-04 11:11:20.202 10186 10186 I cr_SplitCompatApp: version=146.0.7680.177 (768017733) minSdkVersion=29 processName=com.android.chrome isIsolatedProcess=false splits=chrome,config.en,dev_ui,on_demand,stack_unwinder,test_dummy
+04-04 11:11:20.222 10187 10187 W SoLoader: Initializing SoLoader: 0
+04-04 11:11:20.223 10187 10187 W SoLoader: context.getApplicationContext returned null, holding reference to original context.ApplicationSoSource fallbacks to: /data/app/~~wiST42HAwzKRlYzpKAYNdA==/com.facebook.services-oSm0StS5TZEphipRxJYqXg==/lib/arm64
+04-04 11:11:20.223 10187 10187 I SoLoader: Recording new base apk path: /data/app/~~wiST42HAwzKRlYzpKAYNdA==/com.facebook.services-oSm0StS5TZEphipRxJYqXg==/base.apk
+04-04 11:11:20.223 10187 10187 I SoLoader: Previously recorded 0 base apk paths.
+04-04 11:11:20.223 10187 10187 I SoLoader: Preparing SO source: DirectorySoSource[root = /vendor/lib64 flags = 2]
+04-04 11:11:20.223 10187 10187 I SoLoader: Preparing SO source: DirectorySoSource[root = /system/lib64 flags = 2]
+04-04 11:11:20.224 10187 10187 I SoLoader: Preparing SO source: ApplicationSoSource[DirectorySoSource[root = /data/app/~~wiST42HAwzKRlYzpKAYNdA==/com.facebook.services-oSm0StS5TZEphipRxJYqXg==/lib/arm64 flags = 1]]
+04-04 11:11:20.224 10187 10187 I SoLoader: Preparing SO source: BackupSoSource[root = /data/data/com.facebook.services/lib-main flags = 1 apks = [ExtractFromZipSoSource[/data/app/~~wiST42HAwzKRlYzpKAYNdA==/com.facebook.services-oSm0StS5TZEphipRxJYqXg==/base.apk]]]
+04-04 11:11:20.224 10187 10187 W SoLoader: SoLoader initialized: 0
+04-04 11:11:20.229 10186 10222 I .android.chrome: AssetManager2(0xb400007339dca698) locale list changing from [] to [en-US]
+04-04 11:11:20.238 10186 10226 I cr_LibraryLoader: Loading monochrome_64 from within /data/app/~~BuDyzZuzLYRCWp-gDdK93Q==/com.android.chrome-ataWizO0X0siha8i9o8mFw==/base.apk
+04-04 11:11:20.247  7559  7571 I eesk    : (REDACTED) appOpsListener %s %s
+04-04 11:11:20.247  7559  7571 I eesk    : (REDACTED) Ignoring irrelevant audio permission changes for package %s
+04-04 11:11:20.261 10186 10226 I cr_Linker: loadLibraryImplLocked: monochrome_64, relroMode=1
+04-04 11:11:20.303 10186 10226 I cr_LibraryLoader: Successfully loaded native library
+04-04 11:11:20.308 10186 10226 I cr_CachingUmaRecorder: Flushed 14 samples from 13 histograms, 0 samples were dropped.
+04-04 11:11:20.336 10187 10248 E ashmem  : Pinning is deprecated since Android Q. Please use trim or other methods.
+04-04 11:11:20.401 10187 10187 W SoLoader: Loading notifgateway-jni on the main thread
+04-04 11:11:20.402 10187 10187 W SoLoader[NativeDeps]: Falling back to custom ELF parsing when loading libnotifgateway.so, this can be slow
+04-04 11:11:20.407 10187 10187 W SoLoader[NativeDeps]: Falling back to custom ELF parsing when loading libc++_shared.so, this can be slow
+04-04 11:11:20.422 10187 10187 W SoLoader: Loading simplejni on the main thread
+04-04 11:11:20.422 10187 10187 W SoLoader: Loading simplejni on the main thread
+04-04 11:11:20.439 10187 10187 W DGW     : W[reportSoftError:36] pingInterval: value 43200000 outside valid range [5000, 600000]
+04-04 11:11:20.439 10187 10187 W DGW     : W[reportSoftError:36] bgPingInterval: value 43200000ms outside valid range [5000ms, 600000ms]
+04-04 11:11:20.439 10187 10187 W DGW     : W[reportSoftError:36] stopBgPingDelay: value 3155695200s outside valid range [0s, 600s]
+04-04 11:11:20.441 10187 10187 I DGW     : I[startConnection:461] ConnectivityManager start connection.
+04-04 11:11:20.444 10187 10267 I DGW     : I[sendRequest:85] StreamGroupConnectivityAwareNetworkLayer[notifgateway] buffering request with connection state: 0
+04-04 11:11:20.597 10187 10267 I DGW     : I[onStateChanged:170] StreamGroupConnectivityAwareNetworkLayer processing buffered requests
+04-04 11:11:20.597 10187 10267 I DGW     : I[sendRequest:109] StreamGroupMNSNetworkLayer[notifgateway] DGW Connecting to https://z-m-gateway.facebook.com/notifgateway
+04-04 11:11:20.702 10187 10187 E fbservices-stub:FbnsServiceDelegateV2: onBind invalid signature: Intent { act=com.facebook.push.fbns.ipc.IFbnsAIDLService xflg=0x4 cmp=com.facebook.services/com.facebook.oxygen.services.fbns.PreloadedFbnsService (has extras) }
+04-04 11:11:20.847 10187 10267 W DGW     : W[onSuccessfulResponse:828] StreamGroupTransport[notifgateway] on successful response. DGW is now connected.
+04-04 11:11:23.195 26861 27124 W Settings: Setting airplane_mode_on has moved from android.provider.Settings.System to android.provider.Settings.Global, returning read-only value.
+04-04 11:11:23.196 26861 27124 W Settings: Setting airplane_mode_on has moved from android.provider.Settings.System to android.provider.Settings.Global, returning read-only value.
+04-04 11:11:23.198 26861  9749 W SystemServiceRegistry: No service published for: wifirtt
+04-04 11:11:23.284 26861 27124 I ActivityScheduler: nextTriggerTime: 165175312, in 60000ms, detectorType: 39, FULL_TYPE alarmWindowMillis: 7500
+04-04 11:11:24.295 17469 17469 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:24.296 17469 17469 W libc    : Access denied finding property "vendor.display.enable_optimal_refresh_rate"
+04-04 11:11:24.297 17469  6468 W BLASTBufferQueue: Unable to open /proc/vivo_rsc/frame_set_priority: No such file or directory
+04-04 11:11:24.298 17469  6468 I BLASTBufferQueue: QoSAllocBuff Successful. Ret 0 
+04-04 11:11:24.305 17469 17469 I btyz    : onStart
+04-04 11:11:24.306 17469 17469 I brvv    : (REDACTED) [%s] onStart()
+04-04 11:11:24.306 17469 17469 I brya    : Reloading theme data
+04-04 11:11:24.307 17469 17469 I btyz    : onResume
+04-04 11:11:24.382 17469 17469 I btsv    : (REDACTED) onApplyWindowInsets: systemWindowInsets=%s
+04-04 11:11:24.382 17469 17469 I btsv    : (REDACTED) onApplyWindowInsets: systemWindowInsets=%s
+04-04 11:11:24.417 26861 27137 I WifiScanner: onFullResults
+04-04 11:11:24.417 26861 16586 I WifiScanner: onFullResults
+04-04 11:11:24.418  8622  9735 I WifiScanner: onFullResults
+04-04 11:11:24.445 26861  9749 I FrewleTileCacheManagerV: (REDACTED) Fetched %d AP models from cache
+04-04 11:11:24.535 26861 27127 I FusedLocation: (REDACTED) location delivery to %s blocked - too close
+04-04 11:11:24.535 26861 27124 I ActivityScheduler: nextTriggerTime: 165175312, in 58749ms, detectorType: 39, FULL_TYPE alarmWindowMillis: 7500
+04-04 11:11:24.538 26861 27127 I FusedLocation: (REDACTED) location delivery to %s blocked - too close
+04-04 11:11:24.551 26861 27127 I FusedLocation: (REDACTED) location delivery to %s blocked - too fast
+04-04 11:11:24.554 26861 27127 I FusedLocation: (REDACTED) location delivery to %s blocked - too close
+04-04 11:11:24.704 26708 32692 I AdvertisingIdClient: shouldSendLog 164278787
+04-04 11:11:24.705 26708 32692 I AdvertisingIdClient: GetInfoInternal elapse 5ms
+04-04 11:11:24.770 30498 30498 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda13@4955f50
+04-04 11:11:24.793 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:24.809 30498 30498 W WindowOnBackDispatcher: sendCancelIfRunning: isInProgress=false callback=android.view.ViewRootImpl$$ExternalSyntheticLambda13@d8097bd
+04-04 11:11:24.817 30498 31711 I HWUI    : [destroy] CanvasContext will be destroyed.
+04-04 11:11:25.058 17469 17469 I btsv    : (REDACTED) onApplyWindowInsets: systemWindowInsets=%s
+04-04 11:11:25.059 17469 17469 I btsv    : (REDACTED) onApplyWindowInsets: systemWindowInsets=%s
+04-04 11:11:25.059 26861  9605 I TFLite-in-PlayServices: Created interpreter.
+04-04 11:11:25.079  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2159 
+04-04 11:11:25.081  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 0, locked = false
+04-04 11:11:25.081  7621  7621 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1434 onStartInput(EditorInfo{EditorInfo{packageName=com.android.launcher3, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+04-04 11:11:25.082  7621  7621 W AndroidIME: LatinIMEBase.updateInputViewCoverNavigation():317 Null input view, cannot update padding!
+04-04 11:11:25.082  7621  7621 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 1, locked = false
+04-04 11:11:25.135  9980  6051 W adservices: Skip logging because Cobalt logger is null
+04-04 11:11:25.135  9980  6052 W adservices: Skip logging because Cobalt is disabled.
+04-04 11:11:25.164  9980  6051 W adservices: Skip logging because Cobalt is disabled.
+04-04 11:11:25.164  9980  6052 W adservices: Skip logging because Cobalt logger is null
+04-04 11:11:25.181 26861  9605 I TFLite-in-PlayServices: Created interpreter.
+04-04 11:11:25.201 26861  9605 I SemanticLocation: (REDACTED) [Inferrer] %s%s

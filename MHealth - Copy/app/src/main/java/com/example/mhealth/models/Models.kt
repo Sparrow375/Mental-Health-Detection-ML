@@ -75,7 +75,8 @@ data class PersonalityVector(
     val variances: Map<String, Float> = emptyMap(),
     val appBreakdown: Map<String, Long> = emptyMap(), // package → foreground minutes
     val notificationBreakdown: Map<String, Int> = emptyMap(), // package → notification count
-    val appLaunchesBreakdown: Map<String, Int> = emptyMap() // package → launch count
+    val appLaunchesBreakdown: Map<String, Int> = emptyMap(), // package → launch count
+    val bgAudioBreakdown: Map<String, Long> = emptyMap() // package → audio ms
 ) {
     fun toMap(): Map<String, Float> = mapOf(
         "screenTimeHours"      to screenTimeHours,

@@ -649,9 +649,24 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val usm = context.getSystemService(UsageStatsManager::class.java)
             ?: return SleepResult(0f, 0f, 0f)
 
-        // ── Window: Rolling 24 hours ────────
-        val windowStartMs = nowMs - (24L * 3600_000L)
-        val windowEndMs   = nowMs
+        // ── Window: Fixed 18-hour overnight window (6 PM yesterday → 12 PM today) ──
+        // This excludes daytime inactivity (e.g. phone on desk at work) from ever
+        // being mistaken for the primary sleep episode. Night-shift workers are
+        // intentionally excluded from this heuristic for now.
+        val windowCal = Calendar.getInstance()
+        // End = today 12:00 PM, or now if we haven't reached noon yet (keeps it live)
+        windowCal.set(Calendar.HOUR_OF_DAY, 12)
+        windowCal.set(Calendar.MINUTE, 0)
+        windowCal.set(Calendar.SECOND, 0)
+        windowCal.set(Calendar.MILLISECOND, 0)
+        val windowEndMs = minOf(windowCal.timeInMillis, nowMs)
+        // Start = yesterday 6:00 PM
+        windowCal.add(Calendar.DAY_OF_YEAR, -1)
+        windowCal.set(Calendar.HOUR_OF_DAY, 18)
+        windowCal.set(Calendar.MINUTE, 0)
+        windowCal.set(Calendar.SECOND, 0)
+        windowCal.set(Calendar.MILLISECOND, 0)
+        val windowStartMs = windowCal.timeInMillis
 
         val events = usm.queryEvents(windowStartMs, windowEndMs)
         val ev     = UsageEvents.Event()
@@ -766,26 +781,54 @@ class DataCollector(private val context: Context) : SensorEventListener {
         // We use the full snaps array (which reset at midnight anyway) for true polyline.
         if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
-        // ── Displacement: cumulative haversine polyline ──────────
+        // ── Displacement: grid-cell transition method (eliminates GPS drift) ──
+        // Distance is only added when a GPS ping lands in a DIFFERENT ~110m grid
+        // cell from the previous one. Stationary GPS drift within the same cell
+        // contributes 0 km — fixing the inflated-distance-when-stationary bug.
         var distKm = 0.0
-        for (i in 1 until snaps.size) {
-            distKm += haversine(snaps[i-1].lat, snaps[i-1].lon, snaps[i].lat, snaps[i].lon)
+        var lastCell: String? = null
+        var lastCellLat = 0.0
+        var lastCellLon = 0.0
+        for (snap in snaps) {
+            val cell = "${"%.3f".format(snap.lat)},${"%.3f".format(snap.lon)}"
+            if (lastCell == null) {
+                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon
+            } else if (cell != lastCell) {
+                distKm += haversine(lastCellLat, lastCellLon, snap.lat, snap.lon)
+                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon
+            }
         }
 
-        // ── Grid-based Fast Clustering (approx 110m cells) ─────
-        val cells = mutableMapOf<String, Int>()
-        snaps.forEach { pt ->
-            // Truncate to 3 decimal places = ~110m resolution
-            val key = "${"%.3f".format(pt.lat)},${"%.3f".format(pt.lon)}"
-            cells[key] = (cells[key] ?: 0) + 1
-        }
-        val total = snaps.size.toDouble()
+        // ── Time-weighted entropy (same logic as Home Time) ────────────────────
+        // Instead of counting GPS pings per cell, we measure the actual wall-clock
+        // time (ms) spent at each grid cell using consecutive ping timestamps.
+        // Each gap is capped at 12h to prevent bridging overnight absences.
+        val ENTROPY_BRIDGE_CAP_MS = 12L * 3600_000L
+        val cellTimeMs = mutableMapOf<String, Long>()
+        val todaySnapsForEntropy = snaps
+            .filter { it.timeMs in startOfDayMs..nowMs }
+            .sortedBy { it.timeMs }
 
-        // ── Shannon entropy over cluster distribution ──────────────────────────
-        val entropy = cells.values.sumOf { count ->
-            val p = count / total
-            -p * ln(p)
-        }.toFloat()
+        for (i in 0 until todaySnapsForEntropy.size - 1) {
+            val s = todaySnapsForEntropy[i]
+            val key = "${"%.3f".format(s.lat)},${"%.3f".format(s.lon)}"
+            val gap = (todaySnapsForEntropy[i + 1].timeMs - s.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
+            cellTimeMs[key] = (cellTimeMs[key] ?: 0L) + gap
+        }
+        // Bridge last snap → now (keeps entropy live even if GPS goes quiet at home)
+        if (todaySnapsForEntropy.isNotEmpty()) {
+            val last = todaySnapsForEntropy.last()
+            val key = "${"%.3f".format(last.lat)},${"%.3f".format(last.lon)}"
+            val gap = (nowMs - last.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
+            cellTimeMs[key] = (cellTimeMs[key] ?: 0L) + gap
+        }
+        val totalTimeMs = cellTimeMs.values.sum().toDouble()
+        val entropy = if (totalTimeMs > 0.0) {
+            cellTimeMs.values.sumOf { t ->
+                val p = t / totalTimeMs
+                -p * ln(p)
+            }.toFloat()
+        } else 0f
 
         // ── homeTimeRatio ──────────────────────────────────────────────────────
         // CORRECT formula: total wall-clock time within 500m of home / 24 hours.
@@ -839,12 +882,15 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
             homeRatio = (homeTimeMs.toFloat() / DAY_MS).coerceIn(0f, 1f)
         } else {
-            // Home location not set — fall back to most-visited grid cell fraction
-            val maxCount = cells.maxByOrNull { it.value }?.value?.toFloat() ?: 0f
-            homeRatio = (maxCount / total).toFloat().coerceIn(0f, 1f)
+            // Home location not set — fall back to cell with most time spent
+            val maxCellMs = cellTimeMs.maxByOrNull { it.value }?.value?.toDouble() ?: 0.0
+            homeRatio = if (totalTimeMs > 0.0) (maxCellMs / totalTimeMs).toFloat().coerceIn(0f, 1f) else 0f
         }
 
-        return LocationResult(distKm.toFloat(), entropy, homeRatio, cells.size)
+        // placesVisited = distinct grid cells where actual time was logged (more
+        // accurate than raw ping count — a passing fix no longer inflates the count).
+        val placesVisited = if (cellTimeMs.isNotEmpty()) cellTimeMs.size else (if (lastCell != null) 1 else 0)
+        return LocationResult(distKm.toFloat(), entropy, homeRatio, placesVisited)
     }
 
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {

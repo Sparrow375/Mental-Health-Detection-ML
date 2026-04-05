@@ -28,6 +28,10 @@ object DataRepository {
     private val _latestAnalysisResult = MutableStateFlow<AnalysisResultEntity?>(null)
     val latestAnalysisResult: StateFlow<AnalysisResultEntity?> = _latestAnalysisResult
 
+    /** Emits the live, non-persisted analysis for the current day's progress. */
+    private val _provisionalAnalysis = MutableStateFlow<com.example.mhealth.models.DailyReport?>(null)
+    val provisionalAnalysis: StateFlow<com.example.mhealth.models.DailyReport?> = _provisionalAnalysis
+
     /** Emits the last 30 analysis results (newest first) for the history sparkline. */
     private val _analysisHistory = MutableStateFlow<List<AnalysisResultEntity>>(emptyList())
     val analysisHistory: StateFlow<List<AnalysisResultEntity>> = _analysisHistory
@@ -294,6 +298,10 @@ object DataRepository {
 
     fun updateLatestVector(vector: PersonalityVector) {
         _latestVector.value = vector
+    }
+
+    fun updateProvisionalAnalysis(result: com.example.mhealth.models.DailyReport?) {
+        _provisionalAnalysis.value = result
     }
 
     fun addReport(report: DailyReport) {

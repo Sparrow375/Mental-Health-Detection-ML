@@ -1618,9 +1618,32 @@ fun AnalysisScreen() {
         } else {
             // Anomaly Score Gauge
             item {
+                val provisional by DataRepository.provisionalAnalysis.collectAsState()
+                val score = provisional?.anomalyScore ?: last?.anomalyScore ?: 0f
+                val isLive = provisional != null
+
                 InfoCard("Anomaly Score", headerColor = ChartRed) {
-                    val score = last?.anomalyScore ?: 0f
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (isLive) {
+                                Surface(
+                                    color = AlertRed.copy(0.1f),
+                                    shape = RoundedCornerShape(4.dp)
+                                ) {
+                                    Text(
+                                        " LIVE UPDATE ",
+                                        fontSize = 9.sp, fontWeight = FontWeight.Black,
+                                        color = AlertRed, modifier = Modifier.padding(2.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(8.dp))
+                            }
+                            Text(
+                                if (isLive) "Current Day (Provisional)" else "Last Daily Report",
+                                fontSize = 11.sp, color = TextSecondary
+                            )
+                        }
+                        Spacer(Modifier.height(8.dp))
                         AnomalyScoreGauge(score, Modifier.fillMaxWidth().height(130.dp))
                         Spacer(Modifier.height(4.dp))
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
@@ -1635,7 +1658,7 @@ fun AnalysisScreen() {
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChartRed
                         )
                         Text(
-                            "Pattern: ${(last?.patternType ?: "stable").replace("_", " ").uppercase()}",
+                            "Pattern: ${(provisional?.patternType ?: last?.patternType ?: "stable").replace("_", " ").uppercase()}",
                             fontSize = 12.sp, color = TextSecondary
                         )
                     }
@@ -1865,6 +1888,7 @@ fun AnalysisScreen() {
     }
 }
 
+
 @Composable
 fun DeviationRow(feature: String, sd: Float) {
     val color = when {
@@ -1991,40 +2015,192 @@ fun InsightsScreen() {
             }
         }
 
-        // Pattern History Card (Room-backed 30-day sparkline)
+        // Pattern History Card — full 30-day list, each row clickable for Day Report dialog
         item {
+            val context = LocalContext.current
             val history by DataRepository.analysisHistory.collectAsState()
+            var selectedResult by remember { mutableStateOf<com.example.mhealth.logic.db.AnalysisResultEntity?>(null) }
+            var selectedFeatures by remember { mutableStateOf<com.example.mhealth.logic.db.DailyFeaturesEntity?>(null) }
+
+            // Load features from DB whenever a day is selected
+            LaunchedEffect(selectedResult) {
+                val res = selectedResult ?: return@LaunchedEffect
+                val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                val db = MHealthDatabase.getInstance(context)
+                selectedFeatures = db.dailyFeaturesDao().getByDate(userId, res.date)
+            }
+
             if (history.isNotEmpty()) {
-                InfoCard("Pattern History (Last 30 days)", headerColor = ChartBlue) {
-                    // Sparkline — scores in chronological order (oldest → newest, left → right)
+                InfoCard("Anomaly Score History", headerColor = ChartBlue) {
+                    // Sparkline — chronological order (oldest left → newest right)
                     val scores = history.reversed().map { it.anomalyScore }
                     SparklineChart(
                         values = scores,
                         color = ChartBlue,
                         modifier = Modifier.fillMaxWidth().height(80.dp)
                     )
-                    Spacer(Modifier.height(12.dp))
-                    // Last 7 days list (newest first)
-                    history.take(7).forEach { result ->
+                    Spacer(Modifier.height(4.dp))
+                    Text("Tap any day to see its full report", fontSize = 10.sp, color = TextMuted)
+                    Spacer(Modifier.height(8.dp))
+
+                    // Header row
+                    Row(Modifier.fillMaxWidth().padding(bottom = 4.dp)) {
+                        Text("Date",    fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2f))
+                        Text("Score",   fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1f))
+                        Text("Pattern", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2f))
+                        Text("Alert",   fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+                    }
+                    HorizontalDivider(color = TextSecondary.copy(alpha = 0.12f), thickness = 0.5.dp)
+                    Spacer(Modifier.height(4.dp))
+
+                    // All 30 days (newest first) — each row clickable
+                    history.forEach { result ->
+                        val dotColor = alertColor(result.alertLevel)
                         Row(
-                            Modifier.fillMaxWidth().padding(vertical = 3.dp),
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable { selectedResult = result; selectedFeatures = null }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            val dotColor = alertColor(result.alertLevel)
-                            Box(Modifier.size(10.dp).clip(CircleShape).background(dotColor))
-                            Spacer(Modifier.width(10.dp))
-                            Text(result.date, fontSize = 12.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                            Row(Modifier.weight(2f), verticalAlignment = Alignment.CenterVertically) {
+                                Box(Modifier.size(8.dp).clip(CircleShape).background(dotColor))
+                                Spacer(Modifier.width(6.dp))
+                                Text(result.date, fontSize = 11.sp, color = TextPrimary)
+                            }
                             Text(
-                                result.prototypeMatch
-                                    .replace("_", " ")
-                                    .replaceFirstChar { it.uppercase() },
-                                fontSize = 11.sp, color = ChartPurple, fontWeight = FontWeight.Medium
+                                "%.3f".format(result.anomalyScore),
+                                fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
+                                color = dotColor, modifier = Modifier.weight(1f)
                             )
-                            Spacer(Modifier.width(8.dp))
-                            Text(result.alertLevel.uppercase(), fontSize = 10.sp, color = dotColor, fontWeight = FontWeight.Bold)
+                            Text(
+                                result.prototypeMatch.replace("_", " ").replaceFirstChar { it.uppercase() },
+                                fontSize = 10.sp, color = ChartPurple,
+                                modifier = Modifier.weight(2f),
+                                maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Surface(
+                                color = dotColor.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(6.dp),
+                                modifier = Modifier.weight(1.2f)
+                            ) {
+                                Text(
+                                    result.alertLevel.uppercase(),
+                                    fontSize = 9.sp, color = dotColor, fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp)
+                                )
+                            }
                         }
+                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.06f), thickness = 0.5.dp)
                     }
                 }
+            }
+
+            // ── Daily Report Dialog ──────────────────────────────────────────
+            selectedResult?.let { result ->
+                AlertDialog(
+                    onDismissRequest = { selectedResult = null; selectedFeatures = null },
+                    containerColor = CardWhite,
+                    shape = RoundedCornerShape(20.dp),
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(result.alertLevel)))
+                            Spacer(Modifier.width(8.dp))
+                            Text(result.date, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = TextPrimary)
+                        }
+                    },
+                    text = {
+                        val scrollState = androidx.compose.foundation.rememberScrollState()
+                        Column(Modifier.verticalScroll(scrollState)) {
+                            // Anomaly Score badge
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text("Anomaly Score:", fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                                Surface(color = alertColor(result.alertLevel).copy(0.12f), shape = RoundedCornerShape(8.dp)) {
+                                    Text(
+                                        "%.3f  ${result.alertLevel.uppercase()}".format(result.anomalyScore),
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        fontSize = 13.sp, fontWeight = FontWeight.Bold, color = alertColor(result.alertLevel)
+                                    )
+                                }
+                            }
+                            Spacer(Modifier.height(4.dp))
+                            Text("Pattern: ${result.prototypeMatch.replace("_", " ").replaceFirstChar { it.uppercase() }}", fontSize = 12.sp, color = ChartPurple)
+                            if (result.anomalyMessage.isNotBlank()) {
+                                Spacer(Modifier.height(4.dp))
+                                Text(result.anomalyMessage, fontSize = 11.sp, color = TextMuted, lineHeight = 15.sp)
+                            }
+
+                            Spacer(Modifier.height(12.dp))
+                            HorizontalDivider(color = TextSecondary.copy(0.12f))
+                            Spacer(Modifier.height(8.dp))
+
+                            val feat = selectedFeatures
+                            if (feat == null) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(Modifier.size(20.dp), color = ChartBlue, strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Loading sensor data…", fontSize = 12.sp, color = TextMuted)
+                                }
+                            } else {
+                                Text("Sensor Data", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                                Spacer(Modifier.height(6.dp))
+                                val rows = listOf(
+                                    "Screen Time"      to "%.1f hrs".format(feat.screenTimeHours),
+                                    "Unlocks"          to "%.0f".format(feat.unlockCount),
+                                    "App Launches"     to "%.0f".format(feat.appLaunchCount),
+                                    "Notifications"    to "%.0f".format(feat.notificationsToday),
+                                    "Social Ratio"     to "%.0f%%".format(feat.socialAppRatio * 100),
+                                    "Calls"            to "%.0f".format(feat.callsPerDay),
+                                    "Call Duration"    to "%.0f min".format(feat.callDurationMinutes),
+                                    "Contacts"         to "%.0f".format(feat.uniqueContacts),
+                                    "Displacement"     to "%.2f km".format(feat.dailyDisplacementKm),
+                                    "Location Entropy" to "%.2f".format(feat.locationEntropy),
+                                    "Home Time"        to "%.0f%%".format(feat.homeTimeRatio * 100),
+                                    "Places Visited"   to "%.0f".format(feat.placesVisited),
+                                    "Wake Time"        to run {
+                                        val h = feat.wakeTimeHour.toInt(); val m = ((feat.wakeTimeHour - h) * 60).toInt()
+                                        val amPm = if (h < 12) "AM" else "PM"; val hr12 = if (h % 12 == 0) 12 else h % 12
+                                        "%02d:%02d %s".format(hr12, m, amPm)
+                                    },
+                                    "Sleep Time"       to run {
+                                        val h = feat.sleepTimeHour.toInt(); val m = ((feat.sleepTimeHour - h) * 60).toInt()
+                                        val amPm = if (h < 12) "AM" else "PM"; val hr12 = if (h % 12 == 0) 12 else h % 12
+                                        "%02d:%02d %s".format(hr12, m, amPm)
+                                    },
+                                    "Sleep Duration"   to "%.1f hrs".format(feat.sleepDurationHours),
+                                    "Dark Duration"    to "%.1f hrs".format(feat.darkDurationHours),
+                                    "Charge Time"      to "%.1f hrs".format(feat.chargeDurationHours),
+                                    "Memory"           to "%.0f%%".format(feat.memoryUsagePercent),
+                                    "Wi-Fi"            to "%.0f MB".format(feat.networkWifiMB),
+                                    "Mobile Data"      to "%.0f MB".format(feat.networkMobileMB),
+                                    "Steps"            to "%.0f".format(feat.dailySteps),
+                                    "Audio"            to "%.1f hrs".format(feat.backgroundAudioHours),
+                                    "Storage Used"     to "%.1f GB".format(feat.storageUsedGB),
+                                    "Downloads"        to "%.0f".format(feat.downloadsToday),
+                                    "App Installs"     to "%.0f".format(feat.appInstallsToday),
+                                    "App Uninstalls"   to "%.0f".format(feat.appUninstallsToday),
+                                    "UPI Transactions" to "%.0f".format(feat.upiTransactionsToday),
+                                    "Total Apps"       to "%.0f".format(feat.totalAppsCount),
+                                    "Media Files"      to "%.0f".format(feat.mediaCountToday),
+                                    "Calendar Events"  to "%.0f".format(feat.calendarEventsToday)
+                                )
+                                rows.forEach { (label, value) ->
+                                    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                                        Text(label, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                                        Text(value, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary, modifier = Modifier.weight(1f))
+                                    }
+                                    HorizontalDivider(color = TextSecondary.copy(0.06f), thickness = 0.5.dp)
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { selectedResult = null; selectedFeatures = null }) {
+                            Text("Close", color = ChartBlue)
+                        }
+                    }
+                )
             }
         }
 
@@ -2265,12 +2441,17 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
             masterJson.put("baseline", baselineArr)
 
             // C. Daily Behavioral History (The "Big Data" part)
+            // Build a date → anomalyScore lookup so we can join the score into each day's record
+            val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.anomalyScore }
+
             val historyArr = org.json.JSONArray()
             dailyHistory.forEach { day ->
                 val dayObj = org.json.JSONObject()
                 dayObj.put("date", day.date)
                 dayObj.put("isSimulated", day.isSimulated)
-                
+                // Anomaly score for this day (–1 means no analysis has run yet for that day)
+                dayObj.put("anomaly_score", scoreByDate[day.date] ?: -1.0)
+
                 // All 30+ Features
                 val features = org.json.JSONObject().apply {
                     put("screenTimeHours", day.screenTimeHours)

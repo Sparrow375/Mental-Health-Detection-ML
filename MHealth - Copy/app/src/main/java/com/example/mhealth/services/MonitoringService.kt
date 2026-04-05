@@ -363,9 +363,11 @@ class MonitoringService : Service() {
         // Observers stay active for configuration changes
         serviceScope.launch {
             DataRepository.monitoringIntervalMinutes.collectLatest { intervalMin ->
-                // The 15-min loop is removed! We now rely on event-driven triggers.
-                // runTick() is triggered by Screen, Audio, and Midnight events.
-                Log.d("MHealth.Service", "Monitoring loop disabled. Event-driven mode active.")
+                Log.d("MHealth.Service", "Monitoring loop re-enabled. Tick every $intervalMin min.")
+                while (isActive) {
+                    runTick()
+                    delay(intervalMin * 60 * 1000L)
+                }
             }
         }
 
@@ -483,6 +485,15 @@ class MonitoringService : Service() {
                 musicStartMs = now
                 activeMusicPackage = fallbackPkg
                 Log.i("MHealth.Service", "Music fallback tick — started tracking $activeMusicPackage")
+            }
+
+            // 4) Provisional Analysis (Live Score)
+            if (!DataRepository.isBuildingBaseline.value && detector != null) {
+                val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1)
+                provisionalReport?.let {
+                    // Update the Repository so the UI can show the live score
+                    DataRepository.updateProvisionalAnalysis(it)
+                }
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)

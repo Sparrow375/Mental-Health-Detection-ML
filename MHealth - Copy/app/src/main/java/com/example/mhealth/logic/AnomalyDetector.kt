@@ -9,6 +9,10 @@ import kotlin.math.min
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+/** Mirror of the same helper in MonitoringService — keeps sleep/wake on a midnight-safe scale. */
+private fun normalizeTimeToNoon(rawHour: Float): Float = (rawHour - 12f + 24f) % 24f
+private val CIRCULAR_TIME_FEATURES = setOf("sleepTimeHour", "wakeTimeHour")
+
 class AnomalyDetector(private val baseline: PersonalityVector) {
     private val historyWindow = 7
     private val featureHistory = mutableMapOf<String, MutableList<Float>>()
@@ -72,8 +76,13 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
 
         currentData.forEach { (feature, value) ->
             val baselineVal = baselineMap[feature] ?: 0f
-            val variance = variances[feature] ?: 1f // Avoid division by zero
-            deviations[feature] = (value - baselineVal) / if (variance != 0f) variance else 1f
+            val variance = variances[feature] ?: 1f
+
+            // Apply Noon-Offset so 11:55 PM vs 12:05 AM is a 10-min diff, not a 23h diff.
+            val currentNorm  = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(value)      else value
+            val baselineNorm = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(baselineVal) else baselineVal
+
+            deviations[feature] = (currentNorm - baselineNorm) / if (variance != 0f) variance else 1f
         }
         return deviations
     }
@@ -83,8 +92,11 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
         val alpha = 0.4f
 
         currentData.forEach { (feature, value) ->
+            // Normalize time-of-day features before any velocity math.
+            val normValue = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(value) else value
+
             val history = featureHistory[feature] ?: mutableListOf<Float>().also { featureHistory[feature] = it }
-            history.add(value)
+            history.add(normValue)
             if (history.size > historyWindow) history.removeAt(0)
 
             if (history.size < 2) {
@@ -97,8 +109,9 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
                     ewmaValues.add(ewma)
                 }
                 val slope = (ewmaValues.last() - ewmaValues.first()) / ewmaValues.size
-                val baselineVal = baseline.toMap()[feature] ?: 1f
-                velocities[feature] = if (baselineVal != 0f) slope / baselineVal else 0f
+                val baselineRaw = baseline.toMap()[feature] ?: 1f
+                val baselineNorm = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(baselineRaw) else baselineRaw
+                velocities[feature] = if (baselineNorm != 0f) slope / baselineNorm else 0f
             }
         }
         return velocities

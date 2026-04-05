@@ -689,6 +689,17 @@ class MonitoringService : Service() {
         NightlyAnalysisWorker.schedule(this@MonitoringService, userId)
     }
 
+    /**
+     * Normalizes a clock hour to a "Noon-Offset" scale to eliminate the midnight cliff.
+     * Standard:     Midnight=0,  6PM=18,  11PM=23
+     * Noon-Offset:  Noon=0,      6PM=6,   Midnight=12,  6AM=18,  11:59AM≈24
+     *
+     * This keeps the entire 6PM→12PM sleep window on one continuous linear scale,
+     * making means and standard deviations mathematically correct.
+     * The raw value stored in the DB / shown in the UI is never changed.
+     */
+    private fun normalizeTimeToNoon(rawHour: Float): Float = (rawHour - 12f + 24f) % 24f
+
     private fun buildBaseline(vectors: List<PersonalityVector>): PersonalityVector {
         if (vectors.isEmpty()) return PersonalityVector()
         val features = vectors.first().toMap().keys
@@ -699,9 +710,15 @@ class MonitoringService : Service() {
         // 10% Trimmed Mean: Removes extreme 10% high & 10% low outliers from the calibration period
         val trimCount = (n * 0.10).toInt().coerceAtLeast(0)
 
+        // Features whose raw 24h value crosses midnight — apply Noon-Offset before any math.
+        val circularTimeFeatures = setOf("sleepTimeHour", "wakeTimeHour")
+
         features.forEach { feature ->
-            val vals = vectors.map { it.toMap()[feature] ?: 0f }
-            
+            val vals = vectors.map {
+                val raw = it.toMap()[feature] ?: 0f
+                if (feature in circularTimeFeatures) normalizeTimeToNoon(raw) else raw
+            }
+
             // Trim outliers for robust mean calculation
             val sortedVals = vals.sorted()
             val trimmedVals = if (n > 4 && trimCount > 0) {
@@ -709,11 +726,19 @@ class MonitoringService : Service() {
             } else {
                 sortedVals
             }
-            
+
             val robustAvg = trimmedVals.average().toFloat()
-            averages[feature] = robustAvg
-            
-            // Variance is computed against the robust average using the full valid dataset
+
+            // IMPORTANT: variance is computed in Noon-Offset space (correct scale).
+            // The MEAN is stored back in raw 0-24h format so the downstream AnomalyDetector
+            // can normalize both sides (current + baseline) from raw — preventing double-normalization.
+            averages[feature] = if (feature in circularTimeFeatures) {
+                (robustAvg + 12f) % 24f   // de-normalize noon-offset → raw
+            } else {
+                robustAvg
+            }
+
+            // Variance is computed against the noon-offset average using the full valid dataset
             variances[feature] = calculateSD(vals, robustAvg)
         }
 

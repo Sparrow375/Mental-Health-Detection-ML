@@ -69,11 +69,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
     // Cumulative steps since device boot — we take a daily delta
     private var rawStepsSinceBoot = 0f
 
+    // ── Adaptive GPS System ───────────────────────────────────────────────────
+    // State machine that adjusts polling interval based on activity
+    private val gpsStateManager = GpsStateManager(context)
+
     init {
         DataRepository.init(context)
-        sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)?.let {
-            sensorManager.registerListener(this, it, SensorManager.SENSOR_DELAY_NORMAL)
-        }
+        // Step counter now handled by GpsStateManager for adaptive tracking
     }
 
     // =========================================================================
@@ -173,7 +175,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         )
     }
 
-    /** Start passive continuous location tracking. */
+    /** Start passive continuous location tracking with adaptive intervals. */
     @SuppressLint("MissingPermission")
     fun startContinuousLocationTracking() {
         if (context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
@@ -184,43 +186,43 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-            
+
             // Re-use existing callback to prevent multiple registrations
             if (locationCallback != null) return
 
-            // FIX: Use HIGH_ACCURACY (true GPS) instead of BALANCED (Wi-Fi/cell triangulation).
-            // BALANCED frequently produces fixes with accuracy 200–600m, which are then
-            // rejected by our 200m filter — leaving the snapshot list empty and distance = 0.
-            // HIGH_ACCURACY activates the hardware GPS chip and reliably hits <50m accuracy.
-            // Min distance lowered to 30m (was 50m) to catch short walks that span a few cell lengths.
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5 * 60 * 1000L)
-                .setMinUpdateDistanceMeters(30f)
+            // ADAPTIVE GPS: Use state machine to determine polling interval
+            // STATIONARY: 30 min, WALKING: 5 min, VEHICLE: 2 min
+            val initialIntervalMs = gpsStateManager.getCurrentIntervalMs()
+            val accuracyThreshold = gpsStateManager.getCurrentAccuracyThreshold()
+
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, initialIntervalMs)
+                .setMinUpdateDistanceMeters(30f)  // Still require 30m movement for callback
+                .setWaitForAccurateLocation(true)  // Wait for GPS fix, don't use cell/WiFi
                 .build()
 
             locationCallback = object : LocationCallback() {
                 override fun onLocationResult(result: GmsLocationResult) {
                     val loc = result.locations.lastOrNull() ?: return
                     val ageMs = System.currentTimeMillis() - loc.time
-                    val accuracyOk = loc.accuracy.let { it in 0f..1000f }
+                    val currentThreshold = gpsStateManager.getCurrentAccuracyThreshold()
                     val freshnessOk = ageMs <= (15 * 60 * 1000L)
 
-                    // Filter out stale or highly inaccurate locations (>800m)
-                    // We must accept up to 800m here because budget phones often report 250-400m.
-                    // If we drop them here, the entire metrics engine receives an empty list.
-                    if (accuracyOk && freshnessOk && loc.accuracy <= 800f) {
-                        DataRepository.addLocationSnapshot(
-                            LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
-                        )
-                        Log.i(TAG, "Continuous Location fix: %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h)"
+                    // State-aware accuracy filter
+                    if (freshnessOk && loc.accuracy <= currentThreshold) {
+                        val point = LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
+                        DataRepository.addLocationSnapshot(point)
+                        gpsStateManager.onGpsFixReceived(point)  // Update state machine
+
+                        Log.i(TAG, "GPS fix (${gpsStateManager.getCurrentIntervalMs() / 60_000}min): %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h)"
                             .format(loc.latitude, loc.longitude, loc.accuracy, loc.speed * 3.6f))
                     } else {
-                        Log.w(TAG, "Continuous Location rejected: accuracy=${loc.accuracy}m (target <= 800m), age=${ageMs / 1000}s")
+                        Log.w(TAG, "GPS rejected: acc=${loc.accuracy}m (need ≤${currentThreshold}m), age=${ageMs / 1000}s")
                     }
                 }
             }
 
             locationCallback?.let { fusedClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
-            Log.i(TAG, "Continuous location tracking started (HIGH_ACCURACY, min 30m).")
+            Log.i(TAG, "Adaptive GPS started: STATIONARY=${gpsStateManager.getCurrentIntervalMs() / 60_000}min interval, acc≤${accuracyThreshold}m")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException accessing location: ${e.message}")
         } catch (e: Exception) {
@@ -233,7 +235,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
             locationCallback?.let {
                 LocationServices.getFusedLocationProviderClient(context).removeLocationUpdates(it)
                 locationCallback = null
-                Log.i(TAG, "Continuous location tracking stopped.")
+                gpsStateManager.unregister()
+                Log.i(TAG, "Adaptive GPS tracking stopped.")
             }
         } catch (e: Exception) {
             Log.w(TAG, "Error stopping location tracking: ${e.message}")
@@ -241,10 +244,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
     }
 
     /**
-     * BUG FIX: Proactive one-shot GPS poll called every monitoring tick.
-     * The passive tracker only fires on 50m displacement, so stationary users
-     * accumulate zero points and get 0.0km distance. This fills the gap by
-     * requesting a fresh fix unconditionally every 15 minutes.
+     * ADAPTIVE GPS: Proactive one-shot GPS poll called every monitoring tick.
+     * Uses state-aware accuracy threshold - stationary needs tighter filter,
+     * vehicle needs faster capture.
      */
     @SuppressLint("MissingPermission")
     fun captureProactiveLocationSnapshot() {
@@ -254,28 +256,27 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            val accuracyThreshold = gpsStateManager.getCurrentAccuracyThreshold()
+
             fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
                     if (loc != null) {
                         val ageMs = System.currentTimeMillis() - loc.time
-                        // FIX: Relax age threshold from 10 min → 20 min.
-                        // When no other location app is active, the OS may return a cached
-                        // GPS fix that is 11–14 minutes old. The old 10-min limit silently
-                        // dropped these valid fixes, leaving displacement = 0.
-                        // ALSO relaxing accuracy intake from 200m to 800m so budget phones aren't dropped.
-                        if (ageMs <= 20 * 60 * 1000L && loc.accuracy <= 800f) {
-                            DataRepository.addLocationSnapshot(
-                                LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
-                            )
-                            Log.i(TAG, "Proactive location fix: %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h, age: ${ageMs/1000}s)"
+                        // State-aware accuracy filter (STATIONARY=200m, WALKING=100m, VEHICLE=50m)
+                        if (ageMs <= 20 * 60 * 1000L && loc.accuracy <= accuracyThreshold) {
+                            val point = LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
+                            DataRepository.addLocationSnapshot(point)
+                            gpsStateManager.onGpsFixReceived(point)
+
+                            Log.i(TAG, "Proactive GPS (${gpsStateManager.getCurrentIntervalMs() / 60_000}min): %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h)"
                                 .format(loc.latitude, loc.longitude, loc.accuracy, loc.speed * 3.6f))
                         } else {
-                            Log.w(TAG, "Proactive fix rejected: age=${ageMs/1000}s acc=${loc.accuracy}m")
+                            Log.w(TAG, "Proactive GPS rejected: age=${ageMs/1000}s acc=${loc.accuracy}m (need ≤${accuracyThreshold}m)")
                         }
                     }
                 }
                 .addOnFailureListener { e ->
-                    Log.w(TAG, "Proactive location fix failed: ${e.message}")
+                    Log.w(TAG, "Proactive GPS fix failed: ${e.message}")
                 }
         } catch (e: Exception) {
             Log.w(TAG, "captureProactiveLocationSnapshot error: ${e.message}")
@@ -293,12 +294,16 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
+            // Home location needs high accuracy - wait for good GPS fix
             fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
-                    if (loc != null) {
+                    if (loc != null && loc.accuracy <= 100f) {
                         DataRepository.setHomeLocation(loc.latitude, loc.longitude)
-                        Log.i(TAG, "Home location saved: %.5f, %.5f".format(loc.latitude, loc.longitude))
+                        Log.i(TAG, "Home location saved: %.5f, %.5f (acc: %.1fm)".format(loc.latitude, loc.longitude, loc.accuracy))
                         onResult(true)
+                    } else if (loc != null) {
+                        Log.w(TAG, "Home location fix too inaccurate: %.1fm (need ≤100m)".format(loc.accuracy))
+                        onResult(false)
                     } else {
                         Log.w(TAG, "captureHomeLocation: no location fix obtained")
                         onResult(false)
@@ -802,11 +807,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
         //    6 km/h = 1.667 m/s (fast walk ≈ 5.5 km/h; anything above 6 is vehicle territory).
         val WALK_SPEED_MS = 6.0 / 3.6   // m/s
 
-        // FIX: Relaxed global precision requirement from 200m to 800m. 
-        // Budget Android devices frequently fail to achieve sub-200m accuracy,
-        // which completely broke displacement, entropy, and placesVisited.
-        // The 11m grid cell deduplication will still protect against micro-flutter.
-        val filteredSnaps = snaps.filter { it.accuracy <= 800f }
+        // ADAPTIVE GPS: State-aware accuracy filter
+        // STATIONARY=200m, WALKING=100m, VEHICLE=50m - tighter than before for better quality
+        val accuracyThreshold = gpsStateManager.getCurrentAccuracyThreshold()
+        val filteredSnaps = snaps.filter { it.accuracy <= accuracyThreshold }
         if (filteredSnaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
         // Sort chronologically so delta-time between consecutive fixes is always positive.

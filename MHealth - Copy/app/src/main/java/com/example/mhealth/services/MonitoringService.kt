@@ -50,6 +50,10 @@ import java.util.Locale
 
 class MonitoringService : Service() {
 
+    companion object {
+        private const val TAG = "MHealth.Service"
+    }
+
     private lateinit var dataCollector: DataCollector
     private lateinit var gpsStateManager: GpsStateManager
     private var detector: AnomalyDetector? = null

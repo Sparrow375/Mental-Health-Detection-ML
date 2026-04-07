@@ -22,10 +22,13 @@ import com.example.mhealth.MainActivity
 import com.example.mhealth.logic.AnomalyDetector
 import com.example.mhealth.logic.DataCollector
 import com.example.mhealth.logic.DataRepository
+import com.example.mhealth.logic.GpsStateManager
 import com.example.mhealth.logic.JsonConverter
+import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.BaselineEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.UserProfileEntity
+import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -48,6 +51,7 @@ import java.util.Locale
 class MonitoringService : Service() {
 
     private lateinit var dataCollector: DataCollector
+    private lateinit var gpsStateManager: GpsStateManager
     private var detector: AnomalyDetector? = null
 
     private val serviceScope = CoroutineScope(Dispatchers.IO + Job())
@@ -61,8 +65,9 @@ class MonitoringService : Service() {
     private var chargingStartMs: Long = -1L
     private var musicStartMs: Long = -1L
     private var activeMusicPackage: String? = null
+    private var preRestartAudioMs: Long = 0L  // Tracks accumulated audio time before service restart
     private var alarmManager: AlarmManager? = null
-    
+
     // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
     private val isRestored = CompletableDeferred<Unit>()
 
@@ -145,25 +150,30 @@ class MonitoringService : Service() {
 
         val now = System.currentTimeMillis()
         if (isMusicPlaying && musicStartMs == -1L) {
+            // New session starting - reset pre-restart accumulator
+            preRestartAudioMs = 0L
             musicStartMs = now
             activeMusicPackage = pkg
             Log.i("MHealth.Service", "Music session detected: $activeMusicPackage — tracking started")
         } else if (!isMusicPlaying && musicStartMs > 0L) {
-            val sessionMs = now - musicStartMs
+            // Session ending - add both the current session time AND any pre-restart accumulated time
+            val sessionMs = (now - musicStartMs) + preRestartAudioMs
             DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
-            Log.i("MHealth.Service", "Music session ended: $activeMusicPackage — added ${sessionMs}ms")
+            Log.i("MHealth.Service", "Music session ended: $activeMusicPackage — added ${sessionMs}ms (session: ${now - musicStartMs}ms, pre-restart: ${preRestartAudioMs}ms)")
             musicStartMs = -1L
             activeMusicPackage = null
+            preRestartAudioMs = 0L
         }
     }
 
     override fun onCreate() {
         super.onCreate()
-        // FIX 1: START FOREGROUND IMMEDIATELY. Android 12+ requires startForeground 
+        // FIX 1: START FOREGROUND IMMEDIATELY. Android 12+ requires startForeground
         // within ~5 seconds or the app crashes. Moving this to the top.
         startForegroundNotification()
 
         dataCollector = DataCollector(this)
+        gpsStateManager = GpsStateManager(this)
 
         // FIX 2: ASYNC REHYDRATION. Moving restoreStateFromRoomSuspend() out of runBlocking.
         // runBlocking blocks the main thread, which can cause ANRs or OS-level kills during startup.
@@ -183,6 +193,14 @@ class MonitoringService : Service() {
         // Wire Room-backed StateFlows so AnalysisScreen/InsightsScreen update reactively
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         DataRepository.initWithDb(applicationContext, userId)
+
+        // ADAPTIVE GPS: Observe GPS state changes and update repository for UI
+        serviceScope.launch {
+            gpsStateManager.currentState.collect { state ->
+                DataRepository.updateGpsState(state.displayName)
+                Log.i("MHealth.Service", "GPS State changed: ${state.displayName} (interval: ${state.intervalMs / 60_000}min)")
+            }
+        }
 
         // FIX 7: Register receivers for event-driven monitoring
         registerReceiver(powerReceiver, IntentFilter().apply {
@@ -241,7 +259,7 @@ class MonitoringService : Service() {
             }
         }
 
-        // Start passive continuous location tracking
+        // Start passive continuous location tracking with adaptive intervals
         dataCollector.startContinuousLocationTracking()
     }
 
@@ -293,7 +311,14 @@ class MonitoringService : Service() {
                         variances = variances.toMutableMap()
                     )
                     DataRepository.setBaseline(baseline)
-                    detector = AnomalyDetector(baseline)
+
+                    // FIX: Load historical anomaly scores from Room for pattern detection
+                    val pastAnalysisResults = db.analysisResultDao().getLatestN(userId, 14)
+                        .reversed()  // oldest first
+                        .map { it.anomalyScore }
+
+                    detector = AnomalyDetector(baseline, pastAnalysisResults)
+                    Log.i(TAG, "AnomalyDetector initialized with ${pastAnalysisResults.size} historical scores")
                 }
             }
 
@@ -314,13 +339,15 @@ class MonitoringService : Service() {
             // FIX: Re-anchor audio session if music was already playing when the service was
             // killed and restarted. Without this, the in-progress session is silently dropped
             // because musicStartMs resets to -1L on every service start.
-            // We snapshot "now" as the new anchor—a conservative estimate (slightly under-counts
-            // the gap between the kill and restart, but prevents a total miss).
+            // We capture the already-accumulated time from SharedPreferences so it's not lost,
+            // then add the full session duration (pre-restart + post-restart) when music stops.
             val resumingPkg = isMusicAppActiveViaMediaSession()
             if (resumingPkg != null && musicStartMs == -1L) {
+                // Capture already-accumulated time before resetting daily counter
+                preRestartAudioMs = DataRepository.accumulatedBgAudioMs.value
                 musicStartMs = System.currentTimeMillis()
                 activeMusicPackage = resumingPkg
-                Log.i("MHealth.Service", "Audio session re-anchored after service restart: $resumingPkg")
+                Log.i("MHealth.Service", "Audio session re-anchored after service restart: $resumingPkg (pre-accumulated: ${preRestartAudioMs}ms)")
             }
 
             // Sync any unsynced data from previous sessions on startup
@@ -493,36 +520,7 @@ class MonitoringService : Service() {
             // 2) Battery tracking is now handled by the exact-timestamp BroadcastReceiver
             //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
 
-            // 3) Background audio: Event-driven via sessionListener.
-            // if the listener failed (no permission), check via MediaSession once per tick
-            // and handle START, STOP, and APP-SWITCH transitions explicitly.
-            val fallbackPkg = isMusicAppActiveViaMediaSession()
-            val now = System.currentTimeMillis()
-            when {
-                // Music just started (was stopped)
-                fallbackPkg != null && musicStartMs == -1L -> {
-                    musicStartMs = now
-                    activeMusicPackage = fallbackPkg
-                    Log.i("MHealth.Service", "Audio tick → STARTED: $activeMusicPackage")
-                }
-                // Music stopped (was playing)
-                fallbackPkg == null && musicStartMs > 0L -> {
-                    val sessionMs = now - musicStartMs
-                    DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
-                    Log.i("MHealth.Service", "Audio tick → STOPPED: $activeMusicPackage (${sessionMs}ms added)")
-                    musicStartMs = -1L
-                    activeMusicPackage = null
-                }
-                // App changed mid-session (e.g. user switched from Spotify to Gaana)
-                fallbackPkg != null && fallbackPkg != activeMusicPackage && musicStartMs > 0L -> {
-                    val sessionMs = now - musicStartMs
-                    DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
-                    Log.i("MHealth.Service", "Audio tick → SWITCHED: $activeMusicPackage→$fallbackPkg (${sessionMs}ms added)")
-                    musicStartMs = now
-                    activeMusicPackage = fallbackPkg
-                }
-                // Still playing same app — no-op (event-driven listener handles accumulation)
-            }
+            // 3) Background audio: Event-driven via sessionListener (no tick polling needed)
 
             // 4) Provisional Analysis (Live Score)
             if (!DataRepository.isBuildingBaseline.value && detector != null) {
@@ -557,6 +555,7 @@ class MonitoringService : Service() {
 
                 // Reset daily accumulators for the new day
                 DataRepository.resetDailyState()
+                gpsStateManager.reset()  // Reset GPS state machine to STATIONARY
                 DataRepository.setLastProcessedDay(today)
             } else {
                 // Regular tick within the same day: just check if baseline was completed by manual settings change
@@ -633,6 +632,9 @@ class MonitoringService : Service() {
                 // Persist end-of-monitoring-day snapshot to Room
                 persistDailySnapshot(snapshot, savedDay, isSimulated)
 
+                // FIX: Persist anomaly score to AnalysisResultEntity (not just in-memory)
+                persistAnomalyResultToRoom(report, savedDay, isSimulated)
+
                 DataRepository.addReport(it)
                 if (it.alertLevel == "orange" || it.alertLevel == "red") {
                     sendAlertNotification(it.alertLevel, it.notes)
@@ -667,11 +669,64 @@ class MonitoringService : Service() {
             try {
                 MHealthDatabase.getInstance(this@MonitoringService)
                     .dailyFeaturesDao().insert(entity)
-                    
+
                 // Automatically push un-synced data to Firebase database
                 syncUnstagedDailyFeaturesToFirebase()
             } catch (e: Exception) {
                 Log.e("MHealth.Service", "Error persisting daily snapshot", e)
+            }
+        }
+    }
+
+    /**
+     * FIX: Persist anomaly detection results to Room immediately when detected.
+     * Previously, only NightlyAnalysisWorker wrote to analysis_results table,
+     * so days analyzed by MonitoringService had no anomaly scores in the export.
+     */
+    private fun persistAnomalyResultToRoom(report: DailyReport, dayOfYear: Int, isSimulated: Boolean) {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+
+        // Compute the date string for the day that just ended
+        val nowCal   = Calendar.getInstance()
+        val todayDoy = nowCal.get(Calendar.DAY_OF_YEAR)
+        val daysAgo  = if (todayDoy >= dayOfYear) {
+            todayDoy - dayOfYear
+        } else {
+            val prevYearCal = Calendar.getInstance().apply { set(Calendar.YEAR, nowCal.get(Calendar.YEAR) - 1) }
+            val daysInPrevYear = prevYearCal.getActualMaximum(Calendar.DAY_OF_YEAR)
+            daysInPrevYear - dayOfYear + todayDoy
+        }
+        val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -daysAgo.coerceAtLeast(0)) }
+        val dateStr = dateFmt.format(cal.time)
+
+        serviceScope.launch {
+            try {
+                val db = MHealthDatabase.getInstance(this@MonitoringService)
+
+                // Check if result already exists for this date (avoid duplicates)
+                val existing = db.analysisResultDao().getByDate(userId, dateStr)
+                if (existing != null) {
+                    Log.w(TAG, "Anomaly result already exists for $dateStr, skipping duplicate")
+                    return@launch
+                }
+
+                val resultEntity = AnalysisResultEntity(
+                    userId = userId,
+                    date = dateStr,
+                    anomalyDetected = report.alertLevel != "green",
+                    anomalyMessage = report.notes,
+                    anomalyScore = report.anomalyScore,
+                    sustainedDays = report.sustainedDeviationDays,
+                    alertLevel = report.alertLevel,
+                    prototypeMatch = report.patternType,
+                    matchMessage = report.flaggedFeatures.joinToString(", "),
+                    prototypeConfidence = report.evidenceAccumulated,
+                    gateResults = "{}"
+                )
+                db.analysisResultDao().insert(resultEntity)
+                Log.i(TAG, "Anomaly result persisted for $dateStr: score=${report.anomalyScore}, level=${report.alertLevel}")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error persisting anomaly result to Room", e)
             }
         }
     }

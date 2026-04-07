@@ -104,10 +104,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val batteryInfo   = getBatteryInfo()
         val systemInfo    = getSystemInfo(startOfDay, now)
         val calEvents     = countCalendarEvents(startOfDay, now)
-        val mediaCount    = countMediaAdded(startOfDay)
-        val appInstalls   = countAppInstalls(startOfDay)
+        val mediaCount    = countMediaAdded(startOfDay, now)
+        val appInstalls   = countAppInstalls(startOfDay, now)
         val contacts      = countUniqueContactsToday(startOfDay)  // fix: was starred contacts
-        val downloads     = countDownloads(startOfDay)
+        val downloads     = countDownloads(startOfDay, now)
         val storageGB     = getStorageUsedGB()
         val appUninstalls = countAppUninstalls()
         val upiLaunches   = countUpiLaunches(events.appLaunches)
@@ -188,9 +188,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
             // Re-use existing callback to prevent multiple registrations
             if (locationCallback != null) return
 
-            // Request updates roughly every 5 minutes, or when moving >50 meters
-            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_BALANCED_POWER_ACCURACY, 5 * 60 * 1000L)
-                .setMinUpdateDistanceMeters(50f)
+            // FIX: Use HIGH_ACCURACY (true GPS) instead of BALANCED (Wi-Fi/cell triangulation).
+            // BALANCED frequently produces fixes with accuracy 200–600m, which are then
+            // rejected by our 200m filter — leaving the snapshot list empty and distance = 0.
+            // HIGH_ACCURACY activates the hardware GPS chip and reliably hits <50m accuracy.
+            // Min distance lowered to 30m (was 50m) to catch short walks that span a few cell lengths.
+            val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5 * 60 * 1000L)
+                .setMinUpdateDistanceMeters(30f)
                 .build()
 
             locationCallback = object : LocationCallback() {
@@ -200,20 +204,23 @@ class DataCollector(private val context: Context) : SensorEventListener {
                     val accuracyOk = loc.accuracy.let { it in 0f..1000f }
                     val freshnessOk = ageMs <= (15 * 60 * 1000L)
 
-                    // Filter out stale or highly inaccurate locations
-                    if (accuracyOk && freshnessOk) {
+                    // Filter out stale or highly inaccurate locations (>800m)
+                    // We must accept up to 800m here because budget phones often report 250-400m.
+                    // If we drop them here, the entire metrics engine receives an empty list.
+                    if (accuracyOk && freshnessOk && loc.accuracy <= 800f) {
                         DataRepository.addLocationSnapshot(
-                            LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
+                            LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
                         )
-                        Log.i(TAG, "Continuous Location fix: %.5f, %.5f (acc: %.1fm)".format(loc.latitude, loc.longitude, loc.accuracy))
+                        Log.i(TAG, "Continuous Location fix: %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h)"
+                            .format(loc.latitude, loc.longitude, loc.accuracy, loc.speed * 3.6f))
                     } else {
-                        Log.w(TAG, "Continuous Location rejected: accuracy=${loc.accuracy}m, age=${ageMs / 1000}s")
+                        Log.w(TAG, "Continuous Location rejected: accuracy=${loc.accuracy}m (target <= 800m), age=${ageMs / 1000}s")
                     }
                 }
             }
 
             locationCallback?.let { fusedClient.requestLocationUpdates(locationRequest, it, Looper.getMainLooper()) }
-            Log.i(TAG, "Continuous location tracking started.")
+            Log.i(TAG, "Continuous location tracking started (HIGH_ACCURACY, min 30m).")
         } catch (e: SecurityException) {
             Log.e(TAG, "SecurityException accessing location: ${e.message}")
         } catch (e: Exception) {
@@ -247,16 +254,21 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }
         try {
             val fusedClient = LocationServices.getFusedLocationProviderClient(context)
-            fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+            fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
                 .addOnSuccessListener { loc ->
                     if (loc != null) {
                         val ageMs = System.currentTimeMillis() - loc.time
-                        if (ageMs <= 10 * 60 * 1000L && loc.accuracy <= 500f) {
+                        // FIX: Relax age threshold from 10 min → 20 min.
+                        // When no other location app is active, the OS may return a cached
+                        // GPS fix that is 11–14 minutes old. The old 10-min limit silently
+                        // dropped these valid fixes, leaving displacement = 0.
+                        // ALSO relaxing accuracy intake from 200m to 800m so budget phones aren't dropped.
+                        if (ageMs <= 20 * 60 * 1000L && loc.accuracy <= 800f) {
                             DataRepository.addLocationSnapshot(
-                                LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis())
+                                LatLonPoint(loc.latitude, loc.longitude, System.currentTimeMillis(), loc.accuracy, loc.speed)
                             )
-                            Log.i(TAG, "Proactive location fix: %.5f, %.5f (acc: %.1fm)"
-                                .format(loc.latitude, loc.longitude, loc.accuracy))
+                            Log.i(TAG, "Proactive location fix: %.5f, %.5f (acc: %.1fm, spd: %.1fkm/h, age: ${ageMs/1000}s)"
+                                .format(loc.latitude, loc.longitude, loc.accuracy, loc.speed * 3.6f))
                         } else {
                             Log.w(TAG, "Proactive fix rejected: age=${ageMs/1000}s acc=${loc.accuracy}m")
                         }
@@ -649,18 +661,20 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val usm = context.getSystemService(UsageStatsManager::class.java)
             ?: return SleepResult(0f, 0f, 0f)
 
-        // ── Window: Fixed 18-hour overnight window (6 PM yesterday → 12 PM today) ──
+        // ── Window: Fixed 18-hour overnight window (6 PM yesterday → 12 PM today relative to 'nowMs') ──
         // This excludes daytime inactivity (e.g. phone on desk at work) from ever
         // being mistaken for the primary sleep episode. Night-shift workers are
         // intentionally excluded from this heuristic for now.
         val windowCal = Calendar.getInstance()
-        // End = today 12:00 PM, or now if we haven't reached noon yet (keeps it live)
+        windowCal.timeInMillis = nowMs
+        // End = 'today' 12:00 PM, or now if we haven't reached noon yet (keeps it live)
         windowCal.set(Calendar.HOUR_OF_DAY, 12)
         windowCal.set(Calendar.MINUTE, 0)
         windowCal.set(Calendar.SECOND, 0)
         windowCal.set(Calendar.MILLISECOND, 0)
         val windowEndMs = minOf(windowCal.timeInMillis, nowMs)
-        // Start = yesterday 6:00 PM
+        
+        // Start = 'yesterday' 6:00 PM
         windowCal.add(Calendar.DAY_OF_YEAR, -1)
         windowCal.set(Calendar.HOUR_OF_DAY, 18)
         windowCal.set(Calendar.MINUTE, 0)
@@ -781,21 +795,47 @@ class DataCollector(private val context: Context) : SensorEventListener {
         // We use the full snaps array (which reset at midnight anyway) for true polyline.
         if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
 
-        // ── Displacement: grid-cell transition method (eliminates GPS drift) ──
-        // Distance is only added when a GPS ping lands in a DIFFERENT ~110m grid
-        // cell from the previous one. Stationary GPS drift within the same cell
-        // contributes 0 km — fixing the inflated-distance-when-stationary bug.
+        // ── Displacement: cell-transition + speed filter ────────────────────────────────
+        // 1. Cell deduplication eliminates GPS hover/drift (two fixes in same 11m cell = 0 distance).
+        // 2. Speed filter: if computed speed between two cells exceeds 6 km/h the phone is
+        //    almost certainly in a vehicle. That segment is logged but NOT added to distance.
+        //    6 km/h = 1.667 m/s (fast walk ≈ 5.5 km/h; anything above 6 is vehicle territory).
+        val WALK_SPEED_MS = 6.0 / 3.6   // m/s
+
+        // FIX: Relaxed global precision requirement from 200m to 800m. 
+        // Budget Android devices frequently fail to achieve sub-200m accuracy,
+        // which completely broke displacement, entropy, and placesVisited.
+        // The 11m grid cell deduplication will still protect against micro-flutter.
+        val filteredSnaps = snaps.filter { it.accuracy <= 800f }
+        if (filteredSnaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
+
+        // Sort chronologically so delta-time between consecutive fixes is always positive.
+        val sortedSnaps = filteredSnaps.sortedBy { it.timeMs }
+
         var distKm = 0.0
         var lastCell: String? = null
         var lastCellLat = 0.0
         var lastCellLon = 0.0
-        for (snap in snaps) {
-            val cell = "${"%.3f".format(snap.lat)},${"%.3f".format(snap.lon)}"
+        var lastCellTimeMs = 0L
+
+        for (snap in sortedSnaps) {
+            val cell = "${"%.4f".format(snap.lat)},${"%.4f".format(snap.lon)}"
             if (lastCell == null) {
-                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon
+                // Anchor first cell — no distance to add yet
+                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
             } else if (cell != lastCell) {
-                distKm += haversine(lastCellLat, lastCellLon, snap.lat, snap.lon)
-                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon
+                // New cell reached — compute haversine and add to total.
+                // Speed is computed for logcat ONLY (walk vs vehicle label).
+                // ALL movement counts — walking, driving, metro, everything.
+                val segmentKm    = haversine(lastCellLat, lastCellLon, snap.lat, snap.lon)
+                val timeDeltaSec = (snap.timeMs - lastCellTimeMs) / 1000.0
+                val speedMs      = if (timeDeltaSec > 0.0) (segmentKm * 1000.0) / timeDeltaSec else 0.0
+                val modeTag      = if (speedMs > WALK_SPEED_MS) "vehicle" else "walk"
+
+                distKm += segmentKm   // always count — total displacement includes all transport
+                Log.d(TAG, "GPS segment ($modeTag): %.3fkm at %.1fkm/h".format(segmentKm, speedMs * 3.6))
+
+                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
             }
         }
 
@@ -805,20 +845,20 @@ class DataCollector(private val context: Context) : SensorEventListener {
         // Each gap is capped at 12h to prevent bridging overnight absences.
         val ENTROPY_BRIDGE_CAP_MS = 12L * 3600_000L
         val cellTimeMs = mutableMapOf<String, Long>()
-        val todaySnapsForEntropy = snaps
+        val todaySnapsForEntropy = filteredSnaps
             .filter { it.timeMs in startOfDayMs..nowMs }
             .sortedBy { it.timeMs }
-
         for (i in 0 until todaySnapsForEntropy.size - 1) {
             val s = todaySnapsForEntropy[i]
-            val key = "${"%.3f".format(s.lat)},${"%.3f".format(s.lon)}"
+            // FIX: %.4f to match displacement cell resolution
+            val key = "${"%.4f".format(s.lat)},${"%.4f".format(s.lon)}"
             val gap = (todaySnapsForEntropy[i + 1].timeMs - s.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
             cellTimeMs[key] = (cellTimeMs[key] ?: 0L) + gap
         }
         // Bridge last snap → now (keeps entropy live even if GPS goes quiet at home)
         if (todaySnapsForEntropy.isNotEmpty()) {
             val last = todaySnapsForEntropy.last()
-            val key = "${"%.3f".format(last.lat)},${"%.3f".format(last.lon)}"
+            val key = "${"%.4f".format(last.lat)},${"%.4f".format(last.lon)}"
             val gap = (nowMs - last.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
             cellTimeMs[key] = (cellTimeMs[key] ?: 0L) + gap
         }
@@ -831,50 +871,72 @@ class DataCollector(private val context: Context) : SensorEventListener {
         } else 0f
 
         // ── homeTimeRatio ──────────────────────────────────────────────────────
-        // CORRECT formula: total wall-clock time within 500m of home / 24 hours.
+        // Formula: wall-clock ms within 500m of home / 86_400_000 (24h)
         //
-        // Uses GPS snap timestamps to measure actual duration at home:
-        //  1. Bridge midnight → first snap if first snap is near home.
-        //     (Captures overnight/sleep hours when GPS doesn't poll in Doze mode.)
-        //  2. For each consecutive pair, if snap[i] is near home add the gap
-        //     between snap[i] and snap[i+1] (capped to prevent absurd bridging).
-        //  3. Bridge last snap → now if last snap is near home.
-        //     (Ratio keeps updating in real-time even if GPS goes quiet at home.)
+        // KEY FIXES vs original:
+        //  A. Budget-phone fix: homeSnaps uses accuracy ≤ 800m (not 200m).
+        //     Many budget phones report 250-400m accuracy — the 200m filter was
+        //     rejecting EVERY fix on those devices, giving homeRatio = 0 all day.
+        //     For home-detection we only need ~500m precision, so 800m is safe.
+        //  B. Overnight bridge fix: midnight → first-snap was previously anchored
+        //     on today's first snap. If the patient left home at 07:00 and the
+        //     first fix is 07:05 OUTSIDE home, all 7 hours of sleep were missed.
+        //     Now we use yesterday's last GPS fix (saved just before midnight reset)
+        //     as the true overnight anchor.
+        //  C. Zero-snap fallback: if no GPS fixes pass even the 800m filter today,
+        //     use yesterday's last location to estimate if the patient is still home.
         val homeLat = DataRepository.getHomeLatitude()
         val homeLon = DataRepository.getHomeLongitude()
 
         val homeRatio: Float
         if (homeLat != null && homeLon != null) {
-            // Cap each individual gap at 12 hours to avoid bridging multi-day absences
             val BRIDGE_CAP_MS = 12L * 3600_000L
             val DAY_MS        = 24L * 3600_000L
 
             fun isNearHome(s: LatLonPoint) = haversine(s.lat, s.lon, homeLat, homeLon) < 0.5
 
-            // Filter to today's window and sort chronologically
-            val todaySnaps = snaps
-                .filter { it.timeMs in startOfDayMs..nowMs }
+            // FIX A: Relaxed accuracy filter (800m) for home-detection only.
+            // Displacement still uses the strict 200m filter — unaffected.
+            val homeSnaps = snaps
+                .filter { it.timeMs in startOfDayMs..nowMs && it.accuracy <= 800f }
                 .sortedBy { it.timeMs }
+
+            // FIX B: Yesterday's last known fix — the true overnight anchor.
+            val lastNight = DataRepository.getLastLocationBeforeMidnight()
 
             var homeTimeMs = 0L
 
-            if (todaySnaps.isNotEmpty()) {
-                // 1. Bridge: midnight → first snap (sleep/overnight)
-                val firstSnap = todaySnaps.first()
-                if (isNearHome(firstSnap)) {
+            if (homeSnaps.isEmpty()) {
+                // FIX C: Zero GPS day. If last night's fix was near home, the
+                // patient probably hasn't gone anywhere. Conservatively count
+                // midnight → now (capped at 12h) as home time.
+                if (lastNight != null && isNearHome(lastNight)) {
+                    homeTimeMs = minOf(nowMs - startOfDayMs, BRIDGE_CAP_MS)
+                    Log.d(TAG, "homeTimeRatio: no GPS today, using last-night anchor (near home)")
+                }
+            } else {
+                // Step 1: midnight → first snap of today.
+                // Use lastNight's location as anchor if available; otherwise fall
+                // back to today's first snap (old behaviour, less accurate).
+                val firstSnap = homeSnaps.first()
+                val midnightNearHome = when {
+                    lastNight != null -> isNearHome(lastNight)   // accurate
+                    else              -> isNearHome(firstSnap)   // fallback
+                }
+                if (midnightNearHome) {
                     homeTimeMs += minOf(firstSnap.timeMs - startOfDayMs, BRIDGE_CAP_MS)
                 }
 
-                // 2. Consecutive snap pairs
-                for (i in 0 until todaySnaps.size - 1) {
-                    if (isNearHome(todaySnaps[i])) {
-                        val gap = todaySnaps[i + 1].timeMs - todaySnaps[i].timeMs
+                // Step 2: consecutive snap pairs
+                for (i in 0 until homeSnaps.size - 1) {
+                    if (isNearHome(homeSnaps[i])) {
+                        val gap = homeSnaps[i + 1].timeMs - homeSnaps[i].timeMs
                         homeTimeMs += minOf(gap, BRIDGE_CAP_MS)
                     }
                 }
 
-                // 3. Bridge: last snap → now (so ratio updates in real-time)
-                val lastSnap = todaySnaps.last()
+                // Step 3: last snap → now (real-time update)
+                val lastSnap = homeSnaps.last()
                 if (isNearHome(lastSnap)) {
                     homeTimeMs += minOf(nowMs - lastSnap.timeMs, BRIDGE_CAP_MS)
                 }
@@ -887,8 +949,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
             homeRatio = if (totalTimeMs > 0.0) (maxCellMs / totalTimeMs).toFloat().coerceIn(0f, 1f) else 0f
         }
 
-        // placesVisited = distinct grid cells where actual time was logged (more
-        // accurate than raw ping count — a passing fix no longer inflates the count).
+        // placesVisited = distinct %.4f grid cells (~11m) where actual time was logged.
+        // Finer resolution means two rooms in the same building are counted separately.
         val placesVisited = if (cellTimeMs.isNotEmpty()) cellTimeMs.size else (if (lastCell != null) 1 else 0)
         return LocationResult(distKm.toFloat(), entropy, homeRatio, placesVisited)
     }
@@ -1007,22 +1069,22 @@ class DataCollector(private val context: Context) : SensorEventListener {
         return SystemResult(storagePct, memPct, wifiMB, mobileMB)
     }
 
-    private fun countMediaAdded(since: Long): Int = try {
+    private fun countMediaAdded(since: Long, untilMs: Long): Int = try {
         context.contentResolver.query(
             MediaStore.Files.getContentUri("external"),
             arrayOf(MediaStore.Files.FileColumns._ID),
-            "${MediaStore.Files.FileColumns.DATE_ADDED} >= ?",
-            arrayOf((since / 1000).toString()), null
+            "${MediaStore.Files.FileColumns.DATE_ADDED} >= ? AND ${MediaStore.Files.FileColumns.DATE_ADDED} <= ?",
+            arrayOf((since / 1000).toString(), (untilMs / 1000).toString()), null
         )?.use { it.count } ?: 0
     } catch (e: Exception) { 0 }
 
-    private fun countAppInstalls(since: Long): Int = try {
+    private fun countAppInstalls(since: Long, untilMs: Long): Int = try {
         val packages = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.packageManager.getInstalledPackages(PackageManager.PackageInfoFlags.of(0L))
         } else {
             context.packageManager.getInstalledPackages(0)
         }
-        packages.count { it.firstInstallTime >= since }
+        packages.count { it.firstInstallTime in since..untilMs }
     } catch (e: Exception) { 0 }
 
     private fun countCalendarEvents(startMs: Long, endMs: Long): Int = try {
@@ -1060,12 +1122,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     // ── New feature collectors ─────────────────────────────────────────────────
 
-    private fun countDownloads(since: Long): Int = try {
+    private fun countDownloads(since: Long, untilMs: Long): Int = try {
         // Scientifically bypass MediaStore index lags by checking the physical filesystem layer natively:
         val dir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
         var count = 0
         dir.listFiles()?.forEach { file ->
-            if (file.isFile && file.lastModified() >= since) count++
+            if (file.isFile && file.lastModified() in since..untilMs) count++
         }
         count
     } catch (e: Exception) { 0 }

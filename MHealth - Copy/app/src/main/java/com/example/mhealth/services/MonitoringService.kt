@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -198,13 +199,17 @@ class MonitoringService : Service() {
         registerReceiver(dndReceiver, IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED))
 
         // FIX 8: Register for MediaSession changes (requires notification access)
+        // We pass a ComponentName pointing to our declared NotificationListenerService.
+        // Without this, Android throws SecurityException on any getActiveSessions() call
+        // from a 3rd-party app that lacks MEDIA_CONTENT_CONTROL (a privileged permission).
         try {
+            val nlsComponent = ComponentName(this, MHealthNotificationListenerService::class.java)
             val msm = getSystemService(MediaSessionManager::class.java)
-            msm?.addOnActiveSessionsChangedListener(sessionListener, null)
-            // Initial check
-            updateMusicSessionState(msm?.getActiveSessions(null))
+            msm?.addOnActiveSessionsChangedListener(sessionListener, nlsComponent)
+            // Initial check for already-playing music when service starts
+            updateMusicSessionState(msm?.getActiveSessions(nlsComponent))
         } catch (e: SecurityException) {
-            Log.w("MHealth.Service", "MediaSession listener failed (No Notification Access) — background audio will only update via Screen interaction")
+            Log.w("MHealth.Service", "MediaSession listener failed (Notification Access not granted by user) — background audio tracking disabled until access is granted")
         }
 
         // FIX 9: Setup Midnight Alarm for exact day transition
@@ -304,6 +309,18 @@ class MonitoringService : Service() {
             if (DataRepository.isBuildingBaseline.value) {
                 val target = DataRepository.baselineDaysRequired.value
                 checkAndFinalizeBaseline(target)
+            }
+
+            // FIX: Re-anchor audio session if music was already playing when the service was
+            // killed and restarted. Without this, the in-progress session is silently dropped
+            // because musicStartMs resets to -1L on every service start.
+            // We snapshot "now" as the new anchor—a conservative estimate (slightly under-counts
+            // the gap between the kill and restart, but prevents a total miss).
+            val resumingPkg = isMusicAppActiveViaMediaSession()
+            if (resumingPkg != null && musicStartMs == -1L) {
+                musicStartMs = System.currentTimeMillis()
+                activeMusicPackage = resumingPkg
+                Log.i("MHealth.Service", "Audio session re-anchored after service restart: $resumingPkg")
             }
 
             // Sync any unsynced data from previous sessions on startup
@@ -477,19 +494,39 @@ class MonitoringService : Service() {
             //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
 
             // 3) Background audio: Event-driven via sessionListener.
-            // if the listener failed (no permission), check currently playing once per tick.
+            // if the listener failed (no permission), check via MediaSession once per tick
+            // and handle START, STOP, and APP-SWITCH transitions explicitly.
             val fallbackPkg = isMusicAppActiveViaMediaSession()
-            if (musicStartMs == -1L && fallbackPkg != null) {
-                // Fallback for one-off check on screen interaction
-                val now = System.currentTimeMillis()
-                musicStartMs = now
-                activeMusicPackage = fallbackPkg
-                Log.i("MHealth.Service", "Music fallback tick — started tracking $activeMusicPackage")
+            val now = System.currentTimeMillis()
+            when {
+                // Music just started (was stopped)
+                fallbackPkg != null && musicStartMs == -1L -> {
+                    musicStartMs = now
+                    activeMusicPackage = fallbackPkg
+                    Log.i("MHealth.Service", "Audio tick → STARTED: $activeMusicPackage")
+                }
+                // Music stopped (was playing)
+                fallbackPkg == null && musicStartMs > 0L -> {
+                    val sessionMs = now - musicStartMs
+                    DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
+                    Log.i("MHealth.Service", "Audio tick → STOPPED: $activeMusicPackage (${sessionMs}ms added)")
+                    musicStartMs = -1L
+                    activeMusicPackage = null
+                }
+                // App changed mid-session (e.g. user switched from Spotify to Gaana)
+                fallbackPkg != null && fallbackPkg != activeMusicPackage && musicStartMs > 0L -> {
+                    val sessionMs = now - musicStartMs
+                    DataRepository.addBgAudioTime(activeMusicPackage, sessionMs)
+                    Log.i("MHealth.Service", "Audio tick → SWITCHED: $activeMusicPackage→$fallbackPkg (${sessionMs}ms added)")
+                    musicStartMs = now
+                    activeMusicPackage = fallbackPkg
+                }
+                // Still playing same app — no-op (event-driven listener handles accumulation)
             }
 
             // 4) Provisional Analysis (Live Score)
             if (!DataRepository.isBuildingBaseline.value && detector != null) {
-                val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1)
+                val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1, isProvisional = true)
                 provisionalReport?.let {
                     // Update the Repository so the UI can show the live score
                     DataRepository.updateProvisionalAnalysis(it)
@@ -924,11 +961,11 @@ class MonitoringService : Service() {
      *
      * This ensures only Spotify, Gaana, OuerTune, etc. add to backgroundAudioHours.
      */
-    @androidx.annotation.RequiresPermission(android.Manifest.permission.MEDIA_CONTENT_CONTROL)
     private fun isMusicAppActiveViaMediaSession(): String? {
         return try {
             val msm = getSystemService(MediaSessionManager::class.java) ?: return null
-            val sessions = msm.getActiveSessions(null)
+            val nlsComponent = ComponentName(this, MHealthNotificationListenerService::class.java)
+            val sessions = msm.getActiveSessions(nlsComponent)
             val controller = sessions.firstOrNull { controller ->
                 val pkg = controller.packageName
                 val state = controller.playbackState
@@ -937,7 +974,7 @@ class MonitoringService : Service() {
             }
             controller?.packageName
         } catch (e: SecurityException) {
-            // Notification listener permission not granted — fall back to AudioManager
+            // Notification access not granted — AudioManager fallback (no package name)
             val audioManager = getSystemService(android.media.AudioManager::class.java)
             if (audioManager?.isMusicActive == true) "unknown_music_app" else null
         } catch (e: Exception) {

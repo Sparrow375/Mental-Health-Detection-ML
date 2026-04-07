@@ -2174,7 +2174,6 @@ fun InsightsScreen() {
                                     "Memory"           to "%.0f%%".format(feat.memoryUsagePercent),
                                     "Wi-Fi"            to "%.0f MB".format(feat.networkWifiMB),
                                     "Mobile Data"      to "%.0f MB".format(feat.networkMobileMB),
-                                    "Steps"            to "%.0f".format(feat.dailySteps),
                                     "Audio"            to "%.1f hrs".format(feat.backgroundAudioHours),
                                     "Storage Used"     to "%.1f GB".format(feat.storageUsedGB),
                                     "Downloads"        to "%.0f".format(feat.downloadsToday),
@@ -2711,7 +2710,12 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                 val locs = if (locStr.isNotEmpty()) {
                     locStr.split(";").filter { it.isNotBlank() }.map { 
                         val parts = it.split(",")
-                        com.example.mhealth.models.LatLonPoint(parts[0].toDouble(), parts[1].toDouble(), parts[2].toLong())
+                        com.example.mhealth.models.LatLonPoint(
+                            parts[0].toDouble(), 
+                            parts[1].toDouble(), 
+                            parts[2].toLong(),
+                            if (parts.size > 3) parts[3].toFloat() else 0f
+                        )
                     }
                 } else emptyList()
                 

@@ -674,9 +674,21 @@ class ImprovedAnomalyDetector:
             baseline_val = self.baseline_dict.get(feature, 0.0)
             current_val = current_data.get(feature, baseline_val)
             std = variances.get(feature, 1.0)
-            std = std if std > 0 else 1.0
+            
+            # Floor standard deviation to prevent near-zero division explosion
+            # Time features minimum 0.5hr (30min) variance, counts/amounts minimum 1.0
+            safe_std = max(std, 0.5) if "Time" in feature else max(std, 1.0)
 
-            z = (current_val - baseline_val) / std
+            # Circular Time Normalize for absolute clock hours (e.g. 11PM and 1AM parity)
+            if feature.endswith("Hour"):
+                # E.g. shift late night hours so 11PM and 1AM are continuous
+                current_norm = (current_val - 12.0 + 24.0) % 24.0
+                baseline_norm = (baseline_val - 12.0 + 24.0) % 24.0
+            else:
+                current_norm = current_val
+                baseline_norm = baseline_val
+
+            z = (current_norm - baseline_norm) / safe_std
             weight = FEATURE_META.get(feature, {}).get("weight", 1.0)
             deviations[feature] = z * weight
 

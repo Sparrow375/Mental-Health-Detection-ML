@@ -11,7 +11,19 @@ import kotlin.math.sqrt
 
 /** Mirror of the same helper in MonitoringService — keeps sleep/wake on a midnight-safe scale. */
 private fun normalizeTimeToNoon(rawHour: Float): Float = (rawHour - 12f + 24f) % 24f
-private val CIRCULAR_TIME_FEATURES = setOf("sleepTimeHour", "wakeTimeHour")
+private val FEATURE_META = mapOf(
+    "screenTimeHours"      to 1.4f, "unlockCount"          to 1.2f, "appLaunchCount"       to 0.9f,
+    "notificationsToday"   to 0.8f, "socialAppRatio"       to 1.3f, "callsPerDay"          to 1.3f,
+    "callDurationMinutes"  to 1.2f, "uniqueContacts"       to 1.1f, "conversationFrequency" to 0.9f,
+    "dailyDisplacementKm"  to 1.5f, "locationEntropy"      to 1.3f, "homeTimeRatio"        to 1.2f,
+    "placesVisited"        to 1.1f, "wakeTimeHour"         to 1.4f, "sleepTimeHour"        to 1.3f,
+    "sleepDurationHours"   to 1.6f, "darkDurationHours"    to 1.0f, "chargeDurationHours"  to 0.8f,
+    "memoryUsagePercent"   to 0.5f, "networkWifiMB"        to 0.6f, "networkMobileMB"      to 0.6f,
+    "storageUsedGB"        to 0.4f, "totalAppsCount"       to 0.8f, "upiTransactionsToday" to 1.1f,
+    "appUninstallsToday"   to 0.9f, "appInstallsToday"     to 0.8f, "calendarEventsToday"  to 0.9f,
+    "mediaCountToday"      to 0.7f, "downloadsToday"       to 0.6f, "backgroundAudioHours" to 0.9f,
+    "dailySteps"           to 1.0f
+)
 
 class AnomalyDetector(private val baseline: PersonalityVector) {
     private val historyWindow = 7
@@ -36,18 +48,19 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
             "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
             "memoryUsagePercent", "networkWifiMB", "networkMobileMB", "calendarEventsToday",
             "downloadsToday", "storageUsedGB", "appUninstallsToday",
-            "upiTransactionsToday"
+            "upiTransactionsToday", "totalAppsCount", "mediaCountToday",
+            "appInstallsToday", "dailySteps", "backgroundAudioHours"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
     }
 
-    fun analyze(currentData: PersonalityVector, dayNumber: Int): DailyReport {
+    fun analyze(currentData: PersonalityVector, dayNumber: Int, isProvisional: Boolean = false): DailyReport {
         val currentMap = currentData.toMap()
         val deviations = calculateDeviations(currentMap)
-        val velocities = calculateVelocities(currentMap)
+        val velocities = calculateVelocities(currentMap, isProvisional)
         val anomalyScore = calculateAnomalyScore(deviations, velocities)
 
-        updateSustainedTracking(anomalyScore)
+        updateSustainedTracking(anomalyScore, isProvisional)
 
         val alertLevel = determineAlertLevel(anomalyScore, deviations)
         val patternType = detectPatternType()
@@ -77,40 +90,57 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
         currentData.forEach { (feature, value) ->
             val baselineVal = baselineMap[feature] ?: 0f
             val variance = variances[feature] ?: 1f
+            val weight = FEATURE_META[feature] ?: 1.0f
 
-            // Apply Noon-Offset so 11:55 PM vs 12:05 AM is a 10-min diff, not a 23h diff.
-            val currentNorm  = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(value)      else value
-            val baselineNorm = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(baselineVal) else baselineVal
+            val safeVariance = if (feature.endsWith("Hour")) {
+                max(variance, 0.5f)
+            } else {
+                max(variance, 1.0f)
+            }
 
-            deviations[feature] = (currentNorm - baselineNorm) / if (variance != 0f) variance else 1f
+            // Apply Noon-Offset so 11:55 PM vs 12:05 AM is a 10-min diff, not a 23h diff (only for absolute clock hours)
+            val currentNorm  = if (feature.endsWith("Hour")) normalizeTimeToNoon(value)       else value
+            val baselineNorm = if (feature.endsWith("Hour")) normalizeTimeToNoon(baselineVal) else baselineVal
+
+            // Z-Score * Weight
+            deviations[feature] = ((currentNorm - baselineNorm) / safeVariance) * weight
         }
         return deviations
     }
 
-    private fun calculateVelocities(currentData: Map<String, Float>): Map<String, Float> {
+    private fun calculateVelocities(currentData: Map<String, Float>, isProvisional: Boolean): Map<String, Float> {
         val velocities = mutableMapOf<String, Float>()
         val alpha = 0.4f
 
         currentData.forEach { (feature, value) ->
-            // Normalize time-of-day features before any velocity math.
-            val normValue = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(value) else value
+            val normValue = if (feature.endsWith("Hour")) normalizeTimeToNoon(value) else value
 
             val history = featureHistory[feature] ?: mutableListOf<Float>().also { featureHistory[feature] = it }
-            history.add(normValue)
-            if (history.size > historyWindow) history.removeAt(0)
+            
+            // Only mutate historical queues if this is the final daily analysis
+            val tempHistory = if (isProvisional) {
+                val temp = history.toMutableList()
+                temp.add(normValue)
+                if (temp.size > historyWindow) temp.removeAt(0)
+                temp
+            } else {
+                history.add(normValue)
+                if (history.size > historyWindow) history.removeAt(0)
+                history
+            }
 
-            if (history.size < 2) {
+            if (tempHistory.size < 2) {
                 velocities[feature] = 0f
             } else {
-                var ewma = history[0]
+                var ewma = tempHistory[0]
                 val ewmaValues = mutableListOf<Float>()
-                history.forEach { val_ ->
+                tempHistory.forEach { val_ ->
                     ewma = alpha * val_ + (1 - alpha) * ewma
                     ewmaValues.add(ewma)
                 }
                 val slope = (ewmaValues.last() - ewmaValues.first()) / ewmaValues.size
                 val baselineRaw = baseline.toMap()[feature] ?: 1f
-                val baselineNorm = if (feature in CIRCULAR_TIME_FEATURES) normalizeTimeToNoon(baselineRaw) else baselineRaw
+                val baselineNorm = if (feature.endsWith("Hour")) normalizeTimeToNoon(baselineRaw) else baselineRaw
                 velocities[feature] = if (baselineNorm != 0f) slope / baselineNorm else 0f
             }
         }
@@ -127,7 +157,9 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
         return 0.7f * normalizedMagnitude + 0.3f * normalizedVelocity
     }
 
-    private fun updateSustainedTracking(anomalyScore: Float) {
+    private fun updateSustainedTracking(anomalyScore: Float, isProvisional: Boolean) {
+        if (isProvisional) return // Never mutate sustained evidence on 15min provisional ticks
+
         anomalyScoreHistory.add(anomalyScore)
         if (anomalyScoreHistory.size > 14) anomalyScoreHistory.removeAt(0)
 
@@ -143,7 +175,8 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
     private fun determineAlertLevel(anomalyScore: Float, deviations: Map<String, Float>): String {
         val criticalFeatures = listOf(
             "sleepDurationHours", "screenTimeHours", "dailyDisplacementKm",
-            "socialAppRatio", "notificationsToday", "upiTransactionsToday"
+            "socialAppRatio", "totalAppsCount", "upiTransactionsToday",
+            "wakeTimeHour", "callsPerDay"
         )
         val criticalDeviation = criticalFeatures.map { abs(deviations[it] ?: 0f) }.maxOrNull() ?: 0f
 

@@ -127,8 +127,16 @@ data class DailyReport(
     val notes: String
 )
 
-/** GPS fix captured every 15 min for displacement/entropy calculation */
-data class LatLonPoint(val lat: Double, val lon: Double, val timeMs: Long)
+/** GPS fix captured every 15 min for displacement/entropy calculation.
+ *  [speed] is the Doppler-measured speed in m/s from the GPS chip (0f if unavailable).
+ *  Used to classify walking vs vehicle segments in displacement calculation. */
+data class LatLonPoint(
+    val lat: Double,
+    val lon: Double,
+    val timeMs: Long,
+    val accuracy: Float = 0f,
+    val speed: Float = 0f        // m/s — from Location.speed; 0f if chip didn't report it
+)
 
 /** User profile metadata captured during onboarding */
 data class UserProfile(

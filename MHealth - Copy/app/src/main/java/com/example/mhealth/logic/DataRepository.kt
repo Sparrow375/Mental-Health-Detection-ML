@@ -229,7 +229,13 @@ object DataRepository {
             try {
                 val locs = savedLocsStr.split(";").filter { it.isNotBlank() }.map { 
                     val parts = it.split(",")
-                    LatLonPoint(parts[0].toDouble(), parts[1].toDouble(), parts[2].toLong())
+                    LatLonPoint(
+                        parts[0].toDouble(), 
+                        parts[1].toDouble(), 
+                        parts[2].toLong(),
+                        if (parts.size > 3) parts[3].toFloat() else 0f,
+                        if (parts.size > 4) parts[4].toFloat() else 0f   // speed — backwards compat
+                    )
                 }
                 _locationSnapshots.value = locs
             } catch (e: Exception) {}
@@ -338,7 +344,8 @@ object DataRepository {
     }
 
     private fun saveLocationsToPrefs(list: List<LatLonPoint>) {
-        val str = list.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" }
+        // Format: lat,lon,timeMs,accuracy,speed — speed added for vehicle filtering (backward compat)
+        val str = list.joinToString(";") { "${it.lat},${it.lon},${it.timeMs},${it.accuracy},${it.speed}" }
         prefs?.edit()?.putString("loc_snapshots_today", str)?.apply()
     }
 
@@ -377,6 +384,23 @@ object DataRepository {
     fun getHomeLatitude(): Double? = _homeLocation.value?.first
     fun getHomeLongitude(): Double? = _homeLocation.value?.second
 
+    /**
+     * Returns the last GPS fix from YESTERDAY (saved just before midnight wipe).
+     * Used by DataCollector to anchor the overnight homeTimeRatio bridge:
+     * if the patient was home at 23:59, the hours from midnight → first-snap-today count as home.
+     */
+    fun getLastLocationBeforeMidnight(): LatLonPoint? {
+        val str = prefs?.getString("last_location_before_midnight", null) ?: return null
+        return try {
+            val parts = str.split(",")
+            LatLonPoint(
+                parts[0].toDouble(), parts[1].toDouble(), parts[2].toLong(),
+                if (parts.size > 3) parts[3].toFloat() else 0f,
+                if (parts.size > 4) parts[4].toFloat() else 0f
+            )
+        } catch (e: Exception) { null }
+    }
+
     fun setStepBaseline(steps: Float) {
         if (_stepBaseline.value == null) {
             _stepBaseline.value = steps
@@ -400,6 +424,17 @@ object DataRepository {
     }
 
     fun resetDailyState() {
+        // FIX: Before wiping today's location snapshots, persist the last known GPS fix.
+        // This is used tomorrow as the overnight anchor for the homeTimeRatio midnight bridge.
+        // Without this, the bridge has nothing to anchor on and misses all sleep hours.
+        val lastSnap = _locationSnapshots.value.lastOrNull()
+        if (lastSnap != null) {
+            prefs?.edit()?.putString(
+                "last_location_before_midnight",
+                "${lastSnap.lat},${lastSnap.lon},${lastSnap.timeMs},${lastSnap.accuracy},${lastSnap.speed}"
+            )?.apply()
+        }
+
         _hourlySnapshots.value = emptyList()
         _locationSnapshots.value = emptyList()
         _stepBaseline.value = null

@@ -2,7 +2,16 @@ package com.example.mhealth.services
 
 import android.content.Context
 import android.util.Log
-import androidx.work.*
+import androidx.work.BackoffPolicy
+import androidx.work.Constraints
+import androidx.work.CoroutineWorker
+import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.PeriodicWorkRequestBuilder
+import androidx.work.WorkManager
+import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import com.example.mhealth.logic.JsonConverter
 import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataRepository
@@ -10,7 +19,9 @@ import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import java.text.SimpleDateFormat
-import java.util.*
+import java.util.Calendar
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 /**
@@ -90,14 +101,17 @@ class NightlyAnalysisWorker(
             return Result.failure()
         }
 
-        val today = DATE_FMT.format(Date())
-        Log.i(TAG, "Running nightly analysis for user=$userId date=$today")
+        // The day that just ended is always "yesterday" when this worker fires at 00:05.
+        // persistDailySnapshot() stores data under yesterday's date string, so we must match it.
+        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+        val targetDate = DATE_FMT.format(yesterdayCal.time)
+        Log.i(TAG, "Running nightly analysis for user=$userId date=$targetDate")
 
         return try {
             // ── 1. Load today's features ───────────────────────────────────────
-            val todayFeatures = db.dailyFeaturesDao().getByDate(userId, today)
+            val todayFeatures = db.dailyFeaturesDao().getByDate(userId, targetDate)
             if (todayFeatures == null) {
-                Log.w(TAG, "No feature data for today ($today) — skipping analysis")
+                Log.w(TAG, "No feature data for $targetDate — skipping analysis")
                 return Result.success()
             }
 
@@ -113,19 +127,25 @@ class NightlyAnalysisWorker(
 
             // ── 3. Fetch history (last 14 days) ────────────────────────────────
             val history = db.dailyFeaturesDao().getLatestN(userId, limit = 15)
-                .filter { it.date != today }   // exclude today from history
+                .filter { it.date != targetDate }   // exclude the analysis day from history
                 .sortedBy { it.date }           // oldest first
+
+            // ── 3b. Fetch historical anomaly scores (for pattern detection) ─────
+            val historicalScores = db.analysisResultDao().getLatestN(userId, 14)
+                .reversed()  // oldest first
+                .map { it.anomalyScore }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
             val dayNumber = DataRepository.reports.value.size + 1
             val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
-            // Inject day_number and gate_state into the JSON before passing to engine
+            // Inject day_number, gate_state, and historical anomaly scores
             val jsonWithMeta = injectMetadata(
                 inputJson = inputJson,
                 dayNumber = dayNumber,
                 contaminated = profileEntity?.baselineContaminated ?: false,
-                gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}"
+                gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}",
+                historicalScores = historicalScores
             )
 
             // ── 5. Call Python engine ──────────────────────────────────────────
@@ -141,7 +161,7 @@ class NightlyAnalysisWorker(
             // ── 6. Store result in Room ────────────────────────────────────────
             val resultEntity = AnalysisResultEntity(
                 userId              = userId,
-                date                = today,
+                date                = targetDate,
                 anomalyDetected     = engineResult.anomalyDetected,
                 anomalyMessage      = engineResult.anomalyMessage,
                 anomalyScore        = engineResult.anomalyScore,
@@ -180,7 +200,7 @@ class NightlyAnalysisWorker(
             WorkManager.getInstance(applicationContext).enqueue(syncWork)
             Log.d(TAG, "Enqueued CloudSyncWorker for data upload")
 
-            Log.i(TAG, "Nightly analysis complete for $today")
+            Log.i(TAG, "Nightly analysis complete for $targetDate")
             Result.success()
 
         } catch (e: Exception) {
@@ -191,12 +211,13 @@ class NightlyAnalysisWorker(
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Injects day_number, gate_state, and baseline_contaminated into existing JSON string. */
+    /** Injects day_number, gate_state, baseline_contaminated, and historical anomaly scores into JSON. */
     private fun injectMetadata(
         inputJson: String,
         dayNumber: Int,
         contaminated: Boolean,
-        gateResultsJson: String
+        gateResultsJson: String,
+        historicalScores: List<Float> = emptyList()
     ): String {
         return try {
             val obj = org.json.JSONObject(inputJson)
@@ -209,6 +230,14 @@ class NightlyAnalysisWorker(
                 org.json.JSONObject()
             }
             obj.put("gate_state", gateState)
+
+            // Add historical anomaly scores for pattern detection
+            if (historicalScores.isNotEmpty()) {
+                val scoresArray = org.json.JSONArray()
+                historicalScores.forEach { scoresArray.put(it.toDouble()) }
+                obj.put("historical_anomaly_scores", scoresArray)
+            }
+
             obj.toString()
         } catch (e: Exception) {
             inputJson   // fallback: pass as-is

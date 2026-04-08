@@ -21,7 +21,8 @@ def run_analysis(json_string: str) -> str:
         "history":   [ { featureName: value, ... }, ... ],           // last 14 days (oldest first)
         "day_number": int,
         "baseline_contaminated": bool,
-        "gate_state": {}
+        "gate_state": {},
+        "historical_anomaly_scores": [ float, ... ]                 // optional: past anomaly scores from Room
       }
     """
     try:
@@ -32,6 +33,7 @@ def run_analysis(json_string: str) -> str:
         history      = data.get("history", [])
         contaminated = data.get("baseline_contaminated", False)
         day_number   = data.get("day_number", 0)
+        historical_scores = data.get("historical_anomaly_scores", [])
 
         # ── Build PersonalityVector baseline from Android mean/std stats ──────
         # PersonalityVector.from_dict() accepts all 29 Android feature keys.
@@ -50,6 +52,15 @@ def run_analysis(json_string: str) -> str:
 
         # ── System 1 setup ─────────────────────────────────────────────────────
         s1 = ImprovedAnomalyDetector(baseline=s1_baseline)
+
+        # FIX: Initialize anomaly score history from Android Room data
+        # This allows the detector to use past anomaly scores for pattern detection
+        if historical_scores:
+            s1.full_anomaly_history = list(historical_scores)
+            # Also seed the rolling window used for pattern detection
+            for score in historical_scores[-14:]:
+                s1.anomaly_score_history.append(score)
+            print(f"  Loaded {len(historical_scores)} historical anomaly scores from Room")
 
         # Fast-forward state using history (oldest first)
         deviations_history = []

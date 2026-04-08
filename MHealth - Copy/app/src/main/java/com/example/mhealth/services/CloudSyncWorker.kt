@@ -33,7 +33,10 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
 
             // 2. Sync Daily Features
-            val unsyncedFeatures = db.dailyFeaturesDao().getUnsynced(uid)
+            // IMPORTANT: Room stores all data keyed by email, not Firebase UID.
+            // Using `uid` here would return 0 rows and silently skip all syncing.
+            val email = user.email ?: return Result.failure()
+            val unsyncedFeatures = db.dailyFeaturesDao().getUnsynced(email)
             val dailyDataRef = firestore.collection("users").document(uid).collection("daily_data")
             
             fun jsonToMap(jsonStr: String): Map<String, Any> {
@@ -89,7 +92,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
 
             // 3. Sync Analysis Results
-            val unsyncedResults = db.analysisResultDao().getUnsynced(uid)
+            val unsyncedResults = db.analysisResultDao().getUnsynced(email)
             val resultsRef = firestore.collection("users").document(uid).collection("results")
 
             for (result in unsyncedResults) {
@@ -108,8 +111,11 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
 
             // 4. Update total recorded days (baseline progress)
-            val baselineProgress = db.dailyFeaturesDao().count(uid)
-            firestore.collection("users").document(uid).update("baseline_progress", baselineProgress).await()
+            val baselineProgress = db.dailyFeaturesDao().count(email)
+            // Use set(merge=true) instead of update() — update() throws if the user doc
+            // doesn't exist yet (e.g. just after first-time registration).
+            firestore.collection("users").document(uid)
+                .set(mapOf("baseline_progress" to baselineProgress), com.google.firebase.firestore.SetOptions.merge()).await()
 
             return Result.success()
 

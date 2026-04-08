@@ -3,6 +3,7 @@ package com.example.mhealth.logic
 import android.content.Context
 import android.content.SharedPreferences
 import com.example.mhealth.logic.db.AnalysisResultEntity
+import com.example.mhealth.logic.db.DailyFeaturesEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.LatLonPoint
@@ -27,9 +28,17 @@ object DataRepository {
     private val _latestAnalysisResult = MutableStateFlow<AnalysisResultEntity?>(null)
     val latestAnalysisResult: StateFlow<AnalysisResultEntity?> = _latestAnalysisResult
 
+    /** Emits the live, non-persisted analysis for the current day's progress. */
+    private val _provisionalAnalysis = MutableStateFlow<com.example.mhealth.models.DailyReport?>(null)
+    val provisionalAnalysis: StateFlow<com.example.mhealth.models.DailyReport?> = _provisionalAnalysis
+
     /** Emits the last 30 analysis results (newest first) for the history sparkline. */
     private val _analysisHistory = MutableStateFlow<List<AnalysisResultEntity>>(emptyList())
     val analysisHistory: StateFlow<List<AnalysisResultEntity>> = _analysisHistory
+
+    /** Emits the last 7 daily feature vectors for trend sparklines on the Monitor screen. */
+    private val _weeklyFeatureHistory = MutableStateFlow<List<PersonalityVector>>(emptyList())
+    val weeklyFeatureHistory: StateFlow<List<PersonalityVector>> = _weeklyFeatureHistory
 
     /**
      * Wire the Room-backed StateFlows after the DB is available (call from MonitoringService/Application).
@@ -51,7 +60,49 @@ object DataRepository {
                 _analysisHistory.value = list
             }
         }
+        scope.launch {
+            // Room does not have a native Flow for getLatestN, so we poll or use a simpler getAll flow
+            // For now, we'll just fetch once or use a simple periodically-updated list
+            val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
+            _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
+        }
     }
+
+    private fun DailyFeaturesEntity.toPersonalityVector() = PersonalityVector(
+        screenTimeHours = screenTimeHours,
+        unlockCount = unlockCount,
+        appLaunchCount = appLaunchCount,
+        notificationsToday = notificationsToday,
+        socialAppRatio = socialAppRatio,
+        callsPerDay = callsPerDay,
+        callDurationMinutes = callDurationMinutes,
+        uniqueContacts = uniqueContacts,
+        conversationFrequency = conversationFrequency,
+        dailyDisplacementKm = dailyDisplacementKm,
+        locationEntropy = locationEntropy,
+        homeTimeRatio = homeTimeRatio,
+        placesVisited = placesVisited,
+        wakeTimeHour = wakeTimeHour,
+        sleepTimeHour = sleepTimeHour,
+        sleepDurationHours = sleepDurationHours,
+        darkDurationHours = darkDurationHours,
+        chargeDurationHours = chargeDurationHours,
+        memoryUsagePercent = memoryUsagePercent,
+        networkWifiMB = networkWifiMB,
+        networkMobileMB = networkMobileMB,
+        downloadsToday = downloadsToday,
+        storageUsedGB = storageUsedGB,
+        appUninstallsToday = appUninstallsToday,
+        upiTransactionsToday = upiTransactionsToday,
+        totalAppsCount = totalAppsCount,
+        backgroundAudioHours = backgroundAudioHours,
+        mediaCountToday = mediaCountToday,
+        appInstallsToday = appInstallsToday,
+        calendarEventsToday = calendarEventsToday,
+        dailySteps = dailySteps,
+        appBreakdown = emptyMap(), // This is usually null-filled from DB row, but we add our local one
+        bgAudioBreakdown = _bgAudioBreakdown.value
+    )
 
 
 
@@ -87,6 +138,10 @@ object DataRepository {
     private val _locationSnapshots = MutableStateFlow<List<LatLonPoint>>(emptyList())
     val locationSnapshots: StateFlow<List<LatLonPoint>> = _locationSnapshots
 
+    // Current GPS state (STATIONARY/WALKING/VEHICLE) for adaptive tracking
+    private val _gpsState = MutableStateFlow("Stationary")
+    val gpsState: StateFlow<String> = _gpsState
+
     // Optional user mood check-in score (1-10)
     private val _moodScore = MutableStateFlow<Int?>(null)
     val moodScore: StateFlow<Int?> = _moodScore
@@ -102,6 +157,10 @@ object DataRepository {
     private val _accumulatedBgAudioMs = MutableStateFlow(0L)
     val accumulatedBgAudioMs: StateFlow<Long> = _accumulatedBgAudioMs
 
+    // Per-app background audio breakdown: package -> ms
+    private val _bgAudioBreakdown = MutableStateFlow<Map<String, Long>>(emptyMap())
+    val bgAudioBreakdown: StateFlow<Map<String, Long>> = _bgAudioBreakdown
+
     // Saved home location (lat/lon) for homeTimeRatio calculation
     private val _homeLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val homeLocation: StateFlow<Pair<Double, Double>?> = _homeLocation
@@ -109,6 +168,13 @@ object DataRepository {
     // Track the last processed Calendar Day of Year stringently across app reboots
     private val _lastProcessedDay = MutableStateFlow(-1)
     val lastProcessedDay: StateFlow<Int> = _lastProcessedDay
+
+    // DND On/Off Timestamps for Sleep Detection
+    private val _dndOnMs = MutableStateFlow(-1L)
+    val dndOnMs: StateFlow<Long> = _dndOnMs
+
+    private val _dndOffMs = MutableStateFlow(-1L)
+    val dndOffMs: StateFlow<Long> = _dndOffMs
 
     // User Profile & Onboarding
     private val _userProfile = MutableStateFlow<com.example.mhealth.models.UserProfile?>(null)
@@ -167,7 +233,13 @@ object DataRepository {
             try {
                 val locs = savedLocsStr.split(";").filter { it.isNotBlank() }.map { 
                     val parts = it.split(",")
-                    LatLonPoint(parts[0].toDouble(), parts[1].toDouble(), parts[2].toLong())
+                    LatLonPoint(
+                        parts[0].toDouble(), 
+                        parts[1].toDouble(), 
+                        parts[2].toLong(),
+                        if (parts.size > 3) parts[3].toFloat() else 0f,
+                        if (parts.size > 4) parts[4].toFloat() else 0f   // speed — backwards compat
+                    )
                 }
                 _locationSnapshots.value = locs
             } catch (e: Exception) {}
@@ -178,6 +250,7 @@ object DataRepository {
 
         // Restore accumulated background audio ms
         _accumulatedBgAudioMs.value = prefs?.getLong("bg_audio_ms_today", 0L) ?: 0L
+        _bgAudioBreakdown.value = loadMapFromPrefs("bg_audio_breakdown_today")
 
         // Restore home location (stored as Float to use NaN as sentinel)
         val homeLat = prefs?.getFloat("home_location_lat", Float.NaN) ?: Float.NaN
@@ -188,6 +261,10 @@ object DataRepository {
 
         // Restore last processed calendar day
         _lastProcessedDay.value = prefs?.getInt("last_processed_day", -1) ?: -1
+
+        // Restore DND timestamps
+        _dndOnMs.value = prefs?.getLong("dnd_on_ts", -1L) ?: -1L
+        _dndOffMs.value = prefs?.getLong("dnd_off_ts", -1L) ?: -1L
     }
 
     // --- Mutators ---
@@ -233,6 +310,10 @@ object DataRepository {
         _latestVector.value = vector
     }
 
+    fun updateProvisionalAnalysis(result: com.example.mhealth.models.DailyReport?) {
+        _provisionalAnalysis.value = result
+    }
+
     fun addReport(report: DailyReport) {
         _reports.value = _reports.value + report
     }
@@ -261,13 +342,18 @@ object DataRepository {
         saveLocationsToPrefs(updated)
     }
 
+    fun updateGpsState(state: String) {
+        _gpsState.value = state
+    }
+
     fun clearDailyLocationSnapshots() {
         _locationSnapshots.value = emptyList()
         saveLocationsToPrefs(emptyList())
     }
 
     private fun saveLocationsToPrefs(list: List<LatLonPoint>) {
-        val str = list.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" }
+        // Format: lat,lon,timeMs,accuracy,speed — speed added for vehicle filtering (backward compat)
+        val str = list.joinToString(";") { "${it.lat},${it.lon},${it.timeMs},${it.accuracy},${it.speed}" }
         prefs?.edit()?.putString("loc_snapshots_today", str)?.apply()
     }
 
@@ -281,10 +367,18 @@ object DataRepository {
         prefs?.edit()?.putFloat("charge_hours_today", newTotal)?.apply()
     }
 
-    fun addBgAudioTime(ms: Long) {
+    fun addBgAudioTime(packageName: String?, ms: Long) {
         val newTotal = _accumulatedBgAudioMs.value + ms
         _accumulatedBgAudioMs.value = newTotal
         prefs?.edit()?.putLong("bg_audio_ms_today", newTotal)?.apply()
+
+        if (packageName != null) {
+            val currentMap = _bgAudioBreakdown.value.toMutableMap()
+            val existing = currentMap[packageName] ?: 0L
+            currentMap[packageName] = existing + ms
+            _bgAudioBreakdown.value = currentMap
+            saveMapToPrefs("bg_audio_breakdown_today", currentMap)
+        }
     }
 
     fun setHomeLocation(lat: Double, lon: Double) {
@@ -298,6 +392,23 @@ object DataRepository {
     fun getHomeLatitude(): Double? = _homeLocation.value?.first
     fun getHomeLongitude(): Double? = _homeLocation.value?.second
 
+    /**
+     * Returns the last GPS fix from YESTERDAY (saved just before midnight wipe).
+     * Used by DataCollector to anchor the overnight homeTimeRatio bridge:
+     * if the patient was home at 23:59, the hours from midnight → first-snap-today count as home.
+     */
+    fun getLastLocationBeforeMidnight(): LatLonPoint? {
+        val str = prefs?.getString("last_location_before_midnight", null) ?: return null
+        return try {
+            val parts = str.split(",")
+            LatLonPoint(
+                parts[0].toDouble(), parts[1].toDouble(), parts[2].toLong(),
+                if (parts.size > 3) parts[3].toFloat() else 0f,
+                if (parts.size > 4) parts[4].toFloat() else 0f
+            )
+        } catch (e: Exception) { null }
+    }
+
     fun setStepBaseline(steps: Float) {
         if (_stepBaseline.value == null) {
             _stepBaseline.value = steps
@@ -310,19 +421,46 @@ object DataRepository {
         prefs?.edit()?.putInt("last_processed_day", day)?.apply()
     }
 
+    fun setDndOnTimestamp(ts: Long) {
+        _dndOnMs.value = ts
+        prefs?.edit()?.putLong("dnd_on_ts", ts)?.apply()
+    }
+
+    fun setDndOffTimestamp(ts: Long) {
+        _dndOffMs.value = ts
+        prefs?.edit()?.putLong("dnd_off_ts", ts)?.apply()
+    }
+
     fun resetDailyState() {
+        // FIX: Before wiping today's location snapshots, persist the last known GPS fix.
+        // This is used tomorrow as the overnight anchor for the homeTimeRatio midnight bridge.
+        // Without this, the bridge has nothing to anchor on and misses all sleep hours.
+        val lastSnap = _locationSnapshots.value.lastOrNull()
+        if (lastSnap != null) {
+            prefs?.edit()?.putString(
+                "last_location_before_midnight",
+                "${lastSnap.lat},${lastSnap.lon},${lastSnap.timeMs},${lastSnap.accuracy},${lastSnap.speed}"
+            )?.apply()
+        }
+
         _hourlySnapshots.value = emptyList()
         _locationSnapshots.value = emptyList()
         _stepBaseline.value = null
         _moodScore.value = null
         _accumulatedChargeHours.value = 0f
         _accumulatedBgAudioMs.value = 0L
+        _bgAudioBreakdown.value = emptyMap()
+        _dndOnMs.value = -1L
+        _dndOffMs.value = -1L
         
         prefs?.edit()?.apply {
             remove("step_baseline_today")
             remove("loc_snapshots_today")
             remove("charge_hours_today")
             remove("bg_audio_ms_today")
+            remove("bg_audio_breakdown_today")
+            remove("dnd_on_ts")
+            remove("dnd_off_ts")
             remove("prev_pkg_count")   // reset so appUninstalls recalculates fresh each day
         }?.apply()
     }
@@ -349,5 +487,23 @@ object DataRepository {
         _baseline.value = null
         _isBuildingBaseline.value = true
         resetDailyState()
+    }
+
+    private fun saveMapToPrefs(key: String, map: Map<String, Long>) {
+        val json = org.json.JSONObject()
+        map.forEach { (k, v) -> json.put(k, v) }
+        prefs?.edit()?.putString(key, json.toString())?.apply()
+    }
+
+    private fun loadMapFromPrefs(key: String): Map<String, Long> {
+        val jsonStr = prefs?.getString(key, "{}") ?: "{}"
+        try {
+            val json = org.json.JSONObject(jsonStr)
+            val map = mutableMapOf<String, Long>()
+            json.keys().forEach { k -> map[k] = json.getLong(k) }
+            return map
+        } catch (e: Exception) {
+            return emptyMap()
+        }
     }
 }

@@ -39,6 +39,7 @@
     <!-- ── Network stats (same as Settings → Data usage) ─────────── -->
     <uses-permission android:name="android.permission.READ_NETWORK_USAGE_HISTORY"
         tools:ignore="ProtectedPermissions"/>
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <application
         android:allowBackup="true"
@@ -80,6 +81,23 @@
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
+
+        <receiver
+            android:name="com.example.mhealth.services.MidnightReceiver"
+            android:exported="false" />
+
+        <!-- NotificationListenerService — required so MediaSessionManager can
+             observe active media sessions (background audio tracking).
+             User must enable: Settings → Notifications → Notification access → Cove. -->
+        <service
+            android:name="com.example.mhealth.services.MHealthNotificationListenerService"
+            android:exported="true"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
 
         <provider
             android:name="androidx.core.content.FileProvider"

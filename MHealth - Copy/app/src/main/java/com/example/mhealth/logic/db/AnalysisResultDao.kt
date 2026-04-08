@@ -1,6 +1,11 @@
 package com.example.mhealth.logic.db
 
-import androidx.room.*
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import androidx.room.Update
+import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -31,6 +36,9 @@ interface AnalysisResultDao {
 
     @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date ASC")
     suspend fun getAll(userId: String): List<AnalysisResultEntity>
+
+    @Query("SELECT * FROM analysis_results WHERE userId = :userId AND date = :date LIMIT 1")
+    suspend fun getByDate(userId: String, date: String): AnalysisResultEntity?
 
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int

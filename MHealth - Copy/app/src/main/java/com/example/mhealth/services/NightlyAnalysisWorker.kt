@@ -130,16 +130,22 @@ class NightlyAnalysisWorker(
                 .filter { it.date != targetDate }   // exclude the analysis day from history
                 .sortedBy { it.date }           // oldest first
 
+            // ── 3b. Fetch historical anomaly scores (for pattern detection) ─────
+            val historicalScores = db.analysisResultDao().getLatestN(userId, 14)
+                .reversed()  // oldest first
+                .map { it.anomalyScore }
+
             // ── 4. Build JSON input ────────────────────────────────────────────
             val dayNumber = DataRepository.reports.value.size + 1
             val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
-            // Inject day_number and gate_state into the JSON before passing to engine
+            // Inject day_number, gate_state, and historical anomaly scores
             val jsonWithMeta = injectMetadata(
                 inputJson = inputJson,
                 dayNumber = dayNumber,
                 contaminated = profileEntity?.baselineContaminated ?: false,
-                gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}"
+                gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}",
+                historicalScores = historicalScores
             )
 
             // ── 5. Call Python engine ──────────────────────────────────────────
@@ -205,12 +211,13 @@ class NightlyAnalysisWorker(
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Injects day_number, gate_state, and baseline_contaminated into existing JSON string. */
+    /** Injects day_number, gate_state, baseline_contaminated, and historical anomaly scores into JSON. */
     private fun injectMetadata(
         inputJson: String,
         dayNumber: Int,
         contaminated: Boolean,
-        gateResultsJson: String
+        gateResultsJson: String,
+        historicalScores: List<Float> = emptyList()
     ): String {
         return try {
             val obj = org.json.JSONObject(inputJson)
@@ -223,6 +230,14 @@ class NightlyAnalysisWorker(
                 org.json.JSONObject()
             }
             obj.put("gate_state", gateState)
+
+            // Add historical anomaly scores for pattern detection
+            if (historicalScores.isNotEmpty()) {
+                val scoresArray = org.json.JSONArray()
+                historicalScores.forEach { scoresArray.put(it.toDouble()) }
+                obj.put("historical_anomaly_scores", scoresArray)
+            }
+
             obj.toString()
         } catch (e: Exception) {
             inputJson   // fallback: pass as-is

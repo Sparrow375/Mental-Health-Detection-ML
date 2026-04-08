@@ -138,6 +138,10 @@ object DataRepository {
     private val _locationSnapshots = MutableStateFlow<List<LatLonPoint>>(emptyList())
     val locationSnapshots: StateFlow<List<LatLonPoint>> = _locationSnapshots
 
+    // Current GPS state (STATIONARY/WALKING/VEHICLE) for adaptive tracking
+    private val _gpsState = MutableStateFlow("Stationary")
+    val gpsState: StateFlow<String> = _gpsState
+
     // Optional user mood check-in score (1-10)
     private val _moodScore = MutableStateFlow<Int?>(null)
     val moodScore: StateFlow<Int?> = _moodScore
@@ -336,6 +340,10 @@ object DataRepository {
         val updated = (_locationSnapshots.value + point).takeLast(288) // 24h @ 5-min continuous tracking
         _locationSnapshots.value = updated
         saveLocationsToPrefs(updated)
+    }
+
+    fun updateGpsState(state: String) {
+        _gpsState.value = state
     }
 
     fun clearDailyLocationSnapshots() {

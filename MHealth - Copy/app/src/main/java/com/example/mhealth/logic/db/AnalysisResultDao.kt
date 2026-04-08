@@ -37,6 +37,9 @@ interface AnalysisResultDao {
     @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date ASC")
     suspend fun getAll(userId: String): List<AnalysisResultEntity>
 
+    @Query("SELECT * FROM analysis_results WHERE userId = :userId AND date = :date LIMIT 1")
+    suspend fun getByDate(userId: String, date: String): AnalysisResultEntity?
+
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 }

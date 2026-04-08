@@ -25,15 +25,18 @@ private val FEATURE_META = mapOf(
     "dailySteps"           to 1.0f
 )
 
-class AnomalyDetector(private val baseline: PersonalityVector) {
+class AnomalyDetector(
+    private val baseline: PersonalityVector,
+    historicalAnomalyScores: List<Float> = emptyList()
+) {
     private val historyWindow = 7
     private val featureHistory = mutableMapOf<String, MutableList<Float>>()
-    
+
     // Sustained deviation tracking
     private var sustainedDeviationDays = 0
     private var evidenceAccumulated = 0f
     private val anomalyScoreHistory = mutableListOf<Float>()
-    
+
     private val ANOMALY_SCORE_THRESHOLD = 0.35f
     private val SUSTAINED_THRESHOLD_DAYS = 4
     private val EVIDENCE_THRESHOLD = 2.0f
@@ -52,6 +55,9 @@ class AnomalyDetector(private val baseline: PersonalityVector) {
             "appInstallsToday", "dailySteps", "backgroundAudioHours"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
+
+        // Initialize anomaly score history from Room data (past analysis results)
+        anomalyScoreHistory.addAll(historicalAnomalyScores.takeLast(14))
     }
 
     fun analyze(currentData: PersonalityVector, dayNumber: Int, isProvisional: Boolean = false): DailyReport {

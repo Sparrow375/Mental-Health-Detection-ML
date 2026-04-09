@@ -794,6 +794,8 @@ class MonitoringService : Service() {
     private fun scheduleNightlyWorker() {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         NightlyAnalysisWorker.schedule(this@MonitoringService, userId)
+        // Also ensure the 4-hour periodic cloud sync is active
+        CloudSyncWorker.schedulePeriodic(this@MonitoringService)
     }
 
     /**

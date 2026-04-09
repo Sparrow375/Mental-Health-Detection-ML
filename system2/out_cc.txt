@@ -1,0 +1,135 @@
+﻿======================================================================
+  CrossCheck Full Pipeline Run (S1 + S2)
+======================================================================
+
+Patients found: 90
+EMA labels:     90
+Schz-positive:  30
+Dep-positive:   27
+Baseline:       28 days
+
+  [ 1/90] u004... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [ 2/90] u005... S1=ANOMALY | S2=life_event   | GT=healthy
+  [ 3/90] u006... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [ 4/90] u007... S1=ANOMALY | S2=schizophrenia_type_1 | GT=healthy
+  [ 5/90] u008... S1=ANOMALY | S2=healthy      | GT=healthy
+  [ 6/90] u009... S1=ANOMALY | S2=healthy_type_1 | GT=schizophrenia
+  [ 7/90] u010... S1=ANOMALY | S2=healthy      | GT=depressed
+  [ 8/90] u011... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [ 9/90] u012... S1=ANOMALY | S2=depression_type_3 | GT=depressed
+  [10/90] u013... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [11/90] u014... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [12/90] u015... S1=ANOMALY | S2=schizophrenia_type_1 | GT=healthy
+  [13/90] u016... S1=ANOMALY | S2=schizophrenia_type_2 | GT=schizophrenia
+  [14/90] u017... S1=ANOMALY | S2=schizophrenia_type_2 | GT=healthy
+  [15/90] u018... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [16/90] u019... S1=ANOMALY | S2=schizophrenia_type_2 | GT=healthy
+  [17/90] u020... S1=ANOMALY | S2=depression_type_2 | GT=depressed
+  [18/90] u021... S1=ANOMALY | S2=healthy_type_1 | GT=schizophrenia
+  [19/90] u022... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [20/90] u023... S1=ANOMALY | S2=schizophrenia_type_1 | GT=schizophrenia
+  [21/90] u024... SKIPPED (only 2 days)
+  [22/90] u025... SKIPPED (only 20 days)
+  [23/90] u026... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [24/90] u027... S1=ANOMALY | S2=schizophrenia_type_1 | GT=schizophrenia
+  [25/90] u028... S1=ANOMALY | S2=life_event   | GT=healthy
+  [26/90] u029... S1=ANOMALY | S2=schizophrenia_type_2 | GT=healthy
+  [27/90] u030... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [28/90] u031... S1=ANOMALY | S2=life_event   | GT=healthy
+  [29/90] u032... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [30/90] u033... S1=ANOMALY | S2=schizophrenia_type_2 | GT=healthy
+  [31/90] u034... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [32/90] u035... S1=ANOMALY | S2=healthy      | GT=healthy
+  [33/90] u036... S1=ANOMALY | S2=life_event   | GT=schizophrenia
+  [34/90] u037... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [35/90] u038... S1=ANOMALY | S2=healthy_type_2 | GT=schizophrenia
+  [36/90] u039... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [37/90] u040... SKIPPED (only 12 days)
+  [38/90] u041... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [39/90] u042... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [40/90] u043... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [41/90] u044... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [42/90] u045... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [43/90] u046... S1=ANOMALY | S2=schizophrenia_type_1 | GT=healthy
+  [44/90] u047... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [45/90] u048... SKIPPED (only 3 days)
+  [46/90] u049... SKIPPED (only 3 days)
+  [47/90] u050... S1=ANOMALY | S2=schizophrenia_type_2 | GT=schizophrenia
+  [48/90] u051... S1=ANOMALY | S2=schizophrenia_type_2 | GT=depressed
+  [49/90] u052... SKIPPED (only 3 days)
+  [50/90] u053... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [51/90] u054... S1=ANOMALY | S2=life_event   | GT=healthy
+  [52/90] u055... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [53/90] u056... S1=ANOMALY | S2=depression_type_1 | GT=depressed
+  [54/90] u057... SKIPPED (only 3 days)
+  [55/90] u058... SKIPPED (only 3 days)
+  [56/90] u059... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [57/90] u060... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [58/90] u061... S1=ANOMALY | S2=life_event   | GT=schizophrenia
+  [59/90] u062... S1=ANOMALY | S2=schizophrenia_type_1 | GT=healthy
+  [60/90] u063... S1=ANOMALY | S2=life_event   | GT=healthy
+  [61/90] u064... S1=ANOMALY | S2=healthy      | GT=depressed
+  [62/90] u065... SKIPPED (only 4 days)
+  [63/90] u066... S1=ANOMALY | S2=healthy_type_1 | GT=depressed
+  [64/90] u067... SKIPPED (only 3 days)
+  [65/90] u068... SKIPPED (only 2 days)
+  [66/90] u069... SKIPPED (only 2 days)
+  [67/90] u070... SKIPPED (only 3 days)
+  [68/90] u071... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [69/90] u072... S1=ANOMALY | S2=schizophrenia_type_1 | GT=schizophrenia
+  [70/90] u073... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [71/90] u074... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [72/90] u075... S1=ANOMALY | S2=depression_type_1 | GT=schizophrenia
+  [73/90] u076... S1=ANOMALY | S2=healthy      | GT=schizophrenia
+  [74/90] u077... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [75/90] u078... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [76/90] u079... S1=ANOMALY | S2=healthy      | GT=healthy
+  [77/90] u080... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [78/90] u081... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [79/90] u082... S1=ANOMALY | S2=life_event   | GT=healthy
+  [80/90] u083... S1=ANOMALY | S2=life_event   | GT=healthy
+  [81/90] u084... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [82/90] u085... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [83/90] u086... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [84/90] u087... SKIPPED (only 8 days)
+  [85/90] u088... SKIPPED (only 8 days)
+  [86/90] u089... SKIPPED (only 8 days)
+  [87/90] u090... S1=ANOMALY | S2=healthy_type_2 | GT=healthy
+  [88/90] u091... SKIPPED (only 3 days)
+  [89/90] u092... SKIPPED (only 3 days)
+  [90/90] u093... SKIPPED (only 3 days)
+
+======================================================================
+  RESULTS SUMMARY
+======================================================================
+  Processed: 71 / 90
+
+  Ground Truth:
+    depressed      : 7
+    healthy        : 40
+    schizophrenia  : 24
+
+  S2 Classification Distribution:
+    healthy_type_2      : 13
+    healthy             : 12
+    healthy_type_1      : 11
+    life_event          : 9
+    depression_type_1   : 8
+    schizophrenia_type_1: 7
+    schizophrenia_type_2: 7
+    healthy_type_3      : 2
+    depression_type_3   : 1
+    depression_type_2   : 1
+
+  Schz Top-1 Sensitivity: 5/24 = 21%
+  Schz Top-3 Sensitivity: 18/24 = 75% (Clinical Standard)
+  Healthy Specificity: 32/40 = 80%
+  Depression Top-1 Sensitivity: 3/7 = 43%
+  Depression Top-3 Sensitivity: 5/7 = 71% (Clinical Standard)
+
+  Results saved to: C:\Users\embar\OneDrive-N\D0cuments\GitHub\Mental-Health-Detection-ML\system2\data\crosscheck_results.json
+  CSV saved to:     C:\Users\embar\OneDrive-N\D0cuments\GitHub\Mental-Health-Detection-ML\system2\data\crosscheck_results.csv
+
+======================================================================
+  DONE
+======================================================================

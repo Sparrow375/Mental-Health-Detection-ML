@@ -1,0 +1,20 @@
+{
+    "screen_time_hours":           {"mean": 4.0,   "std": 1.3},
+    "unlock_count":                {"mean": 50.0,  "std": 18.0},
+    "social_app_ratio":            {"mean": 0.28,  "std": 0.10},
+    "calls_per_day":               {"mean": 3.5,   "std": 1.8},
+    "texts_per_day":               {"mean": 35.0,  "std": 18.0},
+    "unique_contacts":             {"mean": 8.0,   "std": 3.5},
+    "response_time_minutes":       {"mean": 8.2,   "std": 5.0},
+    "daily_displacement_km":       {"mean": 4.5,   "std": 2.0},
+    "location_entropy":            {"mean": 2.8,   "std": 0.7},
+    "home_time_ratio":             {"mean": 0.55,  "std": 0.12},
+    "places_visited":              {"mean": 5.0,   "std": 1.5},
+    "wake_time_hour":              {"mean": 7.5,   "std": 1.0},
+    "sleep_time_hour":             {"mean": 23.5,  "std": 1.0},
+    "sleep_duration_hours":        {"mean": 7.2,   "std": 0.9},
+    "dark_duration_hours":         {"mean": 7.5,   "std": 1.2},
+    "charge_duration_hours":       {"mean": 3.0,   "std": 1.0},
+    "conversation_duration_hours": {"mean": 1.2,   "std": 0.6},
+    "conversation_frequency":      {"mean": 5.0,   "std": 2.5}
+}

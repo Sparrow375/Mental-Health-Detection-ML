@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Download, AlertTriangle, Users, TrendingUp } from 'lucide-react';
+import { Download, AlertTriangle, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const Reports: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [weeklyAnomalies, setWeeklyAnomalies] = useState([
     { day: 'Mon', anomalies: 0 },
     { day: 'Tue', anomalies: 0 },
@@ -30,7 +29,7 @@ export const Reports: React.FC = () => {
         let activeUsers = 0;
         let cCount = 0;
         let syncCount = 0;
-        let csvLines = ["PatientID,Date,Status,AnomalyScore"];
+        const csvLines = ["PatientID,Date,Status,AnomalyScore"];
         
         for (const u of users) {
           activeUsers++;
@@ -74,8 +73,6 @@ export const Reports: React.FC = () => {
         setWeeklyAnomalies(past7Days);
       } catch (err) {
         console.error("Error fetching report data", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchAggregateData();

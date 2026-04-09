@@ -16,3 +16,12 @@ __pycache__/
 *.py[cod]
 *.pyc
 *.pyo
+ 
+# Ignore large ML weights
+*.safetensors
+*.pt
+*.bin
+*.h5
+ 
+# Ignore large dataset CSVs
+*.csv

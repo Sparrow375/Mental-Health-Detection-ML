@@ -1,0 +1,92 @@
+﻿======================================================================
+  StudentLife Full Pipeline Run (S1 + S2)
+======================================================================
+
+Students found:   49
+PHQ-9 labels:     46
+Baseline period:  28 days
+Min monitoring:   7 days
+
+  [ 1/49] u00... S1=ANOMALY | S2=life_event   | GT=healthy
+  [ 2/49] u01... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [ 3/49] u02... S1=ANOMALY | S2=healthy_type_3 | GT=mild
+  [ 4/49] u03... S1=ANOMALY | S2=life_event   | GT=healthy
+  [ 5/49] u04... S1=normal  | S2=depression_type_1 | GT=mild
+  [ 6/49] u05... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [ 7/49] u07... S1=ANOMALY | S2=healthy_type_3 | GT=mild
+  [ 8/49] u08... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [ 9/49] u09... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [10/49] u10... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [11/49] u12... S1=ANOMALY | S2=healthy      | GT=healthy
+  [12/49] u13... S1=ANOMALY | S2=healthy_type_1 | GT=healthy
+  [13/49] u14... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [14/49] u15... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [15/49] u16... S1=ANOMALY | S2=healthy_type_3 | GT=depressed
+  [16/49] u17... S1=ANOMALY | S2=depression_type_1 | GT=depressed
+  [17/49] u18... S1=ANOMALY | S2=depression_type_1 | GT=depressed
+  [18/49] u19... S1=normal  | S2=depression_type_1 | GT=healthy
+  [19/49] u20... S1=ANOMALY | S2=healthy_type_3 | GT=mild
+  [20/49] u22... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [21/49] u23... S1=ANOMALY | S2=depression_type_1 | GT=depressed
+  [22/49] u24... S1=ANOMALY | S2=healthy_type_3 | GT=mild
+  [23/49] u25... S1=normal  | S2=healthy_type_3 | GT=healthy
+  [24/49] u27... S1=normal  | S2=life_event   | GT=mild
+  [25/49] u30... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [26/49] u31... S1=ANOMALY | S2=healthy      | GT=mild
+  [27/49] u32... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [28/49] u33... S1=ANOMALY | S2=healthy      | GT=depressed
+  [29/49] u34... S1=normal  | S2=life_event   | GT=mild
+  [30/49] u35... S1=ANOMALY | S2=healthy_type_3 | GT=mild
+  [31/49] u36... S1=ANOMALY | S2=life_event   | GT=healthy
+  [32/49] u39... SKIPPED (only 27 days)
+  [33/49] u41... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [34/49] u42... S1=normal  | S2=depression_type_1 | GT=healthy
+  [35/49] u43... S1=ANOMALY | S2=healthy      | GT=healthy
+  [36/49] u44... S1=ANOMALY | S2=healthy      | GT=healthy
+  [37/49] u45... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [38/49] u46... S1=ANOMALY | S2=depression_type_1 | GT=healthy
+  [39/49] u47... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [40/49] u49... S1=ANOMALY | S2=life_event   | GT=mild
+  [41/49] u50... S1=ANOMALY | S2=life_event   | GT=healthy
+  [42/49] u51... S1=ANOMALY | S2=life_event   | GT=healthy
+  [43/49] u52... S1=ANOMALY | S2=healthy_type_3 | GT=depressed
+  [44/49] u53... S1=ANOMALY | S2=healthy_type_3 | GT=depressed
+  [45/49] u54... S1=ANOMALY | S2=healthy_type_3 | GT=healthy
+  [46/49] u56... S1=normal  | S2=life_event   | GT=healthy
+  [47/49] u57... S1=ANOMALY | S2=life_event   | GT=healthy
+  [48/49] u58... S1=normal  | S2=healthy      | GT=mild
+  [49/49] u59... S1=ANOMALY | S2=healthy      | GT=mild
+
+======================================================================
+  RESULTS SUMMARY
+======================================================================
+  Processed: 48 / 49
+  Skipped:   1
+
+  Ground Truth Distribution:
+    depressed   : 7
+    healthy     : 29
+    mild        : 12
+
+  S1 Anomaly Detected: 40/48
+
+  S2 Classification Distribution:
+    healthy_type_3      : 18
+    depression_type_1   : 12
+    life_event          : 10
+    healthy             : 7
+    healthy_type_1      : 1
+
+  S1 Sensitivity (depressed caught): 7/7 = 100%
+  S1 Specificity (healthy correct):  4/29 = 14%
+
+  S2 Depression Top-1 Sensitivity: 3/7 = 43%
+  S2 Depression Top-3 Sensitivity: 7/7 = 100% (Clinical Standard)
+  S2 Healthy Specificity:    21/29 = 72%
+
+  Results saved to: C:\Users\embar\OneDrive-N\D0cuments\GitHub\Mental-Health-Detection-ML\system2\data\studentlife_results.json
+  CSV saved to:     C:\Users\embar\OneDrive-N\D0cuments\GitHub\Mental-Health-Detection-ML\system2\data\studentlife_results.csv
+
+======================================================================
+  DONE
+======================================================================

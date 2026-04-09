@@ -1,33 +1,36 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Heart, Activity, BellRing, Brain, Smartphone, Footprints, ShieldCheck, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Wifi, Battery, Clock, Bell, Download, Lock, Database, Cpu, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { Heart, Activity, BellRing, Brain, Smartphone, Footprints, ShieldCheck, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Wifi, Battery, Clock, Bell, Download, Lock, Database, Cpu } from 'lucide-react';
 
-import { 
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine,
-  BarChart, Bar, Cell
+import {
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine
 } from 'recharts';
 import { auth, db } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
 import { getHistoricalResults, getAllDailyFeatures, getBaseline } from '../firebase/dataHelper';
 import type { MLResult, DailyFeatures, BaselineData } from '../firebase/dataHelper';
+import { BaselineSlopeChart } from '../components/BaselineLineGraph';
 
 export const UserDashboard: React.FC = () => {
   const [patientName, setPatientName] = useState('Patient');
-  const [loading, setLoading] = useState(true);
   const [baselineReady, setBaselineReady] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const [history, setHistory] = useState<MLResult[]>([]);
   const [allDays, setAllDays] = useState<DailyFeatures[]>([]);
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [baseline, setBaseline] = useState<BaselineData | null>(null);
 
+  const selectedDayIndex = 0; // For user dashboard, always show latest day
   const features = allDays.length > 0 ? allDays[selectedDayIndex] : null;
 
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const currentUser = auth.currentUser;
-        if (!currentUser) return;
-        
+        if (!currentUser) {
+          setLoading(false);
+          return;
+        }
+
         const uid = currentUser.uid;
 
         // Fetch User Name
@@ -57,16 +60,8 @@ export const UserDashboard: React.FC = () => {
     fetchUserData();
   }, []);
 
-  if (loading) {
-    return <div style={{ display: 'flex', justifyContent: 'center', marginTop: '4rem' }}><Activity className="animate-pulse" size={48} color="var(--accent-primary)" /></div>;
-  }
-
   const currentResult = history.length > 0 ? history[history.length - 1] : null;
-  const currentScore = currentResult?.anomaly_score || 0;
   const matchMessage = currentResult?.match_message;
-
-  const isCritical = currentScore >= 0.7;
-  const isElevated = currentScore >= 0.4 && currentScore < 0.7;
 
   // Categorized Clinical Biomarkers Data array
   const categorizedFeatures = useMemo(() => [
@@ -148,28 +143,14 @@ export const UserDashboard: React.FC = () => {
     return { color: 'var(--success)', status: 'Stable', icon: <Minus size={14} /> };
   }, [baselineReady, baseline]);
 
-  // Standardized Z-Score calculation for bar chart
-  const getZScore = useCallback((featureName: string): number => {
-    if (!baselineReady || !features || !baseline || !baseline[featureName] || typeof baseline[featureName].mean !== 'number') return 0; 
-    const currentVal = (features as any)[featureName] || 0;
-    const baseMean = baseline[featureName].mean;
-    const baseStd = baseline[featureName].std || (baseMean * 0.1) || 1;
-    let z = (currentVal - baseMean) / baseStd;
-    return Math.min(Math.max(z, -4), 4); // Cap at -4 and +4 for chart readability
-  }, [baselineReady, features, baseline]);
 
-  const featureDeviations = useMemo(() => [
-    { name: 'Screen Time', zScore: getZScore('screenTimeHours') },
-    { name: 'Sociability', zScore: getZScore('socialAppRatio') },
-    { name: 'Mobility', zScore: getZScore('placesVisited') },
-    { name: 'Loc. Entropy', zScore: getZScore('locationEntropy') },
-    { name: 'Sleep Dur.', zScore: getZScore('sleepDurationHours') },
-    { name: 'App Launches', zScore: getZScore('appLaunchCount') },
-    { name: 'Comm. Freq.', zScore: getZScore('conversationFrequency') },
-    { name: 'Steps', zScore: getZScore('dailySteps') },
-    { name: 'Home Time', zScore: getZScore('homeTimeRatio') },
-    { name: 'Mem. Usage', zScore: getZScore('memoryUsagePercent') }
-  ].filter(f => f.zScore !== 0).sort((a, b) => b.zScore - a.zScore), [getZScore]);
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+        <Activity className="animate-spin" size={48} color="var(--accent-primary)" />
+      </div>
+    );
+  }
 
   return (
     <div className="animate-fade-in" style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -191,49 +172,81 @@ export const UserDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* Comprehensive Clinical Metrics Grid */}
+      {/* Comprehensive Clinical Biomarkers Table */}
       <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
         <Activity size={20} color="var(--accent-primary)" /> Clinical Biomarkers (24h Window)
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
         {categorizedFeatures.map((categoryGroup, index) => (
-          <div key={index}>
-            <h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--text-primary)', borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>
+          <div key={index} className="glass-panel" style={{ overflow: 'hidden' }}>
+            <h4 style={{ padding: '1rem 1.5rem', margin: 0, borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)', color: 'var(--text-primary)', fontWeight: 600 }}>
               {categoryGroup.category}
             </h4>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
-              {categoryGroup.items.map((feat) => {
-                const statusObj = getClinicalStatus(feat.key, feat.value, feat.invertGood);
-                const Icon = feat.icon;
-                return (
-                  <div key={feat.key} className="glass-panel" style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-                    <div style={{ position: 'absolute', top: 0, left: 0, width: '4px', height: '100%', background: statusObj.color }}></div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <div style={{ background: `${feat.defaultColor}15`, padding: '0.5rem', borderRadius: '0.5rem', color: feat.defaultColor }}>
-                          <Icon size={18} />
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Biomarker / Feature</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Current Score</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Baseline Mean</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Variance (Z-Score)</th>
+                  <th style={{ padding: '0.75rem 1.5rem', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Clinical Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryGroup.items.map((feat) => {
+                  const statusObj = getClinicalStatus(feat.key, feat.value, feat.invertGood);
+                  const baselineMean = baseline && baseline[feat.key] && typeof baseline[feat.key].mean === 'number' ? baseline[feat.key].mean : null;
+                  const baselineStd = baseline && baseline[feat.key] && typeof baseline[feat.key].std === 'number' ? baseline[feat.key].std : (baselineMean !== null ? Math.max(baselineMean * 0.1, 1) : null);
+
+                  let varianceDisplay = 'N/A';
+                  if (feat.value !== undefined && baselineMean !== null && baselineStd !== null && baselineStd > 0) {
+                      const diff = feat.value - baselineMean;
+                      const z = (diff / baselineStd).toFixed(2);
+                      varianceDisplay = `${diff > 0 ? '+' : ''}${z}σ`;
+                  }
+
+                  const Icon = feat.icon;
+                  return (
+                    <tr
+                      key={feat.key}
+                      style={{ borderBottom: '1px solid var(--border)', transition: 'background var(--transition-fast)' }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                           <div style={{ background: `${feat.defaultColor}15`, padding: '0.4rem', borderRadius: '0.5rem', color: feat.defaultColor, display: 'flex' }}>
+                             <Icon size={16} />
+                           </div>
+                           <span style={{ fontWeight: 500 }}>{feat.name}</span>
                         </div>
-                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', fontWeight: 500 }}>{feat.name}</p>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: statusObj.color, fontSize: '0.75rem', fontWeight: 600, background: `${statusObj.color}15`, padding: '0.25rem 0.5rem', borderRadius: '1rem' }}>
-                        {statusObj.icon} {statusObj.status}
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.25rem', marginTop: 'auto' }}>
-                      <h3 style={{ fontSize: '1.75rem', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1 }}>{feat.displayValue}</h3>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 500, color: 'var(--text-muted)' }}>{feat.unit}</span>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        {feat.displayValue} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>{feat.unit}</span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>
+                        {baselineMean !== null ? baselineMean.toFixed(1) : 'Est...'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{baselineMean !== null ? feat.unit : ''}</span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', fontFamily: 'monospace', color: varianceDisplay.includes('+') ? (feat.invertGood ? 'var(--danger)' : 'var(--warning)') : (varianceDisplay.includes('-') ? (feat.invertGood ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)') }}>
+                        {varianceDisplay}
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', borderRadius: '1rem', background: `${statusObj.color}15`, color: statusObj.color, fontSize: '0.875rem', fontWeight: 600 }}>
+                          {statusObj.icon} {statusObj.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         ))}
       </div>
 
       {/* Main Charts Grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-        
+
         {/* Longitudinal History */}
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
@@ -258,58 +271,72 @@ export const UserDashboard: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickMargin={10} />
-                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: any) => typeof v === 'number' ? v.toFixed(1) : v} />
-                <Tooltip 
+                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: unknown) => typeof v === 'number' ? v.toFixed(1) : String(v)} />
+                <Tooltip
                   contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)' }}
                   itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
                   labelStyle={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}
                 />
-                
+
                 <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Variance', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />
-                
+
                 <Area type="monotone" dataKey="anomaly_score" stroke="var(--accent-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--accent-primary)', stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
             )}
           </div>
         </div>
-        
-        {/* Diagnostic Bar Chart (Deviations) */}
+
+        {/* Baseline Comparison - Line Graph Visualization */}
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Brain size={18} color="var(--accent-primary)" /> Behavioral Deviation (Z-Scores)
+            <Brain size={18} color="var(--accent-primary)" /> Baseline Comparison
           </h3>
-          <div style={{ flex: 1, minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-            {!baselineReady || !baseline || !features ? (
-                <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}</div>
-            ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={featureDeviations} margin={{ top: 20, right: 10, left: 10, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={true} vertical={false} />
-                <XAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={10} angle={-45} textAnchor="end" interval={0} tickMargin={5} />
-                <YAxis type="number" stroke="var(--text-muted)" fontSize={12} tickCount={5} domain={[-4, 4]} tickFormatter={(v: any) => `${v > 0 ? '+' : ''}${v}σ`} />
-                <Tooltip 
-                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
-                  itemStyle={{ fontWeight: 600 }}
-                  formatter={(val: any) => [`${val > 0 ? '+' : ''}${Number(val).toFixed(2)}σ`, 'Z-Score']}
-                />
-                
-                {/* 0 Baseline Reference Line */}
-                <ReferenceLine y={0} stroke="var(--text-primary)" strokeWidth={2} />
-                <ReferenceLine y={2} stroke="var(--warning)" strokeDasharray="3 3" />
-                <ReferenceLine y={-2} stroke="var(--warning)" strokeDasharray="3 3" />
-                
-                <Bar dataKey="zScore" radius={[4, 4, 0, 0]}>
-                  {featureDeviations.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.zScore > 0 ? 'var(--warning)' : 'var(--success)'} fillOpacity={0.8} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-          </div>
+          {!baselineReady || !baseline || !features ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
+            </div>
+          ) : (
+            <BaselineSlopeChart
+              metrics={[
+                {
+                  label: 'Screen Time',
+                  current: features.screenTimeHours || 0,
+                  baseline: baseline.screenTimeHours?.mean || 0,
+                  unit: 'hrs',
+                  invertGood: true
+                },
+                {
+                  label: 'Sleep Duration',
+                  current: features.sleepDurationHours || 0,
+                  baseline: baseline.sleepDurationHours?.mean || 0,
+                  unit: 'hrs'
+                },
+                {
+                  label: 'Social Ratio',
+                  current: (features.socialAppRatio || 0) * 100,
+                  baseline: (baseline.socialAppRatio?.mean || 0) * 100,
+                  unit: '%'
+                },
+                {
+                  label: 'Daily Steps',
+                  current: features.dailySteps || 0,
+                  baseline: baseline.dailySteps?.mean || 0,
+                  unit: 'steps'
+                },
+                {
+                  label: 'App Launches',
+                  current: features.appLaunchCount || 0,
+                  baseline: baseline.appLaunchCount?.mean || 0,
+                  unit: 'times',
+                  invertGood: true
+                }
+              ]}
+            />
+          )}
         </div>
       </div>
+
 
       <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', marginLeft: '0.5rem' }}>Dynamic Insights</h3>
       

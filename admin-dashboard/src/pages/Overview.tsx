@@ -155,7 +155,7 @@ export const Overview: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {critical.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No critical patients.</p> : null}
             {critical.map(p => (
-              <div key={p.id} onClick={() => navigate(`/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', borderLeft: '3px solid var(--danger)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div key={p.id} onClick={() => navigate(`/dashboard/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(239, 68, 68, 0.2)', borderLeft: '3px solid var(--danger)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 600 }}>{p.patient_id}</span>
                   <span style={{ color: 'var(--danger)', fontWeight: 700, fontSize: '1.1rem' }}>{Math.round((p.latest_analysis?.anomaly_score || 0.8) * 100)}%</span>
@@ -175,7 +175,7 @@ export const Overview: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {elevated.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No elevated patients.</p> : null}
             {elevated.map(p => (
-              <div key={p.id} onClick={() => navigate(`/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.2)', borderLeft: '3px solid var(--warning)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div key={p.id} onClick={() => navigate(`/dashboard/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(245, 158, 11, 0.2)', borderLeft: '3px solid var(--warning)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 600 }}>{p.patient_id}</span>
                   <span style={{ color: 'var(--warning)', fontWeight: 700, fontSize: '1.1rem' }}>{Math.round((p.latest_analysis?.anomaly_score || 0.5) * 100)}%</span>
@@ -195,7 +195,7 @@ export const Overview: React.FC = () => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {stable.length === 0 ? <p style={{ color: 'var(--text-muted)' }}>No stable patients.</p> : null}
             {stable.map(p => (
-              <div key={p.id} onClick={() => navigate(`/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.2)', borderLeft: '3px solid var(--success)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
+              <div key={p.id} onClick={() => navigate(`/dashboard/patients/${p.id}`)} style={{ padding: '1rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid rgba(16, 185, 129, 0.2)', borderLeft: '3px solid var(--success)', cursor: 'pointer', transition: 'all 0.2s ease' }} onMouseOver={e => e.currentTarget.style.transform = 'translateY(-2px)'} onMouseOut={e => e.currentTarget.style.transform = 'translateY(0)'}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                   <span style={{ fontWeight: 600 }}>{p.patient_id}</span>
                   <span style={{ color: 'var(--success)', fontWeight: 700, fontSize: '1.1rem' }}>{Math.round((p.latest_analysis?.anomaly_score || 0.1) * 100)}%</span>

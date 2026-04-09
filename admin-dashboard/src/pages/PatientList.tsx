@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { useNavigate } from 'react-router-dom';
 import { Search, FileText, AlertTriangle, ShieldCheck, Clock, EyeOff, Trash2 } from 'lucide-react';
-import { usePrivacy } from '../context/PrivacyContext';
+import { usePrivacy } from '../hooks/usePrivacy';
 
 interface Patient {
   id: string;
@@ -14,7 +14,7 @@ interface Patient {
   latest_analysis?: {
     anomaly_score: number;
     timestamp?: number;
-    features?: any;
+    features?: Record<string, unknown>;
   };
 }
 
@@ -166,7 +166,7 @@ export const PatientList: React.FC = () => {
                   </td>
                   <td style={{ padding: '1rem 1.5rem', textAlign: 'right', display: 'flex', gap: '0.5rem', justifyContent: 'flex-end' }}>
                     <button 
-                      onClick={() => navigate(`/patients/${patient.id}`)}
+                      onClick={() => navigate(`/dashboard/patients/${patient.id}`)}
                       className="btn btn-secondary" 
                       style={{ padding: '0.5rem 1rem', fontSize: '0.875rem' }}
                     >

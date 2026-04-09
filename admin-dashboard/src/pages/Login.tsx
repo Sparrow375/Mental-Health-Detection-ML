@@ -18,8 +18,8 @@ export const Login: React.FC = () => {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      navigate('/');
-    } catch (err: any) {
+      navigate('/dashboard');
+    } catch {
       setError('Account not found. Please register your account on the MHealth Android App first.');
     } finally {
       setLoading(false);

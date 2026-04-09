@@ -1,21 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getHistoricalResults, getAllDailyFeatures, getBaseline } from '../firebase/dataHelper';
 import type { MLResult, DailyFeatures, BaselineData } from '../firebase/dataHelper';
-import { ArrowLeft, Activity, ShieldAlert, Cpu, AlertTriangle, ShieldCheck, HeartPulse, Brain, Smartphone, Footprints, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Trophy, Target, Wifi, Battery, Clock, Bell, Download, Lock, Database, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
-import { 
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine,
-  BarChart, Bar, Cell
+import { ArrowLeft, Activity, Cpu, AlertTriangle, ShieldCheck, HeartPulse, Brain, Smartphone, Footprints, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Target, Wifi, Battery, Clock, Bell, Download, Lock, Database, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import {
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
+import { BaselineSlopeChart } from '../components/BaselineLineGraph';
 
 export const PatientDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   
-  const [patient, setPatient] = useState<any>(null);
+  const [patient, setPatient] = useState<Record<string, string | number | boolean | null> | null>(null);
   const [history, setHistory] = useState<MLResult[]>([]);
   const [allDays, setAllDays] = useState<DailyFeatures[]>([]); // All daily records (newest first)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0); // 0 = latest day
@@ -96,6 +96,28 @@ export const PatientDetail: React.FC = () => {
     }
     return null;
   }, [allScoresRanked]);
+
+  // Calculate insights from baseline deviations (percentage-based)
+  const insights = useMemo(() => {
+    if (!baseline || !features) return [];
+    const metrics = [
+      { name: 'Screen Time', key: 'screenTimeHours', invert: true },
+      { name: 'Sleep Duration', key: 'sleepDurationHours', invert: false },
+      { name: 'Social Ratio', key: 'socialAppRatio', invert: false },
+      { name: 'Daily Steps', key: 'dailySteps', invert: false },
+      { name: 'App Launches', key: 'appLaunchCount', invert: true },
+    ];
+    return metrics
+      .map(m => {
+        const current = (features as Record<string, unknown>)[m.key] as number || 0;
+        const baseMean = baseline[m.key]?.mean || 0;
+        const baseStd = baseline[m.key]?.std || (baseMean * 0.1) || 1;
+        const z = (current - baseMean) / baseStd;
+        return { name: m.name, deviation: Math.abs(z), rawScore: z, sign: z > 0 ? '+' : '-', invert: m.invert };
+      })
+      .sort((a, b) => b.deviation - a.deviation)
+      .slice(0, 3);
+  }, [baseline, features]);
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--text-muted)' }}>Loading clinical metrics...</div>;
   if (!patient && history.length === 0) return <div style={{ padding: '2rem', color: 'var(--danger)' }}>Patient not found or no data available.</div>;
@@ -184,34 +206,9 @@ export const PatientDetail: React.FC = () => {
     return { color: 'var(--success)', status: 'Stable', icon: <Minus size={14} /> };
   };
 
-  // Standardized Z-Score calculation for bar chart
-  const getZScore = (featureName: string): number => {
-    if (!baselineReady || !features || !baseline || !baseline[featureName] || typeof baseline[featureName].mean !== 'number') return 0; 
-    const currentVal = (features as any)[featureName] || 0;
-    const baseMean = baseline[featureName].mean;
-    const baseStd = baseline[featureName].std || (baseMean * 0.1) || 1;
-    let z = (currentVal - baseMean) / baseStd;
-    return Math.min(Math.max(z, -4), 4); // Cap at -4 and +4 for chart readability
-  };
-
-  const featureDeviations = [
-    { name: 'Screen Time', zScore: getZScore('screenTimeHours') },
-    { name: 'Sociability', zScore: getZScore('socialAppRatio') },
-    { name: 'Mobility', zScore: getZScore('placesVisited') },
-    { name: 'Loc. Entropy', zScore: getZScore('locationEntropy') },
-    { name: 'Sleep Dur.', zScore: getZScore('sleepDurationHours') },
-    { name: 'App Launches', zScore: getZScore('appLaunchCount') },
-    { name: 'Comm. Freq.', zScore: getZScore('conversationFrequency') },
-    { name: 'Steps', zScore: getZScore('dailySteps') },
-    { name: 'Home Time', zScore: getZScore('homeTimeRatio') },
-    { name: 'Mem. Usage', zScore: getZScore('memoryUsagePercent') }
-  ].filter(f => f.zScore !== 0).sort((a, b) => b.zScore - a.zScore);
 
   const hasPrototypeMatch = !!prototypeMatch && prototypeMatch.trim() !== "";
 
-  const insights = featureDeviations.map(f => {
-    return { name: f.name, deviation: Math.abs(f.zScore), rawScore: f.zScore, sign: f.zScore > 0 ? '+' : '-' };
-  }).sort((a, b) => b.deviation - a.deviation).slice(0, 3); // Top 3 deviations
 
   return (
     <div className="animate-fade-in">
@@ -238,7 +235,7 @@ export const PatientDetail: React.FC = () => {
                 </span>
               </h1>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                Patient since {new Date(patient?.onboarding_date || Date.now()).toLocaleDateString()} 
+                Patient since {new Date((patient?.onboarding_date as number) || Date.now()).toLocaleDateString()} 
                 {baseline ? ' • Baseline Established' : ' • Establishing Baseline...'}
               </p>
             </div>
@@ -345,7 +342,7 @@ export const PatientDetail: React.FC = () => {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
-        
+
         {/* Risk-Stratified Trendline */}
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
@@ -366,65 +363,73 @@ export const PatientDetail: React.FC = () => {
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
                 <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickMargin={10} />
-                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: any) => typeof v === 'number' ? v.toFixed(1) : v} />
-                <RechartsTooltip 
+                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: unknown) => typeof v === 'number' ? v.toFixed(1) : String(v)} />
+                <RechartsTooltip
                   contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)' }}
                   itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
                   labelStyle={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}
                 />
-                
+
                 <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'CRITICAL (0.7)', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />
                 <ReferenceLine y={0.4} stroke="var(--warning)" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'ELEVATED (0.4)', fill: 'var(--warning)', fontSize: 11, fontWeight: 600 }} />
-                
+
                 <Area type="monotone" dataKey="anomaly_score" stroke="var(--accent-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--accent-primary)', stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
             )}
           </div>
         </div>
-        
-        {/* Diagnostic Bar Chart (Deviations) */}
+
+        {/* Baseline Comparison - Line Graph Visualization */}
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Brain size={18} color="var(--accent-primary)" /> Behavioral Deviation (Z-Scores)
+            <Brain size={18} color="var(--accent-primary)" /> Baseline Comparison
           </h3>
-          <div style={{ flex: 1, minHeight: '300px', display: 'flex', justifyContent: 'center', alignItems: 'center', position: 'relative' }}>
-            {!baselineReady || !baseline || !features ? (
-                <div style={{ color: 'var(--text-muted)', textAlign: 'center' }}>{!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}</div>
-            ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={featureDeviations} margin={{ top: 20, right: 10, left: 10, bottom: 60 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={true} vertical={false} />
-                <XAxis dataKey="name" type="category" stroke="var(--text-muted)" fontSize={10} angle={-45} textAnchor="end" interval={0} tickMargin={5} />
-                <YAxis type="number" stroke="var(--text-muted)" fontSize={12} tickCount={5} domain={[-4, 4]} tickFormatter={(v: any) => `${v > 0 ? '+' : ''}${v}σ`} />
-                <RechartsTooltip 
-                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)' }}
-                  itemStyle={{ fontWeight: 600 }}
-                  formatter={(val: any) => [`${val > 0 ? '+' : ''}${Number(val).toFixed(2)}σ`, 'Z-Score']}
-                />
-                
-                {/* 0 Baseline Reference Line */}
-                <ReferenceLine y={0} stroke="var(--text-primary)" strokeWidth={2} />
-                <ReferenceLine y={2} stroke="var(--warning)" strokeDasharray="3 3" />
-                <ReferenceLine y={-2} stroke="var(--warning)" strokeDasharray="3 3" />
-                
-                <Bar dataKey="zScore" radius={[4, 4, 0, 0]}>
-                  {featureDeviations.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.zScore > 0 ? 'var(--warning)' : 'var(--success)'} fillOpacity={0.8} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            )}
-            
-            {hasPrototypeMatch && (
-              <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, textAlign: 'center', background: 'rgba(239,68,68,0.1)', color: 'var(--danger)', padding: '0.5rem', borderRadius: 'var(--radius-md)', fontWeight: 600, fontSize: '0.875rem' }}>
-                STRUCTURAL MATCH: {prototypeMatch}
-              </div>
-            )}
-          </div>
+          {!baselineReady || !baseline || !features ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
+            </div>
+          ) : (
+            <BaselineSlopeChart
+              metrics={[
+                {
+                  label: 'Screen Time',
+                  current: features.screenTimeHours || 0,
+                  baseline: baseline.screenTimeHours?.mean || 0,
+                  unit: 'hrs',
+                  invertGood: true
+                },
+                {
+                  label: 'Sleep Duration',
+                  current: features.sleepDurationHours || 0,
+                  baseline: baseline.sleepDurationHours?.mean || 0,
+                  unit: 'hrs'
+                },
+                {
+                  label: 'Social Ratio',
+                  current: (features.socialAppRatio || 0) * 100,
+                  baseline: (baseline.socialAppRatio?.mean || 0) * 100,
+                  unit: '%'
+                },
+                {
+                  label: 'Daily Steps',
+                  current: features.dailySteps || 0,
+                  baseline: baseline.dailySteps?.mean || 0,
+                  unit: 'steps'
+                },
+                {
+                  label: 'App Launches',
+                  current: features.appLaunchCount || 0,
+                  baseline: baseline.appLaunchCount?.mean || 0,
+                  unit: 'times',
+                  invertGood: true
+                }
+              ]}
+            />
+          )}
         </div>
       </div>
+
 
       {/* ── Top-3 Prototype Classification Panel ────────────────────────── */}
       {allScoresRanked.length > 0 && (
@@ -550,12 +555,12 @@ export const PatientDetail: React.FC = () => {
           {!baseline ? (
               <div style={{ color: 'var(--text-muted)' }}>Cannot generate deviations without baseline data.</div>
           ) : (
-            insights.map((insight, idx) => {
+            insights.map((insight) => {
                 if (insight.deviation < 5) return null; // Ignore minor variance
                 const isHigh = insight.sign === '+';
                 const color = isHigh ? 'var(--warning)' : 'var(--danger)'; // Just example styling
                 return (
-                    <div key={idx} style={{ padding: '1rem', background: `rgba(245, 158, 11, 0.05)`, border: `1px solid rgba(245, 158, 11, 0.2)`, borderLeft: `4px solid ${color}`, borderRadius: 'var(--radius-md)' }}>
+                    <div key={insight.name} style={{ padding: '1rem', background: `rgba(245, 158, 11, 0.05)`, border: `1px solid rgba(245, 158, 11, 0.2)`, borderLeft: `4px solid ${color}`, borderRadius: 'var(--radius-md)' }}>
                     <div style={{ fontWeight: 600, color: color, marginBottom: '0.25rem' }}>
                         {isHigh ? 'Elevated' : 'Reduced'} {insight.name}
                     </div>

@@ -33,11 +33,11 @@ import java.util.concurrent.TimeUnit
  *   3. Build JSON input via JsonConverter
  *   4. Call PythonEngine.runAnalysis()
  *   5. Store AnalysisResultEntity in Room
- *   6. Update DataRepository live state (for UI)
- *   7. Enqueue CloudSyncWorker stub (Phase 6)
+ *   6. Trigger immediate CloudSyncWorker sync to Firestore
+ *   7. Update DataRepository live state (for UI)
  *
  * Input data keys:
- *   KEY_USER_ID — the user ID string
+ *   KEY_USER_ID — the user ID string (email)
  */
 class NightlyAnalysisWorker(
     context: Context,
@@ -173,6 +173,24 @@ class NightlyAnalysisWorker(
                 gateResults         = engineResult.gateResultsJson
             )
             db.analysisResultDao().insert(resultEntity)
+            Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+
+            // ── 6b. Trigger immediate sync to Firestore ────────────────────────
+            // Don't wait for the scheduled CloudSyncWorker - sync immediately after saving
+            try {
+                val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+                WorkManager.getInstance(applicationContext).enqueue(syncWork)
+                Log.d(TAG, "Immediate sync triggered for analysis result")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue immediate sync: ${e.message}", e)
+                // Don't fail the worker - CloudSyncWorker will run on its schedule
+            }
 
             // ── 7. Update live DataRepository state (feeds existing UI) ─────────
             val dailyReport = DailyReport(
@@ -188,17 +206,6 @@ class NightlyAnalysisWorker(
                 notes                 = buildNotes(engineResult)
             )
             DataRepository.addReport(dailyReport)
-
-            // ── 8. Enqueue CloudSyncWorker (Phase 6) ──────────────────────
-            val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .build()
-            WorkManager.getInstance(applicationContext).enqueue(syncWork)
-            Log.d(TAG, "Enqueued CloudSyncWorker for data upload")
 
             Log.i(TAG, "Nightly analysis complete for $targetDate")
             Result.success()

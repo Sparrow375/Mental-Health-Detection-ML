@@ -1,15 +1,16 @@
 import React from 'react';
-import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, NavLink } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
-import { Activity, Users, Settings as SettingsIcon, LogOut, BarChart3, Eye, EyeOff } from 'lucide-react';
+import { Activity, Users, Settings as SettingsIcon, LogOut, BarChart3, Eye, EyeOff, Mic } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { PatientDetail } from './PatientDetail';
 import { Reports } from './Reports';
 import { Overview } from './Overview';
 import { UserDashboard } from './UserDashboard';
 import { Settings } from './Settings';
-import { usePrivacy } from '../context/PrivacyContext';
+import { usePrivacy } from '../hooks/usePrivacy';
+import { VoiceAssessment } from '../components/VoiceAssessment';
 
 export const Dashboard: React.FC = () => {
   const { isAnonymous, togglePrivacy } = usePrivacy();
@@ -20,7 +21,7 @@ export const Dashboard: React.FC = () => {
     try {
       await signOut(auth);
     } catch (e) {
-      console.warn("Firebase signout failed", e);
+      console.warn('Firebase signout failed', e);
     }
     window.location.href = '/login';
   };
@@ -53,20 +54,28 @@ export const Dashboard: React.FC = () => {
         </div>
         
         <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, padding: '0 1rem' }}>
-          <NavLink to="/" style={navStyle}>
-            <Activity size={20} /> Overview
-          </NavLink>
+          {!isAdmin && (
+            <NavLink to="/dashboard" end style={navStyle}>
+              <Activity size={20} /> My Dashboard
+            </NavLink>
+          )}
           {isAdmin && (
             <>
-              <NavLink to="/patients" style={navStyle}>
+              <NavLink to="/dashboard" end style={navStyle}>
+                <Activity size={20} /> Overview
+              </NavLink>
+              <NavLink to="/dashboard/patients" style={navStyle}>
                 <Users size={20} /> Patients
               </NavLink>
-              <NavLink to="/reports" style={navStyle}>
+              <NavLink to="/dashboard/reports" style={navStyle}>
                 <BarChart3 size={20} /> Reports
+              </NavLink>
+              <NavLink to="/dashboard/voice" style={navStyle}>
+                <Mic size={20} /> Voice AI
               </NavLink>
             </>
           )}
-          <NavLink to="/settings" style={navStyle}>
+          <NavLink to="/dashboard/settings" style={navStyle}>
             <SettingsIcon size={20} /> Settings
           </NavLink>
         </nav>
@@ -106,12 +115,25 @@ export const Dashboard: React.FC = () => {
           <Route path="/" element={isAdmin ? <Overview /> : <UserDashboard />} />
           {isAdmin && (
             <>
-              <Route path="/patients" element={<PatientList />} />
-              <Route path="/patients/:id" element={<PatientDetail />} />
-              <Route path="/reports" element={<Reports />} />
+              <Route path="patients" element={<PatientList />} />
+              <Route path="patients/:id" element={<PatientDetail />} />
+              <Route path="reports" element={<Reports />} />
+              <Route path="voice" element={
+                <div className="animate-fade-in">
+                  <div className="page-header">
+                    <div>
+                      <h1 className="page-title">Voice Assessment</h1>
+                      <p style={{ color: 'var(--text-secondary)' }}>Run AI voice analysis and log patient scores</p>
+                    </div>
+                  </div>
+                  <div className="glass-panel" style={{ padding: '2rem', maxWidth: 560 }}>
+                    <VoiceAssessment isAdmin={true} />
+                  </div>
+                </div>
+              } />
             </>
           )}
-          <Route path="/settings" element={<Settings />} />
+          <Route path="settings" element={<Settings />} />
         </Routes>
       </main>
     </div>

@@ -27,10 +27,20 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
 
             androidx.work.WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 SYNC_WORK_NAME,
-                androidx.work.ExistingPeriodicWorkPolicy.KEEP,
+                androidx.work.ExistingPeriodicWorkPolicy.UPDATE,
                 periodicWork
             )
             Log.d(TAG, "Scheduled periodic CloudSyncWorker to run every 4 hours")
+
+            // Also trigger an immediate sync right now so the user doesn't have to wait 4 hours
+            val immediateWork = androidx.work.OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                .setConstraints(constraints)
+                .build()
+            androidx.work.WorkManager.getInstance(context).enqueueUniqueWork(
+                SYNC_WORK_NAME + "_Immediate",
+                androidx.work.ExistingWorkPolicy.REPLACE,
+                immediateWork
+            )
         }
     }
 
@@ -79,23 +89,15 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             val unsyncedFeatures = db.dailyFeaturesDao().getUnsynced(email)
             Log.d(TAG, "Found ${unsyncedFeatures.size} unsynced daily features")
 
-            val dailyDataRef = firestore.collection("users").document(uid).collection("daily_data")
-
-            fun jsonToMap(jsonStr: String): Map<String, Any> {
-                val map = mutableMapOf<String, Any>()
-                try {
-                    val obj = org.json.JSONObject(jsonStr)
-                    for (key in obj.keys()) {
-                        map[key] = obj.get(key)
-                    }
-                } catch (e: Exception) {
-                    Log.w(TAG, "Failed to parse JSON: $jsonStr", e)
-                }
-                return map
-            }
+            // FIXED: Write to 'daily_features' (was incorrectly 'daily_data')
+            val dailyFeaturesRef = firestore.collection("users").document(uid).collection("daily_features")
 
             var syncedFeaturesCount = 0
             for (feature in unsyncedFeatures) {
+                if (feature.isSimulated) {
+                    db.dailyFeaturesDao().markSynced(feature.id)
+                    continue
+                }
                 try {
                     val dataMap = hashMapOf<String, Any>(
                         "date" to feature.date,
@@ -120,20 +122,26 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "memoryUsagePercent" to feature.memoryUsagePercent,
                         "networkWifiMB" to feature.networkWifiMB,
                         "networkMobileMB" to feature.networkMobileMB,
-
                         "downloadsToday" to feature.downloadsToday,
                         "storageUsedGB" to feature.storageUsedGB,
                         "appUninstallsToday" to feature.appUninstallsToday,
                         "upiTransactionsToday" to feature.upiTransactionsToday,
                         "totalAppsCount" to feature.totalAppsCount,
                         "dailySteps" to feature.dailySteps,
-
-                        "appBreakdown" to jsonToMap(feature.appBreakdownJson),
-                        "notificationBreakdown" to jsonToMap(feature.notificationBreakdownJson),
-                        "appLaunchesBreakdown" to jsonToMap(feature.appLaunchesBreakdownJson)
+                        // FIXED: Added missing fields that MonitoringService writes
+                        "backgroundAudioHours" to feature.backgroundAudioHours,
+                        "mediaCountToday" to feature.mediaCountToday,
+                        "appInstallsToday" to feature.appInstallsToday,
+                        "calendarEventsToday" to feature.calendarEventsToday,
+                        // FIXED: Store breakdowns as JSON strings (matching MonitoringService format)
+                        // Previously parsed to Map with 'appBreakdown' key — now consistent
+                        "appBreakdownJson" to feature.appBreakdownJson,
+                        "notificationBreakdownJson" to feature.notificationBreakdownJson,
+                        "appLaunchesBreakdownJson" to feature.appLaunchesBreakdownJson,
+                        "bgAudioBreakdownJson" to feature.bgAudioBreakdownJson
                     )
 
-                    dailyDataRef.document(feature.date).set(dataMap).await()
+                    dailyFeaturesRef.document(feature.date).set(dataMap).await()
                     db.dailyFeaturesDao().markSynced(feature.id)
                     syncedFeaturesCount++
                     Log.d(TAG, "Synced daily feature for date: ${feature.date}")
@@ -154,20 +162,23 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             var syncedResultsCount = 0
             for (result in unsyncedResults) {
                 try {
-                    val resultMap = hashMapOf(
+                    val resultMap = hashMapOf<String, Any>(
+                        "date" to result.date,
                         "anomaly_detected" to result.anomalyDetected,
+                        "anomaly_score" to result.anomalyScore,
                         "anomaly_message" to result.anomalyMessage,
+                        "alert_level" to result.alertLevel,
+                        "sustained_days" to result.sustainedDays,
                         "prototype_match" to result.prototypeMatch,
                         "match_message" to result.matchMessage,
-                        "anomaly_score" to result.anomalyScore,
-                        "alert_level" to result.alertLevel,
-                        "date" to result.date
+                        "prototype_confidence" to result.prototypeConfidence,
+                        "gate_results" to result.gateResults
                     )
 
                     resultsRef.document(result.date).set(resultMap).await()
                     db.analysisResultDao().markSynced(result.id)
                     syncedResultsCount++
-                    Log.d(TAG, "✓ Synced analysis result for date: ${result.date} | anomaly_score: ${result.anomalyScore} | alert: ${result.alertLevel}")
+                    Log.d(TAG, "✓ Synced result: ${result.date} | score=${result.anomalyScore} | alert=${result.alertLevel} | prototype=${result.prototypeMatch} | confidence=${result.prototypeConfidence}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to sync result for ${result.date}: ${e.message}", e)
                 }
@@ -175,12 +186,14 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             Log.d(TAG, "Successfully synced $syncedResultsCount/${unsyncedResults.size} analysis results")
 
             // 4. Update total recorded days (baseline progress)
-            val baselineProgress = db.dailyFeaturesDao().count(email)
-            Log.d(TAG, "Updating baseline_progress to: $baselineProgress")
-            // Use set(merge=true) instead of update() — update() throws if the user doc
-            // doesn't exist yet (e.g. just after first-time registration).
+            // FIXED: Never decrease baseline_progress — protects against Room destructive
+            // migration wiping local data and overwriting the Firestore count with 0.
+            val localProgress = db.dailyFeaturesDao().count(email)
+            val firestoreProgress = profileDoc.getLong("baseline_progress")?.toInt() ?: 0
+            val progressToSet = maxOf(localProgress, firestoreProgress)
+            Log.d(TAG, "baseline_progress: local=$localProgress, firestore=$firestoreProgress, writing=$progressToSet")
             firestore.collection("users").document(uid)
-                .set(mapOf("baseline_progress" to baselineProgress), com.google.firebase.firestore.SetOptions.merge()).await()
+                .set(mapOf("baseline_progress" to progressToSet), com.google.firebase.firestore.SetOptions.merge()).await()
 
             Log.d(TAG, "=== CloudSyncWorker completed successfully ===")
             return Result.success()

@@ -10,11 +10,15 @@ export interface Patient {
 export interface MLResult {
   date: string;
   anomaly_score: number;
+  anomaly_detected?: boolean;
+  anomaly_message?: string;
+  alert_level?: string;           // "green" | "yellow" | "orange" | "red"
+  sustained_days?: number;        // consecutive days above anomaly threshold
   prototype_match: string | null;
   match_message: string | null;
-  all_scores_json?: string;       // JSON blob of all prototype match scores (from CloudSyncWorker)
   prototype_confidence?: number;   // 0.0–1.0 confidence of top match
-  alert_level?: string;           // "green" | "yellow" | "orange" | "red"
+  gate_results?: string;           // JSON blob of 3-gate screener pass/fail
+  all_scores_json?: string;        // JSON blob of all prototype match scores (legacy)
   [key: string]: unknown;
 }
 

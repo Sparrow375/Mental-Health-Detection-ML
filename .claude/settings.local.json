@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(firebase deploy:*)",
+      "Bash(npx firebase:*)",
+      "Bash(firebase login:*)",
+      "Bash(firebase projects:list)",
+      "Bash(dir \"/c/Users/embar/OneDrive-N/D0cuments/GitHub/Mental-Health-Detection-ML\")",
+      "Bash(./gradlew assembleDebug)",
+      "Bash(adb devices:*)",
+      "Bash(./gradlew installDebug)",
+      "Bash(./gradlew uninstallDebug installDebug)"
+    ]
+  }
+}

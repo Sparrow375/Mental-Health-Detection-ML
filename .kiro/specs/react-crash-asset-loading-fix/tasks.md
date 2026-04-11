@@ -1,0 +1,88 @@
+# Implementation Plan
+
+- [x] 1. Write bug condition exploration test
+  - **Property 1: Fault Condition** - Assets Load on Nested Routes
+  - **CRITICAL**: This test MUST FAIL on unfixed code - failure confirms the bug exists
+  - **DO NOT attempt to fix the test or the code when it fails**
+  - **NOTE**: This test encodes the expected behavior - it will validate the fix when it passes after implementation
+  - **GOAL**: Surface counterexamples that demonstrate the bug exists
+  - **Scoped PBT Approach**: Scope the property to concrete failing cases - nested routes with 2+ path segments in production build
+  - Build the application with current configuration and deploy to Firebase hosting
+  - Test that assets load successfully when accessing nested routes like `/dashboard/patients/test123`
+  - Use browser developer tools to observe network requests for asset files
+  - The test assertions should verify: assets load successfully AND application renders without React error #310
+  - Run test on UNFIXED code (current Vite configuration without explicit base path)
+  - **EXPECTED OUTCOME**: Test FAILS with 404 errors for assets (this is correct - it proves the bug exists)
+  - Document counterexamples found: specific asset request URLs that fail, error messages, network tab observations
+  - Test cases to verify:
+    - Direct access to `/dashboard/patients/[patientId]` (should fail - assets not found)
+    - Client-side navigation to nested patient routes (should fail - assets not found)
+    - Deep nested routes with 3+ segments (should fail - assets not found)
+    - Shallow route `/dashboard` (should work - confirms bug is specific to nested routes)
+  - Mark task complete when test is written, run, and failure is documented
+  - _Requirements: 2.1, 2.2, 2.3_
+
+- [x] 2. Write preservation property tests (BEFORE implementing fix)
+  - **Property 2: Preservation** - Development and Shallow Route Behavior
+  - **IMPORTANT**: Follow observation-first methodology
+  - Observe behavior on UNFIXED code for non-buggy inputs (development mode and shallow routes)
+  - Write property-based tests capturing observed behavior patterns:
+    - Development mode: `npm run dev` works with hot module replacement
+    - Shallow routes: `/dashboard` and `/login` load correctly in production
+    - Client-side routing: navigation between dashboard sections works
+    - Build output: asset structure in `dist/` directory is consistent
+  - Property-based testing generates many test cases for stronger guarantees
+  - Run tests on UNFIXED code (current configuration)
+  - **EXPECTED OUTCOME**: Tests PASS (this confirms baseline behavior to preserve)
+  - Test cases to verify:
+    - Development server starts and serves assets correctly
+    - Hot module replacement triggers on file changes
+    - Root dashboard route renders without errors
+    - Login page loads and authentication flow works
+    - Client-side navigation maintains application state
+  - Mark task complete when tests are written, run, and passing on unfixed code
+  - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [ ] 3. Fix for asset loading on nested routes
+
+  - [x] 3.1 Implement the fix in Vite configuration
+    - Open `admin-dashboard/vite.config.ts`
+    - Add explicit `base: '/'` option to Vite configuration to ensure assets resolve from domain root
+    - Verify the configuration change is minimal and focused
+    - Build the application with `npm run build`
+    - Inspect `dist/index.html` to verify asset paths are still absolute (starting with `/assets/`)
+    - _Bug_Condition: isBugCondition(input) where input.environment == "production" AND input.route has 2+ path segments AND assets fail to load_
+    - _Expected_Behavior: For any nested route in production, assets load successfully from `/assets/*` paths, allowing the application to render without crashes_
+    - _Preservation: Development mode, shallow routes, client-side routing, and all existing functionality must remain unchanged_
+    - _Requirements: 2.1, 2.2, 2.3, 3.1, 3.2, 3.3, 3.4_
+
+  - [ ] 3.2 Verify bug condition exploration test now passes
+    - **Property 1: Expected Behavior** - Assets Load on Nested Routes
+    - **IMPORTANT**: Re-run the SAME test from task 1 - do NOT write a new test
+    - The test from task 1 encodes the expected behavior
+    - When this test passes, it confirms the expected behavior is satisfied
+    - Build the fixed application and deploy to Firebase hosting
+    - Run bug condition exploration test from step 1
+    - Verify assets load successfully on nested routes: `/dashboard/patients/test123`
+    - Verify browser network tab shows successful 200 responses for `/assets/index-*.js` and `/assets/index-*.css`
+    - Verify application renders without React error #310
+    - **EXPECTED OUTCOME**: Test PASSES (confirms bug is fixed)
+    - _Requirements: 2.1, 2.2, 2.3_
+
+  - [ ] 3.3 Verify preservation tests still pass
+    - **Property 2: Preservation** - Development and Shallow Route Behavior
+    - **IMPORTANT**: Re-run the SAME tests from task 2 - do NOT write new tests
+    - Run preservation property tests from step 2
+    - Verify development mode still works: `npm run dev` with hot module replacement
+    - Verify shallow routes still work: `/dashboard` and `/login` load correctly
+    - Verify client-side routing still works: navigation between sections
+    - Verify build output structure is unchanged: assets in `dist/assets/`
+    - **EXPECTED OUTCOME**: Tests PASS (confirms no regressions)
+    - Confirm all tests still pass after fix (no regressions)
+    - _Requirements: 3.1, 3.2, 3.3, 3.4_
+
+- [ ] 4. Checkpoint - Ensure all tests pass
+  - Verify all exploration tests pass (bug is fixed)
+  - Verify all preservation tests pass (no regressions)
+  - Verify application works correctly on Firebase hosting for all route depths
+  - If any issues arise, document them and ask the user for guidance

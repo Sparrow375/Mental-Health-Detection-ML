@@ -323,6 +323,10 @@ class MonitoringService : Service() {
 
                     detector = AnomalyDetector(baseline, pastAnalysisResults)
                     Log.i(TAG, "AnomalyDetector initialized with ${pastAnalysisResults.size} historical scores")
+                    
+                    // FIX: Ensure workers are scheduled since baseline is already ready.
+                    // Previously they were only scheduled at the exact moment of finalization.
+                    scheduleNightlyWorker()
                 }
             }
 
@@ -927,6 +931,7 @@ class MonitoringService : Service() {
                 }
                 
                 val data = hashMapOf(
+                    "date" to entity.date,
                     "screenTimeHours" to entity.screenTimeHours,
                     "unlockCount" to entity.unlockCount,
                     "appLaunchCount" to entity.appLaunchCount,
@@ -960,7 +965,8 @@ class MonitoringService : Service() {
                     "dailySteps" to entity.dailySteps,
                     "appBreakdownJson" to entity.appBreakdownJson,
                     "notificationBreakdownJson" to entity.notificationBreakdownJson,
-                    "appLaunchesBreakdownJson" to entity.appLaunchesBreakdownJson
+                    "appLaunchesBreakdownJson" to entity.appLaunchesBreakdownJson,
+                    "bgAudioBreakdownJson" to entity.bgAudioBreakdownJson
                 )
                 
                 collectionRef.document(entity.date).set(data).await()

@@ -74,7 +74,7 @@ class NightlyAnalysisWorker(
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     request
                 )
             Log.i(TAG, "Nightly analysis scheduled for user=$userId")

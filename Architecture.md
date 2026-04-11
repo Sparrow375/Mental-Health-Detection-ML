@@ -1,5 +1,7 @@
 ## System Architecture Overview
 
+> **See Also:** For the comprehensive compliance, security, and clinical-grade specification, please refer to the [Clinical Architecture Specification](./Clinical_Architecture_Specification.md).
+
 ### **LAYER 1: Data Collection (The Sensor)**
 **Mobile app continuously monitors:**
 - **Audio**: Voice pitch, tempo, volume, speech rate, pauses, stuttering

@@ -521,20 +521,41 @@ export const PatientDetail: React.FC = () => {
             })}
           </div>
 
-          {/* Alert level badge */}
-          {currentResult?.alert_level && (
-            <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alert Level:</span>
-              <span style={{
-                padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
-                background: currentResult.alert_level === 'red' ? 'var(--danger)' :
-                            currentResult.alert_level === 'orange' ? 'var(--warning)' :
-                            currentResult.alert_level === 'yellow' ? '#eab308' : 'var(--success)',
-                color: '#fff'
-              }}>
-                {currentResult.alert_level}
-              </span>
+          {/* Alert level badge and Sustained Days */}
+          {(currentResult?.alert_level || currentResult?.sustained_days) && (
+            <div style={{ marginTop: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {currentResult?.alert_level && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Alert Level:</span>
+                  <span style={{
+                    padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase',
+                    background: currentResult.alert_level === 'red' ? 'var(--danger)' :
+                                currentResult.alert_level === 'orange' ? 'var(--warning)' :
+                                currentResult.alert_level === 'yellow' ? '#eab308' : 'var(--success)',
+                    color: '#fff'
+                  }}>
+                    {currentResult.alert_level}
+                  </span>
+                </div>
+              )}
+
+              {currentResult?.sustained_days !== undefined && currentResult?.sustained_days > 0 && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: '1rem' }}>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Sustained For:</span>
+                  <span style={{ padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.75rem', fontWeight: 700, background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid var(--danger)' }}>
+                    {currentResult.sustained_days} Consecutive Days
+                  </span>
+                </div>
+              )}
             </div>
+          )}
+
+          {/* Gate Results Debug/View */}
+          {currentResult?.gate_results && (
+             <div style={{ marginTop: '1rem', padding: '0.75rem', background: 'var(--bg-primary)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border)', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--text-secondary)' }}>
+                <div style={{ fontWeight: 600, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>3-Gate Screener Detail:</div>
+                {currentResult.gate_results}
+             </div>
           )}
         </div>
       )}

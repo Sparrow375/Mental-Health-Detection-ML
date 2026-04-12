@@ -1,6 +1,8 @@
 """
 Run System 1 Anomaly Detector on StudentLife Dataset
 Real-world validation against PHQ-9 depression scores
+
+Uses the new modular L1+L2 pipeline from system1/ package.
 """
 
 import os
@@ -11,70 +13,68 @@ from datetime import datetime
 import warnings
 warnings.filterwarnings('ignore')
 
-# Import System 1 components
-from system1 import (
-    PersonalityVector,
-    ImprovedAnomalyDetector,
-    SyntheticDataGenerator
-)
+# Import System 1 components (from the new system1/ package)
+from system1 import PersonalityVector, AnomalyDetector
 
 # Import StudentLife components
 from studentlife_loader import StudentLifeLoader, get_phq9_severity
 from studentlife_feature_extractor import StudentLifeFeatureExtractor
 
+# The new PersonalityVector has 29 features.
+# StudentLife only provides a subset — the rest get defaults.
+FEATURE_COLUMNS_29 = [
+    'voice_pitch_mean', 'voice_pitch_std', 'voice_energy_mean', 'voice_speaking_rate',
+    'screen_time_hours', 'unlock_count', 'social_app_ratio',
+    'app_launch_count', 'notifications_today', 'total_apps_count',
+    'calls_per_day', 'texts_per_day', 'unique_contacts', 'response_time_minutes',
+    'daily_displacement_km', 'location_entropy', 'home_time_ratio', 'places_visited',
+    'wake_time_hour', 'sleep_time_hour', 'sleep_duration_hours',
+    'dark_duration_hours', 'charge_duration_hours',
+    'conversation_duration_hours', 'conversation_frequency',
+    'calendar_events_today', 'upi_transactions_today',
+    'background_audio_hours', 'storage_used_gb',
+]
+
 
 def create_baseline_from_studentlife(df, baseline_days=28):
     """
-    Create a PersonalityVector baseline from StudentLife data
-    Uses first N days of data to establish baseline
+    Create a PersonalityVector baseline from StudentLife data.
+    Uses first N days of data to establish baseline.
+    Maps the old 22-feature StudentLife data to the new 29-feature vector.
     """
     print(f"\n  Creating baseline from first {baseline_days} days...")
-    
+
     # Get baseline period
     baseline_df = df.head(baseline_days).copy()
-    
+
     # Calculate mean and variance for each feature
     baseline_params = {}
     variances = {}
-    
-    feature_columns = [
-        'voice_pitch_mean', 'voice_pitch_std', 'voice_energy_mean', 'voice_speaking_rate',
-        'screen_time_hours', 'unlock_count', 'social_app_ratio',
-        'calls_per_day', 'texts_per_day', 'unique_contacts', 'response_time_minutes',
-        'daily_displacement_km', 'location_entropy', 'home_time_ratio', 'places_visited',
-        'wake_time_hour', 'sleep_time_hour', 'sleep_duration_hours',
-        'dark_duration_hours', 'charge_duration_hours', 
-        'conversation_duration_hours', 'conversation_frequency'
-    ]
-    
-    for feat in feature_columns:
+
+    for feat in FEATURE_COLUMNS_29:
         if feat in baseline_df.columns:
-            # Calculate mean, handling NaN
             values = baseline_df[feat].dropna()
-            
-            if len(values) >= 3:  # Need at least 3 values
+            if len(values) >= 3:
                 baseline_params[feat] = float(values.mean())
-                variances[feat] = float(values.std() + 0.01)  # Add small epsilon
+                variances[feat] = float(values.std() + 0.01)
             else:
-                # Use a reasonable default if not enough data
                 baseline_params[feat] = get_default_baseline_value(feat)
-                variances[feat] = baseline_params[feat] * 0.15  # 15% variance
+                variances[feat] = baseline_params[feat] * 0.15
         else:
             baseline_params[feat] = get_default_baseline_value(feat)
             variances[feat] = baseline_params[feat] * 0.15
-    
-    # Create PersonalityVector
-    baseline = PersonalityVector(**baseline_params)
-    baseline.variances = variances
-    
+
+    # Create PersonalityVector using from_dict
+    baseline = PersonalityVector.from_dict(baseline_params, variances)
+
     # Debug info
     print(f"  ✓ Baseline established with {len(baseline_params)} features")
     print(f"  Sample values:")
     print(f"    Screen time: {baseline.screen_time_hours:.2f} ± {variances['screen_time_hours']:.2f} hours")
     print(f"    Texts/day: {baseline.texts_per_day:.2f} ± {variances['texts_per_day']:.2f}")
     if 'conversation_duration_hours' in baseline_params:
-         print(f"    Conversation: {baseline.conversation_duration_hours:.2f} ± {variances['conversation_duration_hours']:.2f} hours")
-    
+        print(f"    Conversation: {baseline.conversation_duration_hours:.2f} ± {variances['conversation_duration_hours']:.2f} hours")
+
     return baseline, baseline_df
 
 
@@ -88,6 +88,9 @@ def get_default_baseline_value(feature_name):
         'screen_time_hours': 4.5,
         'unlock_count': 50.0,
         'social_app_ratio': 0.30,
+        'app_launch_count': 40.0,
+        'notifications_today': 30.0,
+        'total_apps_count': 25.0,
         'calls_per_day': 2.0,
         'texts_per_day': 25.0,
         'unique_contacts': 8.0,
@@ -103,81 +106,89 @@ def get_default_baseline_value(feature_name):
         'charge_duration_hours': 6.0,
         'conversation_duration_hours': 1.5,
         'conversation_frequency': 10.0,
+        'calendar_events_today': 2.0,
+        'upi_transactions_today': 1.0,
+        'background_audio_hours': 1.0,
+        'storage_used_gb': 32.0,
     }
     return defaults.get(feature_name, 1.0)
 
 
 def run_system1_on_studentlife_user(user_id, dataset_path):
     """Run System 1 detector on a single StudentLife user"""
-    
+
     print(f"\n{'='*80}")
     print(f"ANALYZING STUDENT: {user_id}")
     print(f"{'='*80}")
-    
+
     # Load user data
     loader = StudentLifeLoader(dataset_path)
     phq9_scores = loader.load_phq9_scores()
     user_data = loader.load_user_data(user_id)
-    
+
     # Extract features
     extractor = StudentLifeFeatureExtractor(user_data, user_id)
     df = extractor.extract_all_features()
-    
+
     if len(df) < 35:  # Need at least 35 days (28 baseline + 7 monitoring)
         print(f"  ✗ Insufficient data: only {len(df)} days available (need 35+)")
         return None
-    
+
     # Create baseline from first 28 days
     baseline, baseline_df = create_baseline_from_studentlife(df, baseline_days=28)
-    
-    # Initialize detector
-    detector = ImprovedAnomalyDetector(baseline)
-    
-    # Calibrate thresholds from this user's own baseline noise
-    # This reduces false positives by not flagging normal-but-noisy baselines
+
+    # Initialize detector (new L1+L2 pipeline)
+    detector = AnomalyDetector(baseline)
+
+    # Calibrate thresholds + build DBSCAN clusters from baseline
     detector.calibrate_from_baseline(baseline_df)
-    
+
     # Analyze monitoring period (days 29 onwards)
     monitoring_df = df.iloc[28:].copy().reset_index(drop=True)
-    
+
     print(f"\n  Monitoring period: {len(monitoring_df)} days")
     print(f"  Date range: {monitoring_df['date'].min()} to {monitoring_df['date'].max()}")
-    
+
     # Run detection
     reports = []
     daily_reports = []
     deviations_history = []
-    
+
+    baseline_dict = baseline.to_dict()
+
     for idx, row in monitoring_df.iterrows():
-        # Prepare current data (fill NaN with baseline values)
+        # Prepare current data — fill missing features with baseline values
         current_data = {}
-        for feat in baseline.to_dict().keys():
-            if pd.notna(row.get(feat)):
+        for feat in baseline_dict.keys():
+            if feat in row.index and pd.notna(row.get(feat)):
                 current_data[feat] = float(row[feat])
             else:
-                # Use baseline value for missing data
-                current_data[feat] = baseline.to_dict()[feat]
-        
-        # Analyze
-        report, daily_report = detector.analyze(current_data, deviations_history, idx + 1)
+                current_data[feat] = baseline_dict[feat]
+
+        # Analyze (no session/notification events for StudentLife)
+        report, daily_report = detector.analyze(
+            current_data, deviations_history, idx + 1,
+            session_events=None,
+            notification_events=None,
+        )
         reports.append(report)
-        
+
         # Convert to dict for JSON serialization
         from dataclasses import asdict
         daily_reports.append(asdict(daily_report))
         deviations_history.append(report.feature_deviations)
-    
+
     # Generate final prediction
     final_prediction = detector.generate_final_prediction(
-        f"studentlife_{user_id}", 
+        f"studentlife_{user_id}",
         user_id,
         len(monitoring_df)
     )
-    
+
     # Get PHQ-9 scores
     phq9_pre = phq9_scores.get(f"{user_id}_pre", None)
     phq9_post = phq9_scores.get(f"{user_id}_post", None)
-    
+
     # Print results
     print(f"\n  {'='*76}")
     print(f"  SYSTEM 1 RESULTS:")
@@ -188,34 +199,34 @@ def run_system1_on_studentlife_user(user_id, dataset_path):
     print(f"  Current Evidence: {final_prediction.evidence_summary['evidence_accumulated_final']:.2f}")
     print(f"  PEAK Evidence:    {final_prediction.evidence_summary['peak_evidence']:.2f} (Target: {detector.PEAK_EVIDENCE_THRESHOLD})")
     print(f"  Pattern: {final_prediction.pattern_identified}")
-    
+
     print(f"\n  {'='*76}")
     print(f"  PHQ-9 CLINICAL SCORES:")
     print(f"  {'='*76}")
-    
+
     if phq9_pre is not None:
         severity_pre = get_phq9_severity(phq9_pre)
         print(f"  Pre-study:  {phq9_pre}/27 ({severity_pre})")
     else:
         print(f"  Pre-study:  No data")
-    
+
     if phq9_post is not None:
         severity_post = get_phq9_severity(phq9_post)
         print(f"  Post-study: {phq9_post}/27 ({severity_post})")
     else:
        print(f"  Post-study: No data")
-    
+
     # Alert distribution
     alert_dist = {}
     for r in daily_reports:
         alert_dist[r['alert_level']] = alert_dist.get(r['alert_level'], 0) + 1
-    
+
     print(f"\n  Alert Distribution:")
     for level in ['green', 'yellow', 'orange', 'red']:
         count = alert_dist.get(level, 0)
         pct = (count / len(daily_reports)) * 100 if len(daily_reports) > 0 else 0
         print(f"    {level.upper():6s}: {count:3d} days ({pct:5.1f}%)")
-    
+
     return {
         'user_id': user_id,
         'phq9_pre': phq9_pre,
@@ -235,28 +246,28 @@ def run_system1_on_studentlife_user(user_id, dataset_path):
 
 def main():
     """Run System 1 on multiple StudentLife users"""
-    
+
     print("="*80)
     print("SYSTEM 1 VALIDATION ON REAL STUDENTLIFE DATA")
+    print("  Pipeline: L1 (29 features, weighted z-scores, DBSCAN clustering)")
+    print("          + L2 (coherence modifier, candidate clusters)")
     print("="*80)
     print("\nObjective: Validate anomaly detection against PHQ-9 clinical scores")
     print("Expected: Higher anomaly scores should correlate with higher PHQ-9 scores\n")
-    
-    dataset_path = r'C:\Users\SRIRAM\Downloads\dataset'
-    
+
+    dataset_path = r'F:\Avaneesh\download\student\dataset'
+
     # Load available users
     loader = StudentLifeLoader(dataset_path)
     loader.load_phq9_scores()
     users = loader.get_available_users()
-    
+
     print(f"Found {len(users)} students in dataset")
     print(f"Analyzing ALL {len(users)} students...\n")
-    
-    # Analyze ALL users
-    test_users = users  # All 49 students
+
     results = []
-    
-    for user_id in test_users:
+
+    for user_id in users:
         try:
             result = run_system1_on_studentlife_user(user_id, dataset_path)
             if result is not None:
@@ -266,27 +277,27 @@ def main():
             import traceback
             traceback.print_exc()
             continue
-    
+
     # Summary comparison
     if len(results) > 0:
         print(f"\n\n{'='*80}")
         print("COMPARATIVE ANALYSIS: SYSTEM 1 vs PHQ-9")
         print(f"{'='*80}\n")
-        
+
         print(f"{'User':6s} {'PHQ-9 Pre':>10s} {'PHQ-9 Post':>11s} {'Anomaly Score':>14s} {'Detected?':>10s} {'Correlation?':>15s}")
         print("─" * 80)
-        
+
         for r in results:
             phq9_display = f"{r['phq9_post']}/27" if r['phq9_post'] is not None else "N/A"
             phq9_pre_display = f"{r['phq9_pre']}/27" if r['phq9_pre'] is not None else "N/A"
             detected = "YES" if r['anomaly_detected'] else "NO"
-            
+
             # Correlation check
             if r['phq9_post'] is not None:
                 # PHQ-9 > 9 is clinically significant depression
                 phq9_high = r['phq9_post'] > 9
                 sys1_detected = r['anomaly_detected']
-                
+
                 if phq9_high == sys1_detected:
                     correlation = "✓ Match"
                 elif phq9_high and not sys1_detected:
@@ -295,25 +306,25 @@ def main():
                     correlation = "✗ False Alarm"
             else:
                 correlation = "N/A"
-            
+
             print(f"{r['user_id']:6s} {phq9_pre_display:>10s} {phq9_display:>11s} {r['anomaly_score']:>14.3f} {detected:>10s} {correlation:>15s}")
-        
+
         print(f"\n{'='*80}")
         print("KEY INSIGHTS:")
         print(f"{'='*80}")
-        
+
         # Calculate correlations
         valid_results = [r for r in results if r['phq9_post'] is not None]
-        
+
         if len(valid_results) >= 2:
             phq9_scores = [r['phq9_post'] for r in valid_results]
             anomaly_scores = [r['anomaly_score'] for r in valid_results]
-            
+
             # Pearson correlation
             correlation = np.corrcoef(phq9_scores, anomaly_scores)[0, 1]
-            
+
             print(f"\n  Correlation (PHQ-9 vs Anomaly Score): {correlation:.3f}")
-            
+
             if correlation > 0.5:
                 print(f"  ✓ STRONG positive correlation - System 1 is detecting real depression!")
             elif correlation > 0.3:
@@ -322,29 +333,45 @@ def main():
                 print(f"  ~ WEAK positive correlation - Needs tuning")
             else:
                 print(f"  ✗ NO correlation - System 1 may need recalibration")
-        
-        print(f"\n  Note: This is a PRELIMINARY analysis with limited data.")
-        print(f"  Full validation requires all {len(users)} students + cross-validation.\n")
-    
+
+            # Binary classification metrics
+            tp = sum(1 for r in valid_results if r['phq9_post'] > 9 and r['anomaly_detected'])
+            fn = sum(1 for r in valid_results if r['phq9_post'] > 9 and not r['anomaly_detected'])
+            fp = sum(1 for r in valid_results if r['phq9_post'] <= 9 and r['anomaly_detected'])
+            tn = sum(1 for r in valid_results if r['phq9_post'] <= 9 and not r['anomaly_detected'])
+
+            sensitivity = tp / max(tp + fn, 1)
+            specificity = tn / max(tn + fp, 1)
+            accuracy = (tp + tn) / max(len(valid_results), 1)
+
+            print(f"\n  Binary Classification (PHQ-9 > 9 = depressed):")
+            print(f"    TP={tp} FN={fn} FP={fp} TN={tn}")
+            print(f"    Sensitivity: {sensitivity:.1%}")
+            print(f"    Specificity: {specificity:.1%}")
+            print(f"    Accuracy:    {accuracy:.1%}")
+
+        print(f"\n  Note: Results use L1+L2 pipeline with DBSCAN clustering")
+        print(f"  and docx threshold values (ANOMALY=0.38, PEAK_EV=7.0, PEAK_DAYS=10).\n")
+
     else:
         print("\n✗ No valid results obtained. Check data availability.")
-    
+
     # Save results to JSON for PDF generation
     import json
     output_data = {
-        'analysis_date': '2026-02-15',
-        'total_students': len(test_users),
+        'analysis_date': datetime.now().strftime('%Y-%m-%d'),
+        'pipeline': 'L1+L2 (DBSCAN, weighted z-scores, coherence modifier)',
+        'total_students': len(users),
         'valid_results': len(results),
         'results': results
     }
-    
+
     with open('studentlife_full_results.json', 'w') as f:
         json.dump(output_data, f, indent=2, default=str)
-    
+
     print(f"\n✓ Results saved to: studentlife_full_results.json")
     print(f"  Total students analyzed: {len(results)}")
-    print(f"\nReady for PDF generation!")
-    
+
     return results
 
 

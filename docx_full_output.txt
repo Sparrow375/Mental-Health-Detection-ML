@@ -1,0 +1,349 @@
+﻿Behavioral Anomaly Detection System
+Detailed Implementation Plan
+Level 1 + Level 2 (Digital DNA) Pipeline
+
+
+1. System Overview
+This system passively monitors smartphone behavior to detect sustained behavioral deterioration — specifically depressive and anxiety-related episodes — without requiring active user input. It operates in two complementary layers.
+
+
+The two layers are not independent scoring systems. L1 detects that something has changed. L2 computes a modifier that either suppresses L1 evidence (known or coherent new context) or amplifies it (unfamiliar pattern with degraded texture). Only the modifier-adjusted score feeds the evidence accumulator.
+
+
+2. Module Architecture
+The system consists of four layers: Android data collection, Python backend processing, persistent storage, and output/reporting.
+
+2.1 Android Modules
+
+2.2 Python Backend Modules
+
+2.3 Storage Schema (SQLite per person)
+
+3. Core Data Structures
+3.1 PersonalityVector (L1 baseline)
+29 float fields, one per feature, storing the baseline mean for that person. Companion variances dict stores per-feature standard deviations. Frozen after baseline establishment.
+
+
+3.2 AppDNA (per-app L2 baseline)
+Built for every app used 3+ times during baseline. Contains temporal, session, trigger, and sequence DNA.
+
+
+3.3 PhoneDNA (device-level L2 baseline)
+
+3.4 ContextualTextureProfile (L2 per archetype)
+One profile per L1 DBSCAN archetype. Texture is always evaluated relative to the matched L1 context, not globally.
+
+
+3.5 The 22-Feature L2 Texture Vector
+Built daily during monitoring. Normalized against the matched archetype's texture profile, not a global baseline.
+
+
+4. Pipeline Phases
+
+
+What runs and when
+L1 aggregate collector — midnight batch job. Reads UsageStatsManager, GPS/activity APIs, call log, calendar. Computes 29 feature values for the completed day. Writes one row to local SQLite daily_features table.
+L2 session event logger — fires on every app foreground/background transition via AccessibilityService. Records: app_package, open_timestamp_ms, close_timestamp_ms, trigger (SELF | NOTIFICATION | SHORTCUT | WIDGET), interaction_count.
+Notification event logger — NotificationListenerService. Records: app_package, arrival_timestamp_ms, action (TAP | DISMISS | IGNORE), tap_latency_minutes (null if not tapped).
+DataSyncService — runs nightly after L1 collection. Syncs all new rows to backend via encrypted POST. Buffers locally if offline; syncs on next connectivity.
+
+New permissions required vs existing
+
+
+Output tables written:
+
+
+
+Confidence tiers
+
+Step 1.1 — PersonalityVector construction
+Compute mean and std-dev of each of 29 features across all baseline days.
+Store as PersonalityVector (means) + variances dict (std-devs).
+These are frozen as the anchor reference. Never updated after baseline.
+
+Step 1.2 — Per-app AppDNA construction
+For each app appearing in session_events 3+ times during baseline:
+Build (7, 24) usage heatmap: for each day-of-week × hour combination, compute mean minutes from session events.
+Compute primary_time_range: find the smallest contiguous hour window containing 80% of total usage.
+Compute time_concentration_ratio and its day-to-day std.
+Compute session signature: mean, std, p10, p90 of session duration; abandon_rate and its std.
+Compute trigger DNA: fraction of sessions with each trigger type; notification response latency distribution.
+Compute pre/post transition dicts from session sequence logs.
+Compute weekday vs weekend split for session count and duration.
+Compute daily_use_consistency and max_gap_days.
+
+Step 1.3 — PhoneDNA construction
+Aggregate across all session events (not per-app):
+First and last pickup hour distribution from session_events timestamps.
+Pickup burst rate from inter-event timing.
+Session duration 5-bin histogram.
+Daily rhythm regularity via autocorrelation of hourly pickup vector.
+Notification relationship metrics from notification_events.
+App co-occurrence matrix from sessions within same 30-minute windows.
+Weekday/weekend delta: L1 norm of mean feature difference.
+Historically active hours: hours with mean pickups > threshold.
+
+Step 1.4 — L1 context clustering (DBSCAN)
+Build 12-feature L1 daily vector for each baseline day: sleep_duration, wake_time, sleep_time, daily_displacement_km, location_entropy, places_visited, calls_per_day, conversation_duration, screen_time, unlock_count, social_app_ratio, dark_duration_hours.
+Normalize each feature to [0,1] using person's own baseline min/max.
+Compute covariance matrix for Mahalanobis distance metric.
+Determine DBSCAN epsilon per person: sort distances to k-th nearest neighbor (k=3), find elbow of the k-distance graph.
+Run DBSCAN with computed epsilon, min_samples=3, metric='mahalanobis'.
+Extract K cluster centroids (mean of member days) and radii (max intra-cluster Mahalanobis distance).
+Label outlier days (DBSCAN noise points) — days that fit no archetype. Store their vectors separately; they provide no clustering power but may later become seed points for new clusters.
+
+Step 1.5 — L2 contextual texture profiles (K-means per archetype)
+For each L1 archetype from DBSCAN:
+Collect the subset of baseline days assigned to this archetype.
+Build 22-feature L2 texture vector for each member day.
+If member_days >= 10: run K-means with K=2 and K=3. Choose K with silhouette score. If improvement < 0.05, stay K=2. Store texture_centroids and texture_radii.
+If member_days < 10: compute texture_mean and texture_std as fallback. No clustering.
+Compute tolerance_factor as mean intra-archetype texture variance. High-variance archetypes get proportionally wider thresholds.
+
+Step 1.6 — Detector calibration
+Run L1 anomaly scoring retroactively against all baseline days.
+Compute mean and std of baseline anomaly scores.
+If baseline mean > 0.30 (noisy user): raise PEAK_EVIDENCE_THRESHOLD and PEAK_SUSTAINED_THRESHOLD_DAYS proportionally. Cap at [2.71, 6.0] and [5, 12] respectively.
+ANOMALY_SCORE_THRESHOLD (0.38) is never changed.
+
+Outputs stored to person_profile table:
+
+
+
+Step 2.1 — Deviation magnitude
+For each of the 29 features:
+z_raw = (today_value - baseline_mean) / baseline_std
+z_weighted = z_raw * FEATURE_META[feature]['weight']
+baseline_std defaults to 1.0 if baseline has no stored variance for a feature.
+Weights range from 0.4 (storageUsedGB, quasi-static) to 1.6 (sleepDurationHours, highest clinical weight).
+Output: dict of 29 weighted z-scores.
+
+Step 2.2 — Deviation velocity (EWMA)
+For each feature, using 7-day rolling window:
+ewma_t = 0.4 * current_value + 0.6 * previous_ewma
+slope = (ewma_last - ewma_first) / window_length
+velocity = slope / baseline_mean  (normalized by baseline)
+alpha = 0.4: recent days weighted more; detects accelerating trends.
+Output: dict of 29 normalized velocity slopes.
+
+Step 2.3 — Composite L1 score
+magnitude_score = mean(|all weighted z-scores|) / 3.0   → capped at 1.0
+velocity_score  = mean(|all velocities|) * 10.0         → capped at 1.0
+L1_score = 0.7 * magnitude_score + 0.3 * velocity_score
+Division by 3.0: a 3-sigma event across all features maps to magnitude_score = 1.0.
+Multiply by 10: normalizes small slope values into comparable range with magnitude.
+70/30 split: current state weighted more than trend, but trend contributes meaningfully (catches slow drift).
+
+Outputs:
+
+
+
+Step 3.1 — Context coherence
+Build today's L1 daily vector (same 12 features as used in DBSCAN).
+Compute Mahalanobis distance from today's vector to all K anchor centroids.
+coherence = max(0, 1.0 - (nearest_distance / (context_radius * 1.5)))
+If within 1.5× the nearest cluster radius: matched context, coherence > 0.
+If all centroids are beyond 1.5× their radii: coherence ≈ 0, potential new pattern.
+matched_context_id = index of nearest centroid, or -1 if no match.
+
+Step 3.2 — Rhythm dissolution (KL divergence)
+For each app active today with a baseline AppDNA:
+Build today's hourly usage distribution (24-bin histogram, normalized to sum 1).
+Retrieve the baseline heatmap row for today's day-of-week from AppDNA.
+Add epsilon (1e-9) to both distributions to avoid log(0). Renormalize baseline.
+    kl = scipy.stats.entropy(today_dist + 1e-9, baseline_dist + 1e-9)
+Aggregate weighted by each app's historical importance (avg_session_minutes × sessions_per_active_day).
+rhythm_dissolution = clip(weighted_mean_kl / 3.0, 0, 1)
+Conditioning: if matched_context_id >= 0, compare against that archetype's heatmap, not the global one.
+
+Step 3.3 — Session incoherence
+Three sub-signals, averaged:
+Abandon spike: for each active app, compute today's abandon_rate. Delta vs baseline abandon_rate, floored at 0.
+Duration collapse: for apps with baseline avg_session_minutes > 5, compute today_avg / baseline_avg. score = max(0, 1 - ratio). Captures lost capacity for sustained engagement.
+Trigger shift: for each active app, compute today's self_open_ratio. score = max(0, baseline_self_ratio - today_self_ratio). Rising = shifting from intentional to reactive use.
+session_incoherence = mean([mean(abandon_deltas), mean(duration_collapses), mean(trigger_drops)])
+
+Step 3.4 — New DNA pattern check
+If coherence < 0.25 (no matching L1 archetype) AND session_incoherence < 0.3 (texture still healthy):
+Flag as candidate_new_pattern = True.
+This day will be handled by candidate cluster evaluation (Phase 5) rather than normal evidence accumulation.
+If coherence < 0.25 AND session_incoherence >= 0.3: unfamiliar AND degraded — strongest clinical signal. No candidate evaluation needed.
+
+Step 3.5 — L2 modifier computation
+suppression   = coherence * 0.85
+amplification = (rhythm_dissolution * 0.6 + session_incoherence * 0.4) * 1.5
+modifier      = clip(1.0 - suppression + amplification, 0.15, 2.0)
+
+Outputs:
+
+
+
+Step 4.1 — Effective score
+effective_score = L1_score * L2_modifier
+This is the only value that enters the accumulator. L1 and L2 are combined here and not separately tracked in the accumulator.
+
+Step 4.2 — Accumulation (anomalous day)
+If effective_score > ANOMALY_SCORE_THRESHOLD (0.38):
+sustained_deviation_days += 1
+evidence_accumulated += effective_score * (1.0 + sustained_deviation_days * 0.1)
+The multiplier (1 + days × 0.1) creates exponential compounding. Day 1 adds ~1×, day 5 adds ~1.5×, day 10 adds ~2×.
+A 7-day sustained episode accumulates substantially more evidence than 7 scattered anomalous days — even with identical daily scores.
+
+Step 4.3 — Decay (normal day)
+If effective_score <= ANOMALY_SCORE_THRESHOLD:
+sustained_deviation_days = max(0, sustained_deviation_days - 1)
+evidence_accumulated     = evidence_accumulated * 0.92
+8% daily decay: evidence does not vanish instantly. Takes ~9 normal days to halve accumulated evidence.
+This means a genuine recovery curve is distinguishable from a normal fluctuation mid-episode.
+
+Step 4.4 — Peak tracking
+if evidence_accumulated > max_evidence: max_evidence = evidence_accumulated
+if sustained_deviation_days > max_sustained_days: max_sustained_days = sustained_deviation_days
+if L1_score > max_anomaly_score: max_anomaly_score = L1_score
+Peak values are used exclusively for retrospective clinical prediction (Phase 8). They are never reset during monitoring.
+
+Persistent state written to evidence_state table:
+
+
+
+This phase handles the case where L1 is anomalous but L2 texture is coherent — indicating a potentially new behavioral archetype (exam period, new job, travel) rather than a clinical episode.
+
+Step 5.1 — Open candidate window
+Pause evidence accumulation for this person.
+Create candidate_state record: open_timestamp, status = EVALUATING.
+Buffer today's L1 daily vector and L2 texture vector.
+Do not generate alert above green. Do not write evidence updates.
+
+Step 5.2 — Days 1–3: Hold and observe
+Each subsequent day: append L1 and L2 vectors to candidate buffer.
+Track daily texture quality: abandon_rate, self_open_ratio, rhythm_dissolution per day.
+Do not accumulate evidence. Do not alert.
+
+Step 5.3 — Days 4–7: Evaluate texture quality
+
+
+
+
+Step 6.1 — Sustained gate (absolute)
+No escalation above green unless:
+sustained_deviation_days >= SUSTAINED_THRESHOLD_DAYS (5), OR
+evidence_accumulated >= EVIDENCE_THRESHOLD (2.0)
+A single day with effective_score = 0.95 stays green. This gate is absolute and cannot be overridden by score magnitude alone.
+
+Step 6.2 — Critical feature deviation
+critical_deviation = max(|z_score| for f in CRITICAL_FEATURES)
+Critical features: sleepDurationHours, dailyDisplacementKm, screenTimeHours, socialAppRatio, wakeTimeHour, callsPerDay, upiTransactionsToday, totalAppsCount.
+
+Step 6.3 — Alert level assignment
+
+Step 6.4 — Pattern type detection
+Look at last 7 days of deviation history. Compute mean (m) and std (s) of daily mean-absolute-deviation values.
+
+Step 6.5 — Flagged features and top deviations
+Flagged features: list all features with |weighted z-score| > 1.5, formatted as human-readable strings: 'sleepDurationHours (2.41 SD)'.
+Top 5 deviations: dict of the 5 features with largest absolute weighted z-scores.
+
+Outputs:
+
+
+
+AnomalyReport (raw, for downstream systems)
+
+DailyReport (human-readable, for UI and clinicians)
+
+
+
+Step 8.1 — had_episode() check (retrospective, strict)
+had_episode = (max_evidence >= PEAK_EVIDENCE_THRESHOLD) OR
+             (max_sustained_days >= PEAK_SUSTAINED_THRESHOLD_DAYS)
+Uses peak values, not current state. An episode that partially recovered still registers.
+PEAK thresholds are stricter than real-time thresholds and are calibrated per person during baseline.
+
+Step 8.2 — Pattern analysis
+Look at last 7 days of full_anomaly_history.
+If std of recent scores > 0.15: pattern = 'unstable/cycling'
+If mean of recent scores > 0.5: pattern = 'persistent_elevation'
+Otherwise: pattern = 'stable'
+
+Step 8.3 — Confidence score
+confidence = min(0.95, monitoring_days / 30 * 0.8 + 0.15)
+Grows with monitoring duration. Starts at 0.15 at day 1, reaches 0.95 at day 35+. Caps at 95% — the system is never fully certain.
+
+Step 8.4 — Recommendation tiers
+
+FinalPrediction output:
+
+5. Threshold Reference
+All thresholds, their default values, which are calibrated per-person, and which are fixed.
+
+
+6. Dependencies
+6.1 Android (Java / Kotlin)
+
+6.2 Python backend
+
+7. Suggested File Structure
+
+Android
+app/
+  collectors/
+    PersonalityDataCollector.kt     ← existing L1 nightly batch
+    SessionEventLogger.kt           ← new: AccessibilityService listener
+    NotificationEventLogger.kt      ← new: NotificationListenerService
+  sync/
+    DataSyncService.kt              ← nightly upload to backend
+  db/
+    AppDatabase.kt                  ← Room DB with all 4 tables
+    DailyFeaturesDao.kt
+    SessionEventDao.kt              ← new
+    NotificationEventDao.kt         ← new
+
+Python backend
+system1/
+  data_structures.py               ← PersonalityVector, AppDNA, PhoneDNA,
+                                      ContextualTextureProfile, all report classes
+  feature_meta.py                  ← FEATURE_META weights, CRITICAL_FEATURES, ALL_FEATURES
+  baseline/
+    baseline_builder.py            ← orchestrates all baseline construction steps
+    l1_clusterer.py                ← DBSCAN with Mahalanobis distance
+    l2_texture_builder.py          ← K-means per archetype, fallback mean/std
+    app_dna_builder.py             ← per-app DNA construction
+    phone_dna_builder.py           ← device-level DNA construction
+    detector_calibration.py        ← retroactive threshold calibration
+  scoring/
+    l1_scorer.py                   ← deviation magnitude + velocity + composite
+    l2_scorer.py                   ← coherence + rhythm_dissolution + session_incoherence + modifier
+  engine/
+    evidence_engine.py             ← stateful accumulation, decay, peak tracking
+    candidate_cluster.py           ← 7-day evaluation window, promote/reject logic
+    alert_engine.py                ← sustained gate, level assignment, pattern detection
+    prediction_engine.py           ← final retrospective prediction
+  output/
+    reporter.py                    ← assembles AnomalyReport + DailyReport
+  simulation/
+    synthetic_data_generator.py    ← existing scenario simulator
+    system1.py                     ← existing end-to-end simulation runner
+
+8. Recommended Implementation Order
+Ordered to allow partial validation at each step before the next is built.
+
+data_structures.py — define all dataclasses first. Everything else imports from here.
+feature_meta.py — weights, critical features list.
+app_dna_builder.py + phone_dna_builder.py — build from session event data. Validate against synthetic sessions.
+l1_clusterer.py — DBSCAN with Mahalanobis. Validate cluster shapes on known synthetic scenarios.
+l2_texture_builder.py — K-means per archetype. Validate silhouette scores.
+baseline_builder.py — orchestrates steps 3–5. Validate full baseline profile on 28-day synthetic data.
+detector_calibration.py — retroactive threshold calibration. Unit test with noisy vs clean synthetic baselines.
+l1_scorer.py — z-scores + velocity + composite. This already exists in system1.py, extract and refactor.
+l2_scorer.py — coherence + rhythm_dissolution + session_incoherence + modifier. Validate modifier values on known-exam and known-depression synthetic days.
+evidence_engine.py — stateful accumulation. Unit test with known episode sequences.
+candidate_cluster.py — 7-day evaluation window. Test with synthetic exam-onset and depression-onset sequences.
+alert_engine.py — sustained gate + levels + pattern detection.
+prediction_engine.py — retrospective prediction. Validate all 4 recommendation tiers.
+reporter.py — assemble final output structures.
+Android SessionEventLogger + NotificationEventLogger — final step, hardware-dependent. Mock with synthetic event sequences during all prior development.
+
+
+9. Key Design Decisions and Rationale
+
+

@@ -25,3 +25,7 @@ __pycache__/
  
 # Ignore large dataset CSVs
 *.csv
+.claude/
+.gemini/
+.cursor/
+.vscode/

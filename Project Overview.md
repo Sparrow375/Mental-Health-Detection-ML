@@ -37,28 +37,29 @@ Rationale: Depression and anxiety exhibit strong, well-documented voice and beha
 
 ## 4. System Architecture (High-Level)
 
-### Modular Design
+The application architecture utilizes an edge-computing orchestration pipeline spanning from mobile sensors to the cloud:
 
-The system is intentionally split into independent layers:
+1. **Layer 1: Mobile Data Collection**
+   * Passive, full-time multi-modal data capture via Android (Kotlin)
+   * 29-feature vector construction across 7 behavioral groups
 
-1. **Data Sensing Layer (Deferred)**
+2. **Level 2: Behavioral DNA System (Edge ML)**
+   * On-device clustering (`PersonDNA`) to map individualized behavioral routines
+   * Produces an L2-modifier that contextualizes behavioral variation
 
-   * Smartphone-based passive data collection
-   * Includes voice capture and behavioral metrics
-   * Defined interfaces only; not implemented in this phase
+3. **System 1: Anomaly Detector (Edge ML)**
+   * Sustained evidence accumulation tracker observing velocity and magnitude of changes
+   * Cross-multiplies with Level 2 context to prevent false positives
 
-2. **Intelligence Layer (Implemented)**
+4. **System 2: 6-Phase Diagnostic Pipeline (Edge ML)**
+   * Geometric prototype matching for categorizing anomaly signatures into generalized clinical patterns (e.g., Depression, Psychosis)
+   * Clinical guardrails and longitudinal validation checks
 
-   * Feature engineering
-   * Machine learning models
-   * Risk scoring and confidence estimation
+5. **Cloud Analytics & Presentation Layer**
+   * Output-only sync to Firebase (Privacy-preserving)
+   * React + Vite Administrative Dashboard for clinicians
 
-3. **Presentation Layer (Minimal Implementation)**
-
-   * Simple dashboard
-   * Risk bands, trends, and confidence indicators
-
-This separation allows development of the core intelligence without dependency on mobile app development.
+*Detailed layer breakdowns are dynamically maintained in the `Architecture.md` file.*
 
 ---
 

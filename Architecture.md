@@ -1,193 +1,135 @@
-## System Architecture Overview
+# MHealth System Architecture
 
-### **LAYER 1: Data Collection (The Sensor)**
-**Mobile app continuously monitors:**
-- **Audio**: Voice pitch, tempo, volume, speech rate, pauses, stuttering
-- **Activity**: Screen time, app usage patterns, typing speed, call/text frequency
-- **Movement**: Location changes, step count, time spent at locations
-- **Phone interaction**: Unlock frequency, notification response time
-- **Sleep proxy**: Phone usage patterns at night, movement data
-- **Optional self-report**: Quick daily mood check-ins (1-10 scale)
+> **See Also:** For comprehensive clinical-grade specifications and dataset requirements, refer to the [Clinical Architecture Specification](./Clinical_Architecture_Specification.md).
 
-**Sampling strategy:**
-- Passive data: Continuous collection
-- Voice: Triggered by calls, voice notes, or opt-in recording windows
-- Preprocessing at edge (on-device) for privacy
+This document outlines the robust, edge-computed Machine Learning architecture for the Mental Health Detection (MHealth) application. The system operates on a highly secure **Edge-ML** paradigm, meaning all core analysis happens directly on the user's Android phone via embedded Python (Chaquopy), and no raw sensor data is ever streamed to the cloud.
 
 ---
 
-### **LAYER 2: Baseline Establishment (Weeks 1-4+)**
-**Goal**: Build the "Personal Normal" vector
+## 1. Top-Level Data Flow
 
-**Process:**
-1. Collect all multimodal data for minimum 4-6 weeks
-2. Screen for existing symptoms (brief questionnaire) to ensure clean baseline
-3. Calculate baseline metrics:
-   - **Voice**: Mean/SD of pitch, tempo, energy
-   - **Activity**: Average phone usage, social interaction frequency
-   - **Movement**: Typical location radius, daily displacement
-   - **Temporal**: Standard wake/sleep times, daily routines
+The architecture is woven together via an orchestration engine (`engine.py`) that executes nightly on the user's phone.
 
-**Output**: 
-- **Personality Vector (P₀)**: Multi-dimensional baseline profile
-- **Variance bounds**: Normal fluctuation ranges for each feature
-
----
-
-### **LAYER 3: Continuous Monitoring (Post-baseline)**
-**Process:**
-- Collect same data as baseline period
-- Calculate current state vector (P_current) over sliding windows:
-  - **Short window**: 24-48 hours (acute changes)
-  - **Medium window**: 1 week (trend detection)
-  - **Long window**: 2-4 weeks (persistent shifts)
-
-**Feed both to:**
-- System 1 (anomaly detection)
-- Baseline adaptation logic
-
----
-
-### **SYSTEM 1: Anomaly Detection Engine**
-
-**Core function**: Detect deviations from P₀
-
-**Calculates:**
-1. **Deviation magnitude**: |P_current - P₀| for each feature
-2. **Deviation velocity**: Rate of change over time
-3. **Deviation frequency**: How often changes occur
-4. **Recovery time**: Time between fluctuations returning to baseline
-5. **Multi-feature correlation**: Are multiple domains changing together?
-
-**Outputs:**
-- **Anomaly score** (0-1): Overall deviation severity
-- **Feature-specific flags**: Which aspects are deviating
-- **Temporal pattern**: Rapid cycling vs gradual drift vs episodic spikes
-- **Trend direction**: Moving away from or toward baseline
-
-**Thresholds**:
-- Mild: 1-2 SD from baseline
-- Moderate: 2-3 SD
-- Severe: >3 SD or persistent 2+ SD for >1 week
-
----
-
-### **SYSTEM 2: Disorder Characterization (Classification Layer)**
-
-**Inputs from System 1:**
-- Anomaly scores
-- Deviation patterns
-- Affected feature domains
-- Temporal dynamics
-
-**Additional raw features:**
-- Specific voice characteristics
-- Social interaction patterns
-- Circadian disruption metrics
-
-**Pattern matching logic:**
-
-| Disorder | Signature Pattern |
-|----------|------------------|
-| **BPD** | High deviation velocity + frequent rapid cycling + relationship/social volatility |
-| **Depression** | Gradual drift downward + sustained low activity + social withdrawal + speech slowing |
-| **Bipolar** | Episodic bidirectional swings + decreased sleep with increased activity (mania) |
-| **Anxiety** | Episodic spikes + physiological markers (if available) + avoidance patterns |
-| **Schizophrenia** | Speech disorganization + social withdrawal + circadian disruption + gradual onset |
-
-**Model approach:**
-- **Option A**: Multi-class classifier (Random Forest, XGBoost, Neural Net)
-- **Option B**: Ensemble of binary classifiers per disorder
-- **Option C**: Probabilistic graphical model (accounts for comorbidity)
-
-**Outputs:**
-- **Probability distribution** over disorders (not single diagnosis)
-- **Confidence score**: How certain is the pattern match
-- **Key contributing features**: What's driving the prediction
-- **Trajectory**: Getting worse/stable/improving
-
----
-
-### **LAYER 4: Baseline Adaptation (Dynamic Learning)**
-
-**Handles legitimate life changes vs. pathological shifts**
-
-**Logic:**
-1. If deviation is **persistent** (>4-6 weeks) AND **gradual** AND **stabilizes at new level**:
-   - Likely life change (new job, relationship, moved cities)
-   - Gradually shift P₀ toward new stable state
-   
-2. If deviation is **fluctuating** OR **progressive deterioration** OR **acute**:
-   - Likely pathological
-   - Don't update baseline; flag for monitoring
-
-**Safety**: Require manual confirmation or clinical validation before major baseline shifts
-
----
-
-### **LAYER 5: Alert & Output System**
-
-**Tiered alert system:**
-
-**Green**: Within normal bounds
-- No action
-
-**Yellow**: Mild deviation detected
-- In-app notification: "We've noticed some changes in your patterns. How are you feeling?"
-- Log for tracking
-
-**Orange**: Moderate deviation or concerning pattern
-- Stronger notification
-- Suggest self-care resources
-- Optional: Share with designated trusted contact
-
-**Red**: Severe or persistent deviation + high disorder probability
-- Urgent notification
-- Recommend professional consultation
-- Provide crisis resources if needed
-
-**Dashboard for user:**
-- Trends over time (visualized)
-- Which areas are changing
-- Educational content about patterns
-- NOT a diagnosis, framed as "pattern awareness"
-
----
-
-### **Data Flow Summary**
-
-```
-Sensors (phone) 
-    ↓
-Data Collection Layer
-    ↓
-[Baseline Phase] → P₀ (Personality Vector)
-    ↓
-[Monitoring Phase] → P_current
-    ↓
-System 1 (Anomaly Detection)
-    ├→ Deviation metrics
-    └→ Temporal patterns
-         ↓
-System 2 (Disorder Characterization)
-    ├→ Pattern matching
-    └→ Probability scores
-         ↓
-Alert System + User Dashboard
-         ↓
-[Feedback loop] → Baseline Adaptation
+```text
+Sensors (Mobile Android App)
+        ↓
+Layer 1: Data Collection & Feature Extraction (29 Features)
+        ↓
+[ Nightly Android WorkManager Trigger ]
+        ↓
+Layer 2: Edge-ML Orchestrator (engine.py via Chaquopy)
+        |
+        ├─▶ Level 2: Behavioral DNA System (Context & Clustering)
+        |       └─▶ Computes L2_Modifier
+        |
+        ├─▶ System 1: Improved Anomaly Detector
+        |       └─▶ Computes Magnitude, EWMA Velocity & Evidence Accumulation
+        |
+        └─▶ System 2: 6-Phase Diagnostic Pipeline
+                └─▶ Filters, matches prototypes, and tests clinical guardrails
+        ↓
+Output Phase: Sync to Cloud Firebase
+        ↓
+Layer 5: Clinical Admin Dashboard 
 ```
 
 ---
 
-### **Key Technical Considerations**
+## 2. Layer 1: Mobile Data Collection (The Sensors)
 
-1. **Privacy**: All processing on-device where possible; encrypted cloud storage only for aggregated/anonymized data
-2. **Battery**: Optimize collection to minimize drain
-3. **Storage**: Efficient compression; rolling window storage
-4. **Interpretability**: SHAP values or attention mechanisms to explain predictions
-5. **Validation**: Need longitudinal clinical data to train System 2
+The Kotlin-based Android App passively collects multimodal data. Currently, it generates a **29-feature vector** categorized into 7 semantic behavioral groups:
 
-This architecture separates concerns cleanly: collect → establish baseline → detect anomalies → characterize patterns → adapt baseline → alert. Each layer can be developed and validated independently.
+| Group | Features Measured | Clinical Relevance |
+| :--- | :--- | :--- |
+| **A: Screen & App** | Screen Time, Unlocks, App Launches, Notifications, Social App Ratio | Indicators for doom-scrolling, withdrawal, or manic engagement. |
+| **B: Communication** | Calls per day, Call Duration, Unique Contacts, Conversation Frequency | Identifies acute social withdrawal or sudden surges in sociability. |
+| **C: Movement** | Daily Displacement (km), Location Entropy, Home Time Ratio, Places Visited | High sensitivity for severe lethargy (Depression) or erratic wandering (Psychosis/Mania). |
+| **D: Sleep (Proxies)** | Wake Time, Sleep Time, Sleep Duration, Dark Duration | Crucial for capturing circadian rhythm shifts and insomnia/hypersomnia. |
+| **E: System Usage** | Charge Duration, Network MB (Wi-Fi/Mobile) | Additional proxies for generalized device attachment vs detachment. |
+| **F: Behavioural** | Total Apps Count, UPI Transactions, App Installs/Uninstalls | Measures financial impulsivity and erratic digital behavior. |
+| **G: Engagement** | Calendar Events, Media Count, Background Audio | Highlights passive vs. active states (e.g. listening to background podcasts vs interacting). |
 
+---
 
+## 3. Level 2: The Behavioral DNA System
+
+Rather than just comparing a user against an "average" static baseline, the ML pipeline utilizes a highly sophisticated mathematical mapping of a user's routines called **PersonDNA**.
+
+### 3.1 Baseline Phase (K-Means Anchoring)
+During the first 28 days, `dna.py` runs a dynamic K-Means clustering algorithm (figuring out the optimal $K$ based on silhouette scores) on the user's app usage data. It groups their behaviors into mathematical "Anchor Clusters." For example, it naturally discovers the mathematical difference between a user's typical "Workday," "Weekend," and "Off-Day".
+
+### 3.2 Monitoring Phase & Context Metrics
+Every night, `dna_engine.py` evaluates the current day's behavior against the PersonDNA anchors to formulate three metrics:
+1. **Context Coherence:** How mathematically close today is to a known baseline cluster.
+2. **Rhythm Integrity:** The KL-Divergence of the hourly usage heat-map (discovers if a user is using identical apps, but at 3 AM instead of 3 PM).
+3. **Session Incoherence:** Checks if app sessions are unusually short, suddenly abandoned, or lacking self-triggers.
+
+### 3.3 Dynamic Rolling Discovery
+If behavior deviates, but stabilizes into a *new, healthy routine* with high texture quality (e.g., the user got a new job with new hours), the system learns it over a temporary observation window and mathematically "promotes" it to a permanent new cluster, preventing eternal false-positive alerts.
+
+Finally, these metrics output an **`l2_modifier`** (ranging from $0.15$ to $2.0$), which suppresses or amplifies System 1's detection algorithms based on textual health.
+
+---
+
+## 4. System 1: Improved Anomaly Detector
+
+**Core Responsibility:** Answer "Is something mathematically wrong?"
+
+Unlike baseline comparisons that cry wolf on a single bad day, System 1 (`system1.py`) utilizes a **Sustained Evidence Accumulation Tracker**.
+
+### 4.1 Scoring Mechanism
+System 1 evaluates the 29-feature vector and outputs an Anomaly Score ($0-1$) based on:
+* **Magnitude ($70\%$):** Clinically weighted Z-Score deviations from the baseline vectors. Variables like `sleepDurationHours` have massive impact weights, while `memoryUsagePercent` has very low impact.
+* **Velocity ($30\%$):** Uses Exponentially Weighted Moving Averages (EWMA; $\alpha=0.4$) to track *how fast* variables are changing.
+
+### 4.2 L2-Modulated Exponential Accumulation
+System 1 multiplies its raw anomaly score by the Behavioral DNA's **`l2_modifier`**. If the result crosses a threshold ($> 0.38$), it accumulates evidence. If the anomaly happens on multiple consecutive days, the evidence snowballs *exponentially* (e.g., `day * 0.1` modifiers), guaranteeing severe alerts for sustained, pathological behavioral drifts while dismissing single-day hiccups.
+
+---
+
+## 5. System 2: 6-Phase Diagnostic Pipeline
+
+**Core Responsibility:** Answer "What clinical pattern does this resemble?"
+
+If System 1 pushes a comprehensive anomaly report, it passes into `pipeline.py`. System 2 does not attempt to "diagnose," but rather classify mathematical overlap with recognized psychiatric phenomenologies. It executes linearly through 6 logical phases:
+
+1. **Phase 1 — Baseline Screener:** Evaluates if the original 28-day baseline is contaminated (e.g., the user downloaded the app while already mid-depressive episode) and flags it for early intervention.
+2. **Phase 2 — Life Event Filter:** Identifies acute event signatures (e.g. abrupt drops in all tech usage mimicking camping/vacations) and immediately dismisses them as normal situational disruptions. 
+3. **Phase 3 — Distance Scoring (Prototype Matcher):** Translates current Z-Score deviations and maps them to generalized clinical prototypes (Depression, Mania, Anxiety, Schizophrenia). Uses **Weighted Euclidean Distance** alongside massive sign-mismatch penalties to rank the closest mathematical overlaps.
+4. **Phase 4 — Clinical Guardrails:** Overrules the pure geometric mathematical matcher if explicit, literature-backed criteria are met. 
+   * *Rule 1 (Psychosis Cluster):* If location entropy drops simultaneously with profound sleep disruption and social cutoff, forces a Schizophrenia-Type flag.
+   * *Rule 2 (Withdrawal Cluster):* If calls, unique contacts, and conversation duration plummet together, forces a Depression-Type flag.
+5. **Phase 5 — Temporal Validator:** Refined check preventing "rapid cycling" alerts unless the behavior historically fits a bipolar/cyclothymic frame.
+6. **Phase 6 — Explainability Engine:** Deconstructs the winning statistical distance and generates human-readable clinical narratives (e.g., "Alert triggered primarily driven by severe $-2.1$ SD drop in daily movement and $-1.8$ SD drop in conversation frequency").
+
+---
+
+## 6. Output & Dashboard Layer 
+
+Because the ML pipeline entirely executes within Android's `NightlyAnalysisWorker.kt` background thread, user privacy is permanently maintained.
+
+1. **Local Room DB:** The massive JSON bundle output by `engine.py` (containing System 1 evidence, System 2 classification, and DNA metrics) is saved to the local SQLite database. 
+2. **Cloud Sync:** `CloudSyncWorker.kt` synchronizes *only the mathematical result output* to Google Firebase Cloud Firestore (and never raw microphone or app data).
+3. **Admin Dashboard:** A React + Vite web dashboard queries Firebase to graphically map user anomalies across the population, rendering the temporally validated data into actionable clinician/researcher trendlines.
+
+---
+
+## 7. Web App Architecture (Admin Dashboard)
+
+The presentation layer is an enterprise-grade administrative dashboard designed for clinical researchers and mental health professionals to safely interpret the mathematical diagnostic outputs from the mobile edge-compute pipeline.
+
+### 7.1 Core Frontend Architecture
+- **Framework**: Built on **React 18** and **Vite** using **TypeScript** for strict, compilable type safety.
+- **Routing & State**: Modular, page-based architecture (`Dashboard`, `PatientList`, `PatientDetail`, `Reports`) driven by centralized context providers (`PrivacyContext` / `usePrivacy` hooks) to restrict data views to appropriate authorization levels.
+
+### 7.2 Cloud Data Integration (Firebase)
+- The frontend integrates directly with **Google Firebase Cloud Firestore** via `src/firebase/config.ts` and dedicated abstraction bridges (`dataHelper.ts`).
+- It acts purely as a consumer, subscribing strictly to the abstracted mathematical outputs pushed by the Android apps. It handles zero raw media or identifiable local telemetry.
+
+### 7.3 Telemetry Visualization
+- **Dynamic Charting Data Flow**: Custom React components (`BaselineLineGraph`, `BaselineComparison`) unpack the large JSON payload stored in Firestore.
+- Plots the user's daily variations in System 1 (Magnitude and EWMA Velocity) against the immutable baseline thresholds configured during the PersonDNA clustering phase.
+
+### 7.4 Voice Assessment Gateway
+- Contains a dedicated proxy interface (`VoiceAssessment.tsx`) pointing to a containerized Python/HuggingFace microservice API (`mhealth-voice-api`).
+- Evaluates discrete vocal recordings (when explicitly authorized/submitted) against a `wavlm_lora_v10` fine-tuned acoustic model designed to detect subtle phonation and articulation alterations mapped to depressive and psychotic states.

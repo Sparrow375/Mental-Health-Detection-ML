@@ -25,3 +25,8 @@ __pycache__/
  
 # Ignore large dataset CSVs
 *.csv
+
+# AI Assistant config and logs
+.claude/
+.gemini/
+.cursor/

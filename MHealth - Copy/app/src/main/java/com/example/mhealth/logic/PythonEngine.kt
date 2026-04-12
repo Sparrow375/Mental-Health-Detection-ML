@@ -38,6 +38,15 @@ object PythonEngine {
         // Gate state (serialised back to JSON for persistence)
         val gateResultsJson: String        = "{}",
 
+        // L2 Digital DNA
+        val l2Modifier: Float              = 1.0f,
+        val coherence: Float               = 0f,
+        val rhythmDissolution: Float       = 0f,
+        val sessionIncoherence: Float      = 0f,
+
+        // System 1 Profile (DNA Baseline, Clusters, Texture Profiles)
+        val profileJson: String            = "{}",
+
         // Meta
         val engineStatus: String           = "ok",
         val errorMessage: String           = ""
@@ -91,6 +100,12 @@ object PythonEngine {
                 }
             }
 
+            val dna = root.optJSONObject("dna") ?: JSONObject()
+
+            // System 1 Profile (DNA Baseline, Clusters, Texture Profiles)
+            val profileObj = root.optJSONObject("profile")
+            val profileJson = profileObj?.toString() ?: "{}"
+
             AnalysisResult(
                 anomalyDetected     = anomaly.optBoolean("detected",      false),
                 anomalyScore        = anomaly.optDouble("anomaly_score",   0.0).toFloat(),
@@ -105,6 +120,11 @@ object PythonEngine {
                 confidenceLabel     = prototype.optString("confidence_label","HIGH"),
                 matchMessage        = prototype.optString("message",       ""),
                 gateResultsJson     = gate.toString(),
+                l2Modifier          = dna.optDouble("l2_modifier", 1.0).toFloat(),
+                coherence           = dna.optDouble("coherence", 0.0).toFloat(),
+                rhythmDissolution   = dna.optDouble("rhythm_dissolution", 0.0).toFloat(),
+                sessionIncoherence  = dna.optDouble("session_incoherence", 0.0).toFloat(),
+                profileJson         = profileJson,
                 engineStatus        = status,
                 errorMessage        = root.optString("error_message", "")
             )

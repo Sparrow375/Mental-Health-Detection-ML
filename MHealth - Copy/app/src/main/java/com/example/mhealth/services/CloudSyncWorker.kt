@@ -195,6 +195,75 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             firestore.collection("users").document(uid)
                 .set(mapOf("baseline_progress" to progressToSet), com.google.firebase.firestore.SetOptions.merge()).await()
 
+            // 5. Sync App Sessions (Level 2 Digital DNA)
+            try {
+                val sessionsRef = firestore.collection("users").document(uid).collection("app_sessions")
+                val thirtyDaysAgoMs = System.currentTimeMillis() - 30L * 24 * 3600_000
+                val recentSessions = db.appSessionDao().getSessionsSince(thirtyDaysAgoMs)
+                
+                // Group sessions by date for batch upload
+                val sessionsByDate = recentSessions.groupBy { it.date }
+                var syncedSessions = 0
+                for ((date, sessions) in sessionsByDate) {
+                    try {
+                        val batch = firestore.batch()
+                        for (session in sessions) {
+                            val docRef = sessionsRef.document(date).collection("events").document(session.session_id)
+                            batch.set(docRef, hashMapOf<String, Any>(
+                                "session_id" to session.session_id,
+                                "app_package" to session.app_package,
+                                "open_timestamp" to session.open_timestamp,
+                                "close_timestamp" to session.close_timestamp,
+                                "trigger" to session.trigger,
+                                "interaction_count" to session.interaction_count,
+                                "date" to session.date
+                            ))
+                        }
+                        batch.commit().await()
+                        syncedSessions += sessions.size
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to sync sessions for $date: ${e.message}")
+                    }
+                }
+                Log.d(TAG, "Synced $syncedSessions app sessions across ${sessionsByDate.size} days")
+            } catch (e: Exception) {
+                Log.e(TAG, "Session sync failed: ${e.message}")
+            }
+
+            // 6. Sync Notification Events (Level 2 Digital DNA)
+            try {
+                val notifEventsRef = firestore.collection("users").document(uid).collection("notification_events")
+                val thirtyDaysAgoMs2 = System.currentTimeMillis() - 30L * 24 * 3600_000
+                val recentNotifEvents = db.notificationEventDao().getEventsSince(thirtyDaysAgoMs2)
+                
+                val notifByDate = recentNotifEvents.groupBy { it.date }
+                var syncedNotifEvents = 0
+                for ((date, events) in notifByDate) {
+                    try {
+                        val batch = firestore.batch()
+                        for (event in events) {
+                            val docRef = notifEventsRef.document(date).collection("events").document(event.event_id)
+                            val data = hashMapOf<String, Any>(
+                                "event_id" to event.event_id,
+                                "app_package" to event.app_package,
+                                "arrival_timestamp" to event.arrival_timestamp,
+                                "action" to event.action,
+                                "date" to event.date
+                            )
+                            event.tap_latency_min?.let { data["tap_latency_min"] = it }
+                            batch.set(docRef, data)
+                        }
+                        batch.commit().await()
+                        syncedNotifEvents += events.size
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to sync notification events for $date: ${e.message}")
+                    }
+                }
+                Log.d(TAG, "Synced $syncedNotifEvents notification events across ${notifByDate.size} days")
+            } catch (e: Exception) {
+                Log.e(TAG, "Notification events sync failed: ${e.message}")
+            }
+
             Log.d(TAG, "=== CloudSyncWorker completed successfully ===")
             return Result.success()
 

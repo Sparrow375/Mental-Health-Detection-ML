@@ -253,7 +253,7 @@ fun MainDashboard() {
         ) {
             when (current) {
                 AppDest.HOME     -> HomeScreen()
-                AppDest.MONITOR  -> MonitorScreen()
+                AppDest.MONITOR  -> com.example.mhealth.ui.screens.MonitorScreen()
                 AppDest.ANALYSIS -> AnalysisScreen()
                 AppDest.INSIGHTS -> InsightsScreen()
                 AppDest.SETTINGS -> SettingsScreen()

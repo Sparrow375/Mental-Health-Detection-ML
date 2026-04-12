@@ -18,6 +18,7 @@ from dna_engine import (
     get_released_evidence,
     clear_rejected_candidates,
 )
+from s1_profile import build_full_profile
 
 
 def run_analysis(json_string: str) -> str:
@@ -218,6 +219,22 @@ def run_analysis(json_string: str) -> str:
         gate2 = "gate2" not in s2_output.screening.gates_fired
         gate3 = "gate3" not in s2_output.screening.gates_fired
 
+        # ── Build System 1 Profile (DNA Baseline, Clusters, Texture) ───────────
+        profile_data = None
+        try:
+            # Combine current + history for profile building
+            all_daily = list(history) + [current]
+            profile_data = build_full_profile(
+                daily_features_list=all_daily,
+                sessions=sessions_28day,
+                person_id=data.get("user_id", "user"),
+            )
+            print(f"  [Profile] Built profile: {profile_data['days_of_data']} days, "
+                  f"{len(profile_data.get('anchor_clusters', []))} clusters, "
+                  f"{len(profile_data.get('app_dna_profiles', {}))} apps")
+        except Exception as e:
+            print(f"  [Profile] Failed to build profile: {e}")
+
         # ── Map to Kotlin JSON contract ────────────────────────────────────────
         result_dict = {
             "status": "ok",
@@ -270,6 +287,7 @@ def run_analysis(json_string: str) -> str:
                 ),
             },
             "dna": dna_result,
+            "profile": profile_data,
         }
 
         return json.dumps(result_dict)

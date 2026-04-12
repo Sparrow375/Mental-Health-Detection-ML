@@ -528,6 +528,9 @@ class MonitoringService : Service() {
             // 2) Battery tracking is now handled by the exact-timestamp BroadcastReceiver
             //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
 
+            // Level 2 Digital DNA: Log session events from UsageEvents for behavioral DNA
+            dataCollector.logSessionsFromEvents(dataCollector.getStartOfDayMs(), System.currentTimeMillis())
+
             // 3) Background audio: Event-driven via sessionListener (no tick polling needed)
 
             // 4) Provisional Analysis (Live Score)

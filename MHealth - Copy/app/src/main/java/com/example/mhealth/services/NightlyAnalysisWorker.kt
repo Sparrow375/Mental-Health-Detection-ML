@@ -17,6 +17,7 @@ import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.PersonDnaEntity
 import com.example.mhealth.models.DailyReport
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -170,7 +171,15 @@ class NightlyAnalysisWorker(
                 prototypeMatch      = engineResult.prototypeMatch,
                 matchMessage        = engineResult.matchMessage,
                 prototypeConfidence = engineResult.prototypeConfidence,
-                gateResults         = engineResult.gateResultsJson
+                gateResults         = engineResult.gateResultsJson,
+                l2Modifier          = engineResult.l2Modifier,
+                coherence           = engineResult.coherence,
+                rhythmDissolution   = engineResult.rhythmDissolution,
+                sessionIncoherence  = engineResult.sessionIncoherence,
+                effectiveScore      = engineResult.anomalyScore * engineResult.l2Modifier,
+                evidenceAccumulated = engineResult.evidence,
+                patternType         = engineResult.patternType,
+                flaggedFeatures     = org.json.JSONArray(engineResult.flaggedFeatures).toString()
             )
             db.analysisResultDao().insert(resultEntity)
             Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
@@ -206,6 +215,29 @@ class NightlyAnalysisWorker(
                 notes                 = buildNotes(engineResult)
             )
             DataRepository.addReport(dailyReport)
+
+            // ── 7b. Persist System 1 Profile (DNA Baseline, Clusters, Texture) ──
+            if (engineResult.profileJson != "{}") {
+                try {
+                    val existingDna = db.personDnaDao().getByUserId(userId)
+                    val now = System.currentTimeMillis()
+                    if (existingDna != null) {
+                        db.personDnaDao().updateDna(userId, engineResult.profileJson, now)
+                    } else {
+                        db.personDnaDao().insert(
+                            PersonDnaEntity(
+                                person_id = userId,
+                                dna_json = engineResult.profileJson,
+                                created_at = now,
+                                last_updated = now
+                            )
+                        )
+                    }
+                    Log.i(TAG, "System 1 profile persisted to person_dna for $userId")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to persist profile: ${e.message}", e)
+                }
+            }
 
             Log.i(TAG, "Nightly analysis complete for $targetDate")
             Result.success()

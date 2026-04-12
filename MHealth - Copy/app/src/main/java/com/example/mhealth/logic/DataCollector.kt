@@ -85,6 +85,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
     private val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US)
     private val recentNotificationTimes = mutableMapOf<String, Long>() // pkg → last notification epoch_ms
 
+    /** Tracks which sessions have been persisted to avoid duplicates within a day window. */
+    private val persistedSessionKeys = mutableSetOf<String>()
+
     init {
         DataRepository.init(context)
         // Step counter now handled by GpsStateManager for adaptive tracking

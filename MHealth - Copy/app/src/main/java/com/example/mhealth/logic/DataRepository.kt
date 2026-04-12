@@ -40,6 +40,10 @@ object DataRepository {
     private val _weeklyFeatureHistory = MutableStateFlow<List<PersonalityVector>>(emptyList())
     val weeklyFeatureHistory: StateFlow<List<PersonalityVector>> = _weeklyFeatureHistory
 
+    /** Emits the System 1 Profile JSON (DNA Baseline, Clusters, Texture Profiles) from person_dna table. */
+    private val _s1ProfileJson = MutableStateFlow<String?>(null)
+    val s1ProfileJson: StateFlow<String?> = _s1ProfileJson
+
     /**
      * Wire the Room-backed StateFlows after the DB is available (call from MonitoringService/Application).
      * Safe to call multiple times — subsequent calls are no-ops.
@@ -61,11 +65,21 @@ object DataRepository {
             }
         }
         scope.launch {
-            // Room does not have a native Flow for getLatestN, so we poll or use a simpler getAll flow
-            // For now, we'll just fetch once or use a simple periodically-updated list
             val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
             _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
         }
+        // Load System 1 profile from person_dna table
+        scope.launch {
+            val dnaEntity = db.personDnaDao().getByUserId(userId)
+            if (dnaEntity != null) {
+                _s1ProfileJson.value = dnaEntity.dna_json
+            }
+        }
+    }
+
+    /** Update the System 1 profile (called from NightlyAnalysisWorker after profile build). */
+    fun updateS1Profile(profileJson: String) {
+        _s1ProfileJson.value = profileJson
     }
 
     private fun DailyFeaturesEntity.toPersonalityVector() = PersonalityVector(

@@ -17,3 +17,7 @@ system2/*.resolved
 # IDE / Testing Tools
 .idea/
 .pytest_cache/
+.claude/
+.gemini/
+.cursor/
+.vscode/

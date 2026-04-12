@@ -30,6 +30,8 @@ import android.provider.ContactsContract
 import android.provider.MediaStore
 import android.provider.Telephony
 import android.util.Log
+import com.example.mhealth.logic.db.AppSessionEntity
+import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
 import com.google.android.gms.location.LocationServices
@@ -47,6 +49,11 @@ import kotlin.math.ln
 import kotlin.math.pow
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import java.util.UUID
 
 /**
  * DataCollector — All metrics sourced from the same Android APIs that
@@ -72,6 +79,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
     // ── Adaptive GPS System ───────────────────────────────────────────────────
     // State machine that adjusts polling interval based on activity
     private val gpsStateManager = GpsStateManager(context)
+
+    // ── Level 2 Behavioral DNA: Session Tracking ──────────────────────────────
+    private val sessionScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", Locale.US)
+    private val recentNotificationTimes = mutableMapOf<String, Long>() // pkg → last notification epoch_ms
 
     init {
         DataRepository.init(context)
@@ -1273,6 +1285,112 @@ class DataCollector(private val context: Context) : SensorEventListener {
         }
         // Sort descending by count
         return result.toList().sortedByDescending { it.second }.toMap()
+    }
+
+    // =========================================================================
+    //  Level 2 Behavioral DNA — Session Logging
+    // =========================================================================
+
+    /**
+     * Record notification time for trigger detection.
+     * Called when a notification is received for a package.
+     */
+    fun recordNotificationTime(pkg: String, timestampMs: Long = System.currentTimeMillis()) {
+        recentNotificationTimes[pkg] = timestampMs
+    }
+
+    /**
+     * Parse UsageEvents and log per-session data to app_sessions Room table.
+     * Called alongside collectSnapshot() to build the session history needed for DNA.
+     *
+     * Trigger detection:
+     *   NOTIFICATION = session opened within 10s of notification from same package
+     *   SELF = all other cases
+     */
+    fun logSessionsFromEvents(startMs: Long, endMs: Long) {
+        val usm = try {
+            context.getSystemService(UsageStatsManager::class.java) ?: return
+        } catch (e: Exception) { return }
+
+        val events = usm.queryEvents(startMs, endMs)
+        val event = UsageEvents.Event()
+
+        val db = MHealthDatabase.getInstance(context)
+        val sessionDao = db.appSessionDao()
+
+        // Track FG start times per package
+        val appFgStart = mutableMapOf<String, Long>()
+        val appInteractionCount = mutableMapOf<String, Int>()
+
+        val sessionsToInsert = mutableListOf<AppSessionEntity>()
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            val ts = event.timeStamp.coerceIn(startMs, endMs)
+            val pkg = event.packageName ?: ""
+
+            when (event.eventType) {
+                UsageEvents.Event.MOVE_TO_FOREGROUND -> {
+                    if (!isExcluded(pkg)) {
+                        appFgStart[pkg] = ts
+                        appInteractionCount[pkg] = 1
+                    }
+                }
+                UsageEvents.Event.MOVE_TO_BACKGROUND -> {
+                    if (!isExcluded(pkg)) {
+                        val fgStart = appFgStart.remove(pkg)
+                        val interactions = appInteractionCount.remove(pkg) ?: 1
+                        if (fgStart != null && fgStart <= ts) {
+                            // Determine trigger
+                            val lastNotifTime = recentNotificationTimes[pkg] ?: 0L
+                            val trigger = if (lastNotifTime > 0 && kotlin.math.abs(fgStart - lastNotifTime) <= 10_000L) {
+                                "NOTIFICATION"
+                            } else {
+                                "SELF"
+                            }
+                            val dateStr = synchronized(dateFormat) {
+                                dateFormat.format(ts)
+                            }
+                            sessionsToInsert.add(
+                                AppSessionEntity(
+                                    session_id = UUID.randomUUID().toString(),
+                                    app_package = pkg,
+                                    open_timestamp = fgStart,
+                                    close_timestamp = ts,
+                                    trigger = trigger,
+                                    interaction_count = interactions,
+                                    date = dateStr
+                                )
+                            )
+                        }
+                    }
+                }
+                // Count user interactions within a session (launches, config changes)
+                23 -> { // USER_INTERACTION event type
+                    if (!isExcluded(pkg) && appFgStart.containsKey(pkg)) {
+                        appInteractionCount[pkg] = (appInteractionCount[pkg] ?: 1) + 1
+                    }
+                }
+                // Track notification times for trigger detection
+                12 -> { // NOTIFICATION_INTERRUPTION
+                    if (!isExcluded(pkg)) {
+                        recentNotificationTimes[pkg] = ts
+                    }
+                }
+            }
+        }
+
+        // Insert all sessions asynchronously
+        if (sessionsToInsert.isNotEmpty()) {
+            sessionScope.launch {
+                try {
+                    sessionDao.insertAll(sessionsToInsert)
+                    Log.d(TAG, "Logged ${sessionsToInsert.size} app sessions to Room")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to log sessions: ${e.message}")
+                }
+            }
+        }
     }
 
     private fun getCategoryLabel(info: ApplicationInfo?,

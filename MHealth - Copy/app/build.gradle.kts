@@ -21,7 +21,7 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a")
         }
     }
 
@@ -50,8 +50,11 @@ chaquopy {
     defaultConfig {
         version = "3.11"
         pip {
-            install("numpy")
-            install("pandas")
+            install("numpy==1.26.2")
+            install("pandas==2.1.3")
+            install("python-dateutil==2.9.0")
+            install("six==1.17.0")
+            install("pytz==2024.1")
         }
     }
 }

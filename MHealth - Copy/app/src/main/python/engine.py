@@ -2,10 +2,22 @@ import json
 import logging
 import traceback
 import pandas as pd
+import numpy as np
 
 from pipeline import System2Pipeline
 from system1 import ImprovedAnomalyDetector, PersonalityVector
 from s1_s2_adapter import build_s1_input
+from dna import build_person_dna, build_daily_vector, PersonDNA
+from dna_engine import (
+    compute_context_coherence,
+    compute_rhythm_integrity,
+    compute_session_incoherence,
+    compute_texture_quality,
+    compute_l2_modifier,
+    update_rolling_clusters,
+    get_released_evidence,
+    clear_rejected_candidates,
+)
 
 
 def run_analysis(json_string: str) -> str:
@@ -16,13 +28,16 @@ def run_analysis(json_string: str) -> str:
 
     Input JSON schema:
       {
-        "current":   { featureName: value, ... },                    // today's 29 features
-        "baseline":  { featureName: { "mean": x, "std": y }, ... },  // per-feature stats
-        "history":   [ { featureName: value, ... }, ... ],           // last 14 days (oldest first)
+        "current":   { featureName: value, ... },
+        "baseline":  { featureName: { "mean": x, "std": y }, ... },
+        "history":   [ { featureName: value, ... }, ... ],
         "day_number": int,
         "baseline_contaminated": bool,
         "gate_state": {},
-        "historical_anomaly_scores": [ float, ... ]                 // optional: past anomaly scores from Room
+        "historical_anomaly_scores": [ float, ... ],
+        "sessions":  [ { session fields }, ... ],   // Level 2: last 28 days of app sessions
+        "sessions_today": [ { session fields }, ... ], // Level 2: today's sessions
+        "dna": { ... PersonDNA as JSON ... } or null  // Level 2: persisted DNA or null if first run
       }
     """
     try:
@@ -35,9 +50,12 @@ def run_analysis(json_string: str) -> str:
         day_number   = data.get("day_number", 0)
         historical_scores = data.get("historical_anomaly_scores", [])
 
+        # Level 2 Behavioral DNA inputs
+        sessions_28day  = data.get("sessions", [])
+        sessions_today  = data.get("sessions_today", [])
+        dna_json        = data.get("dna", None)
+
         # ── Build PersonalityVector baseline from Android mean/std stats ──────
-        # PersonalityVector.from_dict() accepts all 29 Android feature keys.
-        # Missing keys default to 0; unknown extras are silently ignored.
         baseline_means: dict = {}
         baseline_stds: dict  = {}
         for feat, stats in baseline.items():
@@ -50,14 +68,99 @@ def run_analysis(json_string: str) -> str:
 
         s1_baseline = PersonalityVector.from_dict(baseline_means, variances=baseline_stds)
 
+        # ── Level 2 Behavioral DNA ─────────────────────────────────────────────
+        l2_modifier = 1.0  # graceful fallback default
+        dna_result = {
+            "coherence": 0.0,
+            "rhythm_dissolution": 0.0,
+            "session_incoherence": 0.0,
+            "texture_quality": 0.0,
+            "l2_modifier": 1.0,
+            "matched_cluster": -1,
+            "candidate_active": False,
+            "candidate_days": 0,
+            "dna_updated_json": None,
+        }
+
+        dna = None
+        if dna_json is not None and isinstance(dna_json, dict) and dna_json.get("person_id"):
+            try:
+                dna = PersonDNA.from_dict(dna_json)
+            except Exception as e:
+                print(f"  [L2] Failed to deserialize DNA: {e}")
+                dna = None
+
+        # Build DNA if sessions available and no DNA yet
+        if dna is None and sessions_28day:
+            try:
+                dna = build_person_dna(sessions_28day, person_id="user")
+                print(f"  [L2] Built new PersonDNA: {len(dna.app_profiles)} apps, K={dna.anchor_k}")
+            except Exception as e:
+                print(f"  [L2] Failed to build DNA: {e}")
+
+        # Compute L2 metrics if DNA exists and today's sessions available
+        if dna is not None and sessions_today:
+            try:
+                today_vector = build_daily_vector(
+                    sessions_today, dna.app_profiles,
+                    vector_mean=dna.daily_vector_mean,
+                    vector_std=dna.daily_vector_std,
+                )
+                coherence, matched = compute_context_coherence(today_vector, dna)
+                rhythm_dissolution = compute_rhythm_integrity(sessions_today, dna)
+                session_incoherence = compute_session_incoherence(sessions_today, dna)
+                texture_quality = compute_texture_quality(coherence, rhythm_dissolution, session_incoherence)
+                l2_modifier = compute_l2_modifier(coherence, rhythm_dissolution, session_incoherence)
+
+                dna_result["coherence"] = round(coherence, 4)
+                dna_result["rhythm_dissolution"] = round(rhythm_dissolution, 4)
+                dna_result["session_incoherence"] = round(session_incoherence, 4)
+                dna_result["texture_quality"] = round(texture_quality, 4)
+                dna_result["l2_modifier"] = round(l2_modifier, 4)
+                dna_result["matched_cluster"] = matched
+
+                # Rolling cluster discovery (only when coherence < 0.3)
+                if coherence < 0.3:
+                    evidence_today = float(
+                        sum(abs(v) for v in current.values())
+                    ) * 0.1  # rough proxy for today's evidence
+                    dna, action = update_rolling_clusters(
+                        today_vector, texture_quality, coherence, dna, evidence_today,
+                    )
+                    if action == "rejected":
+                        released = get_released_evidence(dna)
+                        dna = clear_rejected_candidates(dna)
+                        print(f"  [L2] Candidate rejected, released evidence: {released:.4f}")
+                    elif action == "promoted":
+                        print(f"  [L2] Candidate promoted to cluster!")
+                    elif action == "candidate_opened":
+                        print(f"  [L2] New candidate cluster opened")
+
+                # Track candidate status
+                active_candidates = [c for c in dna.candidate_clusters if c.status == "evaluating"]
+                dna_result["candidate_active"] = len(active_candidates) > 0
+                dna_result["candidate_days"] = (
+                    active_candidates[0].days_observed if active_candidates else 0
+                )
+
+                # Serialize updated DNA for Room persistence
+                dna_result["dna_updated_json"] = dna.to_dict()
+
+                print(f"  [L2] coherence={coherence:.3f} rhythm={rhythm_dissolution:.3f} "
+                      f"incoherence={session_incoherence:.3f} modifier={l2_modifier:.3f}")
+
+            except Exception as e:
+                print(f"  [L2] Metric computation failed: {e}")
+                l2_modifier = 1.0
+        elif dna is not None:
+            # DNA exists but no today sessions — serialize for persistence
+            dna_result["dna_updated_json"] = dna.to_dict()
+
         # ── System 1 setup ─────────────────────────────────────────────────────
         s1 = ImprovedAnomalyDetector(baseline=s1_baseline)
 
-        # FIX: Initialize anomaly score history from Android Room data
-        # This allows the detector to use past anomaly scores for pattern detection
         if historical_scores:
             s1.full_anomaly_history = list(historical_scores)
-            # Also seed the rolling window used for pattern detection
             for score in historical_scores[-14:]:
                 s1.anomaly_score_history.append(score)
             print(f"  Loaded {len(historical_scores)} historical anomaly scores from Room")
@@ -73,16 +176,15 @@ def run_analysis(json_string: str) -> str:
             )
             deviations_history.append(s1_report_h.feature_deviations)
 
-        # Analyze today
+        # Analyze today — with L2 modifier
         s1_report, daily_report = s1.analyze(
             current,
             deviations_history=list(deviations_history),
             day_number=day_number,
+            l2_modifier=l2_modifier,
         )
 
         # ── System 2 setup ─────────────────────────────────────────────────────
-        # Synthesize a 28-row baseline DataFrame from aggregated means
-        # (Room only stores per-feature stats, not raw daily rows).
         baseline_rows = [{"date": f"day_{d}", **baseline_means} for d in range(28)]
         baseline_df = pd.DataFrame(baseline_rows)
 
@@ -95,7 +197,6 @@ def run_analysis(json_string: str) -> str:
         )
         s2_output = pipeline.classify(s1_input)
 
-        # Respect the Android-supplied contamination flag
         if contaminated and not s2_output.baseline_contaminated:
             s2_output.baseline_contaminated = True
 
@@ -168,6 +269,7 @@ def run_analysis(json_string: str) -> str:
                     if s2_output.screening.gate_details else ""
                 ),
             },
+            "dna": dna_result,
         }
 
         return json.dumps(result_dict)
@@ -181,4 +283,5 @@ def run_analysis(json_string: str) -> str:
             "anomaly":       {},
             "prototype":     {},
             "gate":          {},
+            "dna":           {},
         })

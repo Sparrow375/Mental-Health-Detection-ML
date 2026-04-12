@@ -748,22 +748,29 @@ class ImprovedAnomalyDetector:
 
         return float(0.7 * magnitude_score + 0.3 * velocity_score)
 
-    def update_sustained_tracking(self, anomaly_score: float):
+    def update_sustained_tracking(self, anomaly_score: float, l2_modifier: float = 1.0):
         """
         Update evidence accumulation.
         Above threshold: evidence grows exponentially with consecutive days.
         Normal day: evidence decays at 8% per day (slow forgetting).
+        
+        Level 2 Behavioral DNA: l2_modifier scales the effective score.
+        - modifier > 1.0 amplifies evidence (behavioral incoherence detected)
+        - modifier < 1.0 suppresses evidence (behavior fits known patterns)
+        - modifier = 1.0 is a no-op (default, graceful fallback)
         """
+        effective_score = anomaly_score * l2_modifier
+        
         self.anomaly_score_history.append(anomaly_score)
         self.full_anomaly_history.append(anomaly_score)
 
         if anomaly_score > self.max_anomaly_score:
             self.max_anomaly_score = anomaly_score
 
-        if anomaly_score > self.ANOMALY_SCORE_THRESHOLD:
+        if effective_score > self.ANOMALY_SCORE_THRESHOLD:
             self.sustained_deviation_days += 1
             # Exponential growth: longer the streak, bigger the penalty
-            self.evidence_accumulated += anomaly_score * (
+            self.evidence_accumulated += effective_score * (
                 1.0 + self.sustained_deviation_days * 0.1
             )
         else:
@@ -873,18 +880,22 @@ class ImprovedAnomalyDetector:
         current_data: Dict[str, float],
         deviations_history: List[Dict[str, float]],
         day_number: int,
+        l2_modifier: float = 1.0,
     ) -> Tuple[AnomalyReport, DailyReport]:
         """
         Main analysis function.
         Accepts a dict of 29 feature values (matching PersonalityVector.to_dict() keys).
         Returns (AnomalyReport, DailyReport).
+        
+        l2_modifier: Level 2 Behavioral DNA modifier (default 1.0 = no change).
         """
         deviations = self.calculate_deviation_magnitude(current_data)
         velocities = self.calculate_deviation_velocity(current_data)
         anomaly_score = self.calculate_anomaly_score(deviations, velocities)
 
         # Update sustained tracking BEFORE determining alert level
-        self.update_sustained_tracking(anomaly_score)
+        # Pass l2_modifier so evidence accumulation is scaled by behavioral DNA
+        self.update_sustained_tracking(anomaly_score, l2_modifier=l2_modifier)
 
         alert_level = self.determine_alert_level(anomaly_score, deviations)
         pattern_type = self.detect_pattern_type(deviations_history)

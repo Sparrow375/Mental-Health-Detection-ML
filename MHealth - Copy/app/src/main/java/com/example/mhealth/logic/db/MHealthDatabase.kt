@@ -7,7 +7,7 @@ import androidx.room.RoomDatabase
 
 /**
  * MHealthDatabase — Room database singleton.
- * Version 1: initial schema with 4 tables.
+ * Version 9: added app_sessions and person_dna tables for Level 2 Behavioral DNA.
  *
  * Access via MHealthDatabase.getInstance(context)
  */
@@ -17,9 +17,11 @@ import androidx.room.RoomDatabase
         BaselineEntity::class,
         AnalysisResultEntity::class,
         UserProfileEntity::class,
-        UserCredentialsEntity::class
+        UserCredentialsEntity::class,
+        AppSessionEntity::class,
+        PersonDnaEntity::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -29,6 +31,8 @@ abstract class MHealthDatabase : RoomDatabase() {
     abstract fun analysisResultDao(): AnalysisResultDao
     abstract fun userProfileDao(): UserProfileDao
     abstract fun userCredentialsDao(): UserCredentialsDao
+    abstract fun appSessionDao(): AppSessionDao
+    abstract fun personDnaDao(): PersonDnaDao
 
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null
@@ -55,18 +59,12 @@ abstract class MHealthDatabase : RoomDatabase() {
 
         private val MIGRATION_6_7 = object : androidx.room.migration.Migration(6, 7) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                // Step 1: Remove any duplicate (userId, date) rows that accumulated from
-                // double-writes (cloud download from two Firestore collections, or
-                // recover + persist both running for the same day).
-                // Keep the row with the highest id (most recent write) for each pair.
                 db.execSQL(
                     """DELETE FROM daily_features
                        WHERE id NOT IN (
                            SELECT MAX(id) FROM daily_features GROUP BY userId, date
                        )"""
                 )
-                // Step 2: Create the unique index so future inserts automatically
-                // replace instead of duplicating (INSERT OR REPLACE honours this index).
                 db.execSQL(
                     """CREATE UNIQUE INDEX IF NOT EXISTS index_daily_features_userId_date
                        ON daily_features(userId, date)"""
@@ -80,6 +78,38 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_8_9 = object : androidx.room.migration.Migration(8, 9) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // Level 2 Behavioral DNA: app_sessions table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS app_sessions (
+                        session_id TEXT NOT NULL,
+                        app_package TEXT NOT NULL,
+                        open_timestamp INTEGER NOT NULL,
+                        close_timestamp INTEGER NOT NULL,
+                        trigger TEXT NOT NULL,
+                        interaction_count INTEGER NOT NULL,
+                        date TEXT NOT NULL,
+                        PRIMARY KEY(session_id)
+                    )
+                """)
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_app_sessions_app_package_open_timestamp ON app_sessions(app_package, open_timestamp)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_app_sessions_date ON app_sessions(date)")
+
+                // Level 2 Behavioral DNA: person_dna table
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS person_dna (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        person_id TEXT NOT NULL,
+                        dna_json TEXT NOT NULL,
+                        created_at INTEGER NOT NULL,
+                        last_updated INTEGER NOT NULL
+                    )
+                """)
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_person_dna_person_id ON person_dna(person_id)")
+            }
+        }
+
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -87,7 +117,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                     MHealthDatabase::class.java,
                     "mhealth_database"
                 )
-                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8, MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .build()
                     .also { INSTANCE = it }

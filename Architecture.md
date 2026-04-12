@@ -111,3 +111,25 @@ Because the ML pipeline entirely executes within Android's `NightlyAnalysisWorke
 1. **Local Room DB:** The massive JSON bundle output by `engine.py` (containing System 1 evidence, System 2 classification, and DNA metrics) is saved to the local SQLite database. 
 2. **Cloud Sync:** `CloudSyncWorker.kt` synchronizes *only the mathematical result output* to Google Firebase Cloud Firestore (and never raw microphone or app data).
 3. **Admin Dashboard:** A React + Vite web dashboard queries Firebase to graphically map user anomalies across the population, rendering the temporally validated data into actionable clinician/researcher trendlines.
+
+---
+
+## 7. Web App Architecture (Admin Dashboard)
+
+The presentation layer is an enterprise-grade administrative dashboard designed for clinical researchers and mental health professionals to safely interpret the mathematical diagnostic outputs from the mobile edge-compute pipeline.
+
+### 7.1 Core Frontend Architecture
+- **Framework**: Built on **React 18** and **Vite** using **TypeScript** for strict, compilable type safety.
+- **Routing & State**: Modular, page-based architecture (`Dashboard`, `PatientList`, `PatientDetail`, `Reports`) driven by centralized context providers (`PrivacyContext` / `usePrivacy` hooks) to restrict data views to appropriate authorization levels.
+
+### 7.2 Cloud Data Integration (Firebase)
+- The frontend integrates directly with **Google Firebase Cloud Firestore** via `src/firebase/config.ts` and dedicated abstraction bridges (`dataHelper.ts`).
+- It acts purely as a consumer, subscribing strictly to the abstracted mathematical outputs pushed by the Android apps. It handles zero raw media or identifiable local telemetry.
+
+### 7.3 Telemetry Visualization
+- **Dynamic Charting Data Flow**: Custom React components (`BaselineLineGraph`, `BaselineComparison`) unpack the large JSON payload stored in Firestore.
+- Plots the user's daily variations in System 1 (Magnitude and EWMA Velocity) against the immutable baseline thresholds configured during the PersonDNA clustering phase.
+
+### 7.4 Voice Assessment Gateway
+- Contains a dedicated proxy interface (`VoiceAssessment.tsx`) pointing to a containerized Python/HuggingFace microservice API (`mhealth-voice-api`).
+- Evaluates discrete vocal recordings (when explicitly authorized/submitted) against a `wavlm_lora_v10` fine-tuned acoustic model designed to detect subtle phonation and articulation alterations mapped to depressive and psychotic states.

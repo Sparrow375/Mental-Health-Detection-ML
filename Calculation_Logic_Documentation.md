@@ -1,123 +1,79 @@
-# MHealth Behavioral Feature Calculation Logic
+# MHealth Behavioral Feature Logic (29-Vector)
 
-This document details the logical methodologies used by the MHealth data collection pipeline to translate raw device telemetry into meaningful behavioral indicators. This focuses exclusively on the logic and heuristics without dwelling on technical implementation code.
+This document details the implemented logic used by the Android Kotlin `DataCollector.kt` pipeline to translate raw device telemetry into a rich 29-feature behavioral vector.
 
----
+## 1. Location & Spatial Movement
 
-## 1. Sleep & Wake Patterns
+1. **Daily Displacement (km)**
+   - Uses a Grid-Cell Transition Method (~110-meter cell boundaries) mapped from Android's FusedLocationProvider. Drops GPS drift by only counting absolute cell-to-cell traversal distances.
+2. **Location Entropy**
+   - Shannon entropy calculated based on the *fraction of time* spent per geographic grid cell, not raw ping counts. High entropy = erratic/highly varied routine. 
+3. **Home Time Ratio**
+   - Percentage of the 24-hour day spent within a defined 500-meter geospatial radius of the anchored "Home" coordinate. Bridges overnight GPS sleep hours intelligently.
+4. **Places Visited**
+   - Absolute discrete count of unique ~110-meter grid cells populated by the user's GPS signature today.
 
-### **Sleep Time, Wake Time, & Sleep Duration**
-- **Logic**: We estimate sleep using a "3-Signal Fusion" approach over a **fixed 18-hour overnight window (6:00 PM to 12:00 PM the next day)**.
-- **Why 18 hours?** A rolling 24-hour window could mistake daytime phone inactivity (e.g., the phone sitting on a desk from 9 AM to 5 PM) for the primary sleep episode. Constraining the window to the evening-to-midday range forces the system to only find sleep when it realistically occurs. Night-shift workers are intentionally excluded from this heuristic for now.
-- **Step 1 (Screen Gaps)**: The system groups raw screen "On" and "Off" events specifically within the 6 PM–12 PM overnight window into continuous screen sessions, then identifies all the "gaps" between them.
-- **Step 2 (Micro-wake Filtering)**: Brief screen usages of less than 5 minutes (micro-wakes, e.g. briefly checking the time at 3 AM) are ignored. The gaps bordering these micro-wakes are merged together so they don't fragment the primary sleep episode.
-- **Step 3 (Longest Episode)**: The longest continuous screen-off gap within the 18-hour window is designated as the primary sleep episode. The start of this gap is tentatively "Sleep Time" and the end is "Wake Time".
-- **Step 4 (Do Not Disturb Fusion)**: 
-  - If Do Not Disturb (DND) turned on near the start of the gap, the Sleep Time is adjusted to an average of the two, locking in intent.
-  - If DND turned off during the gap, Wake Time is adjusted to match the DND off time, under the assumption that the user woke up to turn it off.
+## 2. Activity & Health
 
-### **Dark Duration**
-- **Logic**: The total absolute hours the device screen was turned off throughout the entire day. Unlike sleep duration, this is purely additive and ignores fragmentation.
+5. **Daily Steps**
+   - Read from the hardware strictly via Android's `TYPE_STEP_COUNTER`. Computes the delta from the midnight cache mark to capture distinct daily volume.
+6. **Sleep Duration (Hours)**
+   - Operates on a 3-Signal Fusion heuristic across a strict 6:00 PM to 12:00 PM (noon) temporal window. Locates the largest continuous screen-off gap, smoothing over any micro-wakes (< 5 mins). Time-shifted dynamically by Do-Not-Disturb configurations.
+7. **Wake Time Hour**
+   - The timestamp concluding the derived primary Sleep Duration gap.
+8. **Sleep Time Hour**
+   - The timestamp initiating the derived primary Sleep Duration gap.
 
----
+## 3. Communication & Sociability
 
-## 2. Location & Movement Metrics
+9. **Calls Per Day**
+   - Raw volume of telephony events (inbound/outbound/missed) retrieved from Android `CallLog`.
+10. **Call Duration (Minutes)**
+    - Total summation of connected active voice minutes.
+11. **Unique Contacts**
+    - Distinct phone numbers engaged traversing the daily call log payload.
+12. **Conversation Frequency**
+    - Calculated as `Calls Per Day / Unique Contacts`. Differentiates between expansive social networks and hyper-fixated conversational loops.
 
-### **Daily Displacement (Distance Traveled)**
-- **Logic**: Calculated using a **Grid-Cell Transition Method** to eliminate GPS drift noise.
-- The phone's GPS snapshots are mapped to ~110-meter grid cells (matching the same cells used for Entropy and Places Visited).
-- Distance is only added to the running total when a GPS ping lands in a **completely different grid cell** from the previous one. If the phone is stationary on a desk and the GPS drifts by 15 meters, it stays in the same cell, so **0 km is added**.
-- When a genuine cell-to-cell transition happens (the user physically moved), the Haversine distance between the center-points of those two cells is added to the total.
-- **Why this is better**: Eliminates the silent "phantom distance" bug where stationary GPS noise accumulated kilometers over the course of a day.
+## 4. Digital Engagement & Media
 
-### **Location Entropy**
-- **Logic**: Entropy represents how "predictable" or "scattered" a user's geographical footprint is, measured in **time spent** — not ping count.
-- Using the GPS snapshot timestamps, the system calculates the actual **wall-clock hours** spent at each ~110-meter grid cell (capped at 12 hours per gap to prevent bridging overnight absences). This is the same methodology used by Home Time Ratio.
-- Mathematical Shannon entropy is then computed from the distribution of **time fractions** across all visited cells.
-- **Meaning**: A high entropy value indicates the user's time was spread across many different locations (variable routine). A low entropy value means the majority of their time was spent in one or two places (e.g., Home and Work).
-- **Why time vs. pings**: Using ping counts was inaccurate — the GPS checks in more frequently when moving, which would unfairly inflate the entropy score for people who just commuted vs. people who truly visited many places.
+13. **Screen Time (Hours)**
+    - Derived natively by pairing `ACTIVITY_RESUMED` and `ACTIVITY_PAUSED` UsageEvents exactly, ignoring generic system launchers.
+14. **Unlock Count**
+    - Evaluated purely via `KEYGUARD_HIDDEN` system broadcasts.
+15. **App Launch Count**
+    - Count of distinct foregrounding app events, applying a strict 1.5s debounce filter to deter UI flickering noise.
+16. **Social App Ratio**
+    - Evaluates total time elapsed inside heuristically defined or Play Store categorized social bundles (Meta, X, TikTok, Telegram) divided by aggregate daily Screen Time.
+17. **Notifications Today**
+    - Derived via Notification Listener parsing `NOTIFICATION_SEEN` impacts.
+18. **Background Audio (Hours)**
+    - Detects invisible consumption (Spotify, Podcasts) by intercepting the system `AudioManager` while the screen is extinguished.
+19. **Media Count Today**
+    - Incremental daily volume of external media (photos/videos) authored and synced to the local gallery repository.
 
-### **Home Time Ratio**
-- **Logic**: Determines the percentage of the 24-hour day a user spent physically at home.
-- A static "Home" location is set in the system. As the GPS pings throughout the day, the system sums up the time gap between any two sequential pings that occurred within a 500-meter radius of Home. 
-- It also intelligently bridges the overnight gap (from midnight to the first morning ping) so sleep hours properly credit to "home time" even if the GPS goes to sleep. 
+## 5. Erratic Behavior & Instability Indicators
 
-### **Places Visited**
-- **Logic**: The absolute, discrete count of unique ~110-meter grid cells the user was physically present in today.
+20. **UPI Transactions Today**
+    - Maps financial volatility. Filters exact application package launches for specified regionally active payment gateways (GPay, PhonePe, Cred).
+21. **Total Apps Count**
+    - Absolute volume of third-party software packages resident on the internal storage.
+22. **App Installs Today**
+    - Scans Package Manager for unique software footprints with an initial "first installed" stamp matching the current calendar day.
+23. **App Uninstalls Today**
+    - Evaluated retroactively by calculating baseline decay from the trailing 24-hr aggregate `Total Apps Count`.
+24. **Downloads Today**
+    - Parses the `/Downloads` filesystem directory for uniquely created or heavily modified datestamps spanning the current 24-hour block.
 
----
+## 6. System & Infrastructure Tethers
 
-## 3. Screen Time & App Usage
-
-### **Screen Time**
-- **Logic**: Measured identically to Android's built-in Digital Wellbeing. Instead of polling estimates, the system chronologically pairs "App Moved to Foreground" and "App Moved to Background" events for the entire day. The exact durations between these events are summed up. System components (like default launchers and system UI components) are deliberately ignored so simply looking at the home screen does not distort active usage stats.
-
-### **App Launch Count**
-- **Logic**: The number of times user applications are opened/brought to the screen. 
-- **Debouncing**: To prevent rapid toggling between apps from artificially inflating the number, an app must have been in the background for at least 1.5 seconds before returning to the screen to count as a "new launch".
-
-### **Unlock Count**
-- **Logic**: Direct count of how many times the device screen passed the lock screen barrier.
-
-### **Social App Ratio**
-- **Logic**: The fraction of total screen time dedicated to social interactions.
-- The system groups total screen time by app. It then flags social apps either by checking if the OS officially categorizes them as "Social", or by triggering text heuristics (e.g., the app name includes "instagram", "whatsapp", "tiktok", "facebook", "telegram", etc.).
-- It divides the time spent in these grouped apps by the total screen time.
-
----
-
-## 4. Communication Activities
-
-### **Calls Per Day & Call Duration**
-- **Logic**: Reads the native phone call log to count the total number of incoming and outgoing calls that took place since midnight, as well as summing their total talk duration in minutes.
-
-### **Unique Contacts & Conversation Frequency**
-- **Logic**:
-  - **Unique Contacts**: Looks at the call log and counts how many *distinct phone numbers* the user called or received calls from today.
-  - **Conversation Frequency**: Calculated by dividing the Total Calls by Unique Contacts. This indicates whether a user is repeatedly talking to a small inner circle, or having one-off calls with many different people.
-
----
-
-## 5. Device Interaction & Media
-
-### **Notifications Today**
-- **Logic**: Total count of push notifications and alerts received by the device that actually interrupted the user/system.
-
-### **Charge Duration**
-- **Logic**: A continuously accumulating timer that ticks upward only while the device is physically connected to a power source.
-
-### **Background Audio Hours**
-- **Logic**: Dedicated to tracking passive media consumption (music, podcasts). Given music apps run invisibly, the system natively interrogates the device's Audio Manager. During routine checks, if an active media session belongs to a recognized music/podcast package (Spotify, YouTube Music, Audible, local players, etc.), it increments the total background audio playtime.
-
-### **Memory Usage & Storage Limits**
-- **Logic**: Captures device strain. 
-  - **Memory (RAM)**: Percentage of immediate system RAM presently occupied.
-  - **Storage**: Absolute volume (in Gigabytes) of internal device storage that is currently full.
-
-### **Network Data Consumption**
-- **Logic**: Queries the system's exact bandwidth monitor to retrieve the total Megabytes of data downloaded and uploaded today, distinctly segmented into Wi-Fi traffic versus Cellular (Mobile) traffic.
-
----
-
-## 6. Daily Micro-behaviors & Events
-
-### **Media Added Today**
-- **Logic**: Evaluates the device's external storage gallery and counts exactly how many new photos or videos were generated or saved onto the device since midnight.
-
-### **Downloads Today**
-- **Logic**: Inspects the device's physical `Downloads` folder to count exactly how many files have a creation/modification timestamp occurring today.
-
-### **UPI / Financial Transactions**
-- **Logic**: Uses the app launch data to specifically filter for common digital wallet and UPI apps (Google Pay, PhonePe, Paytm, CRED). Launching these apps serves as a proxy metric for conducting financial transactions or online shopping behaviors.
-
-### **App Installs & Uninstalls**
-- **Logic**: 
-  - **Installs**: Scans all applications and counts how many have an initial "First Installed" timestamp from today.
-  - **Uninstalls**: Assessed by keeping a running tally of the total app count. If today's total app count is lower than yesterday's mathematically, the difference is recorded as uninstalls.
-  - **Total Apps**: Absolute volume of non-system applications living on the phone.
-
-### **Calendar Events**
-- **Logic**: Queries the on-device Calendar providers to count the number of meetings, reminders, or scheduled events that intersect with today's 24-hour block.
-
-### **Daily Steps**
-- **Logic**: Reads the hardware pedometer sensor inside the phone. Since the sensor yields a lifetime cumulative number, the system records a baseline snapshot every morning. The day's total steps are logic-derived by subtracting the morning baseline from the current live number.
+25. **Charge Duration (Hours)**
+    - Accumulator strictly indexing intervals where the physical `BatteryManager.EXTRA_PLUGGED` status registers as active.
+26. **Dark Duration (Hours)**
+    - Unfiltered additive aggregate of raw screen-extinguished hours across the total 24-period. Distinct from the filtered Sleep Duration.
+27. **Memory Usage (Percent)**
+    - Instantaneous RAM load proxy parsed from `ActivityManager.MemoryInfo`.
+28. **Storage Used (GB)**
+    - Checks absolute byte saturation on `Environment.getDataDirectory()` via `StatFs`.
+29. **Network Bandwidth (Wi-Fi & Mobile MB)**
+    - Extracts distinct payloads downloaded/uploaded utilizing `NetworkStatsManager` querying, mapping digital consumption intensity. 

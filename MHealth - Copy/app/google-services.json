@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "596747367379",
+    "project_id": "mhealth-a0812",
+    "storage_bucket": "mhealth-a0812.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:596747367379:android:cb4a10f140ea8ce6797526",
+        "android_client_info": {
+          "package_name": "com.example.mhealth"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC3JWTQJ5CLCMEX1eGmPH2PVQpqpJJTyyY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

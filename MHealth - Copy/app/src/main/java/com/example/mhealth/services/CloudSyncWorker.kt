@@ -172,7 +172,16 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "prototype_match" to result.prototypeMatch,
                         "match_message" to result.matchMessage,
                         "prototype_confidence" to result.prototypeConfidence,
-                        "gate_results" to result.gateResults
+                        "gate_results" to result.gateResults,
+                        // L2 Digital DNA fields
+                        "l2_modifier" to result.l2Modifier,
+                        "coherence" to result.coherence,
+                        "rhythm_dissolution" to result.rhythmDissolution,
+                        "session_incoherence" to result.sessionIncoherence,
+                        "effective_score" to result.effectiveScore,
+                        "evidence_accumulated" to result.evidenceAccumulated,
+                        "pattern_type" to result.patternType,
+                        "flagged_features" to result.flaggedFeatures
                     )
 
                     resultsRef.document(result.date).set(resultMap).await()

@@ -147,6 +147,7 @@ class AuthManager(private val context: Context) {
         val status            = profileDoc.getString("status") ?: "Monitoring"
         val onboardingDateMs  = profileDoc.getLong("onboarding_date") ?: System.currentTimeMillis()
         val isReady           = profileDoc.getBoolean("baseline_ready") ?: false
+        val baselineProgress  = profileDoc.getLong("baseline_progress")?.toInt() ?: 0
 
         db.userProfileDao().upsert(
             UserProfileEntity(
@@ -177,71 +178,14 @@ class AuthManager(private val context: Context) {
         }
         if (baselineEntities.isNotEmpty()) db.baselineDao().insertAll(baselineEntities)
 
-        // 3. Restore ALL daily sensor data from the cloud
-        val dailySnapshot = firestore.collection("users").document(uid).collection("daily_data").get().await()
-        for (doc in dailySnapshot.documents) {
-            val date = doc.getString("date") ?: doc.id
-            val entity = DailyFeaturesEntity(
-                userId               = emailId,
-                date                 = date,
-                screenTimeHours      = doc.getDouble("screenTimeHours")?.toFloat()         ?: 0f,
-                unlockCount          = doc.getDouble("unlockCount")?.toFloat()             ?: 0f,
-                appLaunchCount       = doc.getDouble("appLaunchCount")?.toFloat()          ?: 0f,
-                notificationsToday   = doc.getDouble("notificationsToday")?.toFloat()      ?: 0f,
-                socialAppRatio       = doc.getDouble("socialAppRatio")?.toFloat()          ?: 0f,
-                callsPerDay          = doc.getDouble("callsPerDay")?.toFloat()             ?: 0f,
-                callDurationMinutes  = doc.getDouble("callDurationMinutes")?.toFloat()     ?: 0f,
-                uniqueContacts       = doc.getDouble("uniqueContacts")?.toFloat()          ?: 0f,
-                conversationFrequency= doc.getDouble("conversationFrequency")?.toFloat()   ?: 0f,
-                dailyDisplacementKm  = doc.getDouble("dailyDisplacementKm")?.toFloat()    ?: 0f,
-                locationEntropy      = doc.getDouble("locationEntropy")?.toFloat()         ?: 0f,
-                homeTimeRatio        = doc.getDouble("homeTimeRatio")?.toFloat()           ?: 0f,
-                placesVisited        = doc.getDouble("placesVisited")?.toFloat()           ?: 0f,
-                wakeTimeHour         = doc.getDouble("wakeTimeHour")?.toFloat()            ?: 0f,
-                sleepTimeHour        = doc.getDouble("sleepTimeHour")?.toFloat()           ?: 0f,
-                sleepDurationHours   = doc.getDouble("sleepDurationHours")?.toFloat()      ?: 0f,
-                darkDurationHours    = doc.getDouble("darkDurationHours")?.toFloat()       ?: 0f,
-                chargeDurationHours  = doc.getDouble("chargeDurationHours")?.toFloat()     ?: 0f,
-                memoryUsagePercent   = doc.getDouble("memoryUsagePercent")?.toFloat()      ?: 0f,
-                networkWifiMB        = doc.getDouble("networkWifiMB")?.toFloat()           ?: 0f,
-                networkMobileMB      = doc.getDouble("networkMobileMB")?.toFloat()         ?: 0f,
-                downloadsToday       = doc.getDouble("downloadsToday")?.toFloat()          ?: 0f,
-                storageUsedGB        = doc.getDouble("storageUsedGB")?.toFloat()           ?: 0f,
-                appUninstallsToday   = doc.getDouble("appUninstallsToday")?.toFloat()      ?: 0f,
-                upiTransactionsToday = doc.getDouble("upiTransactionsToday")?.toFloat()    ?: 0f,
-                totalAppsCount       = doc.getDouble("totalAppsCount")?.toFloat()      ?: 0f,
-                backgroundAudioHours = doc.getDouble("backgroundAudioHours")?.toFloat()    ?: 0f,
-                mediaCountToday      = doc.getDouble("mediaCountToday")?.toFloat()         ?: 0f,
-                appInstallsToday     = doc.getDouble("appInstallsToday")?.toFloat()        ?: 0f,
-                dailySteps           = doc.getDouble("dailySteps")?.toFloat()              ?: 0f,
-                syncedToCloud        = true  // already synced — don't re-upload
-            )
-            db.dailyFeaturesDao().insert(entity)
-        }
-
-        // 4. Restore ALL analysis results from the cloud
-        val resultsSnapshot = firestore.collection("users").document(uid).collection("results").get().await()
-        for (doc in resultsSnapshot.documents) {
-            val date = doc.getString("date") ?: doc.id
-            val resultEntity = AnalysisResultEntity(
-                userId           = emailId,
-                date             = date,
-                anomalyDetected  = doc.getBoolean("anomaly_detected") ?: false,
-                anomalyMessage   = doc.getString("anomaly_message")   ?: "",
-                prototypeMatch   = doc.getString("prototype_match")   ?: "Normal",
-                matchMessage     = doc.getString("match_message")     ?: "",
-                syncedToCloud    = true
-            )
-            db.analysisResultDao().insert(resultEntity)
-        }
-
-        // 3. Fetch Historical Daily Features
+        // 3. Restore ALL daily features from the cloud
+        // Note: CloudSyncWorker writes to 'daily_features'. We fetch from there.
         val featuresSnapshot = firestore.collection("users").document(uid).collection("daily_features").get().await()
-        val featureEntities = mutableListOf<com.example.mhealth.logic.db.DailyFeaturesEntity>()
+        val featureEntities = mutableListOf<DailyFeaturesEntity>()
         for (doc in featuresSnapshot.documents) {
             try {
                 featureEntities.add(
-                    com.example.mhealth.logic.db.DailyFeaturesEntity(
+                    DailyFeaturesEntity(
                         userId = emailId,
                         date = doc.id,
                         screenTimeHours = doc.getDouble("screenTimeHours")?.toFloat() ?: 0f,
@@ -273,16 +217,53 @@ class AuthManager(private val context: Context) {
                         backgroundAudioHours = doc.getDouble("backgroundAudioHours")?.toFloat() ?: 0f,
                         mediaCountToday = doc.getDouble("mediaCountToday")?.toFloat() ?: 0f,
                         appInstallsToday = doc.getDouble("appInstallsToday")?.toFloat() ?: 0f,
+                        calendarEventsToday = doc.getDouble("calendarEventsToday")?.toFloat() ?: 0f,
+                        dailySteps = doc.getDouble("dailySteps")?.toFloat() ?: 0f,
+                        // JSON BREAKDOWNS (Essential for Digital DNA and L2 Analysis)
+                        appBreakdownJson = doc.getString("appBreakdownJson") ?: "{}",
+                        notificationBreakdownJson = doc.getString("notificationBreakdownJson") ?: "{}",
+                        appLaunchesBreakdownJson = doc.getString("appLaunchesBreakdownJson") ?: "{}",
+                        bgAudioBreakdownJson = doc.getString("bgAudioBreakdownJson") ?: "{}",
                         syncedToCloud = true,
                         isSimulated = false
                     )
                 )
             } catch (e: Exception) {
-                // Skip faulty docs, although shouldn't happen
+                // Skip faulty docs
             }
         }
         if (featureEntities.isNotEmpty()) {
             db.dailyFeaturesDao().insertAll(featureEntities)
+        }
+
+        // 4. Restore ALL analysis results from the cloud
+        val resultsSnapshot = firestore.collection("users").document(uid).collection("results").get().await()
+        for (doc in resultsSnapshot.documents) {
+            val date = doc.getString("date") ?: doc.id
+            val resultEntity = AnalysisResultEntity(
+                userId           = emailId,
+                date             = date,
+                anomalyDetected  = doc.getBoolean("anomaly_detected") ?: false,
+                anomalyScore     = doc.getDouble("anomaly_score")?.toFloat() ?: 0f,
+                anomalyMessage   = doc.getString("anomaly_message")   ?: "",
+                alertLevel       = doc.getString("alert_level")       ?: "green",
+                sustainedDays    = (doc.getLong("sustained_days") ?: 0L).toInt(),
+                prototypeMatch   = doc.getString("prototype_match")   ?: "Normal",
+                matchMessage     = doc.getString("match_message")     ?: "",
+                prototypeConfidence = doc.getDouble("prototype_confidence")?.toFloat() ?: 0f,
+                gateResults      = doc.getString("gate_results")      ?: "{}",
+                syncedToCloud    = true,
+                // L2 Digital DNA fields
+                l2Modifier       = doc.getDouble("l2_modifier")?.toFloat() ?: 1.0f,
+                coherence        = doc.getDouble("coherence")?.toFloat()   ?: 0f,
+                rhythmDissolution = doc.getDouble("rhythm_dissolution")?.toFloat() ?: 0f,
+                sessionIncoherence = doc.getDouble("session_incoherence")?.toFloat() ?: 0f,
+                effectiveScore   = doc.getDouble("effective_score")?.toFloat() ?: 0f,
+                evidenceAccumulated = doc.getDouble("evidence_accumulated")?.toFloat() ?: 0f,
+                patternType      = doc.getString("pattern_type") ?: "stable",
+                flaggedFeatures  = doc.getString("flagged_features") ?: "[]"
+            )
+            db.analysisResultDao().insert(resultEntity)
         }
     }
 }

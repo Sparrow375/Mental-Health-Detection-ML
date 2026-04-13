@@ -43,6 +43,8 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -74,6 +76,7 @@ class MonitoringService : Service() {
 
     // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
     private val isRestored = CompletableDeferred<Unit>()
+    private val tickMutex = Mutex()
 
     // ── Screen and Interaction Receiver ──────────────────────────────────────
     // Triggers runTick() on user events so charts stay fresh without polling.
@@ -502,7 +505,7 @@ class MonitoringService : Service() {
         dataCollector.stopContinuousLocationTracking()
     }
 
-    private suspend fun runTick(isSimulated: Boolean = false) {
+    private suspend fun runTick(isSimulated: Boolean = false) = tickMutex.withLock {
         // Wait for Room database rehydration to finish so we don't calculate on empty state
         isRestored.await()
         
@@ -511,8 +514,6 @@ class MonitoringService : Service() {
 
             // BUG FIX: Proactively capture a GPS fix every tick so distance is
             // never 0.0 just because the passive 50m-displacement listener didn't fire.
-            // This runs async (non-blocking) and writes into DataRepository before the
-            // snapshot is collected below on the next tick.
             if (!isSimulated) {
                 dataCollector.captureProactiveLocationSnapshot()
             }
@@ -525,24 +526,19 @@ class MonitoringService : Service() {
             DataRepository.updateLatestVector(liveSnapshot)
             DataRepository.addHourlySnapshot(liveSnapshot)
 
-            // 2) Battery tracking is now handled by the exact-timestamp BroadcastReceiver
-            //    (powerReceiver). No per-tick polling here — that caused 15-min rounding errors.
-
             // Level 2 Digital DNA: Log session events from UsageEvents for behavioral DNA
             dataCollector.logSessionsFromEvents(dataCollector.getStartOfDayMs(), System.currentTimeMillis())
 
-            // 3) Background audio: Event-driven via sessionListener (no tick polling needed)
-
-            // 4) Provisional Analysis (Live Score)
+            // 2) Provisional Analysis (Live Score)
             if (!DataRepository.isBuildingBaseline.value && detector != null) {
                 val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1, isProvisional = true)
                 provisionalReport?.let {
-                    // Update the Repository so the UI can show the live score
                     DataRepository.updateProvisionalAnalysis(it)
                 }
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+            // Re-fetch savedDay inside the lock to prevent double transitions
             val savedDay = DataRepository.lastProcessedDay.value
 
             // 3) Day Transition Logic: Capture the FULL profile of the day that just ended
@@ -568,15 +564,16 @@ class MonitoringService : Service() {
                 DataRepository.resetDailyState()
                 gpsStateManager.reset()  // Reset GPS state machine to STATIONARY
                 DataRepository.setLastProcessedDay(today)
+                Log.i("MHealth.Service", "Day transition logic for Day $savedDay complete.")
             } else {
-                // Regular tick within the same day: just check if baseline was completed by manual settings change
+                // Regular tick within the same day
                 if (DataRepository.isBuildingBaseline.value) {
                     val target = DataRepository.baselineDaysRequired.value
                     checkAndFinalizeBaseline(target)
                 }
             }
         } catch (e: Exception) {
-            Log.e("MHealth.Service", "Error in runTick", e)
+            Log.e("MHealth.Service", "Error in runTick: ${e.message}", e)
         }
     }
 

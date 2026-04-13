@@ -1,0 +1,66 @@
+Reduction,Dim,Clusterer,Clusters,Outliers,Silhouette ↑,Davies-Bouldin ↓,Calinski-Harabasz ↑
+Original (12-D),12,K-Means (k=4),4,0,0.3114,1.0401,7.0
+Original (12-D),12,Hierarchical (Ward),9,0,0.3212,0.4282,9.35
+Original (12-D),12,DBSCAN (ε=1.5),1,13,,,
+Original (12-D),12,Mean-Shift,2,0,0.3071,0.9366,6.21
+Original (12-D),12,Spectral (k=2),2,0,0.1771,1.6909,4.01
+"PCA (2D, 62% var)",2,K-Means (k=3),3,0,0.6011,0.4706,31.13
+"PCA (2D, 62% var)",2,Hierarchical (Ward),4,0,0.4901,0.5802,31.24
+"PCA (2D, 62% var)",2,DBSCAN (ε=1.5),3,1,0.5353,0.3941,23.14
+"PCA (2D, 62% var)",2,Mean-Shift,3,0,0.6011,0.4706,31.13
+"PCA (2D, 62% var)",2,Spectral (k=2),2,0,0.341,1.2379,7.55
+"PCA (3D, 78% var)",3,K-Means (k=4),4,0,0.5388,0.6016,19.69
+"PCA (3D, 78% var)",3,Hierarchical (Ward),6,0,0.5404,0.5303,22.69
+"PCA (3D, 78% var)",3,DBSCAN (ε=1.5),5,3,0.4312,1.0202,7.11
+"PCA (3D, 78% var)",3,Mean-Shift,3,0,0.4491,0.7823,12.65
+"PCA (3D, 78% var)",3,Spectral (k=2),2,0,0.2658,1.4367,5.57
+"PCA (4D, 86% var)",4,K-Means (k=4),4,0,0.4782,0.6804,11.2
+"PCA (4D, 86% var)",4,Hierarchical (Ward),6,0,0.5544,0.5083,20.03
+"PCA (4D, 86% var)",4,DBSCAN (ε=1.5),5,4,0.4175,0.8552,6.32
+"PCA (4D, 86% var)",4,Mean-Shift,4,0,0.4782,0.6804,11.2
+"PCA (4D, 86% var)",4,Spectral (k=2),2,0,0.2866,1.2555,5.71
+"Kernel PCA (rbf, 2D)",2,K-Means (k=3),3,0,0.7053,0.3338,52.78
+"Kernel PCA (rbf, 2D)",2,Hierarchical (Ward),1,0,,,
+"Kernel PCA (rbf, 2D)",2,DBSCAN (ε=1.5),1,0,,,
+"Kernel PCA (rbf, 2D)",2,Mean-Shift,3,0,0.7053,0.3338,52.78
+"Kernel PCA (rbf, 2D)",2,Spectral (k=2),2,0,0.3904,1.0781,7.2
+"Kernel PCA (rbf, 4D)",4,K-Means (k=4),4,0,0.6311,0.7652,12.75
+"Kernel PCA (rbf, 4D)",4,Hierarchical (Ward),1,0,,,
+"Kernel PCA (rbf, 4D)",4,DBSCAN (ε=1.5),1,0,,,
+"Kernel PCA (rbf, 4D)",4,Mean-Shift,5,0,0.7964,0.2707,60.06
+"Kernel PCA (rbf, 4D)",4,Spectral (k=2),2,0,0.2372,1.6395,3.99
+t-SNE (2D),2,K-Means (k=4),4,0,0.5047,0.6259,22.11
+t-SNE (2D),2,Hierarchical (Ward),15,0,,,
+t-SNE (2D),2,DBSCAN (ε=1.5),0,15,,,
+t-SNE (2D),2,Mean-Shift,3,0,0.4868,0.7023,18.15
+t-SNE (2D),2,Spectral (k=2),2,0,0.3389,1.0371,9.78
+VarianceThreshold (12D),12,K-Means (k=4),4,0,0.3114,1.0401,7.0
+VarianceThreshold (12D),12,Hierarchical (Ward),9,0,0.3212,0.4282,9.35
+VarianceThreshold (12D),12,DBSCAN (ε=1.5),1,13,,,
+VarianceThreshold (12D),12,Mean-Shift,2,0,0.3071,0.9366,6.21
+VarianceThreshold (12D),12,Spectral (k=2),2,0,0.1771,1.6909,4.01
+SelectKBest (top-6),6,K-Means (k=2),2,0,0.5991,0.4266,20.55
+SelectKBest (top-6),6,Hierarchical (Ward),4,0,0.3926,0.8027,19.33
+SelectKBest (top-6),6,DBSCAN (ε=1.5),2,3,0.4569,0.8323,20.06
+SelectKBest (top-6),6,Mean-Shift,4,0,0.4305,0.3998,14.85
+SelectKBest (top-6),6,Spectral (k=2),2,0,0.5991,0.4266,20.55
+SelectKBest (top-8),8,K-Means (k=2),2,0,0.4779,0.5654,11.86
+SelectKBest (top-8),8,Hierarchical (Ward),6,0,0.4022,0.6858,14.09
+SelectKBest (top-8),8,DBSCAN (ε=1.5),2,10,0.1043,1.537,6.18
+SelectKBest (top-8),8,Mean-Shift,2,0,0.4779,0.5654,11.86
+SelectKBest (top-8),8,Spectral (k=2),2,0,0.4779,0.5654,11.86
+RFE/RF (top-6),6,K-Means (k=2),2,0,0.5991,0.4266,20.55
+RFE/RF (top-6),6,Hierarchical (Ward),4,0,0.3926,0.8027,19.33
+RFE/RF (top-6),6,DBSCAN (ε=1.5),2,3,0.4569,0.8323,20.06
+RFE/RF (top-6),6,Mean-Shift,4,0,0.4305,0.3998,14.85
+RFE/RF (top-6),6,Spectral (k=2),2,0,0.5991,0.4266,20.55
+RFE/RF (top-8),8,K-Means (k=4),4,0,0.5278,0.5938,14.29
+RFE/RF (top-8),8,Hierarchical (Ward),5,0,0.5444,0.5986,21.11
+RFE/RF (top-8),8,DBSCAN (ε=1.5),2,6,0.3512,1.2982,8.74
+RFE/RF (top-8),8,Mean-Shift,4,0,0.5278,0.5938,14.29
+RFE/RF (top-8),8,Spectral (k=2),2,0,0.489,0.5525,11.85
+"Clinical-Weighted PCA (2D, 63%)",2,K-Means (k=3),3,0,0.5616,0.5275,25.51
+"Clinical-Weighted PCA (2D, 63%)",2,Hierarchical (Ward),5,0,0.4786,0.4114,26.31
+"Clinical-Weighted PCA (2D, 63%)",2,DBSCAN (ε=1.5),4,2,0.4565,0.9165,17.8
+"Clinical-Weighted PCA (2D, 63%)",2,Mean-Shift,4,0,0.5319,0.5208,21.92
+"Clinical-Weighted PCA (2D, 63%)",2,Spectral (k=2),2,0,0.3122,1.1848,8.6

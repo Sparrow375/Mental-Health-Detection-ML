@@ -1,0 +1,1669 @@
+{
+  "n_samples": 14,
+  "n_base_features": 12,
+  "base_features": [
+    "sleep_duration_hours",
+    "wake_time_hour",
+    "sleep_time_hour",
+    "daily_displacement_km",
+    "location_entropy",
+    "places_visited",
+    "calls_per_day",
+    "conversation_duration_hours",
+    "screen_time_hours",
+    "unlock_count",
+    "social_app_ratio",
+    "dark_duration_hours"
+  ],
+  "dates": [
+    "2026-03-29",
+    "2026-03-30",
+    "2026-03-31",
+    "2026-04-01",
+    "2026-04-02",
+    "2026-04-03",
+    "2026-04-04",
+    "2026-04-05",
+    "2026-04-06",
+    "2026-04-07",
+    "2026-04-08",
+    "2026-04-09",
+    "2026-04-10",
+    "2026-04-11"
+  ],
+  "reduction_methods": {
+    "Original (12-D)": {
+      "description": "All 12 L1 features, StandardScaler",
+      "dim": 12,
+      "selected_features": null
+    },
+    "PCA (2D, 53% var)": {
+      "description": "PCA \u2192 2 components (52.6% variance explained)",
+      "dim": 2,
+      "selected_features": null
+    },
+    "PCA (3D, 68% var)": {
+      "description": "PCA \u2192 3 components (68.2% variance explained)",
+      "dim": 3,
+      "selected_features": null
+    },
+    "PCA (4D, 79% var)": {
+      "description": "PCA \u2192 4 components (78.6% variance explained)",
+      "dim": 4,
+      "selected_features": null
+    },
+    "Kernel PCA (rbf, 2D)": {
+      "description": "Kernel PCA (RBF) \u2192 2 components",
+      "dim": 2,
+      "selected_features": null
+    },
+    "Kernel PCA (rbf, 4D)": {
+      "description": "Kernel PCA (RBF) \u2192 4 components",
+      "dim": 4,
+      "selected_features": null
+    },
+    "t-SNE (2D)": {
+      "description": "t-SNE \u2192 2D (perplexity=5)",
+      "dim": 2,
+      "selected_features": null
+    },
+    "VarianceThreshold (12D)": {
+      "description": "Removed near-zero-var feats \u2192 12 remain: [np.str_('sleep_duration_hours'), np.str_('wake_time_hour'), np.str_('sleep_time_hour'), np.str_('daily_displacement_km'), np.str_('location_entropy'), np.str_('places_visited'), np.str_('calls_per_day'), np.str_('conversation_duration_hours'), np.str_('screen_time_hours'), np.str_('unlock_count'), np.str_('social_app_ratio'), np.str_('dark_duration_hours')]",
+      "dim": 12,
+      "selected_features": [
+        "sleep_duration_hours",
+        "wake_time_hour",
+        "sleep_time_hour",
+        "daily_displacement_km",
+        "location_entropy",
+        "places_visited",
+        "calls_per_day",
+        "conversation_duration_hours",
+        "screen_time_hours",
+        "unlock_count",
+        "social_app_ratio",
+        "dark_duration_hours"
+      ]
+    },
+    "SelectKBest (top-6)": {
+      "description": "SelectKBest f_classif top-6: [np.str_('sleep_duration_hours'), np.str_('wake_time_hour'), np.str_('daily_displacement_km'), np.str_('location_entropy'), np.str_('calls_per_day'), np.str_('screen_time_hours')]",
+      "dim": 6,
+      "selected_features": [
+        "sleep_duration_hours",
+        "wake_time_hour",
+        "daily_displacement_km",
+        "location_entropy",
+        "calls_per_day",
+        "screen_time_hours"
+      ]
+    },
+    "SelectKBest (top-8)": {
+      "description": "SelectKBest f_classif top-8: [np.str_('sleep_duration_hours'), np.str_('wake_time_hour'), np.str_('daily_displacement_km'), np.str_('location_entropy'), np.str_('places_visited'), np.str_('calls_per_day'), np.str_('conversation_duration_hours'), np.str_('screen_time_hours')]",
+      "dim": 8,
+      "selected_features": [
+        "sleep_duration_hours",
+        "wake_time_hour",
+        "daily_displacement_km",
+        "location_entropy",
+        "places_visited",
+        "calls_per_day",
+        "conversation_duration_hours",
+        "screen_time_hours"
+      ]
+    },
+    "RFE/RF (top-6)": {
+      "description": "RFE (RF importance) top-6: [np.str_('sleep_duration_hours'), np.str_('wake_time_hour'), np.str_('daily_displacement_km'), np.str_('calls_per_day'), np.str_('conversation_duration_hours'), np.str_('screen_time_hours')]",
+      "dim": 6,
+      "selected_features": [
+        "sleep_duration_hours",
+        "wake_time_hour",
+        "daily_displacement_km",
+        "calls_per_day",
+        "conversation_duration_hours",
+        "screen_time_hours"
+      ]
+    },
+    "RFE/RF (top-8)": {
+      "description": "RFE (RF importance) top-8: [np.str_('sleep_duration_hours'), np.str_('wake_time_hour'), np.str_('daily_displacement_km'), np.str_('location_entropy'), np.str_('calls_per_day'), np.str_('conversation_duration_hours'), np.str_('screen_time_hours'), np.str_('unlock_count')]",
+      "dim": 8,
+      "selected_features": [
+        "sleep_duration_hours",
+        "wake_time_hour",
+        "daily_displacement_km",
+        "location_entropy",
+        "calls_per_day",
+        "conversation_duration_hours",
+        "screen_time_hours",
+        "unlock_count"
+      ]
+    },
+    "Clinical-Weighted PCA (2D, 54%)": {
+      "description": "Features weighted by clinical importance then PCA-2 (54.3% var)",
+      "dim": 2,
+      "selected_features": null
+    }
+  },
+  "results": {
+    "Original (12-D)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3666,
+        "davies_bouldin": 0.4505,
+        "calinski_harabasz": 4.05
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          9,
+          1,
+          1,
+          2,
+          0,
+          2,
+          10,
+          7,
+          0,
+          4,
+          8,
+          6,
+          3,
+          5
+        ],
+        "n_clusters": 11,
+        "n_outliers": 0,
+        "silhouette": 0.0868,
+        "davies_bouldin": 0.4809,
+        "calinski_harabasz": 5.48
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "n_clusters": 0,
+        "n_outliers": 14,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          1,
+          0,
+          0,
+          2
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.1635,
+        "davies_bouldin": 0.5411,
+        "calinski_harabasz": 3.11
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.2498,
+        "davies_bouldin": 1.5879,
+        "calinski_harabasz": 3.61
+      }
+    },
+    "PCA (2D, 53% var)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.5715,
+        "davies_bouldin": 0.2696,
+        "calinski_harabasz": 9.76
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          0,
+          2,
+          2,
+          0,
+          2,
+          0,
+          1,
+          3,
+          2,
+          1,
+          4,
+          2,
+          1,
+          4
+        ],
+        "n_clusters": 5,
+        "n_outliers": 0,
+        "silhouette": 0.4736,
+        "davies_bouldin": 0.562,
+        "calinski_harabasz": 30.77
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 1,
+        "silhouette": 0.4366,
+        "davies_bouldin": 0.3792,
+        "calinski_harabasz": 12.78
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          3,
+          0,
+          1,
+          2,
+          0,
+          1,
+          2
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.4235,
+        "davies_bouldin": 0.4883,
+        "calinski_harabasz": 20.02
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3499,
+        "davies_bouldin": 1.0191,
+        "calinski_harabasz": 6.26
+      }
+    },
+    "PCA (3D, 68% var)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.4915,
+        "davies_bouldin": 0.3363,
+        "calinski_harabasz": 6.62
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          6,
+          0,
+          1,
+          0,
+          1,
+          0,
+          4,
+          3,
+          1,
+          4,
+          2,
+          1,
+          5,
+          2
+        ],
+        "n_clusters": 7,
+        "n_outliers": 0,
+        "silhouette": 0.2725,
+        "davies_bouldin": 0.5533,
+        "calinski_harabasz": 13.24
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          0,
+          0,
+          1,
+          0,
+          1,
+          2,
+          -1,
+          0,
+          2,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "n_clusters": 3,
+        "n_outliers": 6,
+        "silhouette": 0.0755,
+        "davies_bouldin": 1.5947,
+        "calinski_harabasz": 1.58
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 3,
+        "n_outliers": 0,
+        "silhouette": 0.36,
+        "davies_bouldin": 0.569,
+        "calinski_harabasz": 7.98
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3738,
+        "davies_bouldin": 1.2619,
+        "calinski_harabasz": 5.8
+      }
+    },
+    "PCA (4D, 79% var)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.4486,
+        "davies_bouldin": 0.3724,
+        "calinski_harabasz": 5.56
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          7,
+          2,
+          2,
+          1,
+          2,
+          1,
+          5,
+          3,
+          2,
+          5,
+          0,
+          4,
+          6,
+          0
+        ],
+        "n_clusters": 8,
+        "n_outliers": 0,
+        "silhouette": 0.1309,
+        "davies_bouldin": 0.6182,
+        "calinski_harabasz": 6.86
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          -1,
+          -1,
+          0,
+          1,
+          0,
+          -1,
+          -1,
+          1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 10,
+        "silhouette": -0.094,
+        "davies_bouldin": 2.4844,
+        "calinski_harabasz": 0.63
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 3,
+        "n_outliers": 0,
+        "silhouette": 0.294,
+        "davies_bouldin": 0.7113,
+        "calinski_harabasz": 6.1
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3179,
+        "davies_bouldin": 1.3955,
+        "calinski_harabasz": 4.74
+      }
+    },
+    "Kernel PCA (rbf, 2D)": {
+      "K-Means (k=4)": {
+        "labels": [
+          1,
+          0,
+          0,
+          2,
+          0,
+          2,
+          2,
+          3,
+          0,
+          2,
+          3,
+          1,
+          2,
+          3
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.5831,
+        "davies_bouldin": 0.4511,
+        "calinski_harabasz": 25.0
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 1,
+        "n_outliers": 0,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 1,
+        "n_outliers": 0,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          3,
+          0,
+          0,
+          1,
+          0,
+          1,
+          1,
+          2,
+          0,
+          1,
+          2,
+          3,
+          1,
+          2
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.5831,
+        "davies_bouldin": 0.4511,
+        "calinski_harabasz": 25.0
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3399,
+        "davies_bouldin": 1.1098,
+        "calinski_harabasz": 8.78
+      }
+    },
+    "Kernel PCA (rbf, 4D)": {
+      "K-Means (k=4)": {
+        "labels": [
+          3,
+          0,
+          0,
+          1,
+          0,
+          1,
+          1,
+          2,
+          0,
+          1,
+          3,
+          0,
+          1,
+          3
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.3637,
+        "davies_bouldin": 0.7416,
+        "calinski_harabasz": 7.39
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 1,
+        "n_outliers": 0,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 1,
+        "n_outliers": 0,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 3,
+        "n_outliers": 0,
+        "silhouette": 0.2438,
+        "davies_bouldin": 0.8626,
+        "calinski_harabasz": 4.07
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.2159,
+        "davies_bouldin": 1.5683,
+        "calinski_harabasz": 4.41
+      }
+    },
+    "t-SNE (2D)": {
+      "K-Means (k=4)": {
+        "labels": [
+          1,
+          2,
+          2,
+          0,
+          2,
+          0,
+          0,
+          1,
+          2,
+          0,
+          3,
+          0,
+          0,
+          3
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.4454,
+        "davies_bouldin": 0.5889,
+        "calinski_harabasz": 16.33
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          8,
+          9,
+          7,
+          13,
+          11,
+          6,
+          10,
+          4,
+          12,
+          3,
+          5,
+          2,
+          1,
+          0
+        ],
+        "n_clusters": 14,
+        "n_outliers": 0,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "n_clusters": 0,
+        "n_outliers": 14,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          3,
+          1,
+          1,
+          0,
+          1,
+          0,
+          0,
+          3,
+          1,
+          0,
+          2,
+          0,
+          0,
+          2
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.4454,
+        "davies_bouldin": 0.5889,
+        "calinski_harabasz": 16.33
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          1,
+          0,
+          1,
+          1,
+          0,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.4155,
+        "davies_bouldin": 0.8404,
+        "calinski_harabasz": 13.06
+      }
+    },
+    "VarianceThreshold (12D)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3666,
+        "davies_bouldin": 0.4505,
+        "calinski_harabasz": 4.05
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          9,
+          1,
+          1,
+          2,
+          0,
+          2,
+          10,
+          7,
+          0,
+          4,
+          8,
+          6,
+          3,
+          5
+        ],
+        "n_clusters": 11,
+        "n_outliers": 0,
+        "silhouette": 0.0868,
+        "davies_bouldin": 0.4809,
+        "calinski_harabasz": 5.48
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1,
+          -1
+        ],
+        "n_clusters": 0,
+        "n_outliers": 14,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          3,
+          0,
+          0,
+          1,
+          0,
+          0,
+          2
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.1635,
+        "davies_bouldin": 0.5411,
+        "calinski_harabasz": 3.11
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.2498,
+        "davies_bouldin": 1.5879,
+        "calinski_harabasz": 3.61
+      }
+    },
+    "SelectKBest (top-6)": {
+      "K-Means (k=2)": {
+        "labels": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.5538,
+        "davies_bouldin": 0.2791,
+        "calinski_harabasz": 9.72
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          0,
+          5,
+          5,
+          5,
+          1,
+          0,
+          4,
+          3,
+          1,
+          0,
+          2,
+          1,
+          0,
+          2
+        ],
+        "n_clusters": 6,
+        "n_outliers": 0,
+        "silhouette": 0.2107,
+        "davies_bouldin": 0.7673,
+        "calinski_harabasz": 8.93
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          -1,
+          -1,
+          0,
+          0,
+          -1,
+          0,
+          -1,
+          -1
+        ],
+        "n_clusters": 1,
+        "n_outliers": 6,
+        "silhouette": null,
+        "davies_bouldin": null,
+        "calinski_harabasz": null
+      },
+      "Mean-Shift": {
+        "labels": [
+          2,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          3,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 4,
+        "n_outliers": 0,
+        "silhouette": 0.1317,
+        "davies_bouldin": 0.5038,
+        "calinski_harabasz": 5.33
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3095,
+        "davies_bouldin": 1.3369,
+        "calinski_harabasz": 5.84
+      }
+    },
+    "SelectKBest (top-8)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.4812,
+        "davies_bouldin": 0.3424,
+        "calinski_harabasz": 6.72
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          6,
+          2,
+          2,
+          2,
+          2,
+          2,
+          0,
+          3,
+          1,
+          1,
+          5,
+          1,
+          0,
+          4
+        ],
+        "n_clusters": 7,
+        "n_outliers": 0,
+        "silhouette": 0.2171,
+        "davies_bouldin": 0.5519,
+        "calinski_harabasz": 8.02
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          0,
+          -1,
+          0,
+          -1,
+          -1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 10,
+        "silhouette": -0.0331,
+        "davies_bouldin": 1.4921,
+        "calinski_harabasz": 1.2
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          4,
+          0,
+          0,
+          2,
+          0,
+          1,
+          3
+        ],
+        "n_clusters": 5,
+        "n_outliers": 0,
+        "silhouette": 0.1878,
+        "davies_bouldin": 0.6662,
+        "calinski_harabasz": 5.14
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.2719,
+        "davies_bouldin": 1.4812,
+        "calinski_harabasz": 4.83
+      }
+    },
+    "RFE/RF (top-6)": {
+      "K-Means (k=2)": {
+        "labels": [
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.5401,
+        "davies_bouldin": 0.2959,
+        "calinski_harabasz": 8.62
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          4,
+          3,
+          1,
+          0,
+          1,
+          1,
+          2,
+          2
+        ],
+        "n_clusters": 5,
+        "n_outliers": 0,
+        "silhouette": 0.2397,
+        "davies_bouldin": 0.6918,
+        "calinski_harabasz": 9.63
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          0,
+          0,
+          0,
+          1,
+          0,
+          -1,
+          -1,
+          1,
+          0,
+          -1,
+          1,
+          -1,
+          -1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 6,
+        "silhouette": 0.0588,
+        "davies_bouldin": 1.6052,
+        "calinski_harabasz": 1.91
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          4,
+          0,
+          0,
+          0,
+          0,
+          3,
+          2
+        ],
+        "n_clusters": 5,
+        "n_outliers": 0,
+        "silhouette": 0.2282,
+        "davies_bouldin": 0.4001,
+        "calinski_harabasz": 6.04
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1,
+          1,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.1105,
+        "davies_bouldin": 2.0203,
+        "calinski_harabasz": 2.3
+      }
+    },
+    "RFE/RF (top-8)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.4798,
+        "davies_bouldin": 0.342,
+        "calinski_harabasz": 6.44
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          5,
+          2,
+          0,
+          2,
+          0,
+          2,
+          7,
+          3,
+          0,
+          0,
+          4,
+          0,
+          1,
+          6
+        ],
+        "n_clusters": 8,
+        "n_outliers": 0,
+        "silhouette": 0.1263,
+        "davies_bouldin": 0.5324,
+        "calinski_harabasz": 8.74
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          -1,
+          0,
+          -1,
+          0,
+          1,
+          -1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1,
+          1,
+          -1,
+          -1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 9,
+        "silhouette": -0.0212,
+        "davies_bouldin": 1.5786,
+        "calinski_harabasz": 1.24
+      },
+      "Mean-Shift": {
+        "labels": [
+          5,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          6,
+          0,
+          0,
+          2,
+          0,
+          4,
+          3
+        ],
+        "n_clusters": 7,
+        "n_outliers": 0,
+        "silhouette": 0.1895,
+        "davies_bouldin": 0.362,
+        "calinski_harabasz": 7.14
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3094,
+        "davies_bouldin": 1.4176,
+        "calinski_harabasz": 5.32
+      }
+    },
+    "Clinical-Weighted PCA (2D, 54%)": {
+      "K-Means (k=2)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.6126,
+        "davies_bouldin": 0.2371,
+        "calinski_harabasz": 12.95
+      },
+      "Hierarchical (Ward)": {
+        "labels": [
+          4,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          3,
+          0,
+          2,
+          1,
+          2,
+          4,
+          1
+        ],
+        "n_clusters": 5,
+        "n_outliers": 0,
+        "silhouette": 0.4644,
+        "davies_bouldin": 0.4501,
+        "calinski_harabasz": 31.66
+      },
+      "DBSCAN (\u03b5=1.5)": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          1,
+          -1,
+          0,
+          1,
+          2,
+          1,
+          0,
+          2
+        ],
+        "n_clusters": 3,
+        "n_outliers": 1,
+        "silhouette": 0.4114,
+        "davies_bouldin": 0.5462,
+        "calinski_harabasz": 19.93
+      },
+      "Mean-Shift": {
+        "labels": [
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          2,
+          0,
+          0,
+          1,
+          0,
+          0,
+          1
+        ],
+        "n_clusters": 3,
+        "n_outliers": 0,
+        "silhouette": 0.441,
+        "davies_bouldin": 0.3978,
+        "calinski_harabasz": 16.08
+      },
+      "Spectral (k=2)": {
+        "labels": [
+          0,
+          1,
+          1,
+          1,
+          1,
+          1,
+          1,
+          0,
+          1,
+          0,
+          0,
+          1,
+          1,
+          0
+        ],
+        "n_clusters": 2,
+        "n_outliers": 0,
+        "silhouette": 0.3316,
+        "davies_bouldin": 1.1506,
+        "calinski_harabasz": 6.99
+      }
+    }
+  }
+}

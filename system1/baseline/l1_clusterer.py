@@ -233,7 +233,7 @@ class L1Clusterer:
         # Clamp to reasonable range
         if np.isnan(epsilon):
             return 1.0
-        return float(np.clip(epsilon, 0.3, 5.0))
+        return float(np.clip(epsilon, 0.3, 3.5))
 
     def _single_cluster_fallback(self, df, available_features) -> L1ClusterState:
         """

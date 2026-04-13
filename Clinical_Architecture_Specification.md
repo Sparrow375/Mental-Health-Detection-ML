@@ -33,7 +33,7 @@ These columns cut vertically *through* the horizontal infrastructure, representi
 
 #### ❖ Vertical Slice 1: Active Patient Monitoring System
 *The continuous, passive collection of behavioral markers.*
-- **Top (Interaction):** The Kotlin **MHealth App** silently collects voice heuristics, accelerometer/location data, and app-usage timestamps (`SleepEstimator.kt`).
+- **Top (Interaction):** The Kotlin **Swasthiti App** silently collects voice heuristics, accelerometer/location data, and app-usage timestamps (`SleepEstimator.kt`).
 - **Middle (Transport & Auth):** Raw data is structured into user-day JSON vectors. WorkManager utilizes the patient's Firebase JWT to authenticate the upload.
 - **Bottom (Persistence):** Data is written to secure Firestore documents specifically scoped to the protected UUID of the patient, isolating PII (Personally Identifiable Information).
 
@@ -66,3 +66,4 @@ These columns cut vertically *through* the horizontal infrastructure, representi
 If you are using an AI text-to-image generator (such as Midjourney, DALL-E) or diagram software (like Draw.io / Lucidchart) to visualize this system for presentations, use the following highly descriptive prompt:
 
 > *"A professional, highly complex enterprise cloud architecture diagram for a clinical healthcare platform. The diagram must clearly display a Vertical-Horizontal matrix. Horizontally, visually define 4 stacked layers: 'Edge Sensing', 'Secure Sync & APIs', 'Firebase Authentication', and 'Encrypted Datastore' at the base. Vertically, slice these layers with four glowing bounded columns: 'Patient Active Monitoring' on the left, 'Offline ML Baseline Inference' in the middle-left, 'Voice Detection of Depression API' (featuring a waveform AI icon and HuggingFace logo) in the middle-right, and 'Clinical Decision Support Dashboard' on the far right (showing a web UI with complex radar data charts). Do not use neon or cyberpunk themes. Use a pristine, sterile, and highly professional corporate medical aesthetic: sharp vector lines, flat isometric blocks, against a clean white or light gray background. Color palette: Navy blue, steel gray, medical teal, and sage green."*
+

@@ -1,6 +1,6 @@
-# MHealth Behavioral Feature Calculation Logic
+# Swasthiti Behavioral Feature Calculation Logic
 
-This document details the logical methodologies used by the MHealth data collection pipeline to translate raw device telemetry into meaningful behavioral indicators. This focuses exclusively on the logic and heuristics without dwelling on technical implementation code.
+This document details the logical methodologies used by the Swasthiti data collection pipeline to translate raw device telemetry into meaningful behavioral indicators. This focuses exclusively on the logic and heuristics without dwelling on technical implementation code.
 
 ---
 
@@ -121,3 +121,4 @@ This document details the logical methodologies used by the MHealth data collect
 
 ### **Daily Steps**
 - **Logic**: Reads the hardware pedometer sensor inside the phone. Since the sensor yields a lifetime cumulative number, the system records a baseline snapshot every morning. The day's total steps are logic-derived by subtracting the morning baseline from the current live number.
+

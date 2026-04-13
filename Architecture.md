@@ -1,8 +1,8 @@
-# MHealth System Architecture
+# Swasthiti System Architecture
 
 > **See Also:** For comprehensive clinical-grade specifications and dataset requirements, refer to the [Clinical Architecture Specification](./Clinical_Architecture_Specification.md).
 
-This document outlines the robust, edge-computed Machine Learning architecture for the Mental Health Detection (MHealth) application. The system operates on a highly secure **Edge-ML** paradigm, meaning all core analysis happens directly on the user's Android phone via embedded Python (Chaquopy), and no raw sensor data is ever streamed to the cloud.
+This document outlines the robust, edge-computed Machine Learning architecture for the Mental Health Detection (Swasthiti) application. The system operates on a highly secure **Edge-ML** paradigm, meaning all core analysis happens directly on the user's Android phone via embedded Python (Chaquopy), and no raw sensor data is ever streamed to the cloud.
 
 ---
 
@@ -131,5 +131,6 @@ The presentation layer is an enterprise-grade administrative dashboard designed 
 - Plots the user's daily variations in System 1 (Magnitude and EWMA Velocity) against the immutable baseline thresholds configured during the PersonDNA clustering phase.
 
 ### 7.4 Voice Assessment Gateway
-- Contains a dedicated proxy interface (`VoiceAssessment.tsx`) pointing to a containerized Python/HuggingFace microservice API (`mhealth-voice-api`).
+- Contains a dedicated proxy interface (`VoiceAssessment.tsx`) pointing to a containerized Python/HuggingFace microservice API (`Swasthiti-voice-api`).
 - Evaluates discrete vocal recordings (when explicitly authorized/submitted) against a `wavlm_lora_v10` fine-tuned acoustic model designed to detect subtle phonation and articulation alterations mapped to depressive and psychotic states.
+

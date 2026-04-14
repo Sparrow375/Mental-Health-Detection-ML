@@ -64,7 +64,11 @@ object DataRepository {
                 _analysisHistory.value = list
             }
         }
+        // Load baseline progress and history
         scope.launch {
+            val count = db.dailyFeaturesDao().count(userId)
+            _baselineProgress.value = count + 1
+            
             val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
             _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
         }
@@ -175,6 +179,15 @@ object DataRepository {
     private val _bgAudioBreakdown = MutableStateFlow<Map<String, Long>>(emptyMap())
     val bgAudioBreakdown: StateFlow<Map<String, Long>> = _bgAudioBreakdown
 
+    // Shared notification arrival times for NLS → DataCollector trigger detection
+    // Updated by MHealthNotificationListenerService, read by DataCollector.logSessionsFromEvents
+    private val _recentNotificationTimes = mutableMapOf<String, Long>()
+    fun setRecentNotificationTime(pkg: String, timestampMs: Long) {
+        _recentNotificationTimes[pkg] = timestampMs
+    }
+    fun getRecentNotificationTime(pkg: String): Long = _recentNotificationTimes[pkg] ?: 0L
+    fun clearRecentNotificationTime(pkg: String) { _recentNotificationTimes.remove(pkg) }
+
     // Saved home location (lat/lon) for homeTimeRatio calculation
     private val _homeLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val homeLocation: StateFlow<Pair<Double, Double>?> = _homeLocation
@@ -201,6 +214,10 @@ object DataRepository {
     private val _baselineDaysRequired = MutableStateFlow(28)
     val baselineDaysRequired: StateFlow<Int> = _baselineDaysRequired
 
+    // DNA Baseline (Level 2) — separate from L1 baseline
+    private val _dnaBaselineDaysRequired = MutableStateFlow(14)
+    val dnaBaselineDaysRequired: StateFlow<Int> = _dnaBaselineDaysRequired
+
     private val _monitoringIntervalMinutes = MutableStateFlow(15L)
     val monitoringIntervalMinutes: StateFlow<Long> = _monitoringIntervalMinutes
 
@@ -218,6 +235,7 @@ object DataRepository {
 
         // Dev Settings
         _baselineDaysRequired.value = prefs?.getInt("dev_baseline_days", 28) ?: 28
+        _dnaBaselineDaysRequired.value = prefs?.getInt("dev_dna_baseline_days", 14) ?: 14
         _monitoringIntervalMinutes.value = prefs?.getLong("dev_monitoring_interval", 15L) ?: 15L
         
         // Restore Onboarding State
@@ -303,6 +321,11 @@ object DataRepository {
         prefs?.edit()?.putInt("dev_baseline_days", days)?.apply()
     }
 
+    fun setDnaBaselineDaysRequired(days: Int) {
+        _dnaBaselineDaysRequired.value = days
+        prefs?.edit()?.putInt("dev_dna_baseline_days", days)?.apply()
+    }
+
     fun setMonitoringIntervalMinutes(minutes: Long) {
         _monitoringIntervalMinutes.value = minutes
         prefs?.edit()?.putLong("dev_monitoring_interval", minutes)?.apply()
@@ -329,12 +352,26 @@ object DataRepository {
     }
 
     fun addReport(report: DailyReport) {
-        _reports.value = _reports.value + report
+        val current = _reports.value.toMutableList()
+        current.add(report)
+        _reports.value = current
+    }
+
+    fun updateReports(reports: List<DailyReport>) {
+        _reports.value = reports
+    }
+
+    fun clearReports() {
+        _reports.value = emptyList()
     }
 
     fun setBaseline(vector: PersonalityVector) {
         _baseline.value = vector
         _isBuildingBaseline.value = false
+    }
+
+    fun clearBaseline() {
+        _baseline.value = null
     }
 
     fun updateBaselineProgress(days: Int) {

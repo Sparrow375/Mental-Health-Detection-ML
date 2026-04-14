@@ -41,6 +41,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -77,6 +79,7 @@ class MonitoringService : Service() {
     // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
     private val isRestored = CompletableDeferred<Unit>()
     private val tickMutex = Mutex()
+    private var lastTickMs = 0L
 
     // ── Screen and Interaction Receiver ──────────────────────────────────────
     // Triggers runTick() on user events so charts stay fresh without polling.
@@ -85,11 +88,11 @@ class MonitoringService : Service() {
             when (intent.action) {
                 Intent.ACTION_SCREEN_ON, Intent.ACTION_USER_PRESENT -> {
                     // Update UI snapshot when the user is actually looking
-                    serviceScope.launch { runTick() }
+                    serviceScope.launch { runTick(isEventTriggered = true) }
                 }
                 Intent.ACTION_SCREEN_OFF -> {
                     // Save state when user puts phone away
-                    serviceScope.launch { runTick() }
+                    serviceScope.launch { runTick(isEventTriggered = true) }
                 }
             }
         }
@@ -249,22 +252,7 @@ class MonitoringService : Service() {
         // Music state is already anchored via updateMusicSessionState call above
 
         // ── Reactive slider: two-way status sync on every slider move ─────────────
-        serviceScope.launch {
-            DataRepository.baselineDaysRequired.collectLatest { newTarget ->
-                val collected = collectedDailyVectors.size
-                when {
-                    collected >= newTarget && DataRepository.isBuildingBaseline.value -> {
-                        Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — finalizing baseline now")
-                        checkAndFinalizeBaseline(newTarget)
-                    }
-                    collected < newTarget && !DataRepository.isBuildingBaseline.value -> {
-                        Log.d("MHealth.Service", "Slider -> $newTarget (have $collected) — reverting to Building Baseline")
-                        nightlyWorkerScheduled = false
-                        DataRepository.setIsBuildingBaseline(true)
-                    }
-                }
-            }
-        }
+        // ── Reactive slider: status sync is handled by the scheduleMonitoring observer ─────────────
 
         // Start passive continuous location tracking with adaptive intervals
         dataCollector.startContinuousLocationTracking()
@@ -338,7 +326,8 @@ class MonitoringService : Service() {
             val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
             collectedDailyVectors.clear()
             collectedDailyVectors.addAll(pastVectors)
-            DataRepository.updateBaselineProgress(collectedDailyVectors.size)
+            // Progress is count of saved days + 1 (today)
+            DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
             DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
             // Immediate check for baseline readiness on startup
@@ -428,9 +417,20 @@ class MonitoringService : Service() {
 
         // ── Baseline days observer: build baseline immediately if requirement is met ──
         serviceScope.launch {
-            DataRepository.baselineDaysRequired.collect { target ->
-                checkAndFinalizeBaseline(target)
-            }
+            DataRepository.baselineDaysRequired
+                .debounce(300)
+                .distinctUntilChanged()
+                .collect { target ->
+                    val collected = collectedDailyVectors.size
+                    if (collected >= target) {
+                        Log.d("MHealth.Service", "Baseline target updated ($target days) — finalizing now (have $collected)")
+                        DataRepository.setIsBuildingBaseline(true)
+                        checkAndFinalizeBaseline(target)
+                    } else {
+                        Log.d("MHealth.Service", "Baseline target updated ($target days) — need more data (have $collected)")
+                        DataRepository.setIsBuildingBaseline(true)
+                    }
+                }
         }
         
         // dev force new-day trigger listener
@@ -451,25 +451,70 @@ class MonitoringService : Service() {
                     val userId = DataRepository.userProfile.value?.email ?: "default_user"
                     val db = MHealthDatabase.getInstance(this@MonitoringService)
                     try {
-                        db.dailyFeaturesDao().clearSimulated(userId)
-                        
                         val targetBaselineDays = DataRepository.baselineDaysRequired.value
-                        val remainingFeatures = db.dailyFeaturesDao().getLatestN(userId, 60)
-                        if (remainingFeatures.size < targetBaselineDays) {
-                            db.baselineDao().clearBaseline(userId)
-                            db.analysisResultDao().clearAll(userId)
-                            val profile = db.userProfileDao().get(userId)
-                            if (profile != null) {
-                                db.userProfileDao().upsert(profile.copy(baselineReady = false))
-                            }
-                            DataRepository.setIsBuildingBaseline(true)
-                            detector = null
-                        }
-                        
-                        restoreStateFromRoom()
+                        Log.i("MHealth.Service", "Reset triggered: rebuilding baseline from $targetBaselineDays most recent real days")
 
-                        // IMPORTANT: Refresh the "Live" UI snapshots immediately so the user 
-                        // sees their current day's progress (distance, etc.) right after reset.
+                        // 1. Clear ONLY simulated features (non-destructive)
+                        db.dailyFeaturesDao().clearSimulated(userId)
+                        // 2. Clear old state tables permanently to avoid merging conflicts
+                        db.baselineDao().clearBaseline(userId)
+                        db.analysisResultDao().clearAll(userId)
+                        db.userProfileDao().upsert(
+                            UserProfileEntity(
+                                userId = userId,
+                                baselineReady = false,
+                                baselineDays = targetBaselineDays,
+                                currentStatus = "Learning Baseline"
+                            )
+                        )
+                        DataRepository.clearReports()
+
+                        Log.i("MHealth.Service", "Reset triggered: Simulated data removed, old baseline wiped.")
+
+                        // 3. Reload real features into memory to update progress
+                        val allRealFeatures = db.dailyFeaturesDao().getAllFeatures(userId)
+                            .sortedBy { it.date }
+                        
+                        collectedDailyVectors.clear()
+                        collectedDailyVectors.addAll(allRealFeatures.map { JsonConverter.toPersonalityVector(it) })
+                        
+                        // Update UI progress: Count of saved days + 1 (for the current day)
+                        DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
+                        DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+
+                        // 5. If we have enough real days left to build a new baseline instantly
+                        if (collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
+                            DataRepository.setIsBuildingBaseline(true)
+                            
+                            // Rebuild Mathematical Baseline on FIRST targetBaselineDays
+                            val baselineVectorsToUse = collectedDailyVectors.take(targetBaselineDays)
+                            val baseline = buildBaseline(baselineVectorsToUse)
+                            persistBaselineToRoom(baseline, targetBaselineDays)
+                            DataRepository.setBaseline(baseline)
+                            detector = AnomalyDetector(baseline)
+
+                            // Generate retroactive Anomaly Reports for the remaining (X - Y) days
+                            val remainingFeatures = allRealFeatures.drop(targetBaselineDays)
+                            val rebuiltReports = mutableListOf<com.example.mhealth.models.DailyReport>()
+                            remainingFeatures.forEachIndexed { idx, feature ->
+                                val vec = JsonConverter.toPersonalityVector(feature)
+                                val r = detector!!.analyze(vec, idx + 1)
+                                rebuiltReports.add(r)
+                                persistAnomalyResultToRoom(r, feature.date, false)
+                            }
+                            DataRepository.updateReports(rebuiltReports)
+
+                            scheduleNightlyWorker()
+                            Log.i("MHealth.Service", "Reset built new baseline + generated ${rebuiltReports.size} remaining reports.")
+                        } else {
+                            // If we don't have enough days, remain in Learning Mode
+                            DataRepository.setIsBuildingBaseline(true)
+                            DataRepository.clearBaseline()
+                            detector = null
+                            Log.i("MHealth.Service", "Not enough data after wipe. Waiting for more real telemetry.")
+                        }
+
+                        // 6. Refresh the "Live" UI snapshots immediately 
                         runTick()
                     } catch (e: Exception) {
                         Log.e("MHealth.Service", "Error during master reset", e)
@@ -505,9 +550,16 @@ class MonitoringService : Service() {
         dataCollector.stopContinuousLocationTracking()
     }
 
-    private suspend fun runTick(isSimulated: Boolean = false) = tickMutex.withLock {
+    private suspend fun runTick(isSimulated: Boolean = false, isEventTriggered: Boolean = false) = tickMutex.withLock {
         // Wait for Room database rehydration to finish so we don't calculate on empty state
         isRestored.await()
+        
+        val now = System.currentTimeMillis()
+        if (isEventTriggered && (now - lastTickMs < 30_000L)) {
+            // Throttle rapid-fire events (e.g. rapid screen on/off)
+            return@withLock
+        }
+        lastTickMs = now
         
         try {
             collectionTickCount++
@@ -567,8 +619,11 @@ class MonitoringService : Service() {
                 Log.i("MHealth.Service", "Day transition logic for Day $savedDay complete.")
             } else {
                 // Regular tick within the same day
+                val target = DataRepository.baselineDaysRequired.value
+                // Progress is saved days + 1 (current day)
+                DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
+                
                 if (DataRepository.isBuildingBaseline.value) {
-                    val target = DataRepository.baselineDaysRequired.value
                     checkAndFinalizeBaseline(target)
                 }
             }
@@ -599,35 +654,33 @@ class MonitoringService : Service() {
         }
     }
 
+    private var isPersistingBaseline = false
+
     /**
-     * Finalizes the baseline building phase if requirements are met.
-     * Sets P₀ in DataRepository and Room, and flips the isBuilding flag.
+     * Checks if we have enough collected days to lock in a baseline (P0).
+     * Now strictly calculates using only the FIRST `targetBaselineDays`.
      */
     private fun checkAndFinalizeBaseline(targetBaselineDays: Int) {
         if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
-            val baseline = buildBaseline(collectedDailyVectors)
+            if (isPersistingBaseline) return // Prevent duplicate Coroutine launches
+            isPersistingBaseline = true
 
-            // FIX 1: Do NOT flip isBuildingBaseline or set detector here.
-            // If we do it before Room is written and the coroutine fails silently,
-            // isBuildingBaseline stays false, this block never re-enters, and the
-            // baseline is permanently lost in memory only.
-            // Instead, set the flag first to prevent concurrent launch, then
-            // flip state only AFTER Room write succeeds.
-            if (!nightlyWorkerScheduled) {
-                nightlyWorkerScheduled = true // guard against double-launch
-                serviceScope.launch {
-                    try {
-                        persistBaselineToRoom(baseline, targetBaselineDays)
-                        // Only flip the live state AFTER Room is confirmed written
-                        DataRepository.setBaseline(baseline)
-                        detector = AnomalyDetector(baseline)
-                        scheduleNightlyWorker()
-                        Log.i("MHealth.Service", "Baseline established and persisted to Room (${targetBaselineDays}d)")
-                    } catch (e: Exception) {
-                        // Allow retry on the next tick by resetting the guard
-                        nightlyWorkerScheduled = false
-                        Log.e("MHealth.Service", "Failed to persist baseline to Room — will retry on next tick: ${e.message}", e)
-                    }
+            // Use only the FIRST 'targetBaselineDays' to build the model, ignoring subsequent days
+            val baselineVectorsToUse = collectedDailyVectors.take(targetBaselineDays)
+            val baseline = buildBaseline(baselineVectorsToUse)
+
+            serviceScope.launch {
+                try {
+                    persistBaselineToRoom(baseline, targetBaselineDays)
+                    // Only flip the live state AFTER Room is confirmed written
+                    DataRepository.setBaseline(baseline)
+                    detector = AnomalyDetector(baseline)
+                    scheduleNightlyWorker()
+                    Log.i("MHealth.Service", "Baseline established and persisted to Room (${targetBaselineDays}d)")
+                } catch (e: Exception) {
+                    Log.e("MHealth.Service", "Failed to persist baseline to Room — will retry on next tick: ${e.message}", e)
+                } finally {
+                    isPersistingBaseline = false
                 }
             }
         }
@@ -692,9 +745,6 @@ class MonitoringService : Service() {
      * so days analyzed by MonitoringService had no anomaly scores in the export.
      */
     private fun persistAnomalyResultToRoom(report: DailyReport, dayOfYear: Int, isSimulated: Boolean) {
-        val userId = DataRepository.userProfile.value?.email ?: "default_user"
-
-        // Compute the date string for the day that just ended
         val nowCal   = Calendar.getInstance()
         val todayDoy = nowCal.get(Calendar.DAY_OF_YEAR)
         val daysAgo  = if (todayDoy >= dayOfYear) {
@@ -706,6 +756,11 @@ class MonitoringService : Service() {
         }
         val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -daysAgo.coerceAtLeast(0)) }
         val dateStr = dateFmt.format(cal.time)
+        persistAnomalyResultToRoom(report, dateStr, isSimulated)
+    }
+
+    private fun persistAnomalyResultToRoom(report: DailyReport, dateStr: String, isSimulated: Boolean) {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
 
         serviceScope.launch {
             try {
@@ -728,7 +783,7 @@ class MonitoringService : Service() {
                     alertLevel = report.alertLevel,
                     prototypeMatch = report.patternType,
                     matchMessage = report.flaggedFeatures.joinToString(", "),
-                    prototypeConfidence = report.evidenceAccumulated,
+                    prototypeConfidence = (report.evidenceAccumulated / 10f).coerceIn(0f, 1f),
                     gateResults = "{}"
                 )
                 db.analysisResultDao().insert(resultEntity)
@@ -972,6 +1027,64 @@ class MonitoringService : Service() {
                 collectionRef.document(entity.date).set(data).await()
                 db.dailyFeaturesDao().markSynced(entity.id)
             }
+            // Sync DNA profile to Firebase
+            try {
+                val dnaEntity = db.personDnaDao().getByUserId(userId)
+                if (dnaEntity != null) {
+                    firestore.collection("users").document(uid)
+                        .collection("dna_profile").document("s1_profile")
+                        .set(mapOf(
+                            "dna_json" to dnaEntity.dna_json,
+                            "updated_at" to System.currentTimeMillis()
+                        )).await()
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "DNA profile sync failed: ${e.message}")
+            }
+
+            // Sync notification events (last 7 days)
+            try {
+                val sevenDaysAgo = System.currentTimeMillis() - 7 * 24 * 3600_000L
+                val recentNotifs = db.notificationEventDao().getAll()
+                    .filter { it.arrival_timestamp >= sevenDaysAgo }
+                if (recentNotifs.isNotEmpty()) {
+                    val notifBatch = firestore.collection("users").document(uid).collection("notification_events")
+                    for (ne in recentNotifs.takeLast(200)) {
+                        notifBatch.document(ne.event_id).set(hashMapOf(
+                            "app_package" to ne.app_package,
+                            "arrival_timestamp" to ne.arrival_timestamp,
+                            "action" to ne.action,
+                            "tap_latency_min" to (ne.tap_latency_min ?: -1f),
+                            "date" to ne.date
+                        )).await()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Notification events sync failed: ${e.message}")
+            }
+
+            // Sync app sessions (last 7 days)
+            try {
+                val sevenDaysAgoMs = System.currentTimeMillis() - 7 * 24 * 3600_000L
+                val recentSessions = db.appSessionDao().getAll()
+                    .filter { it.open_timestamp >= sevenDaysAgoMs }
+                if (recentSessions.isNotEmpty()) {
+                    val sessionBatch = firestore.collection("users").document(uid).collection("app_sessions")
+                    for (s in recentSessions.takeLast(200)) {
+                        sessionBatch.document(s.session_id).set(hashMapOf(
+                            "app_package" to s.app_package,
+                            "open_timestamp" to s.open_timestamp,
+                            "close_timestamp" to s.close_timestamp,
+                            "trigger" to s.trigger,
+                            "interaction_count" to s.interaction_count,
+                            "date" to s.date
+                        )).await()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "App sessions sync failed: ${e.message}")
+            }
+
         } catch (e: Exception) {
             e.printStackTrace()
         }

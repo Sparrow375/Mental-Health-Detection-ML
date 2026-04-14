@@ -31,6 +31,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.json.JSONObject
 import org.json.JSONArray
+import androidx.compose.runtime.getValue
+import com.example.mhealth.logic.DataRepository
+import com.example.mhealth.ui.components.ScreenHeader
 
 // ── Color palette ────────────────────────────────────────────────────────────
 private val BgDark = Color(0xFF0D1117)
@@ -56,6 +59,20 @@ private val groupColors = mapOf(
 )
 
 // ── Main composable ──────────────────────────────────────────────────────────
+
+@Composable
+fun DnaScreen() {
+    val profileJson by DataRepository.s1ProfileJson.collectAsState()
+    
+    Column(Modifier.fillMaxSize().background(BgDark)) {
+        ScreenHeader(
+            title = "Behavioral DNA",
+            subtitle = "System 1 — Baseline Pattern Fingerprinting",
+            icon = Icons.Default.Favorite
+        )
+        DnaProfileSection(profileJson)
+    }
+}
 
 @Composable
 fun DnaProfileSection(profileJson: String?) {

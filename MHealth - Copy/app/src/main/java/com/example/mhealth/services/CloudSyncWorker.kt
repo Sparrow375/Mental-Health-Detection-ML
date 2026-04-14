@@ -135,10 +135,10 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "calendarEventsToday" to feature.calendarEventsToday,
                         // FIXED: Store breakdowns as JSON strings (matching MonitoringService format)
                         // Previously parsed to Map with 'appBreakdown' key — now consistent
-                        "appBreakdownJson" to feature.appBreakdownJson,
-                        "notificationBreakdownJson" to feature.notificationBreakdownJson,
-                        "appLaunchesBreakdownJson" to feature.appLaunchesBreakdownJson,
-                        "bgAudioBreakdownJson" to feature.bgAudioBreakdownJson
+                        "appBreakdownJson" to truncate(feature.appBreakdownJson),
+                        "notificationBreakdownJson" to truncate(feature.notificationBreakdownJson),
+                        "appLaunchesBreakdownJson" to truncate(feature.appLaunchesBreakdownJson),
+                        "bgAudioBreakdownJson" to truncate(feature.bgAudioBreakdownJson)
                     )
 
                     dailyFeaturesRef.document(feature.date).set(dataMap).await()
@@ -151,9 +151,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
             Log.d(TAG, "Successfully synced $syncedFeaturesCount/${unsyncedFeatures.size} daily features")
 
-            // 3. Sync Analysis Results
-            // efficiently force-sync all results to ensure Firestore has the anomaly_score
-            db.analysisResultDao().resetSyncFlags(email)
+            // 3. Sync Analysis Results (only genuinely unsynced ones)
             val unsyncedResults = db.analysisResultDao().getUnsynced(email)
             Log.d(TAG, "Found ${unsyncedResults.size} unsynced analysis results")
 
@@ -204,32 +202,35 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             firestore.collection("users").document(uid)
                 .set(mapOf("baseline_progress" to progressToSet), com.google.firebase.firestore.SetOptions.merge()).await()
 
-            // 5. Sync App Sessions (Level 2 Digital DNA)
+            // 5. Sync App Sessions (Level 2 Digital DNA) — limited to 7 days
             try {
                 val sessionsRef = firestore.collection("users").document(uid).collection("app_sessions")
-                val thirtyDaysAgoMs = System.currentTimeMillis() - 30L * 24 * 3600_000
-                val recentSessions = db.appSessionDao().getSessionsSince(thirtyDaysAgoMs)
+                val sevenDaysAgoMs = System.currentTimeMillis() - 7L * 24 * 3600_000
+                val recentSessions = db.appSessionDao().getSessionsSince(sevenDaysAgoMs)
                 
-                // Group sessions by date for batch upload
+                // Group sessions by date for batch upload, cap at 100 per batch
                 val sessionsByDate = recentSessions.groupBy { it.date }
                 var syncedSessions = 0
                 for ((date, sessions) in sessionsByDate) {
                     try {
-                        val batch = firestore.batch()
-                        for (session in sessions) {
-                            val docRef = sessionsRef.document(date).collection("events").document(session.session_id)
-                            batch.set(docRef, hashMapOf<String, Any>(
-                                "session_id" to session.session_id,
-                                "app_package" to session.app_package,
-                                "open_timestamp" to session.open_timestamp,
-                                "close_timestamp" to session.close_timestamp,
-                                "trigger" to session.trigger,
-                                "interaction_count" to session.interaction_count,
-                                "date" to session.date
-                            ))
+                        // Firestore batch limit is 500, cap at 100 for memory safety
+                        for (chunk in sessions.chunked(100)) {
+                            val batch = firestore.batch()
+                            for (session in chunk) {
+                                val docRef = sessionsRef.document(date).collection("events").document(session.session_id)
+                                batch.set(docRef, hashMapOf<String, Any>(
+                                    "session_id" to session.session_id,
+                                    "app_package" to session.app_package,
+                                    "open_timestamp" to session.open_timestamp,
+                                    "close_timestamp" to session.close_timestamp,
+                                    "trigger" to session.trigger,
+                                    "interaction_count" to session.interaction_count,
+                                    "date" to session.date
+                                ))
+                            }
+                            batch.commit().await()
+                            syncedSessions += chunk.size
                         }
-                        batch.commit().await()
-                        syncedSessions += sessions.size
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to sync sessions for $date: ${e.message}")
                     }
@@ -239,31 +240,33 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 Log.e(TAG, "Session sync failed: ${e.message}")
             }
 
-            // 6. Sync Notification Events (Level 2 Digital DNA)
+            // 6. Sync Notification Events (Level 2 Digital DNA) — limited to 7 days
             try {
                 val notifEventsRef = firestore.collection("users").document(uid).collection("notification_events")
-                val thirtyDaysAgoMs2 = System.currentTimeMillis() - 30L * 24 * 3600_000
-                val recentNotifEvents = db.notificationEventDao().getEventsSince(thirtyDaysAgoMs2)
+                val sevenDaysAgoMs2 = System.currentTimeMillis() - 7L * 24 * 3600_000
+                val recentNotifEvents = db.notificationEventDao().getEventsSince(sevenDaysAgoMs2)
                 
                 val notifByDate = recentNotifEvents.groupBy { it.date }
                 var syncedNotifEvents = 0
                 for ((date, events) in notifByDate) {
                     try {
-                        val batch = firestore.batch()
-                        for (event in events) {
-                            val docRef = notifEventsRef.document(date).collection("events").document(event.event_id)
-                            val data = hashMapOf<String, Any>(
-                                "event_id" to event.event_id,
-                                "app_package" to event.app_package,
-                                "arrival_timestamp" to event.arrival_timestamp,
-                                "action" to event.action,
-                                "date" to event.date
-                            )
-                            event.tap_latency_min?.let { data["tap_latency_min"] = it }
-                            batch.set(docRef, data)
+                        for (chunk in events.chunked(100)) {
+                            val batch = firestore.batch()
+                            for (event in chunk) {
+                                val docRef = notifEventsRef.document(date).collection("events").document(event.event_id)
+                                val data = hashMapOf<String, Any>(
+                                    "event_id" to event.event_id,
+                                    "app_package" to event.app_package,
+                                    "arrival_timestamp" to event.arrival_timestamp,
+                                    "action" to event.action,
+                                    "date" to event.date
+                                )
+                                event.tap_latency_min?.let { data["tap_latency_min"] = it }
+                                batch.set(docRef, data)
+                            }
+                            batch.commit().await()
+                            syncedNotifEvents += chunk.size
                         }
-                        batch.commit().await()
-                        syncedNotifEvents += events.size
                     } catch (e: Exception) {
                         Log.e(TAG, "Failed to sync notification events for $date: ${e.message}")
                     }
@@ -273,6 +276,23 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 Log.e(TAG, "Notification events sync failed: ${e.message}")
             }
 
+            // 7. Sync PersonDNA (Level 2 Behavioral DNA) — persistence for the whole persona
+            try {
+                val dna = db.personDnaDao().getByUserId(email)
+                if (dna != null) {
+                    val dnaRef = firestore.collection("users").document(uid).collection("person_dna").document("current")
+                    val dnaMap = hashMapOf<String, Any>(
+                        "dna_json" to dna.dna_json,
+                        "last_updated" to dna.last_updated,
+                        "created_at" to dna.created_at
+                    )
+                    dnaRef.set(dnaMap).await()
+                    Log.d(TAG, "Synced PersonDNA profile (updated: ${dna.last_updated})")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "PersonDNA sync failed: ${e.message}")
+            }
+
             Log.d(TAG, "=== CloudSyncWorker completed successfully ===")
             return Result.success()
 
@@ -280,5 +300,13 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             Log.e(TAG, "CloudSyncWorker failed: ${e.message}", e)
             return Result.retry()
         }
+    }
+
+    /** Truncates a string to prevent Firestore document size limits and data bloat. */
+    private fun truncate(json: String, limit: Int = 100_000): String {
+        return if (json.length > limit) {
+            Log.w(TAG, "Truncating large JSON breakdown (${json.length} chars)")
+            json.take(limit) + "...[TRUNCATED]"
+        } else json
     }
 }

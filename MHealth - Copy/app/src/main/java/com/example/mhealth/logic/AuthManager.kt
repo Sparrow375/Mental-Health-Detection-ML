@@ -250,7 +250,7 @@ class AuthManager(private val context: Context) {
                 sustainedDays    = (doc.getLong("sustained_days") ?: 0L).toInt(),
                 prototypeMatch   = doc.getString("prototype_match")   ?: "Normal",
                 matchMessage     = doc.getString("match_message")     ?: "",
-                prototypeConfidence = doc.getDouble("prototype_confidence")?.toFloat() ?: 0f,
+                prototypeConfidence = ((doc.getDouble("prototype_confidence") ?: 0.0) / 10.0).coerceIn(0.0, 1.0).toFloat(),
                 gateResults      = doc.getString("gate_results")      ?: "{}",
                 syncedToCloud    = true,
                 // L2 Digital DNA fields

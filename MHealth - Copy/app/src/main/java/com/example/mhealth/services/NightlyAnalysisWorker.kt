@@ -170,7 +170,7 @@ class NightlyAnalysisWorker(
                 alertLevel          = engineResult.alertLevel,
                 prototypeMatch      = engineResult.prototypeMatch,
                 matchMessage        = engineResult.matchMessage,
-                prototypeConfidence = engineResult.prototypeConfidence,
+                prototypeConfidence = (engineResult.prototypeConfidence / 10f).coerceIn(0f, 1f),
                 gateResults         = engineResult.gateResultsJson,
                 l2Modifier          = engineResult.l2Modifier,
                 coherence           = engineResult.coherence,
@@ -184,7 +184,6 @@ class NightlyAnalysisWorker(
             db.analysisResultDao().insert(resultEntity)
             Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
 
-            // ── 6b. Trigger immediate sync to Firestore ────────────────────────
             // Don't wait for the scheduled CloudSyncWorker - sync immediately after saving
             try {
                 val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
@@ -237,6 +236,21 @@ class NightlyAnalysisWorker(
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to persist profile: ${e.message}", e)
                 }
+            }
+
+            // ── 8. Trigger immediate sync to Firestore ────────────────────────
+            // Don't wait for the scheduled CloudSyncWorker - sync immediately after analysis
+            try {
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+                val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
+                WorkManager.getInstance(applicationContext).enqueue(syncWork)
+                Log.d(TAG, "Immediate sync triggered after analysis and DNA persistence")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue immediate sync: ${e.message}", e)
             }
 
             Log.i(TAG, "Nightly analysis complete for $targetDate")

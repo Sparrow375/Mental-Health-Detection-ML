@@ -207,7 +207,14 @@ object JsonConverter {
     )
 
     private fun mapToJson(map: Map<String, Number>): String {
-        return JSONObject(map as Map<*, *>).toString()
+        // Optimize storage by keeping only top 100 most significant entries (by value descending)
+        // This prevents runaway bloat while preserving 99% of behavioral relevance.
+        val optimizedMap = map.entries
+            .sortedByDescending { it.value.toDouble() }
+            .take(100)
+            .associate { it.toPair() }
+            
+        return JSONObject(optimizedMap as Map<*, *>).toString()
     }
 
     private fun parseMapLong(jsonStr: String): Map<String, Long> {

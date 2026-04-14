@@ -3,6 +3,8 @@ package com.example.mhealth.services
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
+import com.example.mhealth.logic.DataCollector
+import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.NotificationEventEntity
 import kotlinx.coroutines.CoroutineScope
@@ -90,6 +92,20 @@ class MHealthNotificationListenerService : NotificationListenerService() {
 
         activeNotifications[key] = record
         lastArrivalPerPackage[pkg] = record
+
+        // Push to DataRepository so DataCollector.logSessionsFromEvents can use it for trigger detection
+        DataRepository.setRecentNotificationTime(pkg, now)
+
+        // Persist ARRIVAL event to Room for notification DNA
+        val arrivalEntity = NotificationEventEntity(
+            event_id = UUID.randomUUID().toString(),
+            app_package = pkg,
+            arrival_timestamp = now,
+            action = "ARRIVAL",
+            tap_latency_min = null,
+            date = dateStr
+        )
+        persistEvent(arrivalEntity)
 
         Log.d(TAG, "Notification arrived: pkg=$pkg, key=$key")
     }
@@ -236,8 +252,11 @@ class MHealthNotificationListenerService : NotificationListenerService() {
             try {
                 val db = MHealthDatabase.getInstance(this@MHealthNotificationListenerService)
                 db.notificationEventDao().insert(entity)
+                // Diagnostic: log today's event count for verification
+                val todayCount = db.notificationEventDao().getByDate(entity.date).size
+                Log.d(TAG, "Persisted ${entity.action} event for ${entity.app_package} | Today's total: $todayCount events")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to persist notification event", e)
+                Log.e(TAG, "Failed to persist notification event: ${entity.action} for ${entity.app_package}", e)
             }
         }
     }

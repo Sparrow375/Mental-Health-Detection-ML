@@ -44,4 +44,8 @@ interface NotificationEventDao {
     /** Get distinct app packages in notification events since a given time. */
     @Query("SELECT DISTINCT app_package FROM notification_events WHERE arrival_timestamp >= :sinceEpochMs")
     suspend fun getDistinctPackagesSince(sinceEpochMs: Long): List<String>
+
+    /** Get all notification events (for Firebase sync). */
+    @Query("SELECT * FROM notification_events ORDER BY arrival_timestamp ASC")
+    suspend fun getAll(): List<NotificationEventEntity>
 }

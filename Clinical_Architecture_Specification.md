@@ -17,7 +17,7 @@ This document defines the professional clinical-grade architecture for the Menta
 2. **[Layer 2] Secure Transact & Edge-Execution Middleware:**
    - Synchronizes raw data extraction with the **Chaquopy Python Engine**. Driven by the `NightlyAnalysisWorker`, ensuring Python ML logic runs locally.
 3. **[Layer 3] Encrypted Datastore (Bottom):**
-   - An encrypted local **Android Room Database** (SQLite) manages zero-latency edge caching of Behavioral DNA and System 1/2 outputs.
+   - An encrypted local **Android Room Database** (SQLite) manages zero-latency edge caching of Adaptive Behavioral Signatures and System 1/2 outputs.
 4. **[Layer 4] Cloud Synchronization:**
    - Evaluated, secure, and privacy-stripped JSON inference results are synced to **Cloud Firestore** using `CloudSyncWorker` for the Clinician Dashboard.
 
@@ -25,15 +25,15 @@ This document defines the professional clinical-grade architecture for the Menta
 
 ### 2.B. Vertical Slices: The Functional ML Pipelines
 
-#### ❖ Vertical Slice 1: Behavioral DNA (Context Orchestration)
+#### ❖ Vertical Slice 1: Adaptive Behavioral Signatures (Context Orchestration)
 *Extracting physiological baseline routines.*
 - **Top (Sensing):** Ingests daily app-session heuristics.
-- **Middle (Processing - `dna_engine.py`):** Runs Unsupervised K-Means clustering to discover "Anchor Clusters" (e.g., Workdays, Weekends). Calculates *Context Coherence*, *Rhythm Integrity*, and *Session Incoherence* to dynamically understand behavioral shifts.
+- **Middle (Processing - `abs_engine.py`):** Runs Unsupervised K-Means clustering to discover "Baseline Clusters" (e.g., Workdays, Weekends). Calculates *Context Coherence*, *Rhythm Integrity*, and *Session Incoherence* to dynamically understand behavioral shifts.
 - **Output:** Passes an `l2_modifier` to dial the amplitude of Anomaly Scoring.
 
 #### ❖ Vertical Slice 2: System 1 (Anomaly Detection)
 *The mathematical core answering "Is something wrong?"*
-- **Middle (Processing - `system1.py`):** Evaluates the 29-feature vector against the DNA-anchored baseline. Combines *Z-Score Magnitude* with *EWMA Velocity*.
+- **Middle (Processing - `system1.py`):** Evaluates the 29-feature vector against the Signature-anchored baseline. Combines *Z-Score Magnitude* with *EWMA Velocity*.
 - **Output:** Features an exponential **Sustained Evidence Accumulator**. Brief deviations are ignored; sustained downward drifts trigger exponential alert scores.
 
 #### ❖ Vertical Slice 3: System 2 (Diagnostic Pipeline)
@@ -54,4 +54,4 @@ This document defines the professional clinical-grade architecture for the Menta
 ---
 
 ## 3. Visualization Prompts
-> *"A professional cloud computing matrix block diagram. Blue horizontal strata represent 'Sensing', 'Chaquopy Engine', 'Room DB', and 'Firestore'. Translucent vertical pillars cut through the strata labeled 'Behavioral DNA', 'System 1 Anomaly Array', 'System 2 Diagnostics', and 'Clinician CDSS Dashboard'. Sterile medical aesthetic. Minimalist."*
+> *"A professional cloud computing matrix block diagram. Blue horizontal strata represent 'Sensing', 'Chaquopy Engine', 'Room DB', and 'Firestore'. Translucent vertical pillars cut through the strata labeled 'Adaptive Behavioral Signatures (ABS)', 'System 1 Anomaly Array', 'System 2 Diagnostics', and 'Clinician CDSS Dashboard'. Sterile medical aesthetic. Minimalist."*

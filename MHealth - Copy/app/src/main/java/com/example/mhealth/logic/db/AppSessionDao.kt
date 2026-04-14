@@ -44,4 +44,8 @@ interface AppSessionDao {
     /** Get distinct app packages in the last N days. */
     @Query("SELECT DISTINCT app_package FROM app_sessions WHERE open_timestamp >= :sinceEpochMs")
     suspend fun getDistinctPackagesSince(sinceEpochMs: Long): List<String>
+
+    /** Get all sessions (for Firebase sync). */
+    @Query("SELECT * FROM app_sessions ORDER BY open_timestamp ASC")
+    suspend fun getAll(): List<AppSessionEntity>
 }

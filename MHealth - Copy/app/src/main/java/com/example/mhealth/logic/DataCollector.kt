@@ -32,6 +32,7 @@ import android.provider.Telephony
 import android.util.Log
 import com.example.mhealth.logic.db.AppSessionEntity
 import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.NotificationEventEntity
 import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
 import com.google.android.gms.location.LocationServices
@@ -475,12 +476,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
 
         // Pure raw-event iteration — 100% boundary accurate (same as Digital Wellbeing)
-        // Screen time is computed from FOREGROUND/BACKGROUND event PAIRS, NOT from
-        // queryUsageStats(INTERVAL_DAILY) which does not honour exact ms boundaries.
         val events = usm.queryEvents(startMs, endMs)
         val event  = UsageEvents.Event()
 
-        // FG/BG session tracking — the source of truth for screen time
+        // FG/BG session tracking
         val appFgStart    = mutableMapOf<String, Long>() // pkg → foreground start timestamp
         val finalAppMs    = mutableMapOf<String, Long>() // pkg → total foreground ms
         var totalScreenMs = 0L
@@ -506,10 +505,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 // ── App comes to foreground (1) ────────────────────────────────
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> {
                     if (!isExcluded(pkg)) {
-                        // Record foreground start for FG/BG session tracking
                         appFgStart[pkg] = ts
-
-                        // Launch counting: debounce — only a new launch if was in bg > 1.5s
                         val lastBg = lastBgAt[pkg] ?: 0L
                         if (lastBg == 0L || (ts - lastBg > 1500L)) {
                             launches++
@@ -532,9 +528,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 }
 
                 // ── Screen Unlock (18 = KEYGUARD_HIDDEN) ───────────────────────
-                18 -> {
-                    unlocks++
-                }
+                18 -> unlocks++
 
                 // ── Screen Turned ON (15 = SCREEN_INTERACTIVE) ─────────────────
                 15 -> {
@@ -563,38 +557,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
             }
         }
 
-        // ── Apps still in foreground at end of query window ───────────────────
-        for ((pkg, fgStart) in appFgStart) {
-            if (!isExcluded(pkg) && fgStart <= endMs) {
-                val duration = endMs - fgStart
-                finalAppMs[pkg] = (finalAppMs[pkg] ?: 0L) + duration
-                totalScreenMs  += duration
-            }
-        }
-
-        // ── Remaining screen-off time at end of window ────────────────────────
-        if (!screenIsOn) totalOffMs += endMs - screenOffAt
-
-        // ── Social ratio: fraction of screen time in social/messaging apps ─────
-        val pm = context.packageManager
+        // Calculate social interaction time
         val socialInteractionMs = finalAppMs.filterKeys { pkg ->
-            try {
-                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
-                } else {
-                    pm.getApplicationInfo(pkg, 0)
-                }
-                val isSocialCat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                    appInfo.category == ApplicationInfo.CATEGORY_SOCIAL
-                } else false
-                val lower = pkg.lowercase()
-                val isSocialName = lower.contains("facebook") || lower.contains("instagram") ||
-                                   lower.contains("whatsapp") || lower.contains("twitter") ||
-                                   lower.contains("snapchat") || lower.contains("tiktok") ||
-                                   lower.contains("messenger") || lower.contains("reddit") ||
-                                   lower.contains("telegram") || lower.contains("discord")
-                isSocialCat || isSocialName
-            } catch (e: Exception) { false }
+            isSocialApp(pkg)
         }.values.sum()
 
         val minutes = finalAppMs.mapValues { it.value / 60_000L }.filter { it.value > 0 }
@@ -605,7 +570,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             launchCount       = launches,
             socialRatio       = if (totalScreenMs > 0) socialInteractionMs.toFloat() / totalScreenMs else 0f,
             screenOffMs       = totalOffMs,
-            backgroundAudioMs = 0L, // Audio tracking moved to AudioManager.isMusicActive() in MonitoringService
+            backgroundAudioMs = 0L,
             appMinutes        = minutes,
             appLaunches       = appLaunches,
             notificationCount = notifications,
@@ -615,40 +580,71 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private val pm = context.packageManager
     private val labelCache = mutableMapOf<String, String>()
+    private val isExcludedCache = mutableMapOf<String, Boolean>()
 
     private fun isExcluded(pkg: String): Boolean {
         if (pkg.isBlank()) return true
+        
+        // Final result cache - avoids all string logic and label lookups after first hit
+        isExcludedCache[pkg]?.let { return it }
+
         val lower = pkg.lowercase()
 
         // 1. Exact matches (fastest) — captures standard system pkgs and known launchers
-        if (lower == "android" || lower in EXCLUDED_PACKAGES) return true
-
-        // 2. Keyword/Prefix matches (fast)
-        if (lower.contains("launcher") ||
+        val result = if (lower == "android" || lower in EXCLUDED_PACKAGES) {
+            true
+        } else if (lower.contains("launcher") ||
             lower.contains("systemui") ||
             lower.startsWith("com.android.providers") ||
             lower.startsWith("com.android.server") ||
             lower.startsWith("com.android.permission") ||
-            lower.contains("quicksearchbox")) return true
+            lower.contains("quicksearchbox")) {
+            // 2. Keyword/Prefix matches (fast)
+            true
+        } else {
+            // 3. Label-based Catch-all: fetches the display name (e.g. "Home", "System Launcher")
+            // Uses a cache to avoid expensive PackageManager calls in the event loop.
+            val label = labelCache[pkg] ?: try {
+                val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
+                } else {
+                    pm.getApplicationInfo(pkg, 0)
+                }
+                val l = pm.getApplicationLabel(info).toString().lowercase(Locale.ROOT).trim()
+                labelCache[pkg] = l
+                l
+            } catch (e: Exception) { "" }
 
-        // 3. Label-based Catch-all: fetches the display name (e.g. "Home", "System Launcher")
-        // Uses a cache to avoid expensive PackageManager calls in the event loop.
-        val label = labelCache[pkg] ?: try {
-            val info = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                pm.getApplicationInfo(pkg, PackageManager.ApplicationInfoFlags.of(0L))
-            } else {
-                pm.getApplicationInfo(pkg, 0)
-            }
-            val l = pm.getApplicationLabel(info).toString().lowercase(Locale.ROOT).trim()
-            labelCache[pkg] = l
-            l
-        } catch (e: Exception) { "" }
-
-        if (label == "home" || label == "launcher" || label == "system launcher" || label == "system home") {
-            return true
+            label == "home" || label == "launcher" || label == "system launcher" || label == "system home"
         }
 
-        return false
+        isExcludedCache[pkg] = result
+        return result
+    }
+
+    /**
+     * Identifies social media and communication apps for behavioral modeling.
+     * Combines official Android categories with common package name patterns.
+     */
+    private fun isSocialApp(pkg: String): Boolean {
+        return try {
+            val appInfo = pm.getApplicationInfo(pkg, 0)
+            val isSocialCat = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                appInfo.category == ApplicationInfo.CATEGORY_SOCIAL
+            } else false
+            
+            val lower = pkg.lowercase()
+            val isSocialName = lower.contains("facebook") || lower.contains("instagram") ||
+                               lower.contains("whatsapp") || lower.contains("twitter") ||
+                               lower.contains("snapchat") || lower.contains("tiktok") ||
+                               lower.contains("messenger") || lower.contains("reddit") ||
+                               lower.contains("telegram") || lower.contains("discord") ||
+                               lower.contains("linkedin") || lower.contains("tinder")
+                               
+            isSocialCat || isSocialName
+        } catch (e: Exception) {
+            false
+        }
     }
 
     // =========================================================================
@@ -961,7 +957,8 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 }
             }
 
-            homeRatio = (homeTimeMs.toFloat() / DAY_MS).coerceIn(0f, 1f)
+            val elapsedDayMs = (nowMs - startOfDayMs).coerceAtLeast(1L)
+            homeRatio = (homeTimeMs.toFloat() / elapsedDayMs).coerceIn(0f, 1f)
         } else {
             // Home location not set — fall back to cell with most time spent
             val maxCellMs = cellTimeMs.maxByOrNull { it.value }?.value?.toDouble() ?: 0.0
@@ -1326,6 +1323,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val appInteractionCount = mutableMapOf<String, Int>()
 
         val sessionsToInsert = mutableListOf<AppSessionEntity>()
+        val notifEventsToInsert = mutableListOf<NotificationEventEntity>()
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
@@ -1344,12 +1342,19 @@ class DataCollector(private val context: Context) : SensorEventListener {
                         val fgStart = appFgStart.remove(pkg)
                         val interactions = appInteractionCount.remove(pkg) ?: 1
                         if (fgStart != null && fgStart <= ts) {
-                            // Determine trigger
-                            val lastNotifTime = recentNotificationTimes[pkg] ?: 0L
+                            // Determine trigger: check both local map and DataRepository (NLS-sourced)
+                            val lastNotifTime = maxOf(
+                                recentNotificationTimes[pkg] ?: 0L,
+                                DataRepository.getRecentNotificationTime(pkg)
+                            )
                             val trigger = if (lastNotifTime > 0 && kotlin.math.abs(fgStart - lastNotifTime) <= 10_000L) {
                                 "NOTIFICATION"
                             } else {
                                 "SELF"
+                            }
+                            // Clear used notification time to prevent re-detection
+                            if (trigger == "NOTIFICATION") {
+                                DataRepository.clearRecentNotificationTime(pkg)
                             }
                             val dateStr = synchronized(dateFormat) {
                                 dateFormat.format(ts)
@@ -1365,6 +1370,20 @@ class DataCollector(private val context: Context) : SensorEventListener {
                                     date = dateStr
                                 )
                             )
+                            // Log TAP notification event when session was triggered by notification
+                            if (trigger == "NOTIFICATION") {
+                                val latencyMs = fgStart - lastNotifTime
+                                notifEventsToInsert.add(
+                                    NotificationEventEntity(
+                                        event_id = UUID.randomUUID().toString(),
+                                        app_package = pkg,
+                                        arrival_timestamp = lastNotifTime,
+                                        action = "TAP",
+                                        tap_latency_min = latencyMs / 60_000f,
+                                        date = dateStr
+                                    )
+                                )
+                            }
                         }
                     }
                 }
@@ -1374,10 +1393,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
                         appInteractionCount[pkg] = (appInteractionCount[pkg] ?: 1) + 1
                     }
                 }
-                // Track notification times for trigger detection
+                // Track notification times for trigger detection (both local + NLS via DataRepository)
                 12 -> { // NOTIFICATION_INTERRUPTION
                     if (!isExcluded(pkg)) {
                         recentNotificationTimes[pkg] = ts
+                        // Also push to shared DataRepository so NLS and DataCollector are in sync
+                        DataRepository.setRecentNotificationTime(pkg, ts)
                     }
                 }
             }
@@ -1391,6 +1412,19 @@ class DataCollector(private val context: Context) : SensorEventListener {
                     Log.d(TAG, "Logged ${sessionsToInsert.size} app sessions to Room")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to log sessions: ${e.message}")
+                }
+            }
+        }
+
+        // Insert notification TAP events asynchronously
+        if (notifEventsToInsert.isNotEmpty()) {
+            sessionScope.launch {
+                try {
+                    val notifDao = db.notificationEventDao()
+                    notifDao.insertAll(notifEventsToInsert)
+                    Log.d(TAG, "Logged ${notifEventsToInsert.size} notification TAP events to Room")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to log notification events: ${e.message}")
                 }
             }
         }

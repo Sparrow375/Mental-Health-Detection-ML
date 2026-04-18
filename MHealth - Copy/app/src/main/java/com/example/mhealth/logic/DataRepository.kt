@@ -68,6 +68,12 @@ object DataRepository {
         scope.launch {
             val count = db.dailyFeaturesDao().count(userId)
             _baselineProgress.value = count + 1
+
+            // DNA Progress: Count distinct days with app_sessions data (NOT daily_features).
+            // DNA baseline monitors behavioral session patterns, which are stored in app_sessions.
+            // Regular baseline uses daily_features count — these are SEPARATE thresholds.
+            val dnaDays = db.appSessionDao().countDistinctDays()
+            _dnaBaselineProgress.value = dnaDays
             
             val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
             _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
@@ -78,6 +84,10 @@ object DataRepository {
             if (dnaEntity != null) {
                 _s1ProfileJson.value = dnaEntity.dna_json
             }
+            
+            // Also check profile for dnaReady flag
+            val profile = db.userProfileDao().getProfile(userId)
+            _isDnaBaselineReady.value = profile?.dnaReady ?: false
         }
     }
 
@@ -99,7 +109,6 @@ object DataRepository {
         dailyDisplacementKm = dailyDisplacementKm,
         locationEntropy = locationEntropy,
         homeTimeRatio = homeTimeRatio,
-        placesVisited = placesVisited,
         wakeTimeHour = wakeTimeHour,
         sleepTimeHour = sleepTimeHour,
         sleepDurationHours = sleepDurationHours,
@@ -137,12 +146,26 @@ object DataRepository {
     val baseline: StateFlow<PersonalityVector?> = _baseline
 
     // Whether we are still in baseline-building phase
+    private val _isDnaAnalysing = MutableStateFlow(false)
+    val isDnaAnalysing: StateFlow<Boolean> = _isDnaAnalysing
+
+    fun setDnaAnalysing(analysing: Boolean) {
+        _isDnaAnalysing.value = analysing
+    }
+
     private val _isBuildingBaseline = MutableStateFlow(true)
     val isBuildingBaseline: StateFlow<Boolean> = _isBuildingBaseline
+
+    private val _isDnaBaselineReady = MutableStateFlow(false)
+    val isDnaBaselineReady: StateFlow<Boolean> = _isDnaBaselineReady
 
     // Number of days collected toward baseline
     private val _baselineProgress = MutableStateFlow(0)
     val baselineProgress: StateFlow<Int> = _baselineProgress
+
+    // DNA-specific baseline progress (Level 2)
+    private val _dnaBaselineProgress = MutableStateFlow(0)
+    val dnaBaselineProgress: StateFlow<Int> = _dnaBaselineProgress
 
     // Raw vectors collected so far during the baseline building phase
     private val _collectedBaselineVectors = MutableStateFlow<List<PersonalityVector>>(emptyList())
@@ -215,7 +238,7 @@ object DataRepository {
     val baselineDaysRequired: StateFlow<Int> = _baselineDaysRequired
 
     // DNA Baseline (Level 2) — separate from L1 baseline
-    private val _dnaBaselineDaysRequired = MutableStateFlow(14)
+    private val _dnaBaselineDaysRequired = MutableStateFlow(3)
     val dnaBaselineDaysRequired: StateFlow<Int> = _dnaBaselineDaysRequired
 
     private val _monitoringIntervalMinutes = MutableStateFlow(15L)
@@ -227,6 +250,9 @@ object DataRepository {
     private val _resetTrigger = MutableStateFlow(0)
     val resetTrigger: StateFlow<Int> = _resetTrigger
 
+    private val _dnaFinalizeTrigger = MutableStateFlow(0)
+    val dnaFinalizeTrigger: StateFlow<Int> = _dnaFinalizeTrigger
+
     // --- Persistence & Init ---
     
     fun init(context: Context) {
@@ -235,7 +261,7 @@ object DataRepository {
 
         // Dev Settings
         _baselineDaysRequired.value = prefs?.getInt("dev_baseline_days", 28) ?: 28
-        _dnaBaselineDaysRequired.value = prefs?.getInt("dev_dna_baseline_days", 14) ?: 14
+        _dnaBaselineDaysRequired.value = prefs?.getInt("dev_dna_baseline_days", 3) ?: 3
         _monitoringIntervalMinutes.value = prefs?.getLong("dev_monitoring_interval", 15L) ?: 15L
         
         // Restore Onboarding State
@@ -343,6 +369,10 @@ object DataRepository {
         _isBuildingBaseline.value = building
     }
 
+    fun setIsDnaBaselineReady(ready: Boolean) {
+        _isDnaBaselineReady.value = ready
+    }
+
     fun updateLatestVector(vector: PersonalityVector) {
         _latestVector.value = vector
     }
@@ -377,6 +407,36 @@ object DataRepository {
     fun updateBaselineProgress(days: Int) {
         _baselineProgress.value = days
     }
+
+    fun updateDnaBaselineProgress(days: Int) {
+        _dnaBaselineProgress.value = days
+    }
+
+    /**
+     * Re-query app_sessions to get the true DNA baseline progress.
+     * DNA baseline counts distinct calendar days with session data,
+     * NOT the daily_features count (which is the regular baseline).
+     */
+    fun refreshDnaBaselineProgress(context: Context) {
+        scope.launch {
+            try {
+                val db = MHealthDatabase.getInstance(context.applicationContext)
+                val dnaDays = db.appSessionDao().countDistinctDays()
+                _dnaBaselineProgress.value = dnaDays
+            } catch (e: Exception) {
+                // Silently fail — progress will update on next tick
+            }
+        }
+    }
+
+    fun triggerForceNewDay() {
+        _forceNewDayTrigger.value += 1
+    }
+
+    fun triggerDnaFinalize() {
+        _dnaFinalizeTrigger.value += 1
+    }
+
 
     fun updateCollectedBaselineVectors(vectors: List<PersonalityVector>) {
         _collectedBaselineVectors.value = vectors.toList()

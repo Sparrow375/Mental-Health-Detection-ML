@@ -200,7 +200,7 @@ class AuthManager(private val context: Context) {
                         dailyDisplacementKm = doc.getDouble("dailyDisplacementKm")?.toFloat() ?: 0f,
                         locationEntropy = doc.getDouble("locationEntropy")?.toFloat() ?: 0f,
                         homeTimeRatio = doc.getDouble("homeTimeRatio")?.toFloat() ?: 0f,
-                        placesVisited = doc.getDouble("placesVisited")?.toFloat() ?: 0f,
+                        placesVisited = 0f,  // Deprecated — no longer tracked
                         wakeTimeHour = doc.getDouble("wakeTimeHour")?.toFloat() ?: 0f,
                         sleepTimeHour = doc.getDouble("sleepTimeHour")?.toFloat() ?: 0f,
                         sleepDurationHours = doc.getDouble("sleepDurationHours")?.toFloat() ?: 0f,

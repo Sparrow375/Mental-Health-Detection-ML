@@ -264,7 +264,7 @@ class MonitoringService : Service() {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
         try {
             val db = MHealthDatabase.getInstance(this@MonitoringService)
-            val profile = db.userProfileDao().get(userId)
+            val profile = db.userProfileDao().getProfile(userId)
 
             if (profile?.baselineReady == true) {
                 val baselineEntities = db.baselineDao().getBaseline(userId)
@@ -284,7 +284,6 @@ class MonitoringService : Service() {
                         dailyDisplacementKm = baselineFields["dailyDisplacementKm"] ?: 0f,
                         locationEntropy = baselineFields["locationEntropy"] ?: 0f,
                         homeTimeRatio = baselineFields["homeTimeRatio"] ?: 0f,
-                        placesVisited = baselineFields["placesVisited"] ?: 0f,
                         wakeTimeHour = baselineFields["wakeTimeHour"] ?: 0f,
                         sleepTimeHour = baselineFields["sleepTimeHour"] ?: 0f,
                         sleepDurationHours = baselineFields["sleepDurationHours"] ?: 0f,
@@ -444,6 +443,34 @@ class MonitoringService : Service() {
             }
         }
 
+        // Manual DNA Finalize trigger
+        serviceScope.launch {
+            DataRepository.dnaFinalizeTrigger.collect { triggers ->
+                if (triggers > 0) {
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val now = Date()
+                    val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
+                    val todayStr = dateFmt.format(now)
+                    
+                    Log.i("MHealth.Service", "Manual DNA Finalize Clicked. triggers=$triggers, userId=$userId")
+                    Log.i("MHealth.Service", "Force-saving snapshot for Day $todayDoy ($todayStr) to ensure worker has data.")
+                    
+                    // 1. Collect current data and save as a formal row for TODAY
+                    // This ensures the NightlyAnalysisWorker finds a row to analyze even if midnight hasn't passed.
+                    val currentSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
+                    
+                    // SUSPEND and wait for save to complete before spawning worker
+                    persistDailySnapshot(currentSnapshot, todayDoy, isSimulated = true)
+                    
+                    Log.i("MHealth.Service", "Snapshot persisted synchronously. Spawning NightlyAnalysisWorker for $todayStr...")
+                    
+                    // 2. Trigger the nightly worker to run NOW for TODAY's date
+                    DataRepository.setDnaAnalysing(true)
+                    NightlyAnalysisWorker.runNow(this@MonitoringService, userId, todayStr)
+                }
+            }
+        }
+
         // dev force reset trigger listener
         serviceScope.launch {
             DataRepository.resetTrigger.collect { triggers ->
@@ -581,6 +608,22 @@ class MonitoringService : Service() {
             // Level 2 Digital DNA: Log session events from UsageEvents for behavioral DNA
             dataCollector.logSessionsFromEvents(dataCollector.getStartOfDayMs(), System.currentTimeMillis())
 
+            // REAL-TIME PERSISTENCE: Upsert current day's features to Room every 5th tick.
+            // This ensures the database always has a fresh in-progress snapshot for the day,
+            // enabling continuous updates and surviving app restarts.
+            if (collectionTickCount % 5 == 0) {
+                try {
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val todayStr = dateFmt.format(Date())
+                    val entity = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, false)
+                    MHealthDatabase.getInstance(this@MonitoringService)
+                        .dailyFeaturesDao().upsertByDate(entity)
+                    Log.d("MHealth.Service", "Real-time daily snapshot upserted for $todayStr (tick #$collectionTickCount)")
+                } catch (e: Exception) {
+                    Log.w("MHealth.Service", "Failed to upsert daily snapshot: ${e.message}")
+                }
+            }
+
             // 2) Provisional Analysis (Live Score)
             if (!DataRepository.isBuildingBaseline.value && detector != null) {
                 val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1, isProvisional = true)
@@ -621,7 +664,10 @@ class MonitoringService : Service() {
                 // Regular tick within the same day
                 val target = DataRepository.baselineDaysRequired.value
                 // Progress is saved days + 1 (current day)
-                DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
+                val currentProg = collectedDailyVectors.size + 1
+                DataRepository.updateBaselineProgress(currentProg)
+                // DNA progress is tracked separately via app_sessions distinct days
+                DataRepository.refreshDnaBaselineProgress(this@MonitoringService)
                 
                 if (DataRepository.isBuildingBaseline.value) {
                     checkAndFinalizeBaseline(target)
@@ -632,13 +678,16 @@ class MonitoringService : Service() {
         }
     }
 
-    private fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
+    private suspend fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
         val targetBaselineDays = DataRepository.baselineDaysRequired.value
         if (today != savedDay && savedDay != -1) {
             // Only add the vector if we still need more days for the baseline
             if (collectedDailyVectors.size < targetBaselineDays) {
                 collectedDailyVectors.add(snapshot)
-                DataRepository.updateBaselineProgress(collectedDailyVectors.size)
+                val prog = collectedDailyVectors.size
+                DataRepository.updateBaselineProgress(prog)
+                // DNA progress is tracked separately via app_sessions distinct days
+                DataRepository.refreshDnaBaselineProgress(this@MonitoringService)
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
                 // Persist end-of-day snapshot to Room
@@ -686,7 +735,7 @@ class MonitoringService : Service() {
         }
     }
 
-    private fun handleAnomalyDetection(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
+    private suspend fun handleAnomalyDetection(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
         val report = detector?.analyze(snapshot, DataRepository.reports.value.size + 1)
         report?.let {
             if (today != savedDay && savedDay != -1) {
@@ -706,18 +755,15 @@ class MonitoringService : Service() {
 
     // ── Room persistence helpers ──────────────────────────────────────────────
 
-    private fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int, isSimulated: Boolean) {
+    private suspend fun persistDailySnapshot(snapshot: PersonalityVector, dayOfYear: Int, isSimulated: Boolean) {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
 
         // FIX 3: Safe year-boundary-proof date computation.
-        // set(DAY_OF_YEAR, x) is wrong on Jan 1 when dayOfYear refers to the previous Dec 31.
-        // Instead, compute how many days ago dayOfYear was and subtract that many days from today.
         val nowCal   = Calendar.getInstance()
         val todayDoy = nowCal.get(Calendar.DAY_OF_YEAR)
         val daysAgo  = if (todayDoy >= dayOfYear) {
             todayDoy - dayOfYear
         } else {
-            // dayOfYear is from the previous year (e.g., recording wraps Dec->Jan)
             val prevYearCal      = Calendar.getInstance().apply { set(Calendar.YEAR, nowCal.get(Calendar.YEAR) - 1) }
             val daysInPrevYear   = prevYearCal.getActualMaximum(Calendar.DAY_OF_YEAR)
             daysInPrevYear - dayOfYear + todayDoy
@@ -726,16 +772,14 @@ class MonitoringService : Service() {
         val dateStr = dateFmt.format(cal.time)
 
         val entity = JsonConverter.fromPersonalityVector(userId, dateStr, snapshot, isSimulated)
-        serviceScope.launch {
-            try {
-                MHealthDatabase.getInstance(this@MonitoringService)
-                    .dailyFeaturesDao().insert(entity)
+        try {
+            MHealthDatabase.getInstance(this@MonitoringService)
+                .dailyFeaturesDao().insert(entity)
 
-                // Automatically push un-synced data to Firebase database
-                syncUnstagedDailyFeaturesToFirebase()
-            } catch (e: Exception) {
-                Log.e("MHealth.Service", "Error persisting daily snapshot", e)
-            }
+            // Automatically push un-synced data to Firebase database
+            syncUnstagedDailyFeaturesToFirebase()
+        } catch (e: Exception) {
+            Log.e("MHealth.Service", "Error persisting daily snapshot", e)
         }
     }
 
@@ -744,7 +788,7 @@ class MonitoringService : Service() {
      * Previously, only NightlyAnalysisWorker wrote to analysis_results table,
      * so days analyzed by MonitoringService had no anomaly scores in the export.
      */
-    private fun persistAnomalyResultToRoom(report: DailyReport, dayOfYear: Int, isSimulated: Boolean) {
+    private suspend fun persistAnomalyResultToRoom(report: DailyReport, dayOfYear: Int, isSimulated: Boolean) {
         val nowCal   = Calendar.getInstance()
         val todayDoy = nowCal.get(Calendar.DAY_OF_YEAR)
         val daysAgo  = if (todayDoy >= dayOfYear) {
@@ -759,18 +803,17 @@ class MonitoringService : Service() {
         persistAnomalyResultToRoom(report, dateStr, isSimulated)
     }
 
-    private fun persistAnomalyResultToRoom(report: DailyReport, dateStr: String, isSimulated: Boolean) {
+    private suspend fun persistAnomalyResultToRoom(report: DailyReport, dateStr: String, isSimulated: Boolean) {
         val userId = DataRepository.userProfile.value?.email ?: "default_user"
 
-        serviceScope.launch {
-            try {
-                val db = MHealthDatabase.getInstance(this@MonitoringService)
+        try {
+            val db = MHealthDatabase.getInstance(this@MonitoringService)
 
                 // Check if result already exists for this date (avoid duplicates)
                 val existing = db.analysisResultDao().getByDate(userId, dateStr)
                 if (existing != null) {
                     Log.w(TAG, "Anomaly result already exists for $dateStr, skipping duplicate")
-                    return@launch
+                    return
                 }
 
                 val resultEntity = AnalysisResultEntity(
@@ -787,10 +830,9 @@ class MonitoringService : Service() {
                     gateResults = "{}"
                 )
                 db.analysisResultDao().insert(resultEntity)
-                Log.i(TAG, "Anomaly result persisted for $dateStr: score=${report.anomalyScore}, level=${report.alertLevel}")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error persisting anomaly result to Room", e)
-            }
+            Log.i(TAG, "Anomaly result persisted for $dateStr: score=${report.anomalyScore}, level=${report.alertLevel}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error persisting anomaly result to Room", e)
         }
     }
 
@@ -922,7 +964,6 @@ class MonitoringService : Service() {
             dailyDisplacementKm = averages["dailyDisplacementKm"] ?: 0f,
             locationEntropy = averages["locationEntropy"] ?: 0f,
             homeTimeRatio = averages["homeTimeRatio"] ?: 0f,
-            placesVisited = averages["placesVisited"] ?: 0f,
             wakeTimeHour = averages["wakeTimeHour"] ?: 0f,
             sleepTimeHour = averages["sleepTimeHour"] ?: 0f,
             sleepDurationHours = averages["sleepDurationHours"] ?: 0f,
@@ -999,7 +1040,6 @@ class MonitoringService : Service() {
                     "dailyDisplacementKm" to entity.dailyDisplacementKm,
                     "locationEntropy" to entity.locationEntropy,
                     "homeTimeRatio" to entity.homeTimeRatio,
-                    "placesVisited" to entity.placesVisited,
                     "wakeTimeHour" to entity.wakeTimeHour,
                     "sleepTimeHour" to entity.sleepTimeHour,
                     "sleepDurationHours" to entity.sleepDurationHours,

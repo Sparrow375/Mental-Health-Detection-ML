@@ -113,7 +113,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "dailyDisplacementKm" to feature.dailyDisplacementKm,
                         "locationEntropy" to feature.locationEntropy,
                         "homeTimeRatio" to feature.homeTimeRatio,
-                        "placesVisited" to feature.placesVisited,
                         "wakeTimeHour" to feature.wakeTimeHour,
                         "sleepTimeHour" to feature.sleepTimeHour,
                         "sleepDurationHours" to feature.sleepDurationHours,

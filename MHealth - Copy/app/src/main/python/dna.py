@@ -127,8 +127,8 @@ class PersonDNA:
     promoted_clusters: List[PromotedCluster]
 
     # Baseline normalization stats (for build_daily_vector)
-    daily_vector_mean: np.ndarray = np.array([])
-    daily_vector_std: np.ndarray = np.array([])
+    daily_vector_mean: np.ndarray = field(default_factory=lambda: np.array([]))
+    daily_vector_std: np.ndarray = field(default_factory=lambda: np.array([]))
 
     def to_dict(self) -> dict:
         return {

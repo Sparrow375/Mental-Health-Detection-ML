@@ -24,7 +24,7 @@ import androidx.room.RoomDatabase
         PersonDnaEntity::class,
         NotificationEventEntity::class
     ],
-    version = 11,
+    version = 12,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -41,6 +41,12 @@ abstract class MHealthDatabase : RoomDatabase() {
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null
 
+        private val MIGRATION_11_12 = object : androidx.room.migration.Migration(11, 12) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE user_profile_db ADD COLUMN dnaReady INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+        
         private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE daily_features ADD COLUMN isSimulated INTEGER NOT NULL DEFAULT 0")
@@ -156,7 +162,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
                     )
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .fallbackToDestructiveMigration()

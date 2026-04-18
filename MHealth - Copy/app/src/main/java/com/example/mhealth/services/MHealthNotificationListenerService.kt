@@ -98,7 +98,7 @@ class MHealthNotificationListenerService : NotificationListenerService() {
 
         // Persist ARRIVAL event to Room for notification DNA
         val arrivalEntity = NotificationEventEntity(
-            event_id = UUID.randomUUID().toString(),
+            event_id = "notif_${pkg}_${now}_arrival",
             app_package = pkg,
             arrival_timestamp = now,
             action = "ARRIVAL",
@@ -126,10 +126,8 @@ class MHealthNotificationListenerService : NotificationListenerService() {
             // via the trigger=NOTIFICATION mechanism in DataCollector.
             // We still log the dismiss for the ignore/dismiss rate computation.
             val now = System.currentTimeMillis()
-            val eventId = UUID.randomUUID().toString()
-
             val entity = NotificationEventEntity(
-                event_id = eventId,
+                event_id = "notif_${record.appPackage}_${record.arrivalTimestampMs}_dismiss",
                 app_package = record.appPackage,
                 arrival_timestamp = record.arrivalTimestampMs,
                 action = "DISMISS",
@@ -174,7 +172,7 @@ class MHealthNotificationListenerService : NotificationListenerService() {
                     val age = now - record.arrivalTimestampMs
                     if (age >= fourHoursMs) {
                         val entity = NotificationEventEntity(
-                            event_id = UUID.randomUUID().toString(),
+                            event_id = "notif_${record.appPackage}_${record.arrivalTimestampMs}_ignore",
                             app_package = record.appPackage,
                             arrival_timestamp = record.arrivalTimestampMs,
                             action = "IGNORE",
@@ -210,9 +208,8 @@ class MHealthNotificationListenerService : NotificationListenerService() {
             // Remove from active notifications to prevent DISMISS logging
             activeNotifications.remove(record.key)
 
-            val eventId = UUID.randomUUID().toString()
             val entity = NotificationEventEntity(
-                event_id = eventId,
+                event_id = "notif_${appPackage}_${record.arrivalTimestampMs}_tap",
                 app_package = appPackage,
                 arrival_timestamp = record.arrivalTimestampMs,
                 action = "TAP",
@@ -225,9 +222,8 @@ class MHealthNotificationListenerService : NotificationListenerService() {
         } else {
             // No tracked arrival for this package — still log a TAP without latency
             val dateStr = dateFmt.format(Date(now))
-            val eventId = UUID.randomUUID().toString()
             val entity = NotificationEventEntity(
-                event_id = eventId,
+                event_id = "notif_${appPackage}_${now}_tap",
                 app_package = appPackage,
                 arrival_timestamp = now,
                 action = "TAP",

@@ -16,8 +16,8 @@ import androidx.room.Entity
 data class BaselineEntity(
     val userId: String,
     val featureName: String,
-    val baselineValue: Float,      // mean over 28 days
-    val stdDeviation: Float,       // std over 28 days
+    val baselineValue: Float,      // mean over baseline period
+    val stdDeviation: Float,       // std over baseline period
     val baselineStart: String,     // "YYYY-MM-DD"
     val baselineEnd: String,       // "YYYY-MM-DD"
     val isContaminated: Boolean = false,

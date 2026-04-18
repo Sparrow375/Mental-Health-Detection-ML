@@ -130,6 +130,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.Date
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -938,7 +941,7 @@ fun HomeScreen() {
                     Spacer(Modifier.height(16.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         ArcProgressRing(v.notificationsToday, 200f, AlertOrange, "Notifs", "")
-                        ArcProgressRing(v.placesVisited, 10f, ChartPurple, "Places Vis.", "")
+                        ArcProgressRing(v.dailySteps, 10000f, ChartPurple, "Steps", "")
                         // socialAppRatio is 0–1 fraction — multiply by 100 for % display
                         ArcProgressRing(v.socialAppRatio * 100f, 100f, ChartGreen, "Social", "%")
                     }
@@ -955,7 +958,7 @@ fun HomeScreen() {
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📍 Places", "${v.placesVisited.toInt()}", ChartPurple)
+                        MetricPill("📍 Steps", "${v.dailySteps.toInt()}", ChartPurple)
                         MetricPill("🔀 Entropy", "%.2f".format(v.locationEntropy), AlertOrange)
                     }
                 }
@@ -1079,198 +1082,6 @@ fun HomeScreen() {
                 }
             }
 
-            // ── Phone DNA — Today's Device Fingerprint ──────────────────────────
-            item {
-                val context2 = LocalContext.current
-                val dnaComputer = remember { com.example.mhealth.logic.AppDnaComputer(context2) }
-                val phoneDna by produceState<com.example.mhealth.logic.AppDnaComputer.TodayPhoneDna?>(
-                    initialValue = null,
-                    key1 = v
-                ) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        value = try { dnaComputer.computeTodayPhoneDna() } catch (_: Exception) { null }
-                    }
-                }
-
-                InfoCard("Phone DNA — Today", headerColor = MhealthIndigo) {
-                    if (phoneDna == null) {
-                        Box(Modifier.fillMaxWidth().height(80.dp), contentAlignment = Alignment.Center) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                CircularProgressIndicator(color = MhealthIndigo, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Computing DNA…", fontSize = 12.sp, color = TextSecondary)
-                            }
-                        }
-                    } else {
-                        val pd = phoneDna!!
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            // Active Window
-                            Text("📱 Activity Window", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("First Pickup", pd.firstPickupHour?.let { "%.0f:%02d".format(it, ((it % 1) * 60).toInt()) } ?: "—", OceanBlue)
-                                MetricPill("Active Window", pd.activeWindowHours?.let { "%.1fh".format(it) } ?: "—", SoftCyan)
-                                MetricPill("Unique Apps", "${pd.uniqueAppsUsed}", ChartPurple)
-                            }
-
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-
-                            // Session Distribution
-                            Text("⏱ Session Distribution", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("< 2m", "%.0f%%".format(pd.microSessionPct), ChartRed.copy(0.8f))
-                                MetricPill("2–15m", "%.0f%%".format(pd.shortSessionPct), AlertOrange)
-                                MetricPill("15–30m", "%.0f%%".format(pd.mediumSessionPct), AlertYellow)
-                                MetricPill("30–60m", "%.0f%%".format(pd.deepSessionPct), ChartGreen)
-                                MetricPill("60m+", "%.0f%%".format(pd.marathonSessionPct), ChartPurple)
-                            }
-
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-
-                            // Trigger DNA
-                            Text("🎯 Trigger DNA", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("Self-Open", "%.0f%%".format(pd.selfOpenPct), OceanBlue)
-                                MetricPill("Notif-Open", "%.0f%%".format(pd.notificationOpenPct), AlertOrange)
-                                MetricPill("Total Sess.", "${pd.totalSessions}", ChartBlue)
-                            }
-
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-
-                            // Notification Reflexes
-                            Text("🔔 Notification Reflexes", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("Tap Rate", "%.0f%%".format(pd.notificationTapRate * 100), ChartGreen)
-                                MetricPill("Dismiss", "%.0f%%".format(pd.notificationDismissRate * 100), ChartRed)
-                                MetricPill("Ignore", "%.0f%%".format(pd.notificationIgnoreRate * 100), AlertOrange)
-                            }
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("Arrivals", "${pd.totalNotifications}", MhealthIndigo)
-                                MetricPill("Screen", "%.1fh".format(pd.totalScreenTimeHours), OceanBlue)
-                                if (pd.topAppPackage != null) {
-                                    val topLabel = try {
-                                        context2.packageManager.getApplicationLabel(
-                                            context2.packageManager.getApplicationInfo(pd.topAppPackage, 0)
-                                        ).toString()
-                                    } catch (_: Exception) { pd.topAppPackage.substringAfterLast(".") }
-                                    MetricPill("Top App", topLabel, ChartPurple)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ── App DNA — Per-App Behavioral Fingerprints ─────────────────────────
-            item {
-                val context3 = LocalContext.current
-                val dnaComputer2 = remember { com.example.mhealth.logic.AppDnaComputer(context3) }
-                val appDnaList by produceState<List<com.example.mhealth.logic.AppDnaComputer.TodayAppDna>>(
-                    initialValue = emptyList(),
-                    key1 = v
-                ) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        value = try { dnaComputer2.computeTodayAppDnaList() } catch (_: Exception) { emptyList() }
-                    }
-                }
-
-                var expandedApp by remember { mutableStateOf<String?>(null) }
-
-                InfoCard("App DNA — Per App", headerColor = ChartPurple) {
-                    if (appDnaList.isEmpty()) {
-                        Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {
-                            Text("No app sessions recorded today", fontSize = 12.sp, color = TextSecondary)
-                        }
-                    } else {
-                        // Header row
-                        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                            Text("App", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
-                            Text("Time", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
-                            Text("Sessions", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                            Spacer(Modifier.weight(0.5f))
-                        }
-                        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
-
-                        appDnaList.forEach { app ->
-                            val isExpanded = expandedApp == app.appPackage
-                            val hrs = app.totalScreenTimeMinutes / 60
-                            val mins = app.totalScreenTimeMinutes % 60
-                            val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
-
-                            // App row (clickable)
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .clickable {
-                                        expandedApp = if (isExpanded) null else app.appPackage
-                                    }
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    app.appLabel, fontSize = 12.sp, color = TextPrimary,
-                                    modifier = Modifier.weight(2.5f),
-                                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                                )
-                                Text(timeStr, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.2f))
-                                Text("${app.sessionCount}", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                                Icon(
-                                    if (isExpanded) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                                    contentDescription = if (isExpanded) "Collapse" else "Expand",
-                                    modifier = Modifier.size(14.dp).weight(0.5f),
-                                    tint = TextSecondary
-                                )
-                            }
-
-                            // Expanded detail view — App DNA metrics
-                            AnimatedVisibility(
-                                visible = isExpanded,
-                                enter = expandVertically() + fadeIn(),
-                                exit = shrinkVertically() + fadeOut()
-                            ) {
-                                Card(
-                                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                                    shape = RoundedCornerShape(12.dp)
-                                ) {
-                                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                                        Text("🧬 ${app.appLabel} DNA", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = ChartPurple)
-
-                                        // Time window
-                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                            MetricPill("Time Range", app.primaryTimeRange, OceanBlue)
-                                            MetricPill("Avg Session", "%.1fm".format(app.avgSessionMinutes), SoftCyan)
-                                        }
-                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                            MetricPill("Min Session", "%.1fm".format(app.minSessionMinutes), ChartGreen)
-                                            MetricPill("Max Session", "%.1fm".format(app.maxSessionMinutes), ChartRed)
-                                        }
-
-                                        HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-
-                                        // Trigger DNA
-                                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                            MetricPill("Self-Open", "%.0f%%".format(app.selfOpenRatio * 100), OceanBlue)
-                                            MetricPill("Notif-Open", "%.0f%%".format(app.notificationOpenRatio * 100), AlertOrange)
-                                        }
-
-                                        // Notifications for this app
-                                        if (app.notificationCount > 0) {
-                                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-                                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                                MetricPill("🔔 Notifs", "${app.notificationCount}", MhealthIndigo)
-                                                MetricPill("Tapped", "${app.notificationTapCount}", ChartGreen)
-                                                MetricPill("Tap Latency", app.avgTapLatencyMinutes?.let { "%.1fm".format(it) } ?: "—", ChartBlue)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
-                        }
-                    }
-                }
-            }
-
             // System stats row
             item {
                 InfoCard("System", headerColor = ChartBlue) {
@@ -1377,7 +1188,6 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "dailyDisplacementKm" to Pair("Displacement",          "km"),
     "locationEntropy"      to Pair("Location Entropy",     ""),
     "homeTimeRatio"        to Pair("Home Time Ratio",      "%"),
-    "placesVisited"        to Pair("Places Visited",       ""),
     "wakeTimeHour"         to Pair("Wake Time",            "hr"),
     "sleepTimeHour"        to Pair("Sleep Time",           "hr"),
     "sleepDurationHours"   to Pair("Sleep Duration",       "hrs"),
@@ -1606,7 +1416,11 @@ fun AnalysisScreen() {
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
     val baseline by DataRepository.baseline.collectAsState()
     val vector by DataRepository.latestVector.collectAsState()
-    val last = reports.lastOrNull()
+    
+    // Filter out today's data
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val filteredReports = reports.filter { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.date) != todayStr }
+    val last = filteredReports.lastOrNull()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -1628,7 +1442,7 @@ fun AnalysisScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(32.dp), color = SoftCyan)
                         Spacer(Modifier.width(12.dp))
-                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after 28 days.", color = TextSecondary, fontSize = 12.sp)
+                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after ${DataRepository.baselineDaysRequired.collectAsState().value} days.", color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -1686,7 +1500,9 @@ fun AnalysisScreen() {
             if (baseline != null && vector != null) {
                 item {
                     // Read the latest classification result for the prototype overlay
-                    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+                    val latestResultState by DataRepository.latestAnalysisResult.collectAsState()
+                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                    val latestResult = if (latestResultState?.date == todayStr) null else latestResultState
 
                     // Hardcoded Frame-2 z-scores for the 6 radar features per disorder.
                     // Mirrors DISORDER_PROTOTYPES_FRAME2 in config.py (screen_time_hours,
@@ -1748,7 +1564,6 @@ fun AnalysisScreen() {
                             normalizeDev(v.dailyDisplacementKm, b.dailyDisplacementKm),
                             normalizeDev(v.locationEntropy, b.locationEntropy),
                             normalizeDev(v.homeTimeRatio, b.homeTimeRatio),
-                            normalizeDev(v.placesVisited, b.placesVisited),
                             normalizeDev(v.wakeTimeHour, b.wakeTimeHour),
                             normalizeDev(v.sleepTimeHour, b.sleepTimeHour),
                             normalizeDev(v.sleepDurationHours, b.sleepDurationHours),
@@ -1852,7 +1667,9 @@ fun AnalysisScreen() {
 
             // Prototype Match Card (Room-backed, updates after NightlyWorker runs)
             item {
-                val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+                val latestResultState by DataRepository.latestAnalysisResult.collectAsState()
+                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val latestResult = if (latestResultState?.date == todayStr) null else latestResultState
                 InfoCard("Prototype Classification", headerColor = ChartPurple) {
                     val result = latestResult
                     if (result == null) {
@@ -1965,7 +1782,12 @@ fun InsightsScreen() {
     val reports by DataRepository.reports.collectAsState()
     val moodScore by DataRepository.moodScore.collectAsState()
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-    val last = reports.lastOrNull()
+
+    // Filter out today's data so it only appears "tomorrow"
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val filteredReports = reports.filter { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.date) != todayStr }
+    
+    val last = filteredReports.lastOrNull()
     val alertLvl = last?.alertLevel ?: "green"
     val aColor = alertColor(alertLvl)
 
@@ -2027,10 +1849,10 @@ fun InsightsScreen() {
         }
 
         // Alert history timeline
-        if (reports.size > 1) {
+        if (filteredReports.size > 1) {
             item {
                 InfoCard("Alert History", headerColor = ChartBlue) {
-                    reports.takeLast(10).reversed().forEach { report ->
+                    filteredReports.takeLast(10).reversed().forEach { report ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(report.alertLevel)))
                             Spacer(Modifier.width(10.dp))
@@ -2072,7 +1894,11 @@ fun InsightsScreen() {
     val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
     val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
     val analysisHistory by DataRepository.analysisHistory.collectAsState()
-            val history by DataRepository.analysisHistory.collectAsState()
+            
+            // Filter historical list to exclude today's provisional result
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+            val filteredHistory = analysisHistory.filter { it.date != todayStr }
+            
             var selectedResult by remember { mutableStateOf<com.example.mhealth.logic.db.AnalysisResultEntity?>(null) }
             var selectedFeatures by remember { mutableStateOf<com.example.mhealth.logic.db.DailyFeaturesEntity?>(null) }
 
@@ -2084,10 +1910,10 @@ fun InsightsScreen() {
                 selectedFeatures = db.dailyFeaturesDao().getByDate(userId, res.date)
             }
 
-            if (history.isNotEmpty()) {
+            if (filteredHistory.isNotEmpty()) {
                 InfoCard("Anomaly Score History", headerColor = ChartBlue) {
                     // Sparkline — chronological order (oldest left → newest right)
-                    val scores = history.reversed().map { it.anomalyScore }
+                    val scores = filteredHistory.reversed().map { it.anomalyScore }
                     SparklineChart(
                         values = scores,
                         color = ChartBlue,
@@ -2108,7 +1934,7 @@ fun InsightsScreen() {
                     Spacer(Modifier.height(4.dp))
 
                     // All 30 days (newest first) — each row clickable
-                    history.forEach { result ->
+                    filteredHistory.forEach { result ->
                         val dotColor = alertColor(result.alertLevel)
                         Row(
                             Modifier
@@ -2495,7 +2321,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
             val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
             val baselineRows = db.baselineDao().getBaseline(userId)
             val analysisReports = db.analysisResultDao().getAll(userId)
-            val profile = db.userProfileDao().get(userId)
+            val profile = db.userProfileDao().getProfile(userId)
             
             // 2. Construct Master JSON
             val masterJson = org.json.JSONObject()
@@ -2600,7 +2426,6 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("displacementKm",      liveVector.dailyDisplacementKm)
                     put("locationEntropy",     liveVector.locationEntropy)
                     put("homeTimeRatio",       liveVector.homeTimeRatio)
-                    put("placesVisited",       liveVector.placesVisited)
                     put("wakeTimeHour",        liveVector.wakeTimeHour)
                     put("sleepTimeHour",       liveVector.sleepTimeHour)
                     put("sleepDurationHours",  liveVector.sleepDurationHours)

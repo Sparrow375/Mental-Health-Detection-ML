@@ -42,3 +42,14 @@ val MhealthTheme       = MhealthIndigo      // Alias for primary theme color
 val TextPrimary   = Color(0xFF0F172A)   // Deep slate / navy
 val TextSecondary = Color(0xFF64748B)   // Slate gray
 val TextMuted     = Color(0xFF94A3B8)   // Lightest text
+
+// ── DNA Screen Colors (Shared) ──────────────────────────────────────────────
+val BgLight     = Color(0xFFF8FAFC)
+val CardLight   = Color(0xFFFFFFFF)
+val BorderLight = Color(0xFFE2E8F0)
+val AccentBlue  = Color(0xFF2563EB)
+val AccentGreen = Color(0xFF16A34A)
+val AccentOrange = Color(0xFFD97706)
+val AccentRed   = Color(0xFFDC2626)
+val AccentPurple = Color(0xFF7C3AED)
+val AccentCyan  = Color(0xFF0891B2)

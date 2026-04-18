@@ -433,11 +433,23 @@ def build_full_profile(
     Returns:
         Dict containing the full profile, serializable to JSON.
     """
+    print(f"  [ProfileBuilder] Starting build for {person_id}")
+    print(f"  [ProfileBuilder] Samples: {len(daily_features_list)} days, {len(sessions)} sessions")
+    
     personality_vector = build_personality_vector(daily_features_list)
+    print("  [ProfileBuilder] Personality vector built")
+    
     app_dna_profiles = build_app_dna_profiles(sessions)
+    print(f"  [ProfileBuilder] App DNA built: {len(app_dna_profiles)} apps")
+    
     phone_dna = build_phone_dna(daily_features_list, sessions)
+    print("  [ProfileBuilder] Phone DNA built")
+    
     anchor_clusters = build_anchor_clusters(daily_features_list)
+    print(f"  [ProfileBuilder] Anchor clusters built: {len(anchor_clusters)}")
+    
     texture_profiles = build_texture_profiles(daily_features_list, sessions)
+    print(f"  [ProfileBuilder] Texture profiles built: {len(texture_profiles)}")
 
     # Weighted feature importance (for UI display)
     feature_importance = {}

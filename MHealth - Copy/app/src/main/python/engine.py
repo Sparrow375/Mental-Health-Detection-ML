@@ -43,6 +43,9 @@ def run_analysis(json_string: str) -> str:
     """
     try:
         data = json.loads(json_string)
+        
+        print(f"  [Analysis] Starting run_analysis. userId={data.get('user_id')}, date={data.get('target_date')}")
+        print(f"  [Analysis] history_len={len(data.get('history', []))}, sessions_len={len(data.get('sessions', []))}")
 
         current      = data.get("current", {})
         baseline     = data.get("baseline", {})
@@ -94,10 +97,16 @@ def run_analysis(json_string: str) -> str:
         # Build DNA if sessions available and no DNA yet
         if dna is None and sessions_28day:
             try:
-                dna = build_person_dna(sessions_28day, person_id="user")
+                # Safety limit inside engine to prevent OOM
+                SAFE_LIMIT = 5000
+                process_sessions = sessions_28day[:SAFE_LIMIT]
+                print(f"  [L2] Building new DNA from {len(process_sessions)} sessions (Limit: {SAFE_LIMIT})")
+                
+                dna = build_person_dna(process_sessions, person_id="user")
                 print(f"  [L2] Built new PersonDNA: {len(dna.app_profiles)} apps, K={dna.anchor_k}")
             except Exception as e:
                 print(f"  [L2] Failed to build DNA: {e}")
+                traceback.print_exc()
 
         # Compute L2 metrics if DNA exists and today's sessions available
         if dna is not None and sessions_today:
@@ -222,18 +231,45 @@ def run_analysis(json_string: str) -> str:
         # ── Build System 1 Profile (DNA Baseline, Clusters, Texture) ───────────
         profile_data = None
         try:
-            # Combine current + history for profile building
-            all_daily = list(history) + [current]
+            # Inject date keys so build_anchor_clusters can label member_dates
+            # history is oldest-first; inject synthetic dates if not present
+            all_daily = []
+            for i, h in enumerate(history):
+                h_copy = dict(h)
+                if "date" not in h_copy:
+                    h_copy["date"] = f"day_{i}"
+                all_daily.append(h_copy)
+            cur_copy = dict(current)
+            if "date" not in cur_copy:
+                cur_copy["date"] = "today"
+            all_daily.append(cur_copy)
+
             profile_data = build_full_profile(
                 daily_features_list=all_daily,
                 sessions=sessions_28day,
                 person_id=data.get("user_id", "user"),
             )
-            print(f"  [Profile] Built profile: {profile_data['days_of_data']} days, "
-                  f"{len(profile_data.get('anchor_clusters', []))} clusters, "
-                  f"{len(profile_data.get('app_dna_profiles', {}))} apps")
+            print(f"  [Profile] Built profile success: {profile_data['days_of_data']} days")
+            print(f"  [Profile] Clusters: {len(profile_data.get('anchor_clusters', []))}")
+            print(f"  [Profile] Apps: {len(profile_data.get('app_dna_profiles', {}))}")
+            print(f"  [Profile] Texture archetypes: {len(profile_data.get('texture_profiles', []))}")
         except Exception as e:
-            print(f"  [Profile] Failed to build profile: {e}")
+            import traceback as _tb
+            print(f"  [Profile] Failed to build profile: {e}\n{_tb.format_exc()}")
+            # Always return a minimal valid profile so Kotlin saves it
+            profile_data = {
+                "person_id": data.get("user_id", "user"),
+                "profile_version": "1.0",
+                "days_of_data": len(history) + 1,
+                "build_error": str(e),
+                "personality_vector": {"means": {}, "variances": {}, "confidence": "LOW", "feature_count": 0},
+                "app_dna_profiles": {},
+                "phone_dna": {},
+                "anchor_clusters": [],
+                "texture_profiles": [],
+                "feature_importance": {},
+                "group_summaries": {},
+            }
 
         # ── Map to Kotlin JSON contract ────────────────────────────────────────
         result_dict = {

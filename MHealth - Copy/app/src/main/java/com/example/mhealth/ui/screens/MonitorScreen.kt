@@ -190,14 +190,14 @@ private fun IntradayTrendsCard(hourly: List<com.example.mhealth.models.Personali
             Text("Collecting hourly snapshots…", color = TextSecondary, fontSize = 12.sp)
         } else {
             val screenTimes = remember(hourly) { hourly.map { it.screenTimeHours } }
-            val places = remember(hourly) { hourly.map { it.placesVisited } }
             val distances = remember(hourly) { hourly.map { it.dailyDisplacementKm } }
+            val unlocks = remember(hourly) { hourly.map { it.unlockCount } }
             
             SparklineLabel("Screen Time (hrs)", screenTimes, OceanBlue)
             Spacer(Modifier.height(12.dp))
             SparklineLabel("Distance (km)", distances, ChartRed)
             Spacer(Modifier.height(12.dp))
-            SparklineLabel("Places Visited", places, ChartPurple)
+            SparklineLabel("Unlocks", unlocks, ChartPurple)
         }
     }
 }
@@ -211,7 +211,6 @@ private fun ComparisonCard(
         val rows = remember(vector, baseline) {
             listOf(
                 Triple("Screen Time", vector.screenTimeHours, baseline.screenTimeHours),
-                Triple("Places Visited", vector.placesVisited, baseline.placesVisited),
                 Triple("Calls/Day", vector.callsPerDay, baseline.callsPerDay),
                 Triple("Social Ratio %", vector.socialAppRatio * 100, baseline.socialAppRatio * 100),
                 Triple("Sleep Hours", vector.sleepDurationHours, baseline.sleepDurationHours),

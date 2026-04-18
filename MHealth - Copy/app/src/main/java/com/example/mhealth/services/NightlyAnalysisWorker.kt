@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit
  *
  * Pipeline:
  *   1. Query today's DailyFeaturesEntity from Room
- *   2. Check baseline readiness (28 days threshold)
+ *   2. Check baseline readiness (configurable threshold)
  *   3. Build JSON input via JsonConverter
  *   4. Call PythonEngine.runAnalysis()
  *   5. Store AnalysisResultEntity in Room
@@ -48,7 +48,9 @@ class NightlyAnalysisWorker(
     companion object {
         const val TAG          = "MHealth.NightlyWorker"
         const val KEY_USER_ID  = "user_id"
+        const val KEY_TARGET_DATE = "target_date"
         const val WORK_NAME    = "nightly_analysis"
+
 
         private val DATE_FMT   = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -81,6 +83,19 @@ class NightlyAnalysisWorker(
             Log.i(TAG, "Nightly analysis scheduled for user=$userId")
         }
 
+        fun runNow(context: Context, userId: String, targetDate: String? = null) {
+            val data = workDataOf(
+                KEY_USER_ID to userId,
+                KEY_TARGET_DATE to targetDate
+            )
+            val request = OneTimeWorkRequestBuilder<NightlyAnalysisWorker>()
+                .setInputData(data)
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
+            Log.i(TAG, "Manual analysis triggered for user=$userId date=$targetDate")
+        }
+
+
         private fun delayUntilMidnight(): Long {
             val now      = Calendar.getInstance()
             val midnight = Calendar.getInstance().apply {
@@ -102,11 +117,15 @@ class NightlyAnalysisWorker(
             return Result.failure()
         }
 
-        // The day that just ended is always "yesterday" when this worker fires at 00:05.
-        // persistDailySnapshot() stores data under yesterday's date string, so we must match it.
-        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-        val targetDate = DATE_FMT.format(yesterdayCal.time)
+        // Date selection: manual targetDate or default to "yesterday" (for nightly runs)
+        val manualDate = inputData.getString(KEY_TARGET_DATE)
+        val targetDate = manualDate ?: run {
+            val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+            DATE_FMT.format(yesterdayCal.time)
+        }
+        
         Log.i(TAG, "Running nightly analysis for user=$userId date=$targetDate")
+
 
         return try {
             // ── 1. Load today's features ───────────────────────────────────────
@@ -117,12 +136,20 @@ class NightlyAnalysisWorker(
             }
 
             // ── 2. Check baseline readiness ────────────────────────────────────
-            val profileEntity = db.userProfileDao().get(userId)
-            val baselineReady = profileEntity?.baselineReady ?: false
+            val profileEntity = db.userProfileDao().getProfile(userId)
+            val l1BaselineReady = profileEntity?.baselineReady ?: false
             val baselineEntities = db.baselineDao().getBaseline(userId)
+            
+            // Separate threshold for DNA (L2) building vs Anomaly (L1) detection
+            val daysCollected = db.dailyFeaturesDao().count(userId)
+            val dnaThreshold = DataRepository.dnaBaselineDaysRequired.value
+            
+            val dnaReady = daysCollected >= dnaThreshold
+            
+            Log.i(TAG, "DNA Progress Check: collected=$daysCollected, threshold=$dnaThreshold, dnaReady=$dnaReady, l1Ready=$l1BaselineReady")
 
-            if (!baselineReady || baselineEntities.isEmpty()) {
-                Log.i(TAG, "Baseline not ready yet — storing data only")
+            if (!dnaReady && !l1BaselineReady) {
+                Log.w(TAG, "Neither baseline nor DNA ready yet ($daysCollected/$dnaThreshold days) — aborting analysis")
                 return Result.success()
             }
 
@@ -137,8 +164,35 @@ class NightlyAnalysisWorker(
                 .map { it.anomalyScore }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
-            val dayNumber = DataRepository.reports.value.size + 1
-            val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
+            val dayNumber = daysCollected + 1
+
+            // Behavioral DNA (Level 2) Prep:
+            // Fetch sessions for today and the 28-day baseline window
+            val sessionsToday = db.appSessionDao().getByDate(targetDate)
+            
+            val cal = Calendar.getInstance().apply {
+                DATE_FMT.parse(targetDate)?.let { time = it }
+                add(Calendar.DAY_OF_YEAR, -28)
+            }
+            val startDateStr = DATE_FMT.format(cal.time)
+            // Fetch only top 3000 sessions to prevent memory bloat, then sort chronologically
+            val sessions28Day = db.appSessionDao().getByDateRangeLimited(startDateStr, targetDate, 3000)
+                .sortedBy { it.open_timestamp }
+            
+            // Fetch existing DNA profile to allow incremental updates/rolling clusters
+            val existingDna = db.personDnaDao().getByUserId(userId)
+            val dnaJson = existingDna?.dna_json
+
+            Log.i(TAG, "Analysis Prep (L1+L2): history=${history.size}, sessionsToday=${sessionsToday.size}, sessions28Day=${sessions28Day.size}, hasExistingDna=${dnaJson != null}")
+
+            val inputJson = JsonConverter.toEngineJson(
+                current         = todayFeatures,
+                baseline        = baselineEntities,
+                history         = history,
+                sessions        = sessions28Day,
+                sessionsToday   = sessionsToday,
+                dnaJson         = dnaJson
+            )
 
             // Inject day_number, gate_state, and historical anomaly scores
             val jsonWithMeta = injectMetadata(
@@ -216,7 +270,18 @@ class NightlyAnalysisWorker(
             DataRepository.addReport(dailyReport)
 
             // ── 7b. Persist System 1 Profile (DNA Baseline, Clusters, Texture) ──
-            if (engineResult.profileJson != "{}") {
+            val profileJson = engineResult.profileJson
+            Log.i(TAG, "Engine returned Profile JSON | Length: ${profileJson.length}")
+            if (profileJson.length > 2) {
+                Log.d(TAG, "Profile JSON Snippet: ${profileJson.take(200)}...")
+            }
+
+            // Save whenever the profile is a real JSON object (not "{}" or empty/null)
+            val hasProfile = profileJson.length > 2 &&
+                profileJson.trimStart().startsWith("{") &&
+                profileJson != "{}"
+            
+            if (hasProfile) {
                 try {
                     val existingDna = db.personDnaDao().getByUserId(userId)
                     val now = System.currentTimeMillis()
@@ -232,10 +297,21 @@ class NightlyAnalysisWorker(
                             )
                         )
                     }
+                    DataRepository.updateS1Profile(engineResult.profileJson)
                     Log.i(TAG, "System 1 profile persisted to person_dna for $userId")
+
+                    // Mark DNA as ready in the database if it isn't already
+                    val profile = db.userProfileDao().getProfile(userId)
+                    if (profile != null && !profile.dnaReady) {
+                        db.userProfileDao().updateDnaReady(userId, true)
+                        DataRepository.setIsDnaBaselineReady(true)
+                        Log.i(TAG, "DNA Baseline marked as READY for $userId")
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to persist profile: ${e.message}", e)
                 }
+            } else {
+                Log.w(TAG, "Profile JSON was empty or null — not saving to person_dna. profileJson='${engineResult.profileJson}'")
             }
 
             // ── 8. Trigger immediate sync to Firestore ────────────────────────
@@ -257,8 +333,10 @@ class NightlyAnalysisWorker(
             Result.success()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Nightly worker failed: ${e.message}", e)
+            Log.e(TAG, "Worker failed: ${e.message}", e)
             Result.retry()
+        } finally {
+            DataRepository.setDnaAnalysing(false)
         }
     }
 

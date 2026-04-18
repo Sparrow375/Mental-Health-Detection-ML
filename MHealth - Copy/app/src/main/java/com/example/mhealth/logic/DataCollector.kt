@@ -158,7 +158,6 @@ class DataCollector(private val context: Context) : SensorEventListener {
             dailyDisplacementKm  = locationData.displacementKm,
             locationEntropy      = locationData.entropy,
             homeTimeRatio        = locationData.homeRatio,
-            placesVisited        = locationData.placesCount.toFloat(),
 
             // Sleep proxy (from longest gap heuristics)
             wakeTimeHour         = sleepData.wakeTimeHour,
@@ -800,7 +799,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private data class LocationResult(
         val displacementKm: Float, val entropy: Float,
-        val homeRatio: Float, val placesCount: Int
+        val homeRatio: Float
     )
 
     private fun calculateLocationMetrics(
@@ -809,7 +808,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         nowMs: Long
     ): LocationResult {
         // We use the full snaps array (which reset at midnight anyway) for true polyline.
-        if (snaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
+        if (snaps.size < 2) return LocationResult(0f, 0f, 1f)
 
         // ── Displacement: cell-transition + speed filter ────────────────────────────────
         // 1. Cell deduplication eliminates GPS hover/drift (two fixes in same 11m cell = 0 distance).
@@ -822,7 +821,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         // STATIONARY=200m, WALKING=100m, VEHICLE=50m - tighter than before for better quality
         val accuracyThreshold = gpsStateManager.getCurrentAccuracyThreshold()
         val filteredSnaps = snaps.filter { it.accuracy <= accuracyThreshold }
-        if (filteredSnaps.size < 2) return LocationResult(0f, 0f, 1f, 1)
+        if (filteredSnaps.size < 2) return LocationResult(0f, 0f, 1f)
 
         // Sort chronologically so delta-time between consecutive fixes is always positive.
         val sortedSnaps = filteredSnaps.sortedBy { it.timeMs }
@@ -833,25 +832,41 @@ class DataCollector(private val context: Context) : SensorEventListener {
         var lastCellLon = 0.0
         var lastCellTimeMs = 0L
 
+        // GHOST DISPLACEMENT FIX: minimum 30m segment threshold.
+        // GPS jitter on stationary phones can cause tiny cell transitions
+        // (e.g. 10-20m) that accumulate into phantom displacement.
+        // Only count a segment if it exceeds 30m (0.03 km).
+        val MIN_SEGMENT_KM = 0.03  // 30 meters
+
         for (snap in sortedSnaps) {
             val cell = "${"%.4f".format(snap.lat)},${"%.4f".format(snap.lon)}"
             if (lastCell == null) {
                 // Anchor first cell — no distance to add yet
                 lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
             } else if (cell != lastCell) {
-                // New cell reached — compute haversine and add to total.
-                // Speed is computed for logcat ONLY (walk vs vehicle label).
-                // ALL movement counts — walking, driving, metro, everything.
+                // New cell reached — compute haversine.
                 val segmentKm    = haversine(lastCellLat, lastCellLon, snap.lat, snap.lon)
                 val timeDeltaSec = (snap.timeMs - lastCellTimeMs) / 1000.0
                 val speedMs      = if (timeDeltaSec > 0.0) (segmentKm * 1000.0) / timeDeltaSec else 0.0
                 val modeTag      = if (speedMs > WALK_SPEED_MS) "vehicle" else "walk"
 
-                distKm += segmentKm   // always count — total displacement includes all transport
-                Log.d(TAG, "GPS segment ($modeTag): %.3fkm at %.1fkm/h".format(segmentKm, speedMs * 3.6))
+                if (segmentKm >= MIN_SEGMENT_KM) {
+                    distKm += segmentKm   // only count if above noise floor
+                    Log.d(TAG, "GPS segment ($modeTag): %.3fkm at %.1fkm/h".format(segmentKm, speedMs * 3.6))
+                } else {
+                    Log.d(TAG, "GPS segment FILTERED (jitter): %.3fkm < %.3fkm threshold".format(segmentKm, MIN_SEGMENT_KM))
+                }
 
                 lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
             }
+        }
+
+        // MONOTONIC FIX: displacement should never decrease within a day.
+        // Clamp to at least the previously reported displacement value.
+        val prevDisplacement = DataRepository.latestVector.value?.dailyDisplacementKm ?: 0f
+        if (distKm.toFloat() < prevDisplacement && prevDisplacement > 0f) {
+            Log.d(TAG, "Displacement monotonic clamp: computed=%.3fkm < previous=%.3fkm, using previous".format(distKm, prevDisplacement))
+            distKm = prevDisplacement.toDouble()
         }
 
         // ── Time-weighted entropy (same logic as Home Time) ────────────────────
@@ -965,10 +980,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             homeRatio = if (totalTimeMs > 0.0) (maxCellMs / totalTimeMs).toFloat().coerceIn(0f, 1f) else 0f
         }
 
-        // placesVisited = distinct %.4f grid cells (~11m) where actual time was logged.
-        // Finer resolution means two rooms in the same building are counted separately.
-        val placesVisited = if (cellTimeMs.isNotEmpty()) cellTimeMs.size else (if (lastCell != null) 1 else 0)
-        return LocationResult(distKm.toFloat(), entropy, homeRatio, placesVisited)
+        return LocationResult(distKm.toFloat(), entropy, homeRatio)
     }
 
     private fun haversine(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
@@ -1359,9 +1371,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
                             val dateStr = synchronized(dateFormat) {
                                 dateFormat.format(ts)
                             }
+                            // Use deterministic ID to prevent duplicate insertion on every tick
+                            val deterministicId = "${pkg}_${fgStart}"
                             sessionsToInsert.add(
                                 AppSessionEntity(
-                                    session_id = UUID.randomUUID().toString(),
+                                    session_id = deterministicId,
                                     app_package = pkg,
                                     open_timestamp = fgStart,
                                     close_timestamp = ts,
@@ -1373,9 +1387,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
                             // Log TAP notification event when session was triggered by notification
                             if (trigger == "NOTIFICATION") {
                                 val latencyMs = fgStart - lastNotifTime
+                                // Use deterministic ID to prevent duplicate notification events
+                                val notifEventId = "tap_${pkg}_${lastNotifTime}"
                                 notifEventsToInsert.add(
                                     NotificationEventEntity(
-                                        event_id = UUID.randomUUID().toString(),
+                                        event_id = notifEventId,
                                         app_package = pkg,
                                         arrival_timestamp = lastNotifTime,
                                         action = "TAP",

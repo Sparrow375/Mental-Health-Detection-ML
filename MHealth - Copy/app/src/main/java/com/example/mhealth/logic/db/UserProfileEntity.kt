@@ -13,6 +13,7 @@ data class UserProfileEntity(
     val onboardingDate: String = "",          // "YYYY-MM-DD"
     val baselineReady: Boolean = false,
     val baselineDays: Int = 28,
+    val dnaReady: Boolean = false,
     val currentStatus: String = "Collecting", // "Collecting"|"Monitoring"|"Flagged"
     val baselineContaminated: Boolean = false,
     val updatedAt: Long = System.currentTimeMillis()

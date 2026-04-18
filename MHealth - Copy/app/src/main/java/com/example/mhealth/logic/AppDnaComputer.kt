@@ -62,7 +62,8 @@ class AppDnaComputer(private val context: Context) {
         val notificationDismissRate: Float,         // dismissed / total arrivals
         val notificationIgnoreRate: Float,          // ignored / total arrivals
         val uniqueAppsUsed: Int,                    // distinct apps with sessions today
-        val topAppPackage: String?                  // app with most screen time today
+        val topAppPackage: String?,                 // app with most screen time today
+        val nightChecks: Int                        // phone unlocks during estimated sleep window
     )
 
     /**
@@ -70,8 +71,13 @@ class AppDnaComputer(private val context: Context) {
      */
     suspend fun computeTodayPhoneDna(): TodayPhoneDna {
         val today = dateFmt.format(Date())
-        val sessions = db.appSessionDao().getByDate(today)
-        val notifications = db.notificationEventDao().getByDate(today)
+        // Deduplicate sessions by package and open time to handle old junk data
+        val sessionsRaw = db.appSessionDao().getByDate(today)
+        val sessions = sessionsRaw.distinctBy { "${it.app_package}_${it.open_timestamp}" }
+        
+        // Deduplicate notifications by package, arrival time, and action
+        val notificationsRaw = db.notificationEventDao().getByDate(today)
+        val notifications = notificationsRaw.distinctBy { "${it.app_package}_${it.arrival_timestamp}_${it.action}" }
 
         val totalSessions = sessions.size
         val totalScreenMs = sessions.sumOf { (it.close_timestamp - it.open_timestamp).coerceAtLeast(0) }
@@ -104,11 +110,15 @@ class AppDnaComputer(private val context: Context) {
         val notifOpenCount = sessions.count { it.trigger == "NOTIFICATION" }
 
         // Notification action breakdown
+        // Use arrivals as the base for rates
         val arrivals = notifications.count { it.action == "ARRIVAL" }
         val taps = notifications.count { it.action == "TAP" }
         val dismisses = notifications.count { it.action == "DISMISS" }
         val ignores = notifications.count { it.action == "IGNORE" }
-        val totalArrivals = arrivals.toFloat().coerceAtLeast(1f)
+        
+        // If arrivals is 0 (due to logging lag), but we have taps/dismisses, 
+        // fallback to max of (arrivals, taps + dismisses + ignores) for a more realistic rate
+        val totalArrivals = arrivals.coerceAtLeast(taps + dismisses + ignores).toFloat().coerceAtLeast(1f)
 
         // Unique apps
         val uniqueApps = sessions.map { it.app_package }.distinct().size
@@ -117,6 +127,24 @@ class AppDnaComputer(private val context: Context) {
         val appScreenTime = sessions.groupBy { it.app_package }
             .mapValues { (_, s) -> s.sumOf { (it.close_timestamp - it.open_timestamp).coerceAtLeast(0) } }
         val topApp = appScreenTime.maxByOrNull { it.value }?.key
+
+        // Night Checks: count sessions during sleep window
+        // Use the estimated sleep/wake from the latest vector, or default to 23:00-07:00
+        val latestVec = DataRepository.latestVector.value
+        val sleepHour = latestVec?.sleepTimeHour ?: 23f
+        val wakeHour = latestVec?.wakeTimeHour ?: 7f
+
+        val nightChecks = sessions.count { session ->
+            val sessionHour = hourOfDay(session.open_timestamp)
+            // Sleep window wraps around midnight (e.g. 23:00 → 07:00)
+            if (sleepHour > wakeHour) {
+                // e.g. sleep=23, wake=7: night is 23..24 or 0..7
+                sessionHour >= sleepHour || sessionHour < wakeHour
+            } else {
+                // e.g. sleep=1, wake=9: night is 1..9
+                sessionHour in sleepHour..wakeHour
+            }
+        }
 
         return TodayPhoneDna(
             totalSessions = totalSessions,
@@ -132,12 +160,13 @@ class AppDnaComputer(private val context: Context) {
             marathonSessionPct = marathonCount / total * 100f,
             selfOpenPct = selfCount / total * 100f,
             notificationOpenPct = notifOpenCount / total * 100f,
-            totalNotifications = arrivals,
-            notificationTapRate = taps / totalArrivals,
-            notificationDismissRate = dismisses / totalArrivals,
-            notificationIgnoreRate = ignores / totalArrivals,
+            totalNotifications = totalArrivals.toInt(),
+            notificationTapRate = (taps / totalArrivals).coerceIn(0f, 1f),
+            notificationDismissRate = (dismisses / totalArrivals).coerceIn(0f, 1f),
+            notificationIgnoreRate = (ignores / totalArrivals).coerceIn(0f, 1f),
             uniqueAppsUsed = uniqueApps,
-            topAppPackage = topApp
+            topAppPackage = topApp,
+            nightChecks = nightChecks
         )
     }
 
@@ -147,8 +176,12 @@ class AppDnaComputer(private val context: Context) {
      */
     suspend fun computeTodayAppDnaList(): List<TodayAppDna> {
         val today = dateFmt.format(Date())
-        val sessions = db.appSessionDao().getByDate(today)
-        val notifications = db.notificationEventDao().getByDate(today)
+        val sessionsRaw = db.appSessionDao().getByDate(today)
+        val sessions = sessionsRaw.distinctBy { "${it.app_package}_${it.open_timestamp}" }
+
+        val notificationsRaw = db.notificationEventDao().getByDate(today)
+        val notifications = notificationsRaw.distinctBy { "${it.app_package}_${it.arrival_timestamp}_${it.action}" }
+
         val pm = context.packageManager
 
         if (sessions.isEmpty()) return emptyList()
@@ -171,11 +204,15 @@ class AppDnaComputer(private val context: Context) {
             val minSessionMin = sessionDurationsMins.minOrNull() ?: 0f
             val maxSessionMin = sessionDurationsMins.maxOrNull() ?: 0f
 
-            // Primary time range
-            val hours = appSessions.map { hourOfDay(it.open_timestamp).toInt() }
-            val primaryRange = if (hours.isNotEmpty()) {
-                val minH = hours.min()
-                val maxH = hours.max()
+            // Dynamic time range: use IQR (25th–75th percentile) to ignore outlier sessions
+            val hours = appSessions.map { hourOfDay(it.open_timestamp).toInt() }.sorted()
+            val primaryRange = if (hours.size >= 4) {
+                val q1 = hours[hours.size / 4]
+                val q3 = hours[3 * hours.size / 4]
+                "${formatHour(q1)} – ${formatHour(q3)}"
+            } else if (hours.isNotEmpty()) {
+                val minH = hours.first()
+                val maxH = hours.last()
                 "${formatHour(minH)} – ${formatHour(maxH)}"
             } else "—"
 

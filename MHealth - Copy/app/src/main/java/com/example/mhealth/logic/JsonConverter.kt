@@ -1,5 +1,6 @@
 package com.example.mhealth.logic
 
+import com.example.mhealth.logic.db.AppSessionEntity
 import com.example.mhealth.logic.db.BaselineEntity
 import com.example.mhealth.logic.db.DailyFeaturesEntity
 import org.json.JSONArray
@@ -31,12 +32,18 @@ object JsonConverter {
      * @param current      Today's feature row
      * @param baseline     List of BaselineEntity rows (one per feature)
      * @param history      Last N daily feature rows (oldest first, max 14)
+     * @param sessions     Optional list of app sessions for last 28 days (L2 DNA)
+     * @param sessionsToday Optional list of app sessions today (L2 DNA)
+     * @param dnaJson      Optional existing DNA profile JSON string
      * @return             JSON string ready to pass to engine.run_analysis()
      */
     fun toEngineJson(
         current: DailyFeaturesEntity,
         baseline: List<BaselineEntity>,
-        history: List<DailyFeaturesEntity>
+        history: List<DailyFeaturesEntity>,
+        sessions: List<AppSessionEntity>? = null,
+        sessionsToday: List<AppSessionEntity>? = null,
+        dnaJson: String? = null
     ): String {
         val root = JSONObject()
 
@@ -65,7 +72,40 @@ object JsonConverter {
         // ── contamination flag ────────────────────────────────────────────────
         root.put("baseline_contaminated", contaminated)
 
+        // ── Level 2 Behavioral DNA ───────────────────────────────────────────
+        sessions?.let {
+            val sessionsArr = JSONArray()
+            it.forEach { s -> sessionsArr.put(sessionEntityToJson(s)) }
+            root.put("sessions", sessionsArr)
+        }
+
+        sessionsToday?.let {
+            val sessionsTArr = JSONArray()
+            it.forEach { s -> sessionsTArr.put(sessionEntityToJson(s)) }
+            root.put("sessions_today", sessionsTArr)
+        }
+
+        dnaJson?.let {
+            if (it.length > 2) {
+                try {
+                    root.put("dna", JSONObject(it))
+                } catch (e: Exception) {
+                    root.put("dna", JSONObject())
+                }
+            }
+        }
+
         return root.toString()
+    }
+
+    /** Converts an AppSessionEntity to a JSON object for the Python engine. */
+    fun sessionEntityToJson(e: AppSessionEntity): JSONObject = JSONObject().apply {
+        put("app_package", e.app_package)
+        put("open_timestamp", e.open_timestamp)
+        put("close_timestamp", e.close_timestamp)
+        put("trigger", e.trigger)
+        put("interaction_count", e.interaction_count)
+        put("date", e.date)
     }
 
     /** Converts a DailyFeaturesEntity to a flat JSON object of feature → value */
@@ -82,7 +122,6 @@ object JsonConverter {
         put("dailyDisplacementKm", e.dailyDisplacementKm)
         put("locationEntropy", e.locationEntropy)
         put("homeTimeRatio", e.homeTimeRatio)
-        put("placesVisited", e.placesVisited)
         put("wakeTimeHour", e.wakeTimeHour)
         put("sleepTimeHour", e.sleepTimeHour)
         put("sleepDurationHours", e.sleepDurationHours)
@@ -140,7 +179,6 @@ object JsonConverter {
         dailyDisplacementKm = v.dailyDisplacementKm,
         locationEntropy = v.locationEntropy,
         homeTimeRatio = v.homeTimeRatio,
-        placesVisited = v.placesVisited,
         wakeTimeHour = v.wakeTimeHour,
         sleepTimeHour = v.sleepTimeHour,
         sleepDurationHours = v.sleepDurationHours,
@@ -181,7 +219,6 @@ object JsonConverter {
         dailyDisplacementKm = e.dailyDisplacementKm,
         locationEntropy = e.locationEntropy,
         homeTimeRatio = e.homeTimeRatio,
-        placesVisited = e.placesVisited,
         wakeTimeHour = e.wakeTimeHour,
         sleepTimeHour = e.sleepTimeHour,
         sleepDurationHours = e.sleepDurationHours,

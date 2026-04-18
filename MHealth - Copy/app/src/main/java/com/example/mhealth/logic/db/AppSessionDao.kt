@@ -25,7 +25,11 @@ interface AppSessionDao {
     @Query("SELECT * FROM app_sessions WHERE date >= :startDate AND date <= :endDate ORDER BY open_timestamp ASC")
     suspend fun getByDateRange(startDate: String, endDate: String): List<AppSessionEntity>
 
-    /** Get last 28 days of sessions for DNA building. */
+    /** Get sessions for a date range with a limit to avoid memory overhead. */
+    @Query("SELECT * FROM app_sessions WHERE date >= :startDate AND date <= :endDate ORDER BY open_timestamp DESC LIMIT :limit")
+    suspend fun getByDateRangeLimited(startDate: String, endDate: String, limit: Int): List<AppSessionEntity>
+
+    /** Get sessions since a given timestamp for DNA building. */
     @Query("SELECT * FROM app_sessions WHERE open_timestamp >= :sinceEpochMs ORDER BY open_timestamp ASC")
     suspend fun getSessionsSince(sinceEpochMs: Long): List<AppSessionEntity>
 
@@ -48,4 +52,8 @@ interface AppSessionDao {
     /** Get all sessions (for Firebase sync). */
     @Query("SELECT * FROM app_sessions ORDER BY open_timestamp ASC")
     suspend fun getAll(): List<AppSessionEntity>
+
+    /** Count distinct calendar days that have session data (for DNA baseline progress). */
+    @Query("SELECT COUNT(DISTINCT date) FROM app_sessions")
+    suspend fun countDistinctDays(): Int
 }

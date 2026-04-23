@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Activity, Brain, Shield, Zap, ChevronRight, Mic, BarChart3, Lock } from 'lucide-react';
+import { Brain, Shield, Zap, ChevronRight, Mic, BarChart3, Lock } from 'lucide-react';
 import { VoiceAssessment } from '../components/VoiceAssessment';
 
 const steps = [
@@ -30,7 +30,6 @@ export const Home: React.FC = () => {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-          <Activity size={22} color="var(--accent-primary)" />
           <span style={{ fontSize: '1.1rem', fontWeight: 800, letterSpacing: '-0.03em', color: 'var(--text-primary)' }}>
             MHealth
           </span>
@@ -67,7 +66,7 @@ export const Home: React.FC = () => {
               fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.04em',
               marginBottom: '1.5rem',
             }}>
-              <Activity size={14} /> Early Risk Detection Platform
+              Early Risk Detection Platform
             </div>
 
             <h1 style={{
@@ -207,7 +206,6 @@ export const Home: React.FC = () => {
         color: 'var(--text-muted)', fontSize: '0.8rem',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <Activity size={16} color="var(--accent-primary)" />
           <span>MHealth AI · WavLM-LoRA Depression Screening</span>
         </div>
         <span>Not a diagnostic tool. For research use.</span>

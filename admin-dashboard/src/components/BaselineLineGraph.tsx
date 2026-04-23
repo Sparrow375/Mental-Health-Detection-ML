@@ -179,81 +179,156 @@ const BaselineLineGraph: React.FC<{ metrics: BaselineMetric[] }> = ({ metrics })
   );
 };
 
-// Unified single-line visualization - mixes all metrics into one combined line
+// Baseline deviation chart — plots % deviation from baseline for all features
 const BaselineSlopeChart: React.FC<{ metrics: BaselineMetric[] }> = ({ metrics }) => {
-  // Transform metrics into chart data for a single combined line
+  // Transform metrics into % deviation from baseline
   const chartData = metrics.map((metric, index) => {
+    // Division-by-zero guard: baseline is pre-filtered to !== 0 in PatientDetail,
+    // but double-guard here as well
+    const deviation = metric.baseline !== 0
+      ? ((metric.current - metric.baseline) / metric.baseline) * 100
+      : 0;
     return {
       name: metric.label,
-      value: metric.current,
-      baseline: metric.baseline,
+      deviation,
+      rawCurrent: metric.current,
+      rawBaseline: metric.baseline,
       unit: metric.unit,
       order: index,
+      invertGood: metric.invertGood,
     };
   });
 
-  // Calculate Y-axis domain based on all values
-  const allValues = chartData.flatMap(d => [d.value, d.baseline]);
-  const minValue = Math.min(...allValues);
-  const maxValue = Math.max(...allValues);
-  const padding = (maxValue - minValue) * 0.1 || 1;
+  // Symmetric Y-axis domain centered on 0
+  const allDeviations = chartData.map(d => d.deviation);
+  const absMax = Math.max(
+    Math.abs(Math.min(...allDeviations)),
+    Math.abs(Math.max(...allDeviations)),
+    10 // minimum ±10% range
+  );
+  const domainBound = Math.ceil(absMax * 1.2);
+
+  // Deviation severity color helper
+  const getDevColor = (dev: number, invertGood?: boolean) => {
+    const absDev = Math.abs(dev);
+    if (absDev <= 10) return '#10b981'; // stable — green
+    if (absDev <= 20) return '#f59e0b'; // warning — amber
+    // Large deviations — check direction relative to invertGood
+    const isHigh = dev > 0;
+    const isBad = invertGood ? isHigh : !isHigh;
+    return isBad ? '#ef4444' : '#10b981';
+  };
+
+  // Custom tooltip — shows BOTH raw value (for clinicians) AND % deviation
+  const CustomDeviationTooltip = ({ active, payload }: { active?: boolean; payload?: any[] }) => {
+    if (active && payload && payload[0]) {
+      const data = payload[0].payload;
+      const dev = data.deviation as number;
+      const color = getDevColor(dev, data.invertGood);
+      return (
+        <div style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border)',
+          borderRadius: 'var(--radius-md)',
+          padding: '0.75rem',
+          boxShadow: 'var(--shadow-lg)',
+          minWidth: '170px',
+        }}>
+          <div style={{ fontWeight: 600, color: 'var(--text-primary)', marginBottom: '0.5rem', fontSize: '0.875rem' }}>
+            {data.name}
+          </div>
+          <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              Current: <span style={{ color: '#38bdf8', fontWeight: 600 }}>{data.rawCurrent.toFixed(1)} {data.unit}</span>
+            </div>
+            <div style={{ color: 'var(--text-secondary)' }}>
+              Baseline: <span style={{ color: '#64748b', fontWeight: 600 }}>{data.rawBaseline.toFixed(1)} {data.unit}</span>
+            </div>
+            <div style={{
+              color, fontWeight: 700, fontFamily: 'monospace',
+              marginTop: '0.25rem', fontSize: '0.9rem',
+              padding: '0.2rem 0.5rem',
+              background: `${color}12`,
+              borderRadius: '4px',
+              display: 'inline-block',
+              width: 'fit-content'
+            }}>
+              {dev > 0 ? '+' : ''}{dev.toFixed(1)}% from baseline
+            </div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  // Custom dot — color-coded by deviation severity
+  const DeviationDot = ({ cx, cy, payload }: any) => {
+    if (cx === undefined || cy === undefined) return null;
+    const color = getDevColor(payload.deviation, payload.invertGood);
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={5} fill={color} stroke="#fff" strokeWidth={2}
+          style={{ transition: 'all 0.3s ease' }} />
+      </g>
+    );
+  };
+
+  const DeviationActiveDot = ({ cx, cy, payload }: any) => {
+    if (cx === undefined || cy === undefined) return null;
+    const color = getDevColor(payload.deviation, payload.invertGood);
+    return (
+      <g>
+        <circle cx={cx} cy={cy} r={10} fill={color} opacity={0.2} />
+        <circle cx={cx} cy={cy} r={7} fill={color} stroke="#fff" strokeWidth={2} />
+      </g>
+    );
+  };
 
   return (
-    <div style={{ width: '100%', height: '100%', minHeight: '280px' }}>
+    <div style={{ width: '100%', height: '100%', minHeight: '320px' }}>
       <ResponsiveContainer>
         <LineChart
           data={chartData}
-          margin={{ top: 20, right: 30, left: 20, bottom: 50 }}
+          margin={{ top: 20, right: 30, left: 30, bottom: 80 }}
         >
           <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
           <XAxis
             dataKey="name"
             stroke="var(--text-muted)"
-            fontSize={11}
-            angle={-25}
+            fontSize={10}
+            angle={-45}
             textAnchor="end"
-            height={70}
+            height={90}
             interval={0}
             tick={{ fill: 'var(--text-secondary)' }}
           />
           <YAxis
             stroke="var(--text-muted)"
             fontSize={11}
-            domain={[minValue - padding, maxValue + padding]}
-            tickFormatter={(v: number) => v.toFixed(1)}
+            domain={[-domainBound, domainBound]}
+            tickFormatter={(v: number) => `${v > 0 ? '+' : ''}${v.toFixed(0)}%`}
           />
-          <Tooltip
-            contentStyle={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius-md)',
-              boxShadow: 'var(--shadow-lg)'
-            }}
-            itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
-            labelStyle={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}
-          />
+          <Tooltip content={<CustomDeviationTooltip />} />
 
-          {/* Baseline line - subtle dashed reference */}
-          <Line
-            type="monotone"
-            dataKey="baseline"
+          {/* 0% reference line = "at personal baseline" */}
+          <ReferenceLine
+            y={0}
             stroke="#64748b"
             strokeWidth={2}
             strokeDasharray="4 4"
-            dot={false}
-            activeDot={false}
-            name="Baseline"
+            label={{ position: 'insideTopRight', value: 'Baseline (0%)', fill: '#64748b', fontSize: 10, fontWeight: 600 }}
           />
 
-          {/* Single unified current values line - no deviations, just the data */}
+          {/* % deviation line — all features on a single normalized axis */}
           <Line
             type="monotone"
-            dataKey="value"
+            dataKey="deviation"
             stroke="#38bdf8"
             strokeWidth={3}
-            dot={{ r: 5, fill: '#38bdf8', stroke: '#fff', strokeWidth: 2 }}
-            activeDot={{ r: 8, fill: '#38bdf8', stroke: '#fff', strokeWidth: 2 }}
-            name="Current"
+            dot={(props: any) => <DeviationDot {...props} />}
+            activeDot={(props: any) => <DeviationActiveDot {...props} />}
+            name="% Deviation"
           />
         </LineChart>
       </ResponsiveContainer>

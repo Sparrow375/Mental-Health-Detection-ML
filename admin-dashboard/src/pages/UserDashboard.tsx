@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Heart, Activity, BellRing, Brain, Smartphone, Footprints, ShieldCheck, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Wifi, Battery, Clock, Bell, Download, Lock, Database, Cpu } from 'lucide-react';
+import { Heart, Zap, BellRing, Brain, Smartphone, Footprints, ShieldCheck, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Wifi, Battery, Clock, Bell, Download, Lock, Database, Cpu } from 'lucide-react';
 
 import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine
 } from 'recharts';
 import { auth, db } from '../firebase/config';
 import { doc, getDoc } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
 import { getHistoricalResults, getAllDailyFeatures, getBaseline } from '../firebase/dataHelper';
 import type { MLResult, DailyFeatures, BaselineData } from '../firebase/dataHelper';
 import { BaselineSlopeChart } from '../components/BaselineLineGraph';
@@ -23,14 +24,13 @@ export const UserDashboard: React.FC = () => {
   const features = allDays.length > 0 ? allDays[selectedDayIndex] : null;
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      try {
-        const currentUser = auth.currentUser;
-        if (!currentUser) {
-          setLoading(false);
-          return;
-        }
+    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+      if (!currentUser) {
+        setLoading(false);
+        return;
+      }
 
+      try {
         const uid = currentUser.uid;
 
         // Fetch User Name
@@ -56,8 +56,8 @@ export const UserDashboard: React.FC = () => {
       } finally {
         setLoading(false);
       }
-    };
-    fetchUserData();
+    });
+    return () => unsubscribe(); // cleanup listener on unmount
   }, []);
 
   const currentResult = history.length > 0 ? history[history.length - 1] : null;
@@ -70,10 +70,10 @@ export const UserDashboard: React.FC = () => {
       items: [
         { name: 'Screen Time', value: features?.screenTimeHours, displayValue: features?.screenTimeHours?.toFixed(1) || '0.0', unit: 'hrs', icon: Smartphone, defaultColor: '#38bdf8', key: 'screenTimeHours', invertGood: true },
         { name: 'Unlock Count', value: features?.unlockCount, displayValue: features?.unlockCount?.toFixed(0) || '0', unit: 'times', icon: Lock, defaultColor: '#ef4444', key: 'unlockCount', invertGood: true },
-        { name: 'App Launches', value: features?.appLaunchCount, displayValue: features?.appLaunchCount?.toFixed(0) || '0', unit: 'times', icon: Activity, defaultColor: '#f59e0b', key: 'appLaunchCount', invertGood: true },
+        { name: 'App Launches', value: features?.appLaunchCount, displayValue: features?.appLaunchCount?.toFixed(0) || '0', unit: 'times', icon: Zap, defaultColor: '#f59e0b', key: 'appLaunchCount', invertGood: true },
         { name: 'Total Apps', value: features?.totalAppsCount, displayValue: features?.totalAppsCount?.toFixed(0) || '0', unit: 'apps', icon: Database, defaultColor: '#6366f1', key: 'totalAppsCount', invertGood: false },
         { name: 'App Uninstalls', value: features?.appUninstallsToday, displayValue: features?.appUninstallsToday?.toFixed(0) || '0', unit: 'apps', icon: Minus, defaultColor: '#ef4444', key: 'appUninstallsToday', invertGood: true },
-        { name: 'UPI Txns', value: features?.upiTransactionsToday, displayValue: features?.upiTransactionsToday?.toFixed(0) || '0', unit: 'txns', icon: Activity, defaultColor: '#10b981', key: 'upiTransactionsToday', invertGood: false },
+        { name: 'UPI Txns', value: features?.upiTransactionsToday, displayValue: features?.upiTransactionsToday?.toFixed(0) || '0', unit: 'txns', icon: Zap, defaultColor: '#10b981', key: 'upiTransactionsToday', invertGood: false },
       ]
     },
     {
@@ -84,7 +84,7 @@ export const UserDashboard: React.FC = () => {
         { name: 'Calls per Day', value: features?.callsPerDay, displayValue: features?.callsPerDay?.toFixed(0) || '0', unit: 'calls', icon: Phone, defaultColor: '#facc15', key: 'callsPerDay', invertGood: false },
         { name: 'Call Duration', value: features?.callDurationMinutes, displayValue: features?.callDurationMinutes?.toFixed(0) || '0', unit: 'mins', icon: Phone, defaultColor: '#facc15', key: 'callDurationMinutes', invertGood: false },
         { name: 'Unique Contacts', value: features?.uniqueContacts, displayValue: features?.uniqueContacts?.toFixed(0) || '0', unit: 'ppl', icon: Users, defaultColor: '#10b981', key: 'uniqueContacts', invertGood: false },
-        { name: 'Conv. Frequency', value: features?.conversationFrequency, displayValue: features?.conversationFrequency?.toFixed(2) || '0.0', unit: 'freq', icon: Activity, defaultColor: '#8b5cf6', key: 'conversationFrequency', invertGood: false }
+        { name: 'Conv. Frequency', value: features?.conversationFrequency, displayValue: features?.conversationFrequency?.toFixed(2) || '0.0', unit: 'freq', icon: Zap, defaultColor: '#8b5cf6', key: 'conversationFrequency', invertGood: false }
       ]
     },
     {
@@ -113,11 +113,46 @@ export const UserDashboard: React.FC = () => {
         { name: 'Memory Usage', value: features?.memoryUsagePercent, displayValue: features?.memoryUsagePercent?.toFixed(0) || '0', unit: '%', icon: Cpu, defaultColor: '#ef4444', key: 'memoryUsagePercent', invertGood: true },
         { name: 'Storage Used', value: features?.storageUsedGB, displayValue: features?.storageUsedGB?.toFixed(1) || '0.0', unit: 'GB', icon: Database, defaultColor: '#6366f1', key: 'storageUsedGB', invertGood: true },
         { name: 'Wi-Fi Data', value: features?.networkWifiMB, displayValue: features?.networkWifiMB?.toFixed(0) || '0', unit: 'MB', icon: Wifi, defaultColor: '#38bdf8', key: 'networkWifiMB', invertGood: true },
-        { name: 'Mobile Data', value: features?.networkMobileMB, displayValue: features?.networkMobileMB?.toFixed(0) || '0', unit: 'MB', icon: Activity, defaultColor: '#8b5cf6', key: 'networkMobileMB', invertGood: true },
+        { name: 'Mobile Data', value: features?.networkMobileMB, displayValue: features?.networkMobileMB?.toFixed(0) || '0', unit: 'MB', icon: Zap, defaultColor: '#8b5cf6', key: 'networkMobileMB', invertGood: true },
         { name: 'Downloads', value: features?.downloadsToday, displayValue: features?.downloadsToday?.toFixed(0) || '0', unit: 'files', icon: Download, defaultColor: '#f59e0b', key: 'downloadsToday', invertGood: true },
       ]
     }
   ], [features]);
+
+  // Build dynamic baseline metrics from ALL available baseline keys (mirrors PatientDetail logic)
+  const allBaselineMetrics = (() => {
+    if (!baseline || !features) return [];
+
+    // Build label/unit/invertGood lookup from categorizedFeatures
+    const featureMeta: Record<string, { label: string; unit: string; invertGood: boolean }> = {};
+    for (const group of categorizedFeatures) {
+      for (const item of group.items) {
+        featureMeta[item.key] = { label: item.name, unit: item.unit, invertGood: item.invertGood };
+      }
+    }
+
+    return Object.keys(baseline)
+      .filter(key => {
+        const bm = baseline[key]?.mean;
+        if (bm === undefined || bm === null || bm === 0) return false; // division-by-zero guard
+        const fv = (features as Record<string, unknown>)[key];
+        if (fv === undefined || fv === null) return false; // no current reading
+        return true;
+      })
+      .map(key => {
+        const meta = featureMeta[key] || { label: key, unit: '', invertGood: false };
+        const rawCurrent = (features as Record<string, unknown>)[key] as number;
+        const rawBaseline = baseline[key].mean;
+        const isRatio = meta.unit === '%'; // scale 0-1 ratio fields to percentage
+        return {
+          label: meta.label,
+          current: isRatio ? rawCurrent * 100 : rawCurrent,
+          baseline: isRatio ? rawBaseline * 100 : rawBaseline,
+          unit: meta.unit,
+          invertGood: meta.invertGood,
+        };
+      });
+  })();
 
   const getClinicalStatus = useCallback((featureName: string, currentVal: number | undefined, invert: boolean) => {
     if (currentVal === undefined) return { color: 'var(--text-muted)', status: 'No Data', icon: null };
@@ -147,7 +182,7 @@ export const UserDashboard: React.FC = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
-        <Activity className="animate-spin" size={48} color="var(--accent-primary)" />
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
       </div>
     );
   }
@@ -172,16 +207,75 @@ export const UserDashboard: React.FC = () => {
         </div>
       </div>
 
+      {/* Main Charts Grid */}
+      <div className="two-col-chart-grid" style={{ marginBottom: '2rem' }}>
+
+        {/* Longitudinal History */}
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+            Wellness Stability (Last 14 Days)
+          </h3>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
+             Tracking behavioral consistency via the ML anomaly engine. Lower is better.
+          </p>
+
+          <div style={{ flex: 1, minHeight: '300px' }}>
+            {history.length === 0 ? (
+               <div style={{ height: '100%', display: 'flex', alignItems:'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No history recorded yet.</div>
+            ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={history} margin={{ top: 10, right: 0, bottom: 0, left: -20 }}>
+                <defs>
+                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--danger)" stopOpacity={0.6}/>
+                    <stop offset="60%" stopColor="var(--warning)" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="var(--success)" stopOpacity={0.0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickMargin={10} />
+                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: unknown) => typeof v === 'number' ? v.toFixed(1) : String(v)} />
+                <Tooltip
+                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)' }}
+                  itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
+                  labelStyle={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}
+                />
+
+                <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Variance', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />
+
+                <Area type="monotone" dataKey="anomaly_score" stroke="var(--accent-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--accent-primary)', stroke: '#fff', strokeWidth: 2 }} />
+              </AreaChart>
+            </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Baseline Comparison - Line Graph Visualization */}
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+            <Brain size={18} color="var(--accent-primary)" /> Baseline Comparison
+          </h3>
+          {!baselineReady || !baseline || !features ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
+            </div>
+          ) : (
+            <BaselineSlopeChart metrics={allBaselineMetrics} />
+          )}
+        </div>
+      </div>
+
       {/* Comprehensive Clinical Biomarkers Table */}
       <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1rem', marginLeft: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-        <Activity size={20} color="var(--accent-primary)" /> Clinical Biomarkers (24h Window)
+        Clinical Biomarkers (24h Window)
       </h3>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
         {categorizedFeatures.map((categoryGroup, index) => (
-          <div key={index} className="glass-panel" style={{ overflow: 'hidden' }}>
+          <div key={index} className="glass-panel">
             <h4 style={{ padding: '1rem 1.5rem', margin: 0, borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)', color: 'var(--text-primary)', fontWeight: 600 }}>
               {categoryGroup.category}
             </h4>
+            <div className="table-scroll-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)' }}>
@@ -240,103 +334,10 @@ export const UserDashboard: React.FC = () => {
                 })}
               </tbody>
             </table>
+            </div>
           </div>
         ))}
       </div>
-
-      {/* Main Charts Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '2rem' }}>
-
-        {/* Longitudinal History */}
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Activity size={18} color="var(--accent-primary)" /> Wellness Stability (Last 14 Days)
-          </h3>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
-             Tracking behavioral consistency via the ML anomaly engine. Lower is better.
-          </p>
-
-          <div style={{ flex: 1, minHeight: '300px' }}>
-            {history.length === 0 ? (
-               <div style={{ height: '100%', display: 'flex', alignItems:'center', justifyContent: 'center', color: 'var(--text-muted)' }}>Synching baseline data...</div>
-            ) : (
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={history} margin={{ top: 10, right: 0, bottom: 0, left: -20 }}>
-                <defs>
-                  <linearGradient id="colorScore" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--danger)" stopOpacity={0.6}/>
-                    <stop offset="60%" stopColor="var(--warning)" stopOpacity={0.3}/>
-                    <stop offset="95%" stopColor="var(--success)" stopOpacity={0.0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
-                <XAxis dataKey="date" stroke="var(--text-muted)" fontSize={12} tickMargin={10} />
-                <YAxis stroke="var(--text-muted)" fontSize={12} domain={[0, 1]} tickFormatter={(v: unknown) => typeof v === 'number' ? v.toFixed(1) : String(v)} />
-                <Tooltip
-                  contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-lg)' }}
-                  itemStyle={{ color: 'var(--text-primary)', fontWeight: 600 }}
-                  labelStyle={{ color: 'var(--text-secondary)', marginBottom: '0.25rem' }}
-                />
-
-                <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Variance', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />
-
-                <Area type="monotone" dataKey="anomaly_score" stroke="var(--accent-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--accent-primary)', stroke: '#fff', strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
-            )}
-          </div>
-        </div>
-
-        {/* Baseline Comparison - Line Graph Visualization */}
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Brain size={18} color="var(--accent-primary)" /> Baseline Comparison
-          </h3>
-          {!baselineReady || !baseline || !features ? (
-            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
-              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
-            </div>
-          ) : (
-            <BaselineSlopeChart
-              metrics={[
-                {
-                  label: 'Screen Time',
-                  current: features.screenTimeHours || 0,
-                  baseline: baseline.screenTimeHours?.mean || 0,
-                  unit: 'hrs',
-                  invertGood: true
-                },
-                {
-                  label: 'Sleep Duration',
-                  current: features.sleepDurationHours || 0,
-                  baseline: baseline.sleepDurationHours?.mean || 0,
-                  unit: 'hrs'
-                },
-                {
-                  label: 'Social Ratio',
-                  current: (features.socialAppRatio || 0) * 100,
-                  baseline: (baseline.socialAppRatio?.mean || 0) * 100,
-                  unit: '%'
-                },
-                {
-                  label: 'Daily Steps',
-                  current: features.dailySteps || 0,
-                  baseline: baseline.dailySteps?.mean || 0,
-                  unit: 'steps'
-                },
-                {
-                  label: 'App Launches',
-                  current: features.appLaunchCount || 0,
-                  baseline: baseline.appLaunchCount?.mean || 0,
-                  unit: 'times',
-                  invertGood: true
-                }
-              ]}
-            />
-          )}
-        </div>
-      </div>
-
 
       <h3 style={{ fontSize: '1.25rem', fontWeight: 600, marginBottom: '1.5rem', marginLeft: '0.5rem' }}>Dynamic Insights</h3>
       

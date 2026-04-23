@@ -1,9 +1,9 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Mic, Upload, Square, Loader2, Brain, AlertCircle,
   CheckCircle, MicOff,
 } from 'lucide-react';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, getDocs, query, orderBy, limit } from 'firebase/firestore';
 import { db, auth } from '../firebase/config';
 
 const HF_API_URL = (import.meta.env.VITE_HF_API_URL as string) || '';
@@ -38,27 +38,69 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
   const [wakeupSecs, setWakeupSecs] = useState(120);
   const [micDenied, setMicDenied] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [cancelWakeup, setCancelWakeup] = useState(false);
+
+  // ── Past assessments (read-only) ──
+  interface AssessmentRecord {
+    id: string;
+    patient_name: string;
+    prediction: string;
+    probability: number;
+    confidence: number;
+    n_chunks: number;
+    clinician_id: string;
+    timestamp: { seconds: number; nanoseconds: number } | null;
+  }
+  const [historyRecords, setHistoryRecords] = useState<AssessmentRecord[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchHistory = async () => {
+      try {
+        const q = query(
+          collection(db, 'voice_assessments'),
+          orderBy('timestamp', 'desc'),
+          limit(50)
+        );
+        const snap = await getDocs(q);
+        setHistoryRecords(
+          snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<AssessmentRecord, 'id'>) }))
+        );
+      } catch (e) {
+        console.warn('Could not fetch voice assessment history:', e);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+    fetchHistory();
+  }, []);
 
   const mrRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Guard ref: prevents concurrent analyze() calls (including React StrictMode double-invocations)
+  const isAnalyzingRef = useRef(false);
 
   // ── API: check if HF is alive ──
   const isApiAlive = async () => {
     try {
       const res = await fetch(`${HF_API_URL}/api/health`, {
         signal: AbortSignal.timeout(5000),
+        cache: 'no-cache',
       });
+      console.log('[VoiceAssessment] API health check:', res.ok ? 'OK' : 'FAILED', res.status);
       return res.ok;
-    } catch {
+    } catch (e) {
+      console.warn('[VoiceAssessment] API health check failed:', e);
       return false;
     }
   };
 
   const pingUntilAlive = async (): Promise<boolean> => {
     setStatus('wakeup');
+    setCancelWakeup(false);
     let countdown = 120;
     setWakeupSecs(countdown);
     countdownRef.current = setInterval(() => {
@@ -67,6 +109,10 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
       if (countdown <= 0) clearInterval(countdownRef.current!);
     }, 1000);
     for (let i = 0; i < 12; i++) {
+      if (cancelWakeup) {
+        clearInterval(countdownRef.current!);
+        return false;
+      }
       const alive = await isApiAlive();
       if (alive) { clearInterval(countdownRef.current!); return true; }
       await new Promise(r => setTimeout(r, 10_000));
@@ -77,32 +123,54 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
 
   // ── Core: analyze ──
   const analyze = async (audio: File | Blob, filename: string) => {
+    // Synchronous guard: reject concurrent calls immediately (before any await)
+    if (isAnalyzingRef.current) return;
+    isAnalyzingRef.current = true;
+
+    console.log('[VoiceAssessment] Starting analysis for:', filename);
+
     if (!HF_API_URL) {
       setError('API URL not configured. Set VITE_HF_API_URL in your .env.local file.');
       setStatus('error');
+      isAnalyzingRef.current = false;
       return;
     }
-    const alive = await isApiAlive();
-    if (!alive) {
-      const woke = await pingUntilAlive();
-      if (!woke) {
-        setError('AI server timed out during wake-up. Please try again in a few minutes.');
-        setStatus('error');
-        return;
-      }
-    }
+
+    // Set a loading status synchronously so the UI disables the button immediately
     setStatus('processing');
+
     try {
+      console.log('[VoiceAssessment] Checking API health...');
+      const alive = await isApiAlive();
+      if (!alive) {
+        console.log('[VoiceAssessment] API not alive, attempting wake-up...');
+        const woke = await pingUntilAlive();
+        if (!woke) {
+          setError('AI server timed out during wake-up. Please try again in a few minutes.');
+          setStatus('error');
+          isAnalyzingRef.current = false;
+          return;
+        }
+      }
+
+      console.log('[VoiceAssessment] Sending audio to API...');
       const form = new FormData();
       form.append('file', audio, filename);
-      const res = await fetch(`${HF_API_URL}/api/predict`, { method: 'POST', body: form });
+      const res = await fetch(`${HF_API_URL}/api/predict`, {
+        method: 'POST',
+        body: form,
+        signal: AbortSignal.timeout(180000), // 3 minute timeout for inference (HF can be slow)
+      });
+      console.log('[VoiceAssessment] API response status:', res.status);
       if (!res.ok) {
         const body = await res.json().catch(() => ({ detail: `HTTP ${res.status}` }));
         throw new Error(body.detail ?? `Server error ${res.status}`);
       }
       const data: PredictionResult = await res.json();
-      setResult(data);
-      setStatus('done');
+      console.log('[VoiceAssessment] Analysis complete:', data);
+
+      // Save to Firestore BEFORE updating UI state to prevent double-save
+      // (state updates are batched; saving first ensures exactly-once semantics)
       if (isAdmin && patientName.trim()) {
         await addDoc(collection(db, 'voice_assessments'), {
           patient_name: patientName.trim(),
@@ -114,9 +182,14 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
           timestamp: serverTimestamp(),
         });
       }
+
+      setResult(data);
+      setStatus('done');
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Analysis failed. Please try again.');
       setStatus('error');
+    } finally {
+      isAnalyzingRef.current = false;
     }
   };
 
@@ -172,6 +245,9 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
   };
 
   const reset = () => {
+    isAnalyzingRef.current = false;
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    setCancelWakeup(true);
     setStatus('idle'); setResult(null); setError('');
     setFile(null); setRecordedBlob(null); setRecordSecs(0); setPatientName('');
   };
@@ -192,6 +268,11 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
 
   return (
     <div style={{ fontFamily: "'Inter', sans-serif" }}>
+      <style>{`@media (max-width: 900px) { .va-layout { flex-direction: column !important; } }`}</style>
+      <div className="va-layout" style={{ display: 'flex', flexDirection: 'row', gap: '1.5rem', alignItems: 'flex-start' }}>
+
+        {/* ── LEFT COLUMN: Analysis Form ── */}
+        <div style={{ minWidth: '520px', maxWidth: '560px', flex: '0 0 auto' }}>
 
       {/* ── Admin: patient name ── */}
       {isAdmin && (
@@ -213,7 +294,7 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
       {status === 'wakeup' && (
         <div style={{ ...s.card, textAlign: 'center', background: 'rgba(2,132,199,0.04)', borderColor: 'rgba(2,132,199,0.25)' }}>
           <Loader2 size={36} color="var(--accent-primary)" style={{ marginBottom: '1rem', animation: 'spin 1.2s linear infinite' }} />
-          <p style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>🤖 Booting AI Engine…</p>
+          <p style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Booting AI Engine…</p>
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>
             The AI is waking from sleep. Usually takes 1–2 minutes.
           </p>
@@ -223,6 +304,9 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
           <div style={{ height: 6, background: 'var(--border)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{ height: '100%', borderRadius: 999, background: 'linear-gradient(90deg,var(--accent-primary),var(--accent-secondary))', width: `${((120 - wakeupSecs) / 120) * 100}%`, transition: 'width 1s linear' }} />
           </div>
+          <button className="btn btn-secondary" onClick={reset} style={{ marginTop: '1rem', width: '100%' }}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -230,8 +314,11 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
       {status === 'processing' && (
         <div style={{ ...s.card, textAlign: 'center', background: 'rgba(2,132,199,0.04)', borderColor: 'rgba(2,132,199,0.25)' }}>
           <Loader2 size={36} color="var(--accent-primary)" style={{ marginBottom: '1rem', animation: 'spin 1.2s linear infinite' }} />
-          <p style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>🧠 Analyzing Voice Patterns…</p>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Running WavLM across audio chunks</p>
+          <p style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.25rem' }}>Analyzing Voice Patterns…</p>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem', marginBottom: '1rem' }}>Running WavLM across audio chunks</p>
+          <button className="btn btn-secondary" onClick={reset} style={{ width: '100%' }}>
+            Cancel
+          </button>
         </div>
       )}
 
@@ -248,7 +335,7 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
               ? <AlertCircle size={44} color="var(--danger)" style={{ marginBottom: '0.75rem' }} />
               : <CheckCircle size={44} color="var(--success)" style={{ marginBottom: '0.75rem' }} />}
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: isDepressed ? 'var(--danger)' : 'var(--success)' }}>
-              {isDepressed ? '⚠️ Signs Detected' : '✅ No Signs Detected'}
+              {isDepressed ? 'Signs Detected' : 'No Signs Detected'}
             </div>
             <div style={{ color: 'var(--text-secondary)', marginTop: '0.25rem', fontSize: '0.875rem' }}>
               {result.prediction} · {result.n_chunks} chunks analyzed
@@ -276,7 +363,7 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
 
           {!isAdmin && (
             <div style={{ padding: '0.75rem 1rem', background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-              ⚕️ This is an AI screening tool, <strong>not a clinical diagnosis</strong>. Please consult a licensed healthcare professional.
+              This is an AI screening tool, <strong>not a clinical diagnosis</strong>. Please consult a licensed healthcare professional.
             </div>
           )}
 
@@ -436,6 +523,87 @@ export const VoiceAssessment: React.FC<VoiceAssessmentProps> = ({ isAdmin = fals
           </button>
         </>
       )}
+      </div>{/* end left column */}
+
+        {/* ── RIGHT COLUMN: Past Assessments ── */}
+      {isAdmin && (
+        <div style={{ flex: 1, minWidth: '320px' }}>
+          <div style={{ ...s.card, marginBottom: '0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem' }}>
+              <Brain size={18} color="var(--accent-primary)" />
+              <span style={{ fontWeight: 700, fontSize: '1.05rem' }}>Past Assessments</span>
+            </div>
+
+            {/* Loading */}
+            {historyLoading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '1rem 0', color: 'var(--text-secondary)' }}>
+                <Loader2 size={18} style={{ animation: 'spin 1.2s linear infinite' }} />
+                <span style={{ fontSize: '0.875rem' }}>Loading history…</span>
+              </div>
+            )}
+
+            {/* Empty */}
+            {!historyLoading && historyRecords.length === 0 && (
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>No assessments recorded yet.</p>
+            )}
+
+            {/* List */}
+            {!historyLoading && historyRecords.length > 0 && (
+              <div style={{ maxHeight: '500px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {historyRecords.map(rec => {
+                  const isDepr = rec.prediction === 'Depressed';
+                  const pct = Math.round((rec.probability ?? 0) * 100);
+                  const ts = rec.timestamp?.seconds
+                    ? new Date(rec.timestamp.seconds * 1000).toLocaleString()
+                    : '—';
+                  return (
+                    <div
+                      key={rec.id}
+                      style={{
+                        padding: '0.875rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: `1px solid ${isDepr ? 'rgba(220,38,38,0.25)' : 'rgba(5,150,105,0.25)'}`,
+                        background: isDepr ? 'rgba(220,38,38,0.03)' : 'rgba(5,150,105,0.03)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: '1rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', flex: 1, minWidth: 0 }}>
+                        <span style={{ fontWeight: 600, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {rec.patient_name}
+                        </span>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{ts}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexShrink: 0 }}>
+                        <span style={{
+                          fontSize: '0.8rem', fontWeight: 700, fontFamily: 'monospace',
+                          color: isDepr ? 'var(--danger)' : 'var(--success)',
+                        }}>
+                          {pct}%
+                        </span>
+                        <span style={{
+                          padding: '0.2rem 0.6rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.75rem',
+                          fontWeight: 600,
+                          background: isDepr ? 'rgba(220,38,38,0.1)' : 'rgba(5,150,105,0.1)',
+                          color: isDepr ? 'var(--danger)' : 'var(--success)',
+                        }}>
+                          {rec.prediction}
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+      </div>{/* end outer flex row */}
     </div>
   );
 };

@@ -4,7 +4,7 @@ import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getHistoricalResults, getAllDailyFeatures, getBaseline } from '../firebase/dataHelper';
 import type { MLResult, DailyFeatures, BaselineData } from '../firebase/dataHelper';
-import { ArrowLeft, Activity, Cpu, AlertTriangle, ShieldCheck, HeartPulse, Brain, Smartphone, Footprints, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Target, Wifi, Battery, Clock, Bell, Download, Lock, Database, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
+import { ArrowLeft, Zap, Cpu, AlertTriangle, ShieldCheck, HeartPulse, Brain, Smartphone, Footprints, MapPin, Map, Users, Compass, Moon, Phone, TrendingUp, TrendingDown, Minus, Target, Wifi, Battery, Clock, Bell, Download, Lock, Database, ChevronLeft, ChevronRight, Calendar } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
@@ -17,6 +17,7 @@ export const PatientDetail: React.FC = () => {
   
   const [patient, setPatient] = useState<Record<string, string | number | boolean | null> | null>(null);
   const [history, setHistory] = useState<MLResult[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
   const [allDays, setAllDays] = useState<DailyFeatures[]>([]); // All daily records (newest first)
   const [selectedDayIndex, setSelectedDayIndex] = useState(0); // 0 = latest day
   const [baseline, setBaseline] = useState<BaselineData | null>(null);
@@ -37,6 +38,7 @@ export const PatientDetail: React.FC = () => {
 
         const histData = await getHistoricalResults(id, 14);
         setHistory(histData);
+        setHistoryLoading(false);
 
         const allFeatures = await getAllDailyFeatures(id);
         const baselineData = await getBaseline(id);
@@ -131,10 +133,10 @@ export const PatientDetail: React.FC = () => {
       items: [
         { name: 'Screen Time', value: features?.screenTimeHours, displayValue: features?.screenTimeHours?.toFixed(1) || '0.0', unit: 'hrs', icon: Smartphone, defaultColor: '#38bdf8', key: 'screenTimeHours', invertGood: true },
         { name: 'Unlock Count', value: features?.unlockCount, displayValue: features?.unlockCount?.toFixed(0) || '0', unit: 'times', icon: Lock, defaultColor: '#ef4444', key: 'unlockCount', invertGood: true },
-        { name: 'App Launches', value: features?.appLaunchCount, displayValue: features?.appLaunchCount?.toFixed(0) || '0', unit: 'times', icon: Activity, defaultColor: '#f59e0b', key: 'appLaunchCount', invertGood: true },
+        { name: 'App Launches', value: features?.appLaunchCount, displayValue: features?.appLaunchCount?.toFixed(0) || '0', unit: 'times', icon: Zap, defaultColor: '#f59e0b', key: 'appLaunchCount', invertGood: true },
         { name: 'Total Apps', value: features?.totalAppsCount, displayValue: features?.totalAppsCount?.toFixed(0) || '0', unit: 'apps', icon: Database, defaultColor: '#6366f1', key: 'totalAppsCount', invertGood: false },
         { name: 'App Uninstalls', value: features?.appUninstallsToday, displayValue: features?.appUninstallsToday?.toFixed(0) || '0', unit: 'apps', icon: Minus, defaultColor: '#ef4444', key: 'appUninstallsToday', invertGood: true },
-        { name: 'UPI Txns', value: features?.upiTransactionsToday, displayValue: features?.upiTransactionsToday?.toFixed(0) || '0', unit: 'txns', icon: Activity, defaultColor: '#10b981', key: 'upiTransactionsToday', invertGood: false },
+        { name: 'UPI Txns', value: features?.upiTransactionsToday, displayValue: features?.upiTransactionsToday?.toFixed(0) || '0', unit: 'txns', icon: Zap, defaultColor: '#10b981', key: 'upiTransactionsToday', invertGood: false },
       ]
     },
     {
@@ -145,7 +147,7 @@ export const PatientDetail: React.FC = () => {
         { name: 'Calls per Day', value: features?.callsPerDay, displayValue: features?.callsPerDay?.toFixed(0) || '0', unit: 'calls', icon: Phone, defaultColor: '#facc15', key: 'callsPerDay', invertGood: false },
         { name: 'Call Duration', value: features?.callDurationMinutes, displayValue: features?.callDurationMinutes?.toFixed(0) || '0', unit: 'mins', icon: Phone, defaultColor: '#facc15', key: 'callDurationMinutes', invertGood: false },
         { name: 'Unique Contacts', value: features?.uniqueContacts, displayValue: features?.uniqueContacts?.toFixed(0) || '0', unit: 'ppl', icon: Users, defaultColor: '#10b981', key: 'uniqueContacts', invertGood: false },
-        { name: 'Conv. Frequency', value: features?.conversationFrequency, displayValue: features?.conversationFrequency?.toFixed(2) || '0.0', unit: 'freq', icon: Activity, defaultColor: '#8b5cf6', key: 'conversationFrequency', invertGood: false }
+        { name: 'Conv. Frequency', value: features?.conversationFrequency, displayValue: features?.conversationFrequency?.toFixed(2) || '0.0', unit: 'freq', icon: Zap, defaultColor: '#8b5cf6', key: 'conversationFrequency', invertGood: false }
       ]
     },
     {
@@ -174,11 +176,49 @@ export const PatientDetail: React.FC = () => {
         { name: 'Memory Usage', value: features?.memoryUsagePercent, displayValue: features?.memoryUsagePercent?.toFixed(0) || '0', unit: '%', icon: Cpu, defaultColor: '#ef4444', key: 'memoryUsagePercent', invertGood: true },
         { name: 'Storage Used', value: features?.storageUsedGB, displayValue: features?.storageUsedGB?.toFixed(1) || '0.0', unit: 'GB', icon: Database, defaultColor: '#6366f1', key: 'storageUsedGB', invertGood: true },
         { name: 'Wi-Fi Data', value: features?.networkWifiMB, displayValue: features?.networkWifiMB?.toFixed(0) || '0', unit: 'MB', icon: Wifi, defaultColor: '#38bdf8', key: 'networkWifiMB', invertGood: true },
-        { name: 'Mobile Data', value: features?.networkMobileMB, displayValue: features?.networkMobileMB?.toFixed(0) || '0', unit: 'MB', icon: Activity, defaultColor: '#8b5cf6', key: 'networkMobileMB', invertGood: true },
+        { name: 'Mobile Data', value: features?.networkMobileMB, displayValue: features?.networkMobileMB?.toFixed(0) || '0', unit: 'MB', icon: Zap, defaultColor: '#8b5cf6', key: 'networkMobileMB', invertGood: true },
         { name: 'Downloads', value: features?.downloadsToday, displayValue: features?.downloadsToday?.toFixed(0) || '0', unit: 'files', icon: Download, defaultColor: '#f59e0b', key: 'downloadsToday', invertGood: true },
       ]
     }
   ];
+
+  // Build dynamic baseline metrics from ALL available baseline keys
+  const allBaselineMetrics = (() => {
+    if (!baseline || !features) return [];
+
+    // Build lookup from categorizedFeatures for labels, units, invertGood
+    const featureMeta: Record<string, { label: string; unit: string; invertGood: boolean }> = {};
+    for (const group of categorizedFeatures) {
+      for (const item of group.items) {
+        featureMeta[item.key] = { label: item.name, unit: item.unit, invertGood: item.invertGood };
+      }
+    }
+
+    return Object.keys(baseline)
+      .filter(key => {
+        // Guard: baseline mean must exist and be non-zero (division-by-zero protection)
+        const bm = baseline[key]?.mean;
+        if (bm === undefined || bm === null || bm === 0) return false;
+        // Guard: current feature value must exist
+        const fv = (features as Record<string, unknown>)[key];
+        if (fv === undefined || fv === null) return false;
+        return true;
+      })
+      .map(key => {
+        const meta = featureMeta[key] || { label: key, unit: '', invertGood: false };
+        const rawCurrent = (features as Record<string, unknown>)[key] as number;
+        const rawBaseline = baseline[key].mean;
+        // Scale ratio fields (0–1 storage) to percentage for display
+        const isRatio = meta.unit === '%';
+        return {
+          label: meta.label,
+          current: isRatio ? rawCurrent * 100 : rawCurrent,
+          baseline: isRatio ? rawBaseline * 100 : rawBaseline,
+          unit: meta.unit,
+          invertGood: meta.invertGood,
+        };
+      });
+  })();
 
   const baselineReady = patient?.baseline_ready === true;
 
@@ -225,7 +265,7 @@ export const PatientDetail: React.FC = () => {
         <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <div style={{ background: isCritical ? 'rgba(239, 68, 68, 0.1)' : isElevated ? 'rgba(245, 158, 11, 0.1)' : 'rgba(16, 185, 129, 0.1)', padding: '1rem', borderRadius: '50%' }}>
-              {isCritical ? <AlertTriangle size={32} color="var(--danger)" /> : isElevated ? <Activity size={32} color="var(--warning)" /> : <ShieldCheck size={32} color="var(--success)" />}
+              {isCritical ? <AlertTriangle size={32} color="var(--danger)" /> : isElevated ? <TrendingUp size={32} color="var(--warning)" /> : <ShieldCheck size={32} color="var(--success)" />}
             </div>
             <div>
               <h1 className="page-title" style={{ marginBottom: '0.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -243,113 +283,35 @@ export const PatientDetail: React.FC = () => {
         </div>
       </div>
 
-      {/* Comprehensive Clinical Metrics Grid */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-          <Activity size={20} color="var(--accent-primary)" /> Clinical Biomarkers (24h Window)
-        </h3>
-        {allDays.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <button
-              onClick={() => setSelectedDayIndex(Math.min(selectedDayIndex + 1, allDays.length - 1))}
-              disabled={selectedDayIndex >= allDays.length - 1}
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', cursor: selectedDayIndex >= allDays.length - 1 ? 'not-allowed' : 'pointer', color: selectedDayIndex >= allDays.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronLeft size={16} />
-            </button>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', minWidth: '180px', justifyContent: 'center' }}>
-              <Calendar size={16} color="var(--accent-primary)" />
-              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{features?.date || 'No Data'}</span>
-              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({selectedDayIndex === 0 ? 'Latest' : `${selectedDayIndex}d ago`})</span>
-            </div>
-            <button
-              onClick={() => setSelectedDayIndex(Math.max(selectedDayIndex - 1, 0))}
-              disabled={selectedDayIndex <= 0}
-              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', cursor: selectedDayIndex <= 0 ? 'not-allowed' : 'pointer', color: selectedDayIndex <= 0 ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
-            >
-              <ChevronRight size={16} />
-            </button>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{allDays.length} day{allDays.length !== 1 ? 's' : ''} recorded</span>
-          </div>
-        )}
-      </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
-        {categorizedFeatures.map((categoryGroup, index) => (
-          <div key={index} className="glass-panel" style={{ overflow: 'hidden' }}>
-            <h4 style={{ padding: '1rem 1.5rem', margin: 0, borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)', color: 'var(--text-primary)', fontWeight: 600 }}>
-              {categoryGroup.category}
-            </h4>
-            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Biomarker / Feature</th>
-                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Current Score</th>
-                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Baseline Mean</th>
-                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Variance (Z-Score)</th>
-                  <th style={{ padding: '0.75rem 1.5rem', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Clinical Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {categoryGroup.items.map((feat) => {
-                  const statusObj = getClinicalStatus(feat.key, feat.value, feat.invertGood);
-                  const baselineMean = baseline && baseline[feat.key] && typeof baseline[feat.key].mean === 'number' ? baseline[feat.key].mean : null;
-                  const baselineStd = baseline && baseline[feat.key] && typeof baseline[feat.key].std === 'number' ? baseline[feat.key].std : (baselineMean !== null ? Math.max(baselineMean * 0.1, 1) : null);
-                  
-                  let varianceDisplay = 'N/A';
-                  if (feat.value !== undefined && baselineMean !== null && baselineStd !== null && baselineStd > 0) {
-                      const diff = feat.value - baselineMean;
-                      const z = (diff / baselineStd).toFixed(2);
-                      varianceDisplay = `${diff > 0 ? '+' : ''}${z}σ`;
-                  }
-                  
-                  const Icon = feat.icon;
-                  return (
-                    <tr 
-                      key={feat.key} 
-                      style={{ borderBottom: '1px solid var(--border)', transition: 'background var(--transition-fast)' }}
-                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
-                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <td style={{ padding: '1rem 1.5rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                           <div style={{ background: `${feat.defaultColor}15`, padding: '0.4rem', borderRadius: '0.5rem', color: feat.defaultColor, display: 'flex' }}>
-                             <Icon size={16} />
-                           </div>
-                           <span style={{ fontWeight: 500 }}>{feat.name}</span>
-                        </div>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                        {feat.displayValue} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>{feat.unit}</span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>
-                        {baselineMean !== null ? baselineMean.toFixed(1) : 'Est...'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{baselineMean !== null ? feat.unit : ''}</span>
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', fontFamily: 'monospace', color: varianceDisplay.includes('+') ? (feat.invertGood ? 'var(--danger)' : 'var(--warning)') : (varianceDisplay.includes('-') ? (feat.invertGood ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)') }}>
-                        {varianceDisplay}
-                      </td>
-                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', borderRadius: '1rem', background: `${statusObj.color}15`, color: statusObj.color, fontSize: '0.875rem', fontWeight: 600 }}>
-                          {statusObj.icon} {statusObj.status}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
+      {/* ── BASELINE & TEMPORAL PATTERNS ─────────────────────────────── */}
+      <div className="two-col-chart-grid" style={{ marginBottom: '1.5rem' }}>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem', marginBottom: '1.5rem' }}>
+        {/* Baseline Comparison - Line Graph Visualization */}
+        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
+            <Brain size={18} color="var(--primary)" /> Baseline Comparison
+          </h3>
+          {!baselineReady || !baseline || !features ? (
+            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
+              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
+            </div>
+          ) : (
+            <BaselineSlopeChart metrics={allBaselineMetrics} />
+          )}
+        </div>
 
         {/* Risk-Stratified Trendline */}
         <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Activity size={18} color="var(--accent-primary)" /> Longitudinal Anomaly Trajectory (Last 14 Days)
+            Longitudinal Anomaly Trajectory (Last 14 Days)
           </h3>
           <div style={{ flex: 1, minHeight: '350px' }}>
-            {history.length === 0 ? (
+            {historyLoading ? (
+               <div style={{ height: '100%', display: 'flex', alignItems:'center', justifyContent: 'center', flexDirection: 'column', gap: '0.75rem', color: 'var(--text-muted)' }}>
+                 <div className="animate-spin" style={{ width: '24px', height: '24px', border: '3px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%', opacity: 0.5 }} />
+                 <span>Loading anomaly trajectory...</span>
+               </div>
+            ) : history.length === 0 ? (
                <div style={{ height: '100%', display: 'flex', alignItems:'center', justifyContent: 'center', color: 'var(--text-muted)' }}>No historical data available yet.</div>
             ) : (
             <ResponsiveContainer width="100%" height="100%">
@@ -373,63 +335,13 @@ export const PatientDetail: React.FC = () => {
                 <ReferenceLine y={0.7} stroke="var(--danger)" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'CRITICAL (0.7)', fill: 'var(--danger)', fontSize: 11, fontWeight: 600 }} />
                 <ReferenceLine y={0.4} stroke="var(--warning)" strokeDasharray="3 3" label={{ position: 'insideBottomRight', value: 'ELEVATED (0.4)', fill: 'var(--warning)', fontSize: 11, fontWeight: 600 }} />
 
-                <Area type="monotone" dataKey="anomaly_score" stroke="var(--accent-primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--accent-primary)', stroke: '#fff', strokeWidth: 2 }} />
+                <Area type="monotone" dataKey="anomaly_score" stroke="var(--primary)" strokeWidth={3} fillOpacity={1} fill="url(#colorScore)" activeDot={{ r: 6, fill: 'var(--primary)', stroke: '#fff', strokeWidth: 2 }} />
               </AreaChart>
             </ResponsiveContainer>
             )}
           </div>
         </div>
-
-        {/* Baseline Comparison - Line Graph Visualization */}
-        <div className="glass-panel" style={{ padding: '1.5rem', display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-            <Brain size={18} color="var(--accent-primary)" /> Baseline Comparison
-          </h3>
-          {!baselineReady || !baseline || !features ? (
-            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '2rem' }}>
-              {!baselineReady ? 'Baseline period not yet complete' : 'No feature data available'}
-            </div>
-          ) : (
-            <BaselineSlopeChart
-              metrics={[
-                {
-                  label: 'Screen Time',
-                  current: features.screenTimeHours || 0,
-                  baseline: baseline.screenTimeHours?.mean || 0,
-                  unit: 'hrs',
-                  invertGood: true
-                },
-                {
-                  label: 'Sleep Duration',
-                  current: features.sleepDurationHours || 0,
-                  baseline: baseline.sleepDurationHours?.mean || 0,
-                  unit: 'hrs'
-                },
-                {
-                  label: 'Social Ratio',
-                  current: (features.socialAppRatio || 0) * 100,
-                  baseline: (baseline.socialAppRatio?.mean || 0) * 100,
-                  unit: '%'
-                },
-                {
-                  label: 'Daily Steps',
-                  current: features.dailySteps || 0,
-                  baseline: baseline.dailySteps?.mean || 0,
-                  unit: 'steps'
-                },
-                {
-                  label: 'App Launches',
-                  current: features.appLaunchCount || 0,
-                  baseline: baseline.appLaunchCount?.mean || 0,
-                  unit: 'times',
-                  invertGood: true
-                }
-              ]}
-            />
-          )}
-        </div>
       </div>
-
 
       {/* ── Top-3 Prototype Classification Panel ────────────────────────── */}
       {allScoresRanked.length > 0 && (
@@ -457,9 +369,9 @@ export const PatientDetail: React.FC = () => {
             {allScoresRanked.map((entry, idx) => {
               const displayName = entry.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
               const isClinical = !entry.name.toLowerCase().startsWith('healthy') && entry.name.toLowerCase() !== 'normal';
-              const barColor = isClinical ? 'var(--danger)' : 'var(--accent-primary)';
+              const barColor = isClinical ? 'var(--danger)' : 'var(--primary)';
               const pct = (entry.score * 100).toFixed(1);
-              const rankColors = ['var(--accent-primary)', 'var(--text-secondary)', 'var(--text-muted)'];
+              const rankColors = ['var(--primary)', 'var(--text-secondary)', 'var(--text-muted)'];
 
               return (
                 <div key={entry.name} style={{
@@ -560,14 +472,114 @@ export const PatientDetail: React.FC = () => {
         </div>
       )}
 
-      {/* Dynamic Clinical Insights */}
+      {/* ── DAILY CLINICAL BIOMARKERS ──────────────────────────────────── */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <h3 style={{ fontSize: '1.25rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
+          Clinical Biomarkers (24h Window)
+        </h3>
+        {allDays.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button
+              onClick={() => setSelectedDayIndex(Math.min(selectedDayIndex + 1, allDays.length - 1))}
+              disabled={selectedDayIndex >= allDays.length - 1}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', cursor: selectedDayIndex >= allDays.length - 1 ? 'not-allowed' : 'pointer', color: selectedDayIndex >= allDays.length - 1 ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronLeft size={16} />
+            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.5rem 1rem', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', minWidth: '180px', justifyContent: 'center' }}>
+              <Calendar size={16} color="var(--primary)" />
+              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{features?.date || 'No Data'}</span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>({selectedDayIndex === 0 ? 'Latest' : `${selectedDayIndex}d ago`})</span>
+            </div>
+            <button
+              onClick={() => setSelectedDayIndex(Math.max(selectedDayIndex - 1, 0))}
+              disabled={selectedDayIndex <= 0}
+              style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '0.5rem', cursor: selectedDayIndex <= 0 ? 'not-allowed' : 'pointer', color: selectedDayIndex <= 0 ? 'var(--text-muted)' : 'var(--text-primary)', display: 'flex', alignItems: 'center' }}
+            >
+              <ChevronRight size={16} />
+            </button>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginLeft: '0.25rem' }}>{allDays.length} day{allDays.length !== 1 ? 's' : ''} recorded</span>
+          </div>
+        )}
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', marginBottom: '2.5rem' }}>
+        {categorizedFeatures.map((categoryGroup, index) => (
+          <div key={index} className="glass-panel">
+            <h4 style={{ padding: '1rem 1.5rem', margin: 0, borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.05)', color: 'var(--text-primary)', fontWeight: 600 }}>
+              {categoryGroup.category}
+            </h4>
+            <div className="table-scroll-wrapper">
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+              <thead>
+                <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Biomarker / Feature</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Current Score</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Baseline Mean</th>
+                  <th style={{ padding: '0.75rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Variance (Z-Score)</th>
+                  <th style={{ padding: '0.75rem 1.5rem', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.75rem', textTransform: 'uppercase' }}>Clinical Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {categoryGroup.items.map((feat) => {
+                  const statusObj = getClinicalStatus(feat.key, feat.value, feat.invertGood);
+                  const baselineMean = baseline && baseline[feat.key] && typeof baseline[feat.key].mean === 'number' ? baseline[feat.key].mean : null;
+                  const baselineStd = baseline && baseline[feat.key] && typeof baseline[feat.key].std === 'number' ? baseline[feat.key].std : (baselineMean !== null ? Math.max(baselineMean * 0.1, 1) : null);
+                  
+                  let varianceDisplay = 'N/A';
+                  if (feat.value !== undefined && baselineMean !== null && baselineStd !== null && baselineStd > 0) {
+                      const diff = feat.value - baselineMean;
+                      const z = (diff / baselineStd).toFixed(2);
+                      varianceDisplay = `${diff > 0 ? '+' : ''}${z}σ`;
+                  }
+                  
+                  const Icon = feat.icon;
+                  return (
+                    <tr 
+                      key={feat.key} 
+                      style={{ borderBottom: '1px solid var(--border)', transition: 'background var(--transition-fast)' }}
+                      onMouseOver={(e) => e.currentTarget.style.background = 'var(--bg-card-hover)'}
+                      onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <td style={{ padding: '1rem 1.5rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                           <div style={{ background: `${feat.defaultColor}15`, padding: '0.4rem', borderRadius: '0.5rem', color: feat.defaultColor, display: 'flex' }}>
+                             <Icon size={16} />
+                           </div>
+                           <span style={{ fontWeight: 500 }}>{feat.name}</span>
+                        </div>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', fontWeight: 600, fontSize: '1.05rem', color: 'var(--text-primary)' }}>
+                        {feat.displayValue} <span style={{ fontSize: '0.75rem', fontWeight: 500, color: 'var(--text-muted)' }}>{feat.unit}</span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)' }}>
+                        {baselineMean !== null ? baselineMean.toFixed(1) : 'Est...'} <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{baselineMean !== null ? feat.unit : ''}</span>
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', fontFamily: 'monospace', color: varianceDisplay.includes('+') ? (feat.invertGood ? 'var(--danger)' : 'var(--warning)') : (varianceDisplay.includes('-') ? (feat.invertGood ? 'var(--success)' : 'var(--danger)') : 'var(--text-muted)') }}>
+                        {varianceDisplay}
+                      </td>
+                      <td style={{ padding: '1rem 1.5rem', textAlign: 'right' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', borderRadius: '1rem', background: `${statusObj.color}15`, color: statusObj.color, fontSize: '0.875rem', fontWeight: 600 }}>
+                          {statusObj.icon} {statusObj.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── DYNAMIC CLINICAL INSIGHTS ─────────────────────────────────── */}
       <div className="glass-panel" style={{ padding: '1.5rem' }}>
         <h3 style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 600 }}>
-          <HeartPulse size={18} color="var(--accent-primary)" /> Dynamic Clinical Insights
+          <HeartPulse size={18} color="var(--primary)" /> Dynamic Clinical Insights
         </h3>
         
         {matchMessage && (
-            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(56, 189, 248, 0.1)', borderLeft: '4px solid #38bdf8', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)', fontWeight: 500 }}>
+            <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(13, 115, 119, 0.08)', borderLeft: '4px solid var(--primary)', borderRadius: 'var(--radius-md)', color: 'var(--text-primary)', fontWeight: 500 }}>
                 🤖 ML Engine Note: {matchMessage}
             </div>
         )}

@@ -1,6 +1,5 @@
 package com.example.mhealth.logic
 
-import com.example.mhealth.logic.db.AppSessionEntity
 import com.example.mhealth.logic.db.BaselineEntity
 import com.example.mhealth.logic.db.DailyFeaturesEntity
 import org.json.JSONArray
@@ -32,18 +31,12 @@ object JsonConverter {
      * @param current      Today's feature row
      * @param baseline     List of BaselineEntity rows (one per feature)
      * @param history      Last N daily feature rows (oldest first, max 14)
-     * @param sessions     Optional list of app sessions for last 28 days (L2 DNA)
-     * @param sessionsToday Optional list of app sessions today (L2 DNA)
-     * @param dnaJson      Optional existing DNA profile JSON string
      * @return             JSON string ready to pass to engine.run_analysis()
      */
     fun toEngineJson(
         current: DailyFeaturesEntity,
         baseline: List<BaselineEntity>,
-        history: List<DailyFeaturesEntity>,
-        sessions: List<AppSessionEntity>? = null,
-        sessionsToday: List<AppSessionEntity>? = null,
-        dnaJson: String? = null
+        history: List<DailyFeaturesEntity>
     ): String {
         val root = JSONObject()
 
@@ -72,40 +65,7 @@ object JsonConverter {
         // ── contamination flag ────────────────────────────────────────────────
         root.put("baseline_contaminated", contaminated)
 
-        // ── Level 2 Behavioral DNA ───────────────────────────────────────────
-        sessions?.let {
-            val sessionsArr = JSONArray()
-            it.forEach { s -> sessionsArr.put(sessionEntityToJson(s)) }
-            root.put("sessions", sessionsArr)
-        }
-
-        sessionsToday?.let {
-            val sessionsTArr = JSONArray()
-            it.forEach { s -> sessionsTArr.put(sessionEntityToJson(s)) }
-            root.put("sessions_today", sessionsTArr)
-        }
-
-        dnaJson?.let {
-            if (it.length > 2) {
-                try {
-                    root.put("dna", JSONObject(it))
-                } catch (e: Exception) {
-                    root.put("dna", JSONObject())
-                }
-            }
-        }
-
         return root.toString()
-    }
-
-    /** Converts an AppSessionEntity to a JSON object for the Python engine. */
-    fun sessionEntityToJson(e: AppSessionEntity): JSONObject = JSONObject().apply {
-        put("app_package", e.app_package)
-        put("open_timestamp", e.open_timestamp)
-        put("close_timestamp", e.close_timestamp)
-        put("trigger", e.trigger)
-        put("interaction_count", e.interaction_count)
-        put("date", e.date)
     }
 
     /** Converts a DailyFeaturesEntity to a flat JSON object of feature → value */
@@ -250,8 +210,35 @@ object JsonConverter {
             .sortedByDescending { it.value.toDouble() }
             .take(100)
             .associate { it.toPair() }
-            
+
         return JSONObject(optimizedMap as Map<*, *>).toString()
+    }
+
+    /**
+     * Convert a list of AppSessionEntity to a JSON string for the Python engine.
+     * Includes derived fields (hour, duration_minutes) that phone_dna_builder expects.
+     */
+    fun sessionsToJson(sessions: List<com.example.mhealth.logic.db.AppSessionEntity>): String {
+        val cal = java.util.Calendar.getInstance()
+        val arr = JSONArray()
+        for (s in sessions) {
+            cal.timeInMillis = s.open_timestamp
+            val hour = cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f
+            val durationMin = (s.close_timestamp - s.open_timestamp).coerceAtLeast(0) / 60_000f
+
+            arr.put(JSONObject().apply {
+                put("app_package", s.app_package)
+                put("open_timestamp", s.open_timestamp)
+                put("open_timestamp_ms", s.open_timestamp)
+                put("close_timestamp", s.close_timestamp)
+                put("hour", hour.toDouble())
+                put("duration_minutes", durationMin.toDouble())
+                put("trigger", s.trigger)
+                put("interaction_count", s.interaction_count)
+                put("date", s.date)
+            })
+        }
+        return arr.toString()
     }
 
     private fun parseMapLong(jsonStr: String): Map<String, Long> {

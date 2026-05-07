@@ -43,7 +43,9 @@ export const Reports: React.FC = () => {
           for (const res of hist) {
              const score = res.anomaly_score;
              if (score >= 0.4) {
-                const d = new Date(res.date);
+                // Parse as LOCAL date to avoid UTC-midnight off-by-one in UTC+ timezones (e.g. IST +5:30)
+                const [yr, mo, dy] = (res.date as string).split('-').map(Number);
+                const d = new Date(yr, mo - 1, dy);
                 const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
                 counts[dayStr] = (counts[dayStr] || 0) + 1;
              }
@@ -84,7 +86,7 @@ export const Reports: React.FC = () => {
       const encodedUri = encodeURI(csvData);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "mhealth_system_report.csv");
+      link.setAttribute("download", "lumen_system_report.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

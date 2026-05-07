@@ -72,8 +72,44 @@ class PhoneDNABuilder:
             dna.first_pickup_hour_mean = float(np.mean(daily_first_hours))
             dna.first_pickup_hour_std = float(np.std(daily_first_hours))
 
-        # --- Active window duration ---
-        active_windows = [last - first for first, last in zip(daily_first_hours, daily_last_hours)]
+        # --- Active window duration (density-based, NOT first-to-last span) ---
+        active_windows = []
+        for day_idx, sessions in daily_sessions.items():
+            if not sessions:
+                continue
+            # Bin into 30-min slots (48 per day)
+            occupied_slots = set()
+            for s in sessions:
+                open_h = float(s.get('hour', 12))
+                dur_min = float(s.get('duration_minutes', 0))
+                close_h = open_h + dur_min / 60.0
+                open_slot = int(open_h * 2) % 48
+                close_slot = int(close_h * 2) % 48
+                for slot in range(open_slot, close_slot + 1):
+                    occupied_slots.add(slot % 48)
+
+            if not occupied_slots:
+                continue
+
+            sorted_slots = sorted(occupied_slots)
+            best_s = sorted_slots[0]; best_e = sorted_slots[0]
+            cur_s = sorted_slots[0]; cur_e = sorted_slots[0]
+            for i in range(1, len(sorted_slots)):
+                if sorted_slots[i] <= cur_e + 1:
+                    cur_e = sorted_slots[i]
+                else:
+                    if cur_e - cur_s > best_e - best_s:
+                        best_s = cur_s; best_e = cur_e
+                    cur_s = sorted_slots[i]; cur_e = sorted_slots[i]
+            if cur_e - cur_s > best_e - best_s:
+                best_s = cur_s; best_e = cur_e
+
+            # Each slot = 30 min. Expand by 1 slot each side.
+            start_hour = max(best_s - 1, 0) * 0.5
+            end_hour = min(best_e + 2, 48) * 0.5
+            window = min(end_hour - start_hour, 16.0)
+            active_windows.append(window)
+
         if active_windows:
             dna.active_window_duration_mean = float(np.mean(active_windows))
             dna.active_window_duration_std = float(np.std(active_windows))

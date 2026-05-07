@@ -17,25 +17,26 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from config import (
+from .config import (
     POPULATION_NORMS,
     DISORDER_PROTOTYPES_FRAME1,
     DISORDER_PROTOTYPES_FRAME2,
     FEATURE_WEIGHTS,
+    CONFIDENCE_THRESHOLDS,
 )
-from baseline_screener import BaselineScreener, ScreeningResult, RecommendedAction
-from life_event_filter import (
+from .baseline_screener import BaselineScreener, ScreeningResult, RecommendedAction
+from .life_event_filter import (
     AnomalyReport,
     FilterDecision,
     LifeEventFilter,
 )
-from prototype_matcher import (
+from .prototype_matcher import (
     ClassificationResult,
     ConfidenceTier,
     PrototypeMatcher,
 )
-from temporal_validator import AdjustedClassification, TemporalValidator
-from explainability import Explanation, ExplainabilityEngine
+from .temporal_validator import AdjustedClassification, TemporalValidator
+from .explainability import Explanation, ExplainabilityEngine
 
 
 # ── S1 → S2 Interface Contract ─────────────────────────────────────────
@@ -116,6 +117,7 @@ class System2Pipeline:
         self,
         s1_input: S1Input,
         chart_path: str | None = None,
+        user_profile=None,
     ) -> S2Output:
         """
         Run the full S2 pipeline.
@@ -126,6 +128,8 @@ class System2Pipeline:
             Data bundle from System 1.
         chart_path : str, optional
             If provided, save a radar chart to this path.
+        user_profile : UserProfile, optional
+            Self-report data from app onboarding (PHQ-9, GAD-7, etc).
 
         Returns
         -------
@@ -140,6 +144,7 @@ class System2Pipeline:
             raw_7day=baseline.get("raw_7day", baseline.get("raw_28day", {})),
             weekly_windows=baseline.get("weekly_windows", []),
             raw_28day=baseline.get("raw_28day", {}),
+            user_profile=user_profile,
         )
 
         # ── Early Detection: contaminated baseline ─────────────────
@@ -150,7 +155,12 @@ class System2Pipeline:
         )
 
         # ── Step 2: Life event filter ───────────────────────────────
-        filter_decision = self.life_filter.filter(report)
+        # Skip when baseline is contaminated — near-zero deviations are expected
+        # (baseline IS the disordered state) and must not be dismissed.
+        if is_contaminated:
+            filter_decision = FilterDecision.PROCEED
+        else:
+            filter_decision = self.life_filter.filter(report, user_profile=user_profile)
 
         if filter_decision == FilterDecision.DISMISS:
             return S2Output(
@@ -163,18 +173,55 @@ class System2Pipeline:
             )
 
         # ── Step 3: Distance scoring ────────────────────────────────
+        # When baseline is contaminated, Gate 3 already identified the disorder
+        # via population-norm matching. Use that directly — the classifier
+        # cannot help because S1 deviations from a contaminated baseline are
+        # near-zero (the monitoring period matches the depressed baseline).
         frame = screening.frame
-        classification = self.matcher.classify(
-            deviation_vector=report.feature_deviations,
-            frame=frame,
-        )
+        if is_contaminated and screening.gate3_top_match:
+            classification = ClassificationResult(
+                disorder=screening.gate3_top_match,
+                score=screening.gate3_confidence,
+                confidence=(
+                    ConfidenceTier.HIGH
+                    if screening.gate3_confidence >= CONFIDENCE_THRESHOLDS["high"]
+                    else ConfidenceTier.LOW
+                ),
+                frame_used=1,
+            )
+        else:
+            classification = self.matcher.classify(
+                deviation_vector=report.feature_deviations,
+                frame=frame,
+            )
 
         # ── Step 3b: Clinical Guardrails ────────────────────────────────
         # Presentation-ready optimization: overrides geometric matching
-        # with rigorous heuristic thresholds for severe overlapping cases
-        classification = self._clinical_guardrails(
-            classification, report.feature_deviations
-        )
+        # with rigorous heuristic thresholds for severe overlapping cases.
+        # Guarded by temporal persistence — single-day z-score spikes from
+        # high-variance users must not trigger clinical overrides.
+        # Skip when baseline is contaminated — deviations from a contaminated
+        # baseline are noise, not clinically meaningful signals.
+        if not is_contaminated:
+            classification = self._clinical_guardrails(
+                classification, report.feature_deviations,
+                days_sustained=report.days_sustained,
+                s1_evidence=report.s1_evidence,
+            )
+
+        # ── Step 3c: Healthy-noise guard ─────────────────────────────────
+        # If no gates fired AND fewer than 2 clinically significant deviations,
+        # the classification is noise. A single feature hitting 2+ SD is normal
+        # random variation; real disorders show multi-feature deviation.
+        if not screening.gates_fired:
+            n_significant = sum(
+                1 for v in report.feature_deviations.values() if abs(v) > 1.5
+            )
+            if n_significant < 2:
+                classification.disorder = "healthy"
+                classification.score = max(0.1, 1.0 - classification.score)
+                classification.confidence = ConfidenceTier.LOW
+                classification.frame_used = frame
 
         # ── Step 4: Temporal validation ─────────────────────────────
         temporal_result = self.temporal.validate(classification, timeseries)
@@ -255,9 +302,11 @@ class System2Pipeline:
     def _clinical_guardrails(
         classification: ClassificationResult,
         deviations: Dict[str, float],
+        days_sustained: int = 0,
+        s1_evidence: float = 0.0,
     ) -> ClassificationResult:
         """
-        Dataset-agnostic clinical override guardrails.
+        Dataset-agnostic clinical override guardrails with temporal persistence gate.
 
         Two cluster-based rules that apply to ALL users equally:
 
@@ -274,22 +323,49 @@ class System2Pipeline:
             Basis: profound multi-channel social withdrawal is the highest-
             sensitivity digital biomarker for depressive episodes
             (Canzian & Musolesi, 2015; Wang et al., 2018).
+
+        Persistence Gate:
+            Both rules require S1 to have detected sustained anomaly before
+            overriding the geometric matcher. Single-day z-score spikes from
+            high-variance users are blocked from triggering clinical overrides.
         """
+        # ── Temporal persistence gate ──────────────────────────────────
+        # S1's evidence engine already encodes sustained anomaly detection.
+        # days_sustained: consecutive anomalous days (threshold = SUSTAINED_THRESHOLD_DAYS)
+        # s1_evidence: accumulated evidence (threshold = EVIDENCE_THRESHOLD)
+        # If S1 hasn't flagged sustained anomaly, guardrail must not override.
+        s1_supports_override = days_sustained >= 3 or s1_evidence >= 0.40
+
         # ── Rule 1: Psychosis cluster ─────────────────────────────────────
         if not classification.disorder.startswith("schizo"):
-            psychosis_markers = [
-                abs(deviations.get("location_entropy", 0)),
-                abs(deviations.get("daily_displacement_km", 0)),
-                abs(deviations.get("sleep_time_hour", 0)),
-                abs(deviations.get("calls_per_day", 0)),
+            psychosis_markers_raw = [
+                deviations.get("location_entropy", 0),
+                deviations.get("daily_displacement_km", 0),
+                deviations.get("sleep_time_hour", 0),
+                deviations.get("calls_per_day", 0),
             ]
+            psychosis_markers = [abs(v) for v in psychosis_markers_raw]
             # Require ≥ 2 features exceeding 1.5 SD threshold
             n_severe = sum(1 for v in psychosis_markers if v > 1.5)
             total_magnitude = sum(psychosis_markers)
 
             if n_severe >= 2 or total_magnitude > 5.0:
-                classification.disorder = "schizophrenia_type_2"
-                classification.score = 0.90
+                if not s1_supports_override:
+                    return classification
+
+                n_positive = sum(1 for v in psychosis_markers_raw if v > 0.5)
+                n_negative = sum(1 for v in psychosis_markers_raw if v < -0.5)
+
+                # All same-sign = coherent withdrawal/retardation, not disorganized psychosis.
+                # All negative = depression-like (withdrawal, retardation).
+                # All positive = mania-like (hyperactivity, increased contact).
+                # Only override when markers show INCONSISTENT directions (disorganization).
+                if n_positive == 0 or n_negative == 0:
+                    return classification
+
+                # Mixed signs: some +, some - → cycling/disorganized → bipolar
+                classification.disorder = "bipolar_depressive"
+                classification.score = 0.72
                 classification.confidence = ConfidenceTier.HIGH
                 return classification
 
@@ -307,8 +383,10 @@ class System2Pipeline:
             n_withdrawn = sum(1 for v in withdrawal_markers if v < -1.2)
 
             if n_withdrawn >= 2 or (n_withdrawn >= 1 and mobility_drop < -1.5):
+                if not s1_supports_override:
+                    return classification
                 classification.disorder = "depression_type_1"
-                classification.score = 0.88
+                classification.score = 0.78
                 classification.confidence = ConfidenceTier.HIGH
                 return classification
 

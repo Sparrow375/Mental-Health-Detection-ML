@@ -43,6 +43,7 @@ object PythonEngine {
         val coherence: Float               = 0f,
         val rhythmDissolution: Float       = 0f,
         val sessionIncoherence: Float      = 0f,
+        val clusterMismatch: Float         = 0f,   // PCA archetype mismatch score [0,1]
 
         // System 1 Profile (DNA Baseline, Clusters, Texture Profiles)
         val profileJson: String            = "{}",
@@ -124,6 +125,7 @@ object PythonEngine {
                 coherence           = dna.optDouble("coherence", 0.0).toFloat(),
                 rhythmDissolution   = dna.optDouble("rhythm_dissolution", 0.0).toFloat(),
                 sessionIncoherence  = dna.optDouble("session_incoherence", 0.0).toFloat(),
+                clusterMismatch     = dna.optDouble("cluster_mismatch", 0.0).toFloat(),
                 profileJson         = profileJson,
                 engineStatus        = status,
                 errorMessage        = root.optString("error_message", "")

@@ -1,4 +1,6 @@
 package com.example.mhealth.ui.screens
+ 
+import kotlin.math.abs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -81,7 +83,7 @@ fun MonitorScreen() {
 private fun HeaderSection(isBuilding: Boolean) {
     Box(
         Modifier.fillMaxWidth()
-            .background(Brush.horizontalGradient(listOf(SoftCyan, ChartPurple)))
+            .background(Brush.horizontalGradient(listOf(OceanBlue, AccentBlue)))
             .padding(20.dp)
     ) {
         Column {
@@ -191,13 +193,10 @@ private fun IntradayTrendsCard(hourly: List<com.example.mhealth.models.Personali
         } else {
             val screenTimes = remember(hourly) { hourly.map { it.screenTimeHours } }
             val distances = remember(hourly) { hourly.map { it.dailyDisplacementKm } }
-            val unlocks = remember(hourly) { hourly.map { it.unlockCount } }
-            
+
             SparklineLabel("Screen Time (hrs)", screenTimes, OceanBlue)
             Spacer(Modifier.height(12.dp))
             SparklineLabel("Distance (km)", distances, ChartRed)
-            Spacer(Modifier.height(12.dp))
-            SparklineLabel("Unlocks", unlocks, ChartPurple)
         }
     }
 }
@@ -218,7 +217,23 @@ private fun ComparisonCard(
             )
         }
         rows.forEach { (label, cur, base) ->
-            ComparisonRow(label, cur, base)
+            Column {
+                ComparisonRow(label, cur, base)
+                val diff = cur - base
+                val pct = if (base != 0f) ((diff / base) * 100).toInt() else 0
+                val deltaColor = when {
+                    abs(pct) <= 10 -> AlertGreen
+                    abs(pct) <= 30 -> AlertYellow
+                    else -> AlertRed
+                }
+                if (pct != 0) {
+                    Text(
+                        "${if (pct > 0) "+" else ""}${pct}% from baseline",
+                        fontSize = 10.sp, color = deltaColor, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    )
+                }
+            }
         }
     }
 }

@@ -2,9 +2,11 @@
 Alert Engine: sustained gate, alert level assignment, pattern detection,
 flagged features, and top deviations.
 
-No escalation above green unless the sustained gate is cleared:
-    sustained_deviation_days ≥ SUSTAINED_THRESHOLD_DAYS  OR
-    evidence_accumulated ≥ EVIDENCE_THRESHOLD
+Phase-dependent gating (Bayesian warm start):
+    POPULATION_ANCHORED (day 0-13):  cap at YELLOW
+    BLENDED            (day 14-59):  ORANGE needs confidence >= 0.50,
+                                     RED needs confidence >= 0.80
+    IDIOGRAPHIC        (day 60+):    no additional gating
 """
 
 from __future__ import annotations
@@ -31,42 +33,15 @@ class AlertEngine:
     # Step 6.1 + 6.2 + 6.3 — Alert level
     # ------------------------------------------------------------------
 
-    def determine_alert_level(
+    def _compute_base_level(
         self,
         effective_score: float,
-        deviations: Dict[str, float],
-        evidence_state: EvidenceState,
+        critical_deviation: float,
+        has_sustained: bool,
     ) -> str:
-        """
-        Step 6.1 — Sustained gate (absolute)
-            No escalation above green unless:
-                sustained_deviation_days ≥ SUSTAINED_THRESHOLD_DAYS, OR
-                evidence_accumulated ≥ EVIDENCE_THRESHOLD
-
-        Step 6.2 — Critical feature deviation
-            critical_deviation = max(|z_score| for f in CRITICAL_FEATURES)
-
-        Step 6.3 — Alert level assignment
-            green  : score < 0.35 AND critical_deviation < 2.0 SD
-            yellow : score < 0.50 AND critical_deviation < 2.5 SD
-            orange : score < 0.65 OR  critical_deviation < 3.0 SD
-            red    : score ≥ 0.65 AND critical_deviation ≥ 3.0 SD
-        """
-        # Critical feature deviation
-        critical_deviation = max(
-            abs(deviations.get(f, 0.0)) for f in CRITICAL_FEATURES
-        ) if deviations else 0.0
-
-        # Sustained gate — absolute, cannot be overridden
-        has_sustained = (
-            evidence_state.sustained_deviation_days >= self.SUSTAINED_THRESHOLD_DAYS
-            or evidence_state.evidence_accumulated >= self.EVIDENCE_THRESHOLD
-        )
-
+        """Original alert-level logic, extracted for phase gating."""
         if not has_sustained:
             return 'green'
-
-        # Gate cleared — assign level based on severity
         if effective_score < 0.35 and critical_deviation < 2.0:
             return 'green'
         elif effective_score < 0.50 and critical_deviation < 2.5:
@@ -75,6 +50,70 @@ class AlertEngine:
             return 'orange'
         else:
             return 'red'
+
+    def determine_alert_level(
+        self,
+        effective_score: float,
+        deviations: Dict[str, float],
+        evidence_state: EvidenceState,
+        baseline_phase: str = 'idiographic',
+        baseline_confidence: float = 1.0,
+    ) -> str:
+        """
+        Alert level with phase-dependent gating.
+
+        Step 6.1 - Sustained gate (absolute)
+        Step 6.2 - Critical feature deviation
+        Step 6.3 - Base level assignment
+        Step 6.4 - Phase gate (Bayesian warm start)
+        """
+        # Critical feature deviation
+        critical_deviation = max(
+            abs(deviations.get(f, 0.0)) for f in CRITICAL_FEATURES
+        ) if deviations else 0.0
+
+        # Sustained gate - absolute, cannot be overridden
+        has_sustained = (
+            evidence_state.sustained_deviation_days >= self.SUSTAINED_THRESHOLD_DAYS
+            or evidence_state.evidence_accumulated >= self.EVIDENCE_THRESHOLD
+        )
+
+        # Base level from severity
+        base_level = self._compute_base_level(
+            effective_score, critical_deviation, has_sustained,
+        )
+
+        # Phase-dependent gating
+        if baseline_phase == 'population_anchored':
+            if base_level in ('orange', 'red'):
+                return 'yellow'
+            return base_level
+
+        elif baseline_phase == 'blended':
+            if base_level == 'red':
+                if baseline_confidence >= 0.80:
+                    return 'red'
+                else:
+                    return 'orange'
+            if base_level == 'orange':
+                if baseline_confidence >= 0.50:
+                    return 'orange'
+                else:
+                    return 'yellow'
+            return base_level
+
+        else:  # idiographic - no additional gating
+            return base_level
+
+    @staticmethod
+    def get_baseline_label(phase: str, confidence: float) -> str:
+        """Human-readable label for the current baseline phase."""
+        if phase == 'population_anchored':
+            return f"population-relative (low confidence, {confidence:.0%})"
+        elif phase == 'blended':
+            return f"blended baseline (confidence: {confidence:.0%})"
+        else:
+            return "personal baseline (high confidence)"
 
     # ------------------------------------------------------------------
     # Step 6.4 — Pattern type detection

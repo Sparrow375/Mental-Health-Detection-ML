@@ -20,6 +20,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
@@ -44,7 +46,7 @@ fun ScreenHeader(
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(14.dp))
                 .background(OceanBlue.copy(alpha = 0.1f)),
             contentAlignment = Alignment.Center
         ) {
@@ -68,10 +70,11 @@ fun InfoCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .shadow(4.dp, RoundedCornerShape(20.dp)),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = CardWhite),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(
@@ -80,8 +83,9 @@ fun InfoCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(4.dp, 16.dp)
-                        .clip(CircleShape)
+                        .width(4.dp)
+                        .height(18.dp)
+                        .clip(RoundedCornerShape(2.dp))
                         .background(headerColor)
                 )
                 Spacer(Modifier.width(8.dp))
@@ -110,9 +114,14 @@ fun MetricPill(
     ) {
         Box(
             modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(color.copy(alpha = 0.1f))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(color.copy(alpha = 0.15f), color.copy(alpha = 0.08f))
+                    )
+                )
+                .border(1.dp, color.copy(alpha = 0.2f), RoundedCornerShape(14.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             Text(
                 value,
@@ -174,7 +183,7 @@ fun ComparisonRow(
 ) {
     val diff = current - baseline
     val percent = if (baseline != 0f) (diff / baseline) * 100 else 0f
-    
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -182,20 +191,20 @@ fun ComparisonRow(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column(Modifier.weight(1f)) {
-            Text(label, fontSize = 13.sp, color = TextSecondary)
+            Text(label, fontSize = 13.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
             Text(
                 "Current: ${"%.1f".format(current)} (Base: ${"%.1f".format(baseline)})",
                 fontSize = 11.sp,
                 color = TextMuted
             )
         }
-        
+
         val statusColor = when {
             percent > 20f -> AlertRed
             percent < -20f -> AlertGreen
             else -> TextSecondary
         }
-        
+
         Text(
             text = if (percent >= 0) "+${"%.0f".format(percent)}%" else "${"%.0f".format(percent)}%",
             color = statusColor,
@@ -215,29 +224,45 @@ fun CollapsibleCard(
     content: @Composable () -> Unit
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(3.dp, RoundedCornerShape(16.dp)),
         colors = CardDefaults.cardColors(containerColor = CardLight),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         border = CardDefaults.outlinedCardBorder(true)
     ) {
         Column {
+            // Accent bar on left
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { onToggle() }
-                    .padding(16.dp),
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(start = 4.dp)
             ) {
-                Icon(icon, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
-                Spacer(Modifier.width(8.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    Text(subtitle, color = TextSecondary, fontSize = 11.sp)
-                }
-                Icon(
-                    if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                    null, tint = TextSecondary, modifier = Modifier.size(20.dp)
+                Box(
+                    modifier = Modifier
+                        .width(3.dp)
+                        .height(60.dp)
+                        .padding(vertical = 16.dp)
+                        .background(AccentBlue, RoundedCornerShape(2.dp))
                 )
+                Row(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(icon, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(title, color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(subtitle, color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Icon(
+                        if (expanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
+                        null, tint = TextSecondary, modifier = Modifier.size(20.dp)
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -257,24 +282,50 @@ fun CollapsibleCard(
 
 @Composable
 fun MiniStat(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = color, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-        Text(label, color = TextSecondary, fontSize = 8.sp)
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.padding(horizontal = 2.dp)
+    ) {
+        Text(value, color = color, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(1.dp))
+        Box(modifier = Modifier.width(20.dp).height(2.dp).background(color.copy(alpha = 0.4f), RoundedCornerShape(1.dp)))
+        Spacer(Modifier.height(2.dp))
+        Text(label, color = TextSecondary, fontSize = 9.sp)
     }
 }
 
 @Composable
 fun PhoneMetric(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-        Text(label, color = TextSecondary, fontSize = 9.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    Card(
+        modifier = Modifier.padding(2.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.06f)),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(true)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+        ) {
+            Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(label, color = TextSecondary, fontSize = 9.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
     }
 }
 
 @Composable
 fun TextureMetric(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(2.dp)) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-        Text(label, color = TextSecondary, fontSize = 8.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+    Card(
+        modifier = Modifier.padding(2.dp),
+        colors = CardDefaults.cardColors(containerColor = color.copy(alpha = 0.06f)),
+        shape = RoundedCornerShape(8.dp),
+        border = CardDefaults.outlinedCardBorder(true)
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
+        ) {
+            Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+            Text(label, color = TextSecondary, fontSize = 8.sp, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        }
     }
 }

@@ -39,16 +39,4 @@ interface DailyFeaturesDao {
 
     @Query("DELETE FROM daily_features WHERE userId = :userId AND isSimulated = 1")
     suspend fun clearSimulated(userId: String): Int
-
-    /** Upsert today's in-progress snapshot by userId+date. Preserves the existing row's id and sync state. */
-    @androidx.room.Transaction
-    suspend fun upsertByDate(entity: DailyFeaturesEntity) {
-        val existing = getByDate(entity.userId, entity.date)
-        if (existing != null) {
-            // Update the existing row — keep its id and sync flag
-            insert(entity.copy(id = existing.id, syncedToCloud = existing.syncedToCloud))
-        } else {
-            insert(entity)
-        }
-    }
 }

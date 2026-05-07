@@ -49,6 +49,7 @@ class NightlyAnalysisWorker(
         const val TAG          = "MHealth.NightlyWorker"
         const val KEY_USER_ID  = "user_id"
         const val KEY_TARGET_DATE = "target_date"
+        const val KEY_FORCE_RUN = "force_run"
         const val WORK_NAME    = "nightly_analysis"
 
 
@@ -83,10 +84,11 @@ class NightlyAnalysisWorker(
             Log.i(TAG, "Nightly analysis scheduled for user=$userId")
         }
 
-        fun runNow(context: Context, userId: String, targetDate: String? = null) {
+        fun runNow(context: Context, userId: String, targetDate: String? = null, forceRun: Boolean = false) {
             val data = workDataOf(
                 KEY_USER_ID to userId,
-                KEY_TARGET_DATE to targetDate
+                KEY_TARGET_DATE to targetDate,
+                KEY_FORCE_RUN to forceRun
             )
             val request = OneTimeWorkRequestBuilder<NightlyAnalysisWorker>()
                 .setInputData(data)
@@ -139,18 +141,23 @@ class NightlyAnalysisWorker(
             val profileEntity = db.userProfileDao().getProfile(userId)
             val l1BaselineReady = profileEntity?.baselineReady ?: false
             val baselineEntities = db.baselineDao().getBaseline(userId)
-            
-            // Separate threshold for DNA (L2) building vs Anomaly (L1) detection
-            val daysCollected = db.dailyFeaturesDao().count(userId)
-            val dnaThreshold = DataRepository.dnaBaselineDaysRequired.value
-            
-            val dnaReady = daysCollected >= dnaThreshold
-            
-            Log.i(TAG, "DNA Progress Check: collected=$daysCollected, threshold=$dnaThreshold, dnaReady=$dnaReady, l1Ready=$l1BaselineReady")
 
-            if (!dnaReady && !l1BaselineReady) {
-                Log.w(TAG, "Neither baseline nor DNA ready yet ($daysCollected/$dnaThreshold days) — aborting analysis")
+            // DNA (L2) readiness uses daily_dna_snapshot count, NOT daily_features count
+            val dnaDaysCollected = db.dailyDnaSnapshotDao().countDistinctDays(userId)
+            val dnaThreshold = DataRepository.dnaBaselineDaysRequired.value
+            val dnaReady = dnaDaysCollected >= dnaThreshold
+
+            Log.i(TAG, "DNA Progress Check: dnaDays=$dnaDaysCollected, threshold=$dnaThreshold, dnaReady=$dnaReady, l1Ready=$l1BaselineReady")
+
+            val forceRun = inputData.getBoolean(KEY_FORCE_RUN, false)
+
+            if (!dnaReady && !l1BaselineReady && !forceRun) {
+                Log.w(TAG, "Neither baseline nor DNA ready yet (dnaDays=$dnaDaysCollected/$dnaThreshold) — aborting analysis")
                 return Result.success()
+            }
+
+            if (forceRun) {
+                Log.i(TAG, "Force run requested — proceeding with analysis regardless of readiness")
             }
 
             // ── 3. Fetch history (last 14 days) ────────────────────────────────
@@ -164,37 +171,10 @@ class NightlyAnalysisWorker(
                 .map { it.anomalyScore }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
-            val dayNumber = daysCollected + 1
+            val dayNumber = dnaDaysCollected + 1
+            val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
-            // Behavioral DNA (Level 2) Prep:
-            // Fetch sessions for today and the 28-day baseline window
-            val sessionsToday = db.appSessionDao().getByDate(targetDate)
-            
-            val cal = Calendar.getInstance().apply {
-                DATE_FMT.parse(targetDate)?.let { time = it }
-                add(Calendar.DAY_OF_YEAR, -28)
-            }
-            val startDateStr = DATE_FMT.format(cal.time)
-            // Fetch only top 3000 sessions to prevent memory bloat, then sort chronologically
-            val sessions28Day = db.appSessionDao().getByDateRangeLimited(startDateStr, targetDate, 3000)
-                .sortedBy { it.open_timestamp }
-            
-            // Fetch existing DNA profile to allow incremental updates/rolling clusters
-            val existingDna = db.personDnaDao().getByUserId(userId)
-            val dnaJson = existingDna?.dna_json
-
-            Log.i(TAG, "Analysis Prep (L1+L2): history=${history.size}, sessionsToday=${sessionsToday.size}, sessions28Day=${sessions28Day.size}, hasExistingDna=${dnaJson != null}")
-
-            val inputJson = JsonConverter.toEngineJson(
-                current         = todayFeatures,
-                baseline        = baselineEntities,
-                history         = history,
-                sessions        = sessions28Day,
-                sessionsToday   = sessionsToday,
-                dnaJson         = dnaJson
-            )
-
-            // Inject day_number, gate_state, and historical anomaly scores
+            // Inject day_number, gate_state, historical anomaly scores, and session data
             val jsonWithMeta = injectMetadata(
                 inputJson = inputJson,
                 dayNumber = dayNumber,
@@ -203,8 +183,31 @@ class NightlyAnalysisWorker(
                 historicalScores = historicalScores
             )
 
+            // ── 4b. Inject session data for Phone DNA and App DNA computation ──
+            val jsonWithSessions = try {
+                val obj = org.json.JSONObject(jsonWithMeta)
+                // Get sessions for the baseline period (last 30 days)
+                val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                val cal = java.util.Calendar.getInstance()
+                cal.add(java.util.Calendar.DAY_OF_YEAR, -30)
+                val startDate = dateFormat.format(cal.time)
+                val cal2 = java.util.Calendar.getInstance()
+                val endDate = dateFormat.format(cal2.time)
+                val allSessions = db.appSessionDao().getByDateRange(startDate, endDate)
+                obj.put("sessions", org.json.JSONArray(JsonConverter.sessionsToJson(allSessions)))
+                Log.d(TAG, "Injected ${allSessions.size} sessions for DNA computation")
+
+                // Get today's sessions specifically
+                val todaySessions = db.appSessionDao().getByDate(targetDate)
+                obj.put("sessions_today", org.json.JSONArray(JsonConverter.sessionsToJson(todaySessions)))
+                obj.toString()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to inject sessions: ${e.message}")
+                jsonWithMeta
+            }
+
             // ── 5. Call Python engine ──────────────────────────────────────────
-            val engineResult = PythonEngine.runAnalysis(jsonWithMeta)
+            val engineResult = PythonEngine.runAnalysis(jsonWithSessions)
             Log.i(TAG, "Engine result: status=${engineResult.engineStatus} " +
                     "alert=${engineResult.alertLevel} match=${engineResult.prototypeMatch}")
 
@@ -235,8 +238,15 @@ class NightlyAnalysisWorker(
                 patternType         = engineResult.patternType,
                 flaggedFeatures     = org.json.JSONArray(engineResult.flaggedFeatures).toString()
             )
-            db.analysisResultDao().insert(resultEntity)
-            Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+            // Dedup: if result already exists for this date, update instead of inserting duplicate
+            val existingResult = db.analysisResultDao().getByDate(userId, targetDate)
+            if (existingResult != null) {
+                db.analysisResultDao().update(resultEntity.copy(id = existingResult.id))
+                Log.i(TAG, "Analysis result updated for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+            } else {
+                db.analysisResultDao().insert(resultEntity)
+                Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+            }
 
             // Don't wait for the scheduled CloudSyncWorker - sync immediately after saving
             try {

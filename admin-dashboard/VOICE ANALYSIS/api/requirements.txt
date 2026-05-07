@@ -1,9 +1,0 @@
-fastapi==0.115.0
-uvicorn[standard]==0.30.6
-slowapi==0.1.9
-python-multipart==0.0.9
-torch==2.3.1
-torchaudio==2.3.1
-transformers==4.44.2
-numpy==1.26.4
-peft==0.12.0

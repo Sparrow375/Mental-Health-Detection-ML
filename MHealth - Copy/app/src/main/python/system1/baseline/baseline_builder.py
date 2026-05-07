@@ -127,7 +127,6 @@ def _get_default_value(feature_name: str) -> float:
         "dailyDisplacementKm": 5.0,
         "locationEntropy": 2.0,
         "homeTimeRatio": 0.65,
-        "placesVisited": 4.0,
         # Sleep & Circadian
         "wakeTimeHour": 8.0,
         "sleepTimeHour": 23.5,

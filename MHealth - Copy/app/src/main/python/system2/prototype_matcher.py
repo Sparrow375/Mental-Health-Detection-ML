@@ -18,7 +18,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from config import (
+from .config import (
     BEHAVIORAL_FEATURES,
     POPULATION_NORMS,
     DISORDER_PROTOTYPES_FRAME1,

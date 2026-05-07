@@ -37,6 +37,10 @@ interface NotificationEventDao {
     @Query("SELECT COUNT(*) FROM notification_events")
     suspend fun count(): Int
 
+    /** Delete notification events for a specific date (midnight purge). */
+    @Query("DELETE FROM notification_events WHERE date = :date")
+    suspend fun deleteByDate(date: String): Int
+
     /** Delete notification events older than the given epoch_ms (cleanup). */
     @Query("DELETE FROM notification_events WHERE arrival_timestamp < :beforeEpochMs")
     suspend fun deleteOlderThan(beforeEpochMs: Long): Int

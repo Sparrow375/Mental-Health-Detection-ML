@@ -10,6 +10,9 @@ import androidx.room.RoomDatabase
  * Version 9: added app_sessions and person_dna tables for Level 2 Behavioral DNA.
  * Version 10: added notification_events table for L2 Digital DNA.
  * Version 11: added L2 scoring fields to analysis_results table.
+ * Version 12: added dnaReady column to user_profile_db.
+ * Version 13: added daily_dna_snapshot table with nightChecks.
+ * Version 14: schema hash realignment after nightChecks added (no structural change).
  *
  * Access via MHealthDatabase.getInstance(context)
  */
@@ -22,9 +25,10 @@ import androidx.room.RoomDatabase
         UserCredentialsEntity::class,
         AppSessionEntity::class,
         PersonDnaEntity::class,
-        NotificationEventEntity::class
+        NotificationEventEntity::class,
+        DailyDnaSnapshotEntity::class
     ],
-    version = 12,
+    version = 14,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -37,6 +41,7 @@ abstract class MHealthDatabase : RoomDatabase() {
     abstract fun appSessionDao(): AppSessionDao
     abstract fun personDnaDao(): PersonDnaDao
     abstract fun notificationEventDao(): NotificationEventDao
+    abstract fun dailyDnaSnapshotDao(): DailyDnaSnapshotDao
 
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null
@@ -46,7 +51,80 @@ abstract class MHealthDatabase : RoomDatabase() {
                 db.execSQL("ALTER TABLE user_profile_db ADD COLUMN dnaReady INTEGER NOT NULL DEFAULT 0")
             }
         }
-        
+
+        private val MIGRATION_12_13 = object : androidx.room.migration.Migration(12, 13) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_dna_snapshot (
+                        userId TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        totalSessions INTEGER NOT NULL,
+                        totalScreenTimeHours REAL NOT NULL,
+                        firstPickupHour REAL,
+                        lastActivityHour REAL,
+                        activeWindowHours REAL,
+                        avgSessionMinutes REAL NOT NULL,
+                        microSessionPct REAL NOT NULL,
+                        shortSessionPct REAL NOT NULL,
+                        mediumSessionPct REAL NOT NULL,
+                        deepSessionPct REAL NOT NULL,
+                        marathonSessionPct REAL NOT NULL,
+                        selfOpenPct REAL NOT NULL,
+                        notificationOpenPct REAL NOT NULL,
+                        totalNotifications INTEGER NOT NULL,
+                        notificationTapRate REAL NOT NULL,
+                        notificationDismissRate REAL NOT NULL,
+                        notificationIgnoreRate REAL NOT NULL,
+                        uniqueAppsUsed INTEGER NOT NULL,
+                        topAppPackage TEXT,
+                        nightChecks INTEGER NOT NULL,
+                        appDnaJson TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        PRIMARY KEY(userId, date)
+                    )
+                """)
+            }
+        }
+
+        // Version 14: recreate daily_dna_snapshot to fix schema mismatch.
+        // The v13 table may have been created without nightChecks or with DEFAULT 0,
+        // which doesn't match Room's entity definition (no @ColumnInfo default).
+        // Drop-and-recreate is safe since this table holds computed aggregates.
+        private val MIGRATION_13_14 = object : androidx.room.migration.Migration(13, 14) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("DROP TABLE IF EXISTS daily_dna_snapshot")
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_dna_snapshot (
+                        userId TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        totalSessions INTEGER NOT NULL,
+                        totalScreenTimeHours REAL NOT NULL,
+                        firstPickupHour REAL,
+                        lastActivityHour REAL,
+                        activeWindowHours REAL,
+                        avgSessionMinutes REAL NOT NULL,
+                        microSessionPct REAL NOT NULL,
+                        shortSessionPct REAL NOT NULL,
+                        mediumSessionPct REAL NOT NULL,
+                        deepSessionPct REAL NOT NULL,
+                        marathonSessionPct REAL NOT NULL,
+                        selfOpenPct REAL NOT NULL,
+                        notificationOpenPct REAL NOT NULL,
+                        totalNotifications INTEGER NOT NULL,
+                        notificationTapRate REAL NOT NULL,
+                        notificationDismissRate REAL NOT NULL,
+                        notificationIgnoreRate REAL NOT NULL,
+                        uniqueAppsUsed INTEGER NOT NULL,
+                        topAppPackage TEXT,
+                        nightChecks INTEGER NOT NULL,
+                        appDnaJson TEXT NOT NULL,
+                        createdAt INTEGER NOT NULL,
+                        PRIMARY KEY(userId, date)
+                    )
+                """)
+            }
+        }
+
         private val MIGRATION_3_4 = object : androidx.room.migration.Migration(3, 4) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE daily_features ADD COLUMN isSimulated INTEGER NOT NULL DEFAULT 0")
@@ -162,7 +240,8 @@ abstract class MHealthDatabase : RoomDatabase() {
                 )
                     .addMigrations(
                         MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12
+                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+                        MIGRATION_12_13, MIGRATION_13_14
                     )
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .fallbackToDestructiveMigration()

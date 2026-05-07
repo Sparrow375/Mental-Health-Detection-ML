@@ -1,12 +1,15 @@
-from dataclasses import dataclass
-from prototype_matcher import ConfidenceTier
+from dataclasses import dataclass, field
+from typing import Dict, List, Optional
+from .prototype_matcher import ConfidenceTier
 
 @dataclass
 class AdjustedClassification:
     disorder: str
     adjusted_score: float
     confidence: ConfidenceTier
-    temporal_shape: str = "stable"
+    temporal_shape: str = 'stable'
+    shape_boost: float = 1.0
+    all_shapes: Dict[str, str] = field(default_factory=dict)
 
 class TemporalValidator:
     def __init__(self):
@@ -18,5 +21,6 @@ class TemporalValidator:
         return AdjustedClassification(
             disorder=classification.disorder,
             adjusted_score=classification.score,
-            confidence=classification.confidence
+            confidence=classification.confidence,
+            temporal_shape='stable',
         )

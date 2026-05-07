@@ -69,12 +69,11 @@ object DataRepository {
             val count = db.dailyFeaturesDao().count(userId)
             _baselineProgress.value = count + 1
 
-            // DNA Progress: Count distinct days with app_sessions data (NOT daily_features).
-            // DNA baseline monitors behavioral session patterns, which are stored in app_sessions.
-            // Regular baseline uses daily_features count — these are SEPARATE thresholds.
-            val dnaDays = db.appSessionDao().countDistinctDays()
-            _dnaBaselineProgress.value = dnaDays
-            
+            // DNA Progress: use daily_features count (L1) — same as baselineProgress.
+            // The old L2 daily_dna_snapshot count was almost always 0, keeping the
+            // Finalize button permanently disabled even after days of data collection.
+            _dnaBaselineProgress.value = count + 1
+
             val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
             _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
         }
@@ -410,23 +409,6 @@ object DataRepository {
 
     fun updateDnaBaselineProgress(days: Int) {
         _dnaBaselineProgress.value = days
-    }
-
-    /**
-     * Re-query app_sessions to get the true DNA baseline progress.
-     * DNA baseline counts distinct calendar days with session data,
-     * NOT the daily_features count (which is the regular baseline).
-     */
-    fun refreshDnaBaselineProgress(context: Context) {
-        scope.launch {
-            try {
-                val db = MHealthDatabase.getInstance(context.applicationContext)
-                val dnaDays = db.appSessionDao().countDistinctDays()
-                _dnaBaselineProgress.value = dnaDays
-            } catch (e: Exception) {
-                // Silently fail — progress will update on next tick
-            }
-        }
     }
 
     fun triggerForceNewDay() {

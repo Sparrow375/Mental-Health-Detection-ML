@@ -1,6 +1,9 @@
 """
 L1 Scorer: deviation magnitude (weighted z-scores), deviation velocity (EWMA),
 and composite L1 anomaly score.
+
+Enhanced with Bayesian warm-start, adaptive weights, feature ceilings,
+and lifestyle-adjusted weights.
 """
 
 from __future__ import annotations
@@ -9,8 +12,8 @@ import numpy as np
 from collections import deque
 from typing import Dict, List, Optional
 
-from system1.data_structures import PersonalityVector
-from system1.feature_meta import FEATURE_META, ALL_L1_FEATURES
+from system1.data_structures import PersonalityVector, BayesianState
+from system1.feature_meta import FEATURE_META, ALL_L1_FEATURES, DIRECTIONALITY_DAMPENING
 
 
 class L1Scorer:
@@ -29,43 +32,90 @@ class L1Scorer:
         self.baseline_dict = baseline.to_dict()
         self.feature_names = list(self.baseline_dict.keys())
         self.history_window = history_window
+        self.bayesian_state: Optional[BayesianState] = None
+        self._adaptive_weights: Dict[str, float] = {}
 
         # Rolling window for velocity computation
         self.feature_history: Dict[str, deque] = {
             feat: deque(maxlen=history_window) for feat in self.feature_names
         }
 
+    def update_bayesian_state(self, state: BayesianState) -> None:
+        """Replace the Bayesian state (called each day before scoring)."""
+        self.bayesian_state = state
+
+    def set_adaptive_weights(self, weights: Dict[str, float]) -> None:
+        """Override feature weights with data-adaptive values."""
+        self._adaptive_weights = weights
+
+    def _get_weight(self, feature: str) -> float:
+        """Return adaptive weight if set, else fall back to FEATURE_META."""
+        if self._adaptive_weights:
+            return self._adaptive_weights.get(feature, FEATURE_META.get(feature, {}).get('weight', 1.0))
+        return FEATURE_META.get(feature, {}).get('weight', 1.0)
+
     # ------------------------------------------------------------------
-    # Step 2.1 — Deviation magnitude  (weighted z-scores)
+    # Step 2.1 - Deviation magnitude  (weighted z-scores)
     # ------------------------------------------------------------------
 
-    def calculate_deviation_magnitude(self, current_data: Dict[str, float]) -> Dict[str, float]:
+    def calculate_deviation_magnitude(
+        self,
+        current_data: Dict[str, float],
+        feature_ceilings: Optional[Dict[str, float]] = None,
+    ) -> Dict[str, float]:
         """
-        For each of the 29 features:
-            z_raw     = (today_value - baseline_mean) / baseline_std
-            z_weighted = z_raw * FEATURE_META[feature]['weight']
+        For each feature:
+            z_raw     = (today_value - effective_mean) / effective_std
+            z_clamped = clip(z_raw, -ceiling, +ceiling)
+            z_weighted = z_clamped * weight
 
-        Returns dict of 29 weighted z-scores.
+        Uses Bayesian posterior mean/std when available, falls back to
+        raw PersonalityVector baseline otherwise.
+
+        Only includes features with effective_std > 0.05 (skip zero-variance).
         """
         deviations: Dict[str, float] = {}
 
+        if self.bayesian_state is not None:
+            effective_means = self.bayesian_state.effective_means
+            effective_stds = self.bayesian_state.effective_stds
+        else:
+            effective_means = None
+            effective_stds = None
+
         for feature in self.feature_names:
-            baseline_val = self.baseline_dict[feature]
-            current_val = current_data.get(feature, baseline_val)
-            variance = self.baseline.variances.get(feature, 1.0) if self.baseline.variances else 1.0
-
-            if variance > 0:
-                z_raw = (current_val - baseline_val) / variance
+            if effective_means is not None and feature in effective_means:
+                baseline_val = effective_means[feature]
+                variance = effective_stds.get(feature, 1.0)
             else:
-                z_raw = 0.0
+                baseline_val = self.baseline_dict[feature]
+                variance = self.baseline.variances.get(feature, 1.0) if self.baseline.variances else 1.0
 
-            weight = FEATURE_META.get(feature, {}).get('weight', 1.0)
-            deviations[feature] = z_raw * weight
+            # Skip features with near-zero variance
+            if variance < 0.05:
+                continue
+
+            current_val = current_data.get(feature, baseline_val)
+            z_raw = (current_val - baseline_val) / variance
+
+            # Per-feature deviation ceiling (default +/-4)
+            ceiling = feature_ceilings.get(feature, 4.0) if feature_ceilings else 4.0
+            z_clamped = float(np.clip(z_raw, -ceiling, ceiling))
+
+            # Asymmetric directionality: dampen non-significant direction
+            directionality = FEATURE_META.get(feature, {}).get('directionality', 'both')
+            if directionality == 'shrink_matters' and z_clamped > 0:
+                z_clamped *= DIRECTIONALITY_DAMPENING
+            elif directionality == 'grow_matters' and z_clamped < 0:
+                z_clamped *= DIRECTIONALITY_DAMPENING
+
+            weight = self._get_weight(feature)
+            deviations[feature] = z_clamped * weight
 
         return deviations
 
     # ------------------------------------------------------------------
-    # Step 2.2 — Deviation velocity  (EWMA)
+    # Step 2.2 - Deviation velocity  (EWMA)
     # ------------------------------------------------------------------
 
     def calculate_deviation_velocity(self, current_data: Dict[str, float]) -> Dict[str, float]:
@@ -75,7 +125,7 @@ class L1Scorer:
             slope  = (ewma_last - ewma_first) / window_length
             velocity = slope / baseline_mean   (normalised)
 
-        Returns dict of 29 normalised velocity slopes.
+        Returns dict of normalised velocity slopes.
         """
         alpha = 0.4
         velocities: Dict[str, float] = {}
@@ -108,7 +158,7 @@ class L1Scorer:
         return velocities
 
     # ------------------------------------------------------------------
-    # Step 2.3 — Composite L1 score
+    # Step 2.3 - Composite L1 score
     # ------------------------------------------------------------------
 
     def calculate_anomaly_score(
@@ -117,13 +167,15 @@ class L1Scorer:
         velocities: Dict[str, float],
     ) -> float:
         """
-        magnitude_score = RMS(all weighted z-scores) / 3.0   → capped at 1.0
-        velocity_score  = RMS(all velocities) * 10.0         → capped at 1.0
+        RMS computed only over features present in `deviations`
+        (zero-variance features excluded upstream).
+
+        magnitude_score = RMS(weighted z-scores) / 3.0 -> capped at 1.0
+        velocity_score  = RMS(velocities for observed features) * 10.0 -> capped at 1.0
         L1_score = 0.7 * magnitude_score + 0.3 * velocity_score
-        
-        Root Mean Square squares the deviations, effectively ignoring stationary noise
-        while exponentially penalizing localized, severe behavioral shifts.
         """
+        observed_features = set(deviations.keys())
+
         dev_vals = list(deviations.values())
         if dev_vals:
             magnitude_score = float(np.sqrt(np.mean(np.square(dev_vals))))
@@ -131,7 +183,8 @@ class L1Scorer:
             magnitude_score = 0.0
         magnitude_score = min(magnitude_score / 3.0, 1.0)
 
-        vel_vals = list(velocities.values())
+        # Only take velocity for features that were scored
+        vel_vals = [v for k, v in velocities.items() if k in observed_features]
         if vel_vals:
             velocity_score = float(np.sqrt(np.mean(np.square(vel_vals))))
         else:
@@ -139,3 +192,43 @@ class L1Scorer:
         velocity_score = min(velocity_score * 10.0, 1.0)
 
         return 0.7 * magnitude_score + 0.3 * velocity_score
+
+    # ------------------------------------------------------------------
+    # Lifestyle-adjusted weights
+    # ------------------------------------------------------------------
+
+    LIFESTYLE_FEATURE_MAP: Dict[str, List[str]] = {
+        'screen': ['screenTimeHours', 'unlockCount', 'socialAppRatio',
+                    'appLaunchCount', 'notificationsToday', 'totalAppsCount'],
+        'communication': ['callsPerDay', 'callDurationMinutes', 'uniqueContacts',
+                          'conversationFrequency'],
+        'movement': ['dailyDisplacementKm', 'locationEntropy', 'homeTimeRatio'],
+        'sleep': ['wakeTimeHour', 'sleepTimeHour', 'sleepDurationHours',
+                  'darkDurationHours', 'chargeDurationHours'],
+        'engagement': ['calendarEventsToday', 'backgroundAudioHours',
+                       'upiTransactionsToday', 'mediaCountToday', 'downloadsToday'],
+    }
+
+    def apply_lifestyle_weights(self, user_profile) -> None:
+        """
+        Modulate feature weights by user's self-reported lifestyle scores.
+
+        Formula: effective_weight = clinical_weight * (0.7 + 0.3 * score / 5.0)
+        """
+        lifestyle = user_profile.get_lifestyle_dict()
+        behavioral_mult = (0.85 + 0.15 * lifestyle.get('behavioral', 3) / 5.0)
+
+        adjusted = {}
+        for feat in self.feature_names:
+            base_weight = FEATURE_META.get(feat, {}).get('weight', 1.0)
+
+            category_mult = 1.0
+            for cat, feats in self.LIFESTYLE_FEATURE_MAP.items():
+                if feat in feats:
+                    score = lifestyle.get(cat, 3)
+                    category_mult = 0.7 + 0.3 * score / 5.0
+                    break
+
+            adjusted[feat] = base_weight * category_mult * behavioral_mult
+
+        self._adaptive_weights = adjusted

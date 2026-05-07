@@ -4,9 +4,9 @@ import traceback
 import pandas as pd
 import numpy as np
 
-from pipeline import System2Pipeline
+from system2.pipeline import System2Pipeline
 from system1 import ImprovedAnomalyDetector, PersonalityVector
-from s1_s2_adapter import build_s1_input
+from system2.s1_s2_adapter import build_s1_input
 from dna import build_person_dna, build_daily_vector, PersonDNA
 from dna_engine import (
     compute_context_coherence,
@@ -18,7 +18,7 @@ from dna_engine import (
     get_released_evidence,
     clear_rejected_candidates,
 )
-from s1_profile import build_full_profile
+from s1_profile import build_full_profile, compute_cluster_mismatch
 
 
 def run_analysis(json_string: str) -> str:
@@ -97,16 +97,10 @@ def run_analysis(json_string: str) -> str:
         # Build DNA if sessions available and no DNA yet
         if dna is None and sessions_28day:
             try:
-                # Safety limit inside engine to prevent OOM
-                SAFE_LIMIT = 5000
-                process_sessions = sessions_28day[:SAFE_LIMIT]
-                print(f"  [L2] Building new DNA from {len(process_sessions)} sessions (Limit: {SAFE_LIMIT})")
-                
-                dna = build_person_dna(process_sessions, person_id="user")
+                dna = build_person_dna(sessions_28day, person_id="user")
                 print(f"  [L2] Built new PersonDNA: {len(dna.app_profiles)} apps, K={dna.anchor_k}")
             except Exception as e:
                 print(f"  [L2] Failed to build DNA: {e}")
-                traceback.print_exc()
 
         # Compute L2 metrics if DNA exists and today's sessions available
         if dna is not None and sessions_today:
@@ -270,6 +264,27 @@ def run_analysis(json_string: str) -> str:
                 "feature_importance": {},
                 "group_summaries": {},
             }
+
+        # ── Cluster-Mismatch penalty ────────────────────────────────────────────
+        # Weight constant: max +35 % amplification when today is a total archetype
+        # outlier. Chosen conservatively so it only noticeably fires when the
+        # behavioral pattern is genuinely unprecedented (mismatch ~ 1.0).
+        MISMATCH_WEIGHT = 0.35
+        cluster_mismatch = 0.0
+        if profile_data and profile_data.get("anchor_clusters"):
+            try:
+                cluster_mismatch = compute_cluster_mismatch(current, profile_data)
+                if cluster_mismatch > 0.0:
+                    l2_modifier = l2_modifier * (1.0 + MISMATCH_WEIGHT * cluster_mismatch)
+                    l2_modifier = min(l2_modifier, 2.5)  # hard ceiling: never more than 2.5×
+                    print(f"  [ClusterMismatch] mismatch={cluster_mismatch:.3f} "
+                          f"l2_modifier_final={l2_modifier:.3f}")
+            except Exception as e:
+                print(f"  [ClusterMismatch] Error: {e}")
+
+        # Update dna_result with the final (penalty-adjusted) modifier and mismatch score
+        dna_result["l2_modifier"] = round(l2_modifier, 4)
+        dna_result["cluster_mismatch"] = round(cluster_mismatch, 4)
 
         # ── Map to Kotlin JSON contract ────────────────────────────────────────
         result_dict = {

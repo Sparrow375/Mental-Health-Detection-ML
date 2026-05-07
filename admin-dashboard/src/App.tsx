@@ -5,7 +5,7 @@ import type { User } from 'firebase/auth';
 import { auth } from './firebase/config';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
-import { Home } from './pages/Home';
+import { LandingPage } from './pages/LandingPage';
 import { PrivacyProvider } from './context/PrivacyContext.tsx';
 
 export const App = () => {
@@ -23,7 +23,7 @@ export const App = () => {
   if (loading) {
     return (
       <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <p style={{ color: 'var(--text-secondary)' }}>Loading MHealth...</p>
+        <div className="animate-spin" style={{ width: '40px', height: '40px', border: '4px solid var(--border)', borderTopColor: 'var(--primary)', borderRadius: '50%' }} />
       </div>
     );
   }
@@ -32,14 +32,14 @@ export const App = () => {
     <PrivacyProvider>
       <Router>
         <Routes>
-          {/* Default redirect to login for clinicians */}
-          <Route path="/" element={<Navigate to="/login" />} />
+          {/* Landing page */}
+          <Route path="/" element={<LandingPage />} />
 
           {/* Clinician auth */}
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
 
-          {/* Public Home Page (Voice Assessment and overview) accessible at /about */}
-          <Route path="/about" element={<Home />} />
+          {/* About page — also renders landing page */}
+          <Route path="/about" element={<LandingPage />} />
 
           {/* Protected dashboard */}
           <Route

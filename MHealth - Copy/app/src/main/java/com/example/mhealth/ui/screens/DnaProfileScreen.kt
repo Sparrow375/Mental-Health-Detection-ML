@@ -5,12 +5,15 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -19,14 +22,18 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,6 +82,48 @@ private val groupColors = mapOf(
     "system" to TextSecondary,
     "behavioral" to AccentCyan,
     "engagement" to AccentRed,
+)
+
+private val featureLabels = mapOf(
+    "screenTimeHours" to "Screen Time",
+    "unlockCount" to "Unlocks",
+    "appLaunchCount" to "App Launches",
+    "notificationsToday" to "Notifications",
+    "socialAppRatio" to "Social Ratio",
+    "callsPerDay" to "Calls/Day",
+    "callDurationMinutes" to "Call Duration",
+    "uniqueContacts" to "Unique Contacts",
+    "conversationFrequency" to "Conversations",
+    "dailyDisplacementKm" to "Displacement",
+    "locationEntropy" to "Location Entropy",
+    "homeTimeRatio" to "Home Time",
+    "wakeTimeHour" to "Wake Time",
+    "sleepTimeHour" to "Sleep Time",
+    "sleepDurationHours" to "Sleep Duration",
+    "darkDurationHours" to "Dark Hours",
+    "chargeDurationHours" to "Charge Time",
+    "memoryUsagePercent" to "Memory Usage",
+    "networkWifiMB" to "WiFi Usage",
+    "networkMobileMB" to "Mobile Data",
+    "storageUsedGB" to "Storage",
+    "totalAppsCount" to "Total Apps",
+    "upiTransactionsToday" to "UPI Transactions",
+    "appUninstallsToday" to "Uninstalls",
+    "appInstallsToday" to "Installs",
+    "calendarEventsToday" to "Calendar Events",
+    "mediaCountToday" to "Media Count",
+    "downloadsToday" to "Downloads",
+    "backgroundAudioHours" to "Background Audio",
+)
+
+private val featureUnits = mapOf(
+    "screenTimeHours" to "hrs", "unlockCount" to "", "appLaunchCount" to "",
+    "notificationsToday" to "", "socialAppRatio" to "%",
+    "callsPerDay" to "", "callDurationMinutes" to "min", "uniqueContacts" to "",
+    "conversationFrequency" to "", "dailyDisplacementKm" to "km",
+    "locationEntropy" to "", "homeTimeRatio" to "%",
+    "wakeTimeHour" to "h", "sleepTimeHour" to "h", "sleepDurationHours" to "hrs",
+    "darkDurationHours" to "hrs", "chargeDurationHours" to "hrs",
 )
 
 // ── Main composable ──────────────────────────────────────────────────────────
@@ -308,39 +357,88 @@ private fun DnaProfileHeader(profile: JSONObject) {
     val nApps = profile.optJSONObject("app_dna_profiles")?.length() ?: 0
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = CardLight),
-        shape = RoundedCornerShape(12.dp),
-        border = CardDefaults.outlinedCardBorder(true)
+        modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Fingerprint, null, tint = AccentBlue, modifier = Modifier.size(28.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("System 1 — Behavioral DNA Profile", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Box(
+                    modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp))
+                        .background(AccentBlue.copy(alpha = 0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Fingerprint, null, tint = AccentBlue, modifier = Modifier.size(20.dp))
+                }
+                Spacer(Modifier.width(10.dp))
+                Column {
+                    Text("System 1 Profile", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("Behavioral DNA Baseline", color = TextSecondary, fontSize = 11.sp)
+                }
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(16.dp))
 
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                StatChip("Days", "$daysOfData", AccentBlue)
-                StatChip("Confidence", confidence, when(confidence) { "HIGH" -> AccentGreen; "MEDIUM" -> AccentOrange; else -> AccentRed })
-                StatChip("Clusters", "$nClusters", AccentPurple)
-                StatChip("Apps", "$nApps", AccentCyan)
+                StatChip(Icons.Default.CalendarToday, "Days", "$daysOfData", AccentBlue)
+                StatChip(
+                    Icons.Default.Verified, "Confidence", confidence,
+                    when(confidence) { "HIGH" -> AccentGreen; "MEDIUM" -> AccentOrange; else -> AccentRed }
+                )
+                StatChip(Icons.Default.Hub, "Clusters", "$nClusters", AccentPurple)
+                StatChip(Icons.Default.Apps, "Apps", "$nApps", AccentCyan)
             }
 
             if (builtAt != "N/A") {
-                Spacer(Modifier.height(8.dp))
-                Text("Built: $builtAt", color = TextSecondary, fontSize = 11.sp)
+                Spacer(Modifier.height(10.dp))
+                Text("Built: $builtAt", color = TextMuted, fontSize = 10.sp, textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth())
+            }
+
+            // ── Rebuild button (always visible when profile exists) ─────────
+            val context = LocalContext.current
+            val isAnalysing by DataRepository.isDnaAnalysing.collectAsState()
+            Spacer(Modifier.height(12.dp))
+            OutlinedButton(
+                onClick = {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Rebuilding DNA Profile…",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    DataRepository.triggerDnaFinalize()
+                },
+                enabled = !isAnalysing,
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentBlue.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                if (isAnalysing) {
+                    CircularProgressIndicator(modifier = Modifier.size(16.dp), color = AccentBlue, strokeWidth = 2.dp)
+                    Spacer(Modifier.width(8.dp))
+                    Text("Rebuilding…", color = AccentBlue, fontSize = 13.sp)
+                } else {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = AccentBlue, modifier = Modifier.size(16.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Rebuild DNA Profile", color = AccentBlue, fontSize = 13.sp)
+                }
             }
         }
     }
 }
 
 @Composable
-private fun StatChip(label: String, value: String, color: Color) {
+private fun StatChip(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, value: String, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-        Text(label, color = TextSecondary, fontSize = 11.sp)
+        Box(
+            modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp))
+                .background(color.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, null, tint = color, modifier = Modifier.size(16.dp))
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(value, color = color, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+        Text(label, color = TextSecondary, fontSize = 10.sp)
     }
 }
 
@@ -377,9 +475,8 @@ private fun PersonalityVectorCard(profile: JSONObject) {
         if (sortedFeatures.isNotEmpty()) {
             val topForGraph = sortedFeatures.take(6)
             DnaRadarChart(
-                labels = topForGraph.map { 
-                    val raw = it.first
-                    if (raw.length > 15) raw.replace("feature_", "").replace("app_", "").take(12) + "…" else raw 
+                labels = topForGraph.map {
+                    featureLabels[it.first] ?: it.first.take(12)
                 },
                 values = topForGraph.map { it.second.optDouble("weight", 1.0).toFloat() },
                 colors = topForGraph.map { groupColors[it.second.optString("group", "")] ?: AccentBlue },
@@ -393,34 +490,40 @@ private fun PersonalityVectorCard(profile: JSONObject) {
             val weight = info.optDouble("weight", 1.0)
             val group = info.optString("group", "")
             val groupColor = groupColors[group] ?: TextSecondary
+            val displayLabel = featureLabels[feat] ?: feat.replaceFirstChar { it.uppercase() }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Group color indicator
-                Box(
-                    modifier = Modifier.width(3.dp).height(20.dp)
-                        .background(groupColor, RoundedCornerShape(1.dp))
-                )
-                Spacer(Modifier.width(8.dp))
-
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(feat, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
-                    Text("μ=${String.format("%.2f", mean)}  σ=${String.format("%.2f", std)}",
-                        color = TextSecondary, fontSize = 10.sp)
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier.width(3.dp).height(22.dp)
+                            .background(groupColor, RoundedCornerShape(1.dp))
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(displayLabel, color = TextPrimary, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                        Text("μ=${String.format("%.2f", mean)}  σ=${String.format("%.2f", std)}",
+                            color = TextSecondary, fontSize = 10.sp)
+                    }
+                    Text(
+                        String.format("%.1f", weight),
+                        color = groupColor, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.background(groupColor.copy(alpha = 0.12f), RoundedCornerShape(4.dp))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
                 }
-
-                // Weight badge
-                Text(
-                    String.format("%.1f", weight),
-                    color = groupColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .background(groupColor.copy(alpha = 0.15f), RoundedCornerShape(4.dp))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                )
+                Spacer(Modifier.height(2.dp))
+                Box(
+                    modifier = Modifier.fillMaxWidth().padding(start = 11.dp).height(2.5.dp)
+                        .background(BorderLight, RoundedCornerShape(1.dp))
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxWidth((weight / 1.6).toFloat().coerceIn(0.05f, 1f))
+                            .fillMaxHeight().background(groupColor.copy(alpha = 0.45f), RoundedCornerShape(1.dp))
+                    )
+                }
             }
         }
     }
@@ -516,9 +619,13 @@ private fun AnchorClustersCard(profile: JSONObject) {
 
     var expanded by remember { mutableStateOf(true) }
 
+    // Read the clustering method from the first cluster's 'method' field
+    val clusterMethod = clustersArr.optJSONObject(0)?.optString("method", "clinical_pca_meanshift")
+        ?.replace("_", " ") ?: "PCA + Mean-Shift"
+
     CollapsibleCard(
         title = "Anchor Clusters (L1 Behavioral Archetypes)",
-        subtitle = "${clustersArr.length()} cluster(s) discovered via DBSCAN",
+        subtitle = "${clustersArr.length()} cluster(s) · $clusterMethod",
         icon = Icons.Default.Hub,
         expanded = expanded,
         onToggle = { expanded = !expanded }
@@ -614,6 +721,10 @@ private fun AppDnaProfilesCard(profile: JSONObject) {
             val abandonRate = appProfile.optDouble("abandon_rate", 0.0)
             val selfOpen = appProfile.optDouble("self_open_ratio", 0.0)
             val sessionsPerDay = appProfile.optDouble("sessions_per_active_day", 0.0)
+            val consistency = appProfile.optDouble("daily_use_consistency", 0.0)
+            val concentration = appProfile.optDouble("time_concentration_ratio", 0.0)
+            val wkdayPerDay = appProfile.optDouble("weekday_sessions_per_day", 0.0)
+            val wkendPerDay = appProfile.optDouble("weekend_sessions_per_day", 0.0)
 
             Card(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
@@ -631,10 +742,29 @@ private fun AppDnaProfilesCard(profile: JSONObject) {
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(pkg, color = TextSecondary, fontSize = 9.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         MiniStat("Avg", "${String.format("%.1f", avgSession)}m", AccentBlue)
-                        MiniStat("Sessions", "${String.format("%.0f", sessionsPerDay)}/d", AccentGreen)
+                        MiniStat("Sess/d", "${String.format("%.1f", sessionsPerDay)}", AccentGreen)
                         MiniStat("Self", "${String.format("%.0f", selfOpen * 100)}%", AccentOrange)
+                        MiniStat("Consist", "${String.format("%.0f", consistency * 100)}%", AccentPurple)
+                    }
+                }
+                // Second row: concentration + weekday/weekend split
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Spacer(Modifier.width(22.dp)) // align past icon
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        MiniStat("Concen.", "${String.format("%.0f", concentration * 100)}%", AccentCyan)
+                        MiniStat("Wkday", "${String.format("%.1f", wkdayPerDay)}/d", AccentBlue)
+                        MiniStat("Wkend", "${String.format("%.1f", wkendPerDay)}/d", AccentGreen)
+                        if (abandonRate > 0.05) {
+                            MiniStat("Abandon", "${String.format("%.0f", abandonRate * 100)}%", AccentRed)
+                        }
                     }
                 }
             }
@@ -664,13 +794,13 @@ private fun PhoneDnaCard(profile: JSONObject) {
             }
             Spacer(Modifier.height(12.dp))
 
-            // Session duration distribution chart
+            // Session duration distribution chart — bins match Python PhoneDNABuilder: [0,2,15,30,60,inf]
             val sessionDist = phoneDna.optJSONArray("session_duration_distribution")
             if (sessionDist != null && sessionDist.length() == 5) {
                 Text("Session Duration Distribution", color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
 
-                val labels = listOf("<1m", "1-5m", "5-15m", "15-60m", ">60m")
+                val labels = listOf("<2m", "2-15m", "15-30m", "30-60m", ">60m")
                 val values = (0 until 5).map { sessionDist.getDouble(it).toFloat() }
                 val maxVal = values.maxOrNull()?.coerceAtLeast(0.01f) ?: 0.01f
 
@@ -678,7 +808,7 @@ private fun PhoneDnaCard(profile: JSONObject) {
                     labels.forEachIndexed { idx, label ->
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Box(
-                                modifier = Modifier.width(36.dp).height(60.dp),
+                                modifier = Modifier.width(40.dp).height(60.dp),
                                 contentAlignment = Alignment.BottomCenter
                             ) {
                                 Box(
@@ -700,20 +830,34 @@ private fun PhoneDnaCard(profile: JSONObject) {
                         }
                     }
                 }
-                Spacer(Modifier.height(12.dp))
+                Spacer(Modifier.height(16.dp))
             }
 
-            // Key metrics grid
+            // Pickup rhythm metrics
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                 val firstPickup = phoneDna.optDouble("first_pickup_hour_mean", 0.0)
                 val rhythmReg = phoneDna.optDouble("daily_rhythm_regularity", 0.0)
-                val deepRatio = phoneDna.optDouble("deep_session_ratio", 0.0)
-                val microRatio = phoneDna.optDouble("micro_session_ratio", 0.0)
+                val burstRate = phoneDna.optDouble("pickup_burst_rate", 0.0)
+                val interPickup = phoneDna.optDouble("inter_pickup_interval_mean", 0.0)
 
                 PhoneMetric("First Pickup", String.format("%.1f", firstPickup) + "h", AccentBlue)
                 PhoneMetric("Rhythm Reg.", String.format("%.0f", rhythmReg * 100) + "%", AccentGreen)
-                PhoneMetric("Deep Sessions", String.format("%.0f", deepRatio * 100) + "%", AccentOrange)
-                PhoneMetric("Micro Sessions", String.format("%.0f", microRatio * 100) + "%", AccentCyan)
+                PhoneMetric("Burst Rate", String.format("%.0f", burstRate * 100) + "%", AccentOrange)
+                PhoneMetric("Inter-Pickup", String.format("%.0f", interPickup) + "m", AccentCyan)
+            }
+            Spacer(Modifier.height(10.dp))
+
+            // Session depth metrics
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                val deepRatio = phoneDna.optDouble("deep_session_ratio", 0.0)
+                val microRatio = phoneDna.optDouble("micro_session_ratio", 0.0)
+                val wkWkDelta = phoneDna.optDouble("weekday_weekend_delta", 0.0)
+                val activeWin = phoneDna.optDouble("active_window_duration_mean", 0.0)
+
+                PhoneMetric("Deep Sessions", String.format("%.0f", deepRatio * 100) + "%", AccentPurple)
+                PhoneMetric("Micro Sessions", String.format("%.0f", microRatio * 100) + "%", AccentRed)
+                PhoneMetric("Wk/Wknd Δ", String.format("%.1f", wkWkDelta), TextSecondary)
+                PhoneMetric("Active Window", String.format("%.1f", activeWin) + "h", AccentBlue)
             }
         }
     }
@@ -774,21 +918,31 @@ private fun TextureProfilesCard(profile: JSONObject) {
                     color = TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Medium)
                 Spacer(Modifier.height(4.dp))
 
-                // Mini sparkline of sessions per day
+                // Mini sparkline of sessions per day — fixed container height
                 val sessionCounts = (0 until dailyBreakdown.length()).map {
                     dailyBreakdown.optJSONObject(it)?.optInt("total_sessions", 0) ?: 0
                 }
                 val maxSessions = sessionCounts.maxOrNull()?.coerceAtLeast(1) ?: 1
 
-                Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().height(28.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
                     sessionCounts.forEach { count ->
-                        val frac = (count.toFloat() / maxSessions).coerceIn(0.05f, 1f)
+                        val frac = (count.toFloat() / maxSessions).coerceIn(0.08f, 1f)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .height(24.dp * frac)
-                                .background(AccentBlue.copy(alpha = 0.7f), RoundedCornerShape(1.dp))
-                        )
+                                .fillMaxHeight()
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .fillMaxHeight(frac)
+                                    .align(Alignment.BottomCenter)
+                                    .background(AccentBlue.copy(alpha = 0.7f), RoundedCornerShape(topStart = 1.dp, topEnd = 1.dp))
+                            )
+                        }
                     }
                 }
             }
@@ -808,20 +962,31 @@ fun TodayDnaMetricsSection(v: PersonalityVector?) {
         }
         return
     }
-    
+
+    val context = LocalContext.current
+    val dnaComputer = remember { com.example.mhealth.logic.AppDnaComputer(context) }
+
+    val phoneDna by produceState<com.example.mhealth.logic.AppDnaComputer.TodayPhoneDna?>(
+        initialValue = null, key1 = v
+    ) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            value = try { dnaComputer.computeTodayPhoneDna() } catch (_: Exception) { null }
+        }
+    }
+
+    val appDnaList by produceState<List<com.example.mhealth.logic.AppDnaComputer.TodayAppDna>>(
+        initialValue = emptyList(), key1 = v
+    ) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            value = try { dnaComputer.computeTodayAppDnaList() } catch (_: Exception) { emptyList() }
+        }
+    }
+
+    var expandedApp by remember { mutableStateOf<String?>(null) }
+
     androidx.compose.foundation.lazy.LazyColumn(Modifier.fillMaxSize().padding(bottom = 16.dp)) {
             // ── Phone DNA — Today's Device Fingerprint ──────────────────────────
             item {
-                val context2 = LocalContext.current
-                val dnaComputer = remember { com.example.mhealth.logic.AppDnaComputer(context2) }
-                val phoneDna by produceState<com.example.mhealth.logic.AppDnaComputer.TodayPhoneDna?>(
-                    initialValue = null,
-                    key1 = v
-                ) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        value = try { dnaComputer.computeTodayPhoneDna() } catch (_: Exception) { null }
-                    }
-                }
 
                 InfoCard("Phone DNA — Today", headerColor = MhealthIndigo) {
                     if (phoneDna == null) {
@@ -877,23 +1042,17 @@ fun TodayDnaMetricsSection(v: PersonalityVector?) {
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 MetricPill("Arrivals", "${pd.totalNotifications}", MhealthIndigo)
                                 MetricPill("Screen", "%.1fh".format(pd.totalScreenTimeHours), OceanBlue)
+                                MetricPill("Night Checks", "${pd.nightChecks}", ChartRed)
+                            }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                                 if (pd.topAppPackage != null) {
                                     val topLabel = try {
-                                        context2.packageManager.getApplicationLabel(
-                                            context2.packageManager.getApplicationInfo(pd.topAppPackage, 0)
+                                        context.packageManager.getApplicationLabel(
+                                            context.packageManager.getApplicationInfo(pd.topAppPackage, 0)
                                         ).toString()
                                     } catch (_: Exception) { pd.topAppPackage.substringAfterLast(".") }
                                     MetricPill("Top App", topLabel, ChartPurple)
                                 }
-                            }
-
-                            HorizontalDivider(color = Color(0xFFE2E8F0), thickness = 0.5.dp)
-
-                            // Night Checks — phone usage during sleep window
-                            Text("\uD83C\uDF19 Night Checks", fontSize = 12.sp, fontWeight = FontWeight.SemiBold, color = TextSecondary)
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                                MetricPill("Sleep Unlocks", "${pd.nightChecks}", if (pd.nightChecks > 3) ChartRed else ChartGreen)
-                                MetricPill("Unique Apps", "${pd.uniqueAppsUsed}", MhealthIndigo)
                             }
                         }
                     }
@@ -902,19 +1061,6 @@ fun TodayDnaMetricsSection(v: PersonalityVector?) {
 
             // ── App DNA — Per-App Behavioral Fingerprints ─────────────────────────
             item {
-                val context3 = LocalContext.current
-                val dnaComputer2 = remember { com.example.mhealth.logic.AppDnaComputer(context3) }
-                val appDnaList by produceState<List<com.example.mhealth.logic.AppDnaComputer.TodayAppDna>>(
-                    initialValue = emptyList(),
-                    key1 = v
-                ) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        value = try { dnaComputer2.computeTodayAppDnaList() } catch (_: Exception) { emptyList() }
-                    }
-                }
-
-                var expandedApp by remember { mutableStateOf<String?>(null) }
-
                 InfoCard("App DNA — Per App", headerColor = ChartPurple) {
                     if (appDnaList.isEmpty()) {
                         Box(Modifier.fillMaxWidth().height(60.dp), contentAlignment = Alignment.Center) {

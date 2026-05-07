@@ -18,6 +18,9 @@ from system1.data_structures import (
     EvidenceState,
     CandidateState,
     L1ClusterState,
+    BaselinePhase,
+    FeaturePosterior,
+    BayesianState,
 )
 from system1.detector import AnomalyDetector
 
@@ -35,6 +38,9 @@ __all__ = [
     'EvidenceState',
     'CandidateState',
     'L1ClusterState',
+    'BaselinePhase',
+    'FeaturePosterior',
+    'BayesianState',
     'AnomalyDetector',
     'ImprovedAnomalyDetector',
 ]

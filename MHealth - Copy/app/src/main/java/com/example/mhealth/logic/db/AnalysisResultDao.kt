@@ -43,6 +43,9 @@ interface AnalysisResultDao {
     @Query("SELECT * FROM analysis_results WHERE userId = :userId AND date = :date LIMIT 1")
     suspend fun getByDate(userId: String, date: String): AnalysisResultEntity?
 
+    @Update
+    suspend fun update(entity: AnalysisResultEntity)
+
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 }

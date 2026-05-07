@@ -25,10 +25,6 @@ interface AppSessionDao {
     @Query("SELECT * FROM app_sessions WHERE date >= :startDate AND date <= :endDate ORDER BY open_timestamp ASC")
     suspend fun getByDateRange(startDate: String, endDate: String): List<AppSessionEntity>
 
-    /** Get sessions for a date range with a limit to avoid memory overhead. */
-    @Query("SELECT * FROM app_sessions WHERE date >= :startDate AND date <= :endDate ORDER BY open_timestamp DESC LIMIT :limit")
-    suspend fun getByDateRangeLimited(startDate: String, endDate: String, limit: Int): List<AppSessionEntity>
-
     /** Get sessions since a given timestamp for DNA building. */
     @Query("SELECT * FROM app_sessions WHERE open_timestamp >= :sinceEpochMs ORDER BY open_timestamp ASC")
     suspend fun getSessionsSince(sinceEpochMs: Long): List<AppSessionEntity>
@@ -41,9 +37,17 @@ interface AppSessionDao {
     @Query("SELECT COUNT(*) FROM app_sessions")
     suspend fun count(): Int
 
+    /** Delete sessions for a specific date (midnight purge). */
+    @Query("DELETE FROM app_sessions WHERE date = :date")
+    suspend fun deleteByDate(date: String): Int
+
     /** Delete sessions older than the given epoch_ms (cleanup). */
     @Query("DELETE FROM app_sessions WHERE close_timestamp < :beforeEpochMs")
     suspend fun deleteOlderThan(beforeEpochMs: Long): Int
+
+    /** Count distinct dates with session data for a user (DNA baseline progress). */
+    @Query("SELECT COUNT(DISTINCT date) FROM app_sessions")
+    suspend fun countDistinctDates(): Int
 
     /** Get distinct app packages in the last N days. */
     @Query("SELECT DISTINCT app_package FROM app_sessions WHERE open_timestamp >= :sinceEpochMs")
@@ -52,8 +56,4 @@ interface AppSessionDao {
     /** Get all sessions (for Firebase sync). */
     @Query("SELECT * FROM app_sessions ORDER BY open_timestamp ASC")
     suspend fun getAll(): List<AppSessionEntity>
-
-    /** Count distinct calendar days that have session data (for DNA baseline progress). */
-    @Query("SELECT COUNT(DISTINCT date) FROM app_sessions")
-    suspend fun countDistinctDays(): Int
 }

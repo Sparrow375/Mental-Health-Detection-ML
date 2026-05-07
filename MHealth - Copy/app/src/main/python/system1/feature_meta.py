@@ -7,13 +7,13 @@ Android's PersonalityVector.toMap() keys exactly.
 Groups:
   A  Screen & App Activity      (5 features)
   B  Communication              (4 features)
-  C  Location & Movement        (4 features)
+  C  Location & Movement        (3 features)
   D  Sleep & Circadian          (4 features)
   E  System Usage               (5 features)
   F  Behavioural Signals        (4 features)
   G  Calendar & Engagement      (4 features)
 
-Total: 30 real-valued features per day.
+Total: 29 real-valued features per day.
 """
 
 from typing import Dict, List
@@ -23,51 +23,58 @@ from typing import Dict, List
 # FEATURE WEIGHTS  (clinical importance)
 # ============================================================================
 # Weight range: 0.4 (quasi-static, e.g. storage) → 1.6 (highest clinical, e.g. sleep)
+#
+# Directionality (asymmetric scoring):
+#   shrink_matters — decrease from baseline is clinically significant; increase is noise
+#   grow_matters   — increase from baseline is clinically significant; decrease is noise
+#   u_shaped       — deviation in EITHER direction matters (e.g. too-much/too-little sleep)
+#   both           — no asymmetry (default)
+
+DIRECTIONALITY_DAMPENING = 0.15
 
 FEATURE_META: Dict[str, Dict] = {
     # ── Group A: Screen & App Activity ────────────────────────────────────────
-    "screenTimeHours":       {"group": "screen",        "weight": 1.4},
-    "unlockCount":           {"group": "screen",        "weight": 1.2},
-    "appLaunchCount":        {"group": "screen",        "weight": 0.9},
-    "notificationsToday":    {"group": "screen",        "weight": 0.8},
-    "socialAppRatio":        {"group": "screen",        "weight": 1.3},
+    "screenTimeHours":       {"group": "screen",        "weight": 1.4, "directionality": "grow_matters"},
+    "unlockCount":           {"group": "screen",        "weight": 1.2, "directionality": "grow_matters"},
+    "appLaunchCount":        {"group": "screen",        "weight": 0.9, "directionality": "both"},
+    "notificationsToday":    {"group": "screen",        "weight": 0.8, "directionality": "grow_matters"},
+    "socialAppRatio":        {"group": "screen",        "weight": 1.3, "directionality": "grow_matters"},
 
     # ── Group B: Communication ─────────────────────────────────────────────
-    "callsPerDay":           {"group": "communication", "weight": 1.3},
-    "callDurationMinutes":   {"group": "communication", "weight": 1.2},
-    "uniqueContacts":        {"group": "communication", "weight": 1.1},
-    "conversationFrequency": {"group": "communication", "weight": 0.9},
+    "callsPerDay":           {"group": "communication", "weight": 1.3, "directionality": "shrink_matters"},
+    "callDurationMinutes":   {"group": "communication", "weight": 1.2, "directionality": "shrink_matters"},
+    "uniqueContacts":        {"group": "communication", "weight": 1.1, "directionality": "shrink_matters"},
+    "conversationFrequency": {"group": "communication", "weight": 0.9, "directionality": "shrink_matters"},
 
     # ── Group C: Location & Movement ──────────────────────────────────────
-    "dailyDisplacementKm":   {"group": "movement",      "weight": 1.5},
-    "locationEntropy":       {"group": "movement",      "weight": 1.3},
-    "homeTimeRatio":         {"group": "movement",      "weight": 1.2},
-    "placesVisited":         {"group": "movement",      "weight": 1.1},
+    "dailyDisplacementKm":   {"group": "movement",      "weight": 1.5, "directionality": "shrink_matters"},
+    "locationEntropy":       {"group": "movement",      "weight": 1.3, "directionality": "shrink_matters"},
+    "homeTimeRatio":         {"group": "movement",      "weight": 1.2, "directionality": "grow_matters"},
 
     # ── Group D: Sleep & Circadian ────────────────────────────────────────
-    "wakeTimeHour":          {"group": "sleep",         "weight": 1.4},
-    "sleepTimeHour":         {"group": "sleep",         "weight": 1.3},
-    "sleepDurationHours":    {"group": "sleep",         "weight": 1.6},  # highest clinical weight
-    "darkDurationHours":     {"group": "sleep",         "weight": 1.0},
+    "wakeTimeHour":          {"group": "sleep",         "weight": 1.4, "directionality": "grow_matters"},
+    "sleepTimeHour":         {"group": "sleep",         "weight": 1.3, "directionality": "grow_matters"},
+    "sleepDurationHours":    {"group": "sleep",         "weight": 1.6, "directionality": "u_shaped"},
+    "darkDurationHours":     {"group": "sleep",         "weight": 1.0, "directionality": "u_shaped"},
 
     # ── Group E: System Usage ─────────────────────────────────────────────
-    "chargeDurationHours":   {"group": "system",        "weight": 0.8},
-    "memoryUsagePercent":    {"group": "system",        "weight": 0.5},
-    "networkWifiMB":         {"group": "system",        "weight": 0.6},
-    "networkMobileMB":       {"group": "system",        "weight": 0.6},
-    "storageUsedGB":         {"group": "system",        "weight": 0.4},
+    "chargeDurationHours":   {"group": "system",        "weight": 0.8, "directionality": "both"},
+    "memoryUsagePercent":    {"group": "system",        "weight": 0.5, "directionality": "both"},
+    "networkWifiMB":         {"group": "system",        "weight": 0.6, "directionality": "both"},
+    "networkMobileMB":       {"group": "system",        "weight": 0.6, "directionality": "both"},
+    "storageUsedGB":         {"group": "system",        "weight": 0.4, "directionality": "both"},
 
     # ── Group F: Behavioural Signals ──────────────────────────────────────
-    "totalAppsCount":        {"group": "behaviour",     "weight": 0.8},
-    "upiTransactionsToday":  {"group": "behaviour",     "weight": 1.1},
-    "appUninstallsToday":    {"group": "behaviour",     "weight": 0.9},
-    "appInstallsToday":      {"group": "behaviour",     "weight": 0.8},
+    "totalAppsCount":        {"group": "behaviour",     "weight": 0.8, "directionality": "shrink_matters"},
+    "upiTransactionsToday":  {"group": "behaviour",     "weight": 1.1, "directionality": "shrink_matters"},
+    "appUninstallsToday":    {"group": "behaviour",     "weight": 0.9, "directionality": "shrink_matters"},
+    "appInstallsToday":      {"group": "behaviour",     "weight": 0.8, "directionality": "shrink_matters"},
 
     # ── Group G: Calendar & Engagement ────────────────────────────────────
-    "calendarEventsToday":   {"group": "engagement",    "weight": 0.9},
-    "mediaCountToday":       {"group": "engagement",    "weight": 0.7},
-    "downloadsToday":        {"group": "engagement",    "weight": 0.6},
-    "backgroundAudioHours":  {"group": "engagement",    "weight": 0.9},
+    "calendarEventsToday":   {"group": "engagement",    "weight": 0.9, "directionality": "shrink_matters"},
+    "mediaCountToday":       {"group": "engagement",    "weight": 0.7, "directionality": "shrink_matters"},
+    "downloadsToday":        {"group": "engagement",    "weight": 0.6, "directionality": "shrink_matters"},
+    "backgroundAudioHours":  {"group": "engagement",    "weight": 0.9, "directionality": "both"},
 }
 
 # Ordered list of all feature names (camelCase, matching Android)
@@ -92,7 +99,6 @@ L1_CLUSTERING_FEATURES: List[str] = [
     "sleepTimeHour",
     "dailyDisplacementKm",
     "locationEntropy",
-    "placesVisited",
     "callsPerDay",
     "conversationFrequency",
     "screenTimeHours",
@@ -171,7 +177,14 @@ DEFAULT_THRESHOLDS = {
     "WATCH_EVIDENCE_THRESHOLD": 1.5,
 
     # Evidence accumulation
-    "EVIDENCE_DECAY_RATE": 0.92,
+    "EVIDENCE_DECAY_RATE": 0.88,
+    "EVIDENCE_COMPOUNDING": 0.15,
+
+    # AND gate: min co-deviating features for episode confirmation
+    "MIN_BREADTH_FOR_EPISODE": 3,
+
+    # Evidence ratio: monitoring_peak / baseline_peak must exceed this
+    "EVIDENCE_RATIO_THRESHOLD": 1.5,
 
     # Candidate cluster evaluation
     "CANDIDATE_WINDOW_DAYS": 7,
@@ -184,4 +197,7 @@ DEFAULT_THRESHOLDS = {
     "DBSCAN_MIN_SAMPLES": 2,
     "MIN_APP_BASELINE_APPEARANCES": 3,
     "MIN_ARCHETYPE_DAYS_FOR_KMEANS": 10,
+
+    # Per-feature deviation ceilings (populated by calibration per user)
+    "FEATURE_CEILINGS": {},
 }

@@ -1,5 +1,5 @@
 """
-AnomalyDetector: façade that orchestrates the full L1 + L2 pipeline.
+AnomalyDetector: facade that orchestrates the full L1 + L2 pipeline.
 
 Drop-in replacement for the old ImprovedAnomalyDetector.
 Public API:
@@ -22,8 +22,9 @@ from system1.data_structures import (
     FinalPrediction,
     EvidenceState,
     L1ClusterState,
+    BayesianState,
 )
-from system1.feature_meta import DEFAULT_THRESHOLDS, ALL_L1_FEATURES
+from system1.feature_meta import DEFAULT_THRESHOLDS, ALL_L1_FEATURES, FEATURE_META
 from system1.scoring.l1_scorer import L1Scorer
 from system1.scoring.l2_scorer import L2Scorer
 from system1.engine.evidence_engine import EvidenceEngine
@@ -31,6 +32,7 @@ from system1.engine.candidate_cluster import CandidateClusterEvaluator
 from system1.engine.alert_engine import AlertEngine
 from system1.engine.prediction_engine import PredictionEngine
 from system1.output.reporter import Reporter
+from system1.baseline.bayesian_baseline import BayesianBaseline
 
 
 class AnomalyDetector:
@@ -39,7 +41,7 @@ class AnomalyDetector:
 
     Combines:
         L1 scoring  (weighted z-scores + velocity + composite)
-        L2 scoring  (coherence + rhythm dissolution + session incoherence → modifier)
+        L2 scoring  (coherence + rhythm dissolution + session incoherence -> modifier)
         Evidence engine  (accumulation / decay / peak tracking)
         Candidate cluster evaluation  (7-day window for new archetypes)
         Alert engine  (sustained gate + level assignment)
@@ -56,12 +58,15 @@ class AnomalyDetector:
 
         # --- Sub-components ---
         self.l1_scorer = L1Scorer(baseline)
-        self.l2_scorer = None  # Initialised after baseline build
+        self.l2_scorer: Optional[L2Scorer] = None
         self.evidence_engine = EvidenceEngine(self.thresholds)
-        self.candidate_evaluator = None
+        self.candidate_evaluator: Optional[CandidateClusterEvaluator] = None
         self.alert_engine = AlertEngine(self.thresholds)
         self.prediction_engine = PredictionEngine(self.thresholds)
         self.reporter = Reporter()
+
+        # --- Self-report profile ---
+        self.user_profile = None
 
         # --- State ---
         self.anomaly_score_history: deque = deque(maxlen=14)
@@ -70,6 +75,16 @@ class AnomalyDetector:
         # Baseline profile
         self._profile = None
 
+        # Bayesian warm start
+        self.bayesian_baseline = BayesianBaseline(
+            feature_names=self.feature_names,
+        )
+        self.bayesian_state: Optional[BayesianState] = None
+
+        # Calibration outputs
+        self._feature_ceilings: dict = {}
+        self._adaptive_weights: dict = {}
+
         # Expose thresholds for external inspection
         self.ANOMALY_SCORE_THRESHOLD = self.thresholds['ANOMALY_SCORE_THRESHOLD']
         self.PEAK_EVIDENCE_THRESHOLD = self.thresholds['PEAK_EVIDENCE_THRESHOLD']
@@ -77,6 +92,11 @@ class AnomalyDetector:
         self.SUSTAINED_THRESHOLD_DAYS = self.thresholds['SUSTAINED_THRESHOLD_DAYS']
         self.EVIDENCE_THRESHOLD = self.thresholds['EVIDENCE_THRESHOLD']
         self.WATCH_EVIDENCE_THRESHOLD = self.thresholds['WATCH_EVIDENCE_THRESHOLD']
+
+    def set_user_profile(self, user_profile) -> None:
+        """Apply lifestyle-adjusted weights from self-report data."""
+        self.user_profile = user_profile
+        self.l1_scorer.apply_lifestyle_weights(user_profile)
 
     # ------------------------------------------------------------------
     # Baseline building
@@ -122,27 +142,55 @@ class AnomalyDetector:
         self.PEAK_EVIDENCE_THRESHOLD = self.thresholds['PEAK_EVIDENCE_THRESHOLD']
         self.PEAK_SUSTAINED_THRESHOLD_DAYS = self.thresholds['PEAK_SUSTAINED_THRESHOLD_DAYS']
 
-    def calibrate_from_baseline(self, baseline_df):
+        # Seed Bayesian baseline with the 28 baseline days
+        self.bayesian_baseline = BayesianBaseline(
+            feature_names=self.feature_names,
+        )
+        if self._profile.baseline_df is not None:
+            for i, (idx, row) in enumerate(self._profile.baseline_df.iterrows()):
+                day_data = {
+                    feat: float(row[feat]) for feat in self.feature_names
+                    if feat in row.index
+                }
+                self.bayesian_baseline.update(day_data, i + 1)
+        self.bayesian_state = self.bayesian_baseline.get_state()
+        self.l1_scorer.update_bayesian_state(self.bayesian_state)
+
+    def calibrate_from_baseline(self, baseline_df, monitoring_days: int = None):
         """
         Lightweight calibration from an existing baseline DataFrame.
-        Backward-compatible with old ImprovedAnomalyDetector.
+        Enhanced with adaptive weights, feature ceilings, and monitoring_days.
         """
         from system1.baseline.l1_clusterer import L1Clusterer
-        from system1.baseline.detector_calibration import calibrate_thresholds
+        from system1.baseline.detector_calibration import (
+            calibrate_thresholds,
+            compute_data_adaptive_weights,
+        )
 
         # Build DBSCAN clusters
         clusterer = L1Clusterer()
         cluster_state = clusterer.fit(baseline_df)
 
-        # Calibrate thresholds
+        # Calibrate thresholds (with monitoring_days)
         self.thresholds = calibrate_thresholds(
-            baseline_df, self.baseline, self.thresholds
+            baseline_df, self.baseline, self.thresholds,
+            monitoring_days=monitoring_days,
         )
 
-        # Set up L2 scorer with clusters (no session data)
+        # Adaptive weights from observed variance
+        original_weights = {f: FEATURE_META.get(f, {}).get('weight', 1.0) for f in self.feature_names}
+        self._adaptive_weights = compute_data_adaptive_weights(
+            baseline_df, original_weights, self.feature_names,
+        )
+        self.l1_scorer.set_adaptive_weights(self._adaptive_weights)
+
+        # Feature ceilings from calibration
+        self._feature_ceilings = self.thresholds.get('FEATURE_CEILINGS', {})
+
+        # Set up L2 scorer with clusters
         self.l2_scorer = L2Scorer(cluster_state=cluster_state)
         self.candidate_evaluator = CandidateClusterEvaluator(
-            cluster_state=cluster_state, thresholds=self.thresholds
+            cluster_state=cluster_state, thresholds=self.thresholds,
         )
 
         # Rebuild engines
@@ -168,11 +216,11 @@ class AnomalyDetector:
         l2_modifier: Optional[float] = None,
     ) -> Tuple[AnomalyReport, DailyReport]:
         """
-        Main analysis function — runs the full L1 + L2 pipeline for one day.
+        Main analysis function - runs the full L1 + L2 pipeline for one day.
 
         Parameters
         ----------
-        current_data : dict of feature_name → value (camelCase, matching Android)
+        current_data : dict of feature_name -> value (camelCase, matching Android)
         deviations_history : list of prior day deviation dicts
         day_number : current monitoring day
         session_events : optional today's app session events
@@ -182,8 +230,17 @@ class AnomalyDetector:
         Returns (AnomalyReport, DailyReport).
         """
 
+        # === BAYESIAN BASELINE UPDATE ===
+        self.bayesian_state = self.bayesian_baseline.update(current_data, day_number)
+        self.l1_scorer.update_bayesian_state(self.bayesian_state)
+
+        phase = self.bayesian_state.phase.value
+        confidence = self.bayesian_state.confidence_score
+
         # === L1 SCORING ===
-        deviations = self.l1_scorer.calculate_deviation_magnitude(current_data)
+        deviations = self.l1_scorer.calculate_deviation_magnitude(
+            current_data, feature_ceilings=self._feature_ceilings or None,
+        )
         velocities = self.l1_scorer.calculate_deviation_velocity(current_data)
         l1_score = self.l1_scorer.calculate_anomaly_score(deviations, velocities)
 
@@ -196,7 +253,7 @@ class AnomalyDetector:
         candidate_flag = False
 
         if l2_modifier is not None:
-            # External L2 modifier provided (from dna.py module) — use it directly
+            # External L2 modifier provided (from dna_engine module)
             final_l2_modifier = l2_modifier
         elif self.l2_scorer is not None:
             # Internal L2 computation
@@ -217,6 +274,9 @@ class AnomalyDetector:
         # === EFFECTIVE SCORE ===
         effective_score = l1_score * final_l2_modifier
 
+        # === BREADTH: count of co-deviating features (AND gate) ===
+        breadth = sum(1 for v in deviations.values() if abs(v) > 1.5)
+
         # === CANDIDATE CLUSTER EVALUATION ===
         if (
             self.candidate_evaluator is not None
@@ -233,7 +293,7 @@ class AnomalyDetector:
                 held = self.candidate_evaluator.reject()
                 self.evidence_engine.release_held_evidence(held)
             if result != 'EVALUATING':
-                self.evidence_engine.update(effective_score)
+                self.evidence_engine.update(effective_score, breadth=breadth)
         elif (
             self.candidate_evaluator is not None
             and candidate_flag
@@ -246,7 +306,7 @@ class AnomalyDetector:
                 effective_score=effective_score,
             )
         else:
-            self.evidence_engine.update(effective_score)
+            self.evidence_engine.update(effective_score, breadth=breadth)
 
         # === TRACKING ===
         evidence_state = self.evidence_engine.get_state()
@@ -255,7 +315,9 @@ class AnomalyDetector:
 
         # === ALERT ===
         alert_level = self.alert_engine.determine_alert_level(
-            effective_score, deviations, evidence_state
+            effective_score, deviations, evidence_state,
+            baseline_phase=phase,
+            baseline_confidence=confidence,
         )
         pattern_type = self.alert_engine.detect_pattern_type(deviations_history)
         flagged = self.alert_engine.identify_flagged_features(deviations)
@@ -295,6 +357,15 @@ class AnomalyDetector:
             top_deviations=top_devs,
             l2_modifier=final_l2_modifier,
             notes=notes,
+        )
+
+        # Attach Bayesian phase/confidence to reports
+        anomaly_report.baseline_phase = phase
+        anomaly_report.baseline_confidence = confidence
+        daily_report.baseline_phase = phase
+        daily_report.baseline_confidence = confidence
+        daily_report.baseline_label = self.alert_engine.get_baseline_label(
+            phase, confidence,
         )
 
         return anomaly_report, daily_report
@@ -344,11 +415,14 @@ class AnomalyDetector:
         return self.evidence_engine.get_state().max_anomaly_score
 
     def had_episode(self) -> bool:
-        """Retrospective detection — uses peak state with stricter thresholds."""
-        return self.prediction_engine.had_episode(self.evidence_engine.get_state())
+        """Retrospective detection - uses peak state with multi-path logic."""
+        return self.prediction_engine.had_episode(
+            self.evidence_engine.get_state(), self.baseline,
+            mean_daily_score=float(np.mean(list(self.anomaly_score_history))) if self.anomaly_score_history else 0.0,
+        )
 
     def should_alert_now(self) -> bool:
-        """Real-time alerting — uses current state."""
+        """Real-time alerting - uses current state."""
         es = self.evidence_engine.get_state()
         return (
             es.evidence_accumulated >= self.thresholds['EVIDENCE_THRESHOLD']

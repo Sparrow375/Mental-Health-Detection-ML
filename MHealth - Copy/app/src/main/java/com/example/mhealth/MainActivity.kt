@@ -130,9 +130,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
-import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.Date
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -941,7 +938,6 @@ fun HomeScreen() {
                     Spacer(Modifier.height(16.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         ArcProgressRing(v.notificationsToday, 200f, AlertOrange, "Notifs", "")
-                        ArcProgressRing(v.dailySteps, 10000f, ChartPurple, "Steps", "")
                         // socialAppRatio is 0–1 fraction — multiply by 100 for % display
                         ArcProgressRing(v.socialAppRatio * 100f, 100f, ChartGreen, "Social", "%")
                     }
@@ -958,7 +954,6 @@ fun HomeScreen() {
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📍 Steps", "${v.dailySteps.toInt()}", ChartPurple)
                         MetricPill("🔀 Entropy", "%.2f".format(v.locationEntropy), AlertOrange)
                     }
                 }
@@ -1416,11 +1411,7 @@ fun AnalysisScreen() {
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
     val baseline by DataRepository.baseline.collectAsState()
     val vector by DataRepository.latestVector.collectAsState()
-    
-    // Filter out today's data
-    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-    val filteredReports = reports.filter { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.date) != todayStr }
-    val last = filteredReports.lastOrNull()
+    val last = reports.lastOrNull()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -1500,13 +1491,11 @@ fun AnalysisScreen() {
             if (baseline != null && vector != null) {
                 item {
                     // Read the latest classification result for the prototype overlay
-                    val latestResultState by DataRepository.latestAnalysisResult.collectAsState()
-                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                    val latestResult = if (latestResultState?.date == todayStr) null else latestResultState
+                    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
 
                     // Hardcoded Frame-2 z-scores for the 6 radar features per disorder.
                     // Mirrors DISORDER_PROTOTYPES_FRAME2 in config.py (screen_time_hours,
-                    // social_app_ratio, places_visited, daily_displacement_km,
+                    // social_app_ratio, daily_displacement_km,
                     // sleep_duration_hours, conversation_frequency).
                     val PROTO_RADAR_ZSCORES: Map<String, List<Float>> = mapOf(
                         "depression_type_1"    to listOf(-0.60f, -0.03f,  0.04f, -0.43f, -0.87f, -0.81f),
@@ -1534,11 +1523,11 @@ fun AnalysisScreen() {
 
                     InfoCard("Feature Deviation Radar", headerColor = ChartPurple) {
                         val b = checkNotNull(baseline); val v = checkNotNull(vector)
-                        // 31-feature DNA radar — full personality vector polygon
+                        // 30-feature DNA radar — full personality vector polygon
                         val radarLabels = listOf(
                             "ScrT", "Unlk", "AppL", "Notif", "SocR",
                             "Call", "CallD", "Cont", "Conv",
-                            "Disp", "LocE", "Home", "PlcV",
+                            "Disp", "LocE", "Home",
                             "Wake", "SlpH", "SlpD", "Dark",
                             "Chrg", "Mem", "WiFi", "Mob", "CalE",
                             "Media", "Inst", "Dnld", "Stor",
@@ -1583,7 +1572,7 @@ fun AnalysisScreen() {
                             normalizeDev(v.backgroundAudioHours, b.backgroundAudioHours),
                             normalizeDev(v.dailySteps, b.dailySteps)
                         )
-                        val baseVals = List(31) { 0.5f }
+                        val baseVals = List(30) { 0.5f }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             RadarChart(
@@ -1667,9 +1656,7 @@ fun AnalysisScreen() {
 
             // Prototype Match Card (Room-backed, updates after NightlyWorker runs)
             item {
-                val latestResultState by DataRepository.latestAnalysisResult.collectAsState()
-                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                val latestResult = if (latestResultState?.date == todayStr) null else latestResultState
+                val latestResult by DataRepository.latestAnalysisResult.collectAsState()
                 InfoCard("Prototype Classification", headerColor = ChartPurple) {
                     val result = latestResult
                     if (result == null) {
@@ -1782,12 +1769,7 @@ fun InsightsScreen() {
     val reports by DataRepository.reports.collectAsState()
     val moodScore by DataRepository.moodScore.collectAsState()
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-
-    // Filter out today's data so it only appears "tomorrow"
-    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-    val filteredReports = reports.filter { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.date) != todayStr }
-    
-    val last = filteredReports.lastOrNull()
+    val last = reports.lastOrNull()
     val alertLvl = last?.alertLevel ?: "green"
     val aColor = alertColor(alertLvl)
 
@@ -1849,10 +1831,10 @@ fun InsightsScreen() {
         }
 
         // Alert history timeline
-        if (filteredReports.size > 1) {
+        if (reports.size > 1) {
             item {
                 InfoCard("Alert History", headerColor = ChartBlue) {
-                    filteredReports.takeLast(10).reversed().forEach { report ->
+                    reports.takeLast(10).reversed().forEach { report ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(report.alertLevel)))
                             Spacer(Modifier.width(10.dp))
@@ -1894,11 +1876,7 @@ fun InsightsScreen() {
     val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
     val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
     val analysisHistory by DataRepository.analysisHistory.collectAsState()
-            
-            // Filter historical list to exclude today's provisional result
-            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-            val filteredHistory = analysisHistory.filter { it.date != todayStr }
-            
+            val history by DataRepository.analysisHistory.collectAsState()
             var selectedResult by remember { mutableStateOf<com.example.mhealth.logic.db.AnalysisResultEntity?>(null) }
             var selectedFeatures by remember { mutableStateOf<com.example.mhealth.logic.db.DailyFeaturesEntity?>(null) }
 
@@ -1910,10 +1888,10 @@ fun InsightsScreen() {
                 selectedFeatures = db.dailyFeaturesDao().getByDate(userId, res.date)
             }
 
-            if (filteredHistory.isNotEmpty()) {
+            if (history.isNotEmpty()) {
                 InfoCard("Anomaly Score History", headerColor = ChartBlue) {
                     // Sparkline — chronological order (oldest left → newest right)
-                    val scores = filteredHistory.reversed().map { it.anomalyScore }
+                    val scores = history.reversed().map { it.anomalyScore }
                     SparklineChart(
                         values = scores,
                         color = ChartBlue,
@@ -1934,7 +1912,7 @@ fun InsightsScreen() {
                     Spacer(Modifier.height(4.dp))
 
                     // All 30 days (newest first) — each row clickable
-                    filteredHistory.forEach { result ->
+                    history.forEach { result ->
                         val dotColor = alertColor(result.alertLevel)
                         Row(
                             Modifier

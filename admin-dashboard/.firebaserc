@@ -1,5 +1,18 @@
 {
-  "projects": {},
-  "targets": {},
+  "projects": {
+    "default": "mhealth-a0812"
+  },
+  "targets": {
+    "mhealth-a0812": {
+      "hosting": {
+        "mhealth-admin": [
+          "mhealth-a0812"
+        ],
+        "lumen-mh": [
+          "lumen-mh"
+        ]
+      }
+    }
+  },
   "etags": {}
 }

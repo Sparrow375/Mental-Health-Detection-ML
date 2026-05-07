@@ -16,7 +16,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from config import BEHAVIORAL_FEATURES, FEATURE_WEIGHTS
+from .config import BEHAVIORAL_FEATURES, FEATURE_WEIGHTS
 
 # Try to import matplotlib — graceful fallback if unavailable.
 try:

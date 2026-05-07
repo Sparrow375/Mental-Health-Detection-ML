@@ -89,6 +89,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
     /** Tracks which sessions have been persisted to avoid duplicates within a day window. */
     private val persistedSessionKeys = mutableSetOf<String>()
 
+    /** Monotonic displacement guard — ensures displacement never decreases within a day. */
+    @Volatile private var _lastDisplacementKm = 0.0
+
+    /** Reset the monotonic displacement guard at midnight. */
+    fun resetDisplacementGuard() { _lastDisplacementKm = 0.0 }
+
     init {
         DataRepository.init(context)
         // Step counter now handled by GpsStateManager for adaptive tracking
@@ -807,67 +813,57 @@ class DataCollector(private val context: Context) : SensorEventListener {
         startOfDayMs: Long,
         nowMs: Long
     ): LocationResult {
-        // We use the full snaps array (which reset at midnight anyway) for true polyline.
         if (snaps.size < 2) return LocationResult(0f, 0f, 1f)
 
-        // ── Displacement: cell-transition + speed filter ────────────────────────────────
-        // 1. Cell deduplication eliminates GPS hover/drift (two fixes in same 11m cell = 0 distance).
-        // 2. Speed filter: if computed speed between two cells exceeds 6 km/h the phone is
-        //    almost certainly in a vehicle. That segment is logged but NOT added to distance.
-        //    6 km/h = 1.667 m/s (fast walk ≈ 5.5 km/h; anything above 6 is vehicle territory).
-        val WALK_SPEED_MS = 6.0 / 3.6   // m/s
-
-        // ADAPTIVE GPS: State-aware accuracy filter
-        // STATIONARY=200m, WALKING=100m, VEHICLE=50m - tighter than before for better quality
+        // ── Displacement: accuracy-weighted cell transition with ghost-drift guard ──────
+        // Ghost drift: on budget phones, GPS jitter can report "new" coordinates within
+        // the accuracy radius while stationary. The cell grid ("%.4f" ≈ 11m) helps, but
+        // two adjacent cells 11m apart still accumulate ~0.011km per tick = 1km/day phantom.
+        //
+        // Fixes:
+        //   1. MIN_SEGMENT_METERS: segments shorter than 15m are ignored (GPS noise floor)
+        //   2. Accuracy overlap check: if circles overlap, the user hasn't moved
+        //   3. Doppler speed filter: if Location.speed reports ~0, discard the segment
+        //   4. Monotonic guarantee: displacement never decreases
+        val MIN_SEGMENT_METERS = 15.0
         val accuracyThreshold = gpsStateManager.getCurrentAccuracyThreshold()
         val filteredSnaps = snaps.filter { it.accuracy <= accuracyThreshold }
+            .sortedBy { it.timeMs }
         if (filteredSnaps.size < 2) return LocationResult(0f, 0f, 1f)
 
-        // Sort chronologically so delta-time between consecutive fixes is always positive.
-        val sortedSnaps = filteredSnaps.sortedBy { it.timeMs }
-
         var distKm = 0.0
-        var lastCell: String? = null
-        var lastCellLat = 0.0
-        var lastCellLon = 0.0
-        var lastCellTimeMs = 0L
+        var lastSnap: LatLonPoint = filteredSnaps.first()
 
-        // GHOST DISPLACEMENT FIX: minimum 30m segment threshold.
-        // GPS jitter on stationary phones can cause tiny cell transitions
-        // (e.g. 10-20m) that accumulate into phantom displacement.
-        // Only count a segment if it exceeds 30m (0.03 km).
-        val MIN_SEGMENT_KM = 0.03  // 30 meters
+        for (i in 1 until filteredSnaps.size) {
+            val snap = filteredSnaps[i]
+            val segmentKm = haversine(lastSnap.lat, lastSnap.lon, snap.lat, snap.lon)
+            val segmentMeters = segmentKm * 1000.0
 
-        for (snap in sortedSnaps) {
-            val cell = "${"%.4f".format(snap.lat)},${"%.4f".format(snap.lon)}"
-            if (lastCell == null) {
-                // Anchor first cell — no distance to add yet
-                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
-            } else if (cell != lastCell) {
-                // New cell reached — compute haversine.
-                val segmentKm    = haversine(lastCellLat, lastCellLon, snap.lat, snap.lon)
-                val timeDeltaSec = (snap.timeMs - lastCellTimeMs) / 1000.0
-                val speedMs      = if (timeDeltaSec > 0.0) (segmentKm * 1000.0) / timeDeltaSec else 0.0
-                val modeTag      = if (speedMs > WALK_SPEED_MS) "vehicle" else "walk"
+            // Ghost-drift guard 1: minimum distance threshold
+            if (segmentMeters < MIN_SEGMENT_METERS) continue
 
-                if (segmentKm >= MIN_SEGMENT_KM) {
-                    distKm += segmentKm   // only count if above noise floor
-                    Log.d(TAG, "GPS segment ($modeTag): %.3fkm at %.1fkm/h".format(segmentKm, speedMs * 3.6))
-                } else {
-                    Log.d(TAG, "GPS segment FILTERED (jitter): %.3fkm < %.3fkm threshold".format(segmentKm, MIN_SEGMENT_KM))
-                }
+            // Ghost-drift guard 2: accuracy overlap — if the accuracy circles of
+            // the two fixes overlap, the "movement" is just GPS jitter
+            val combinedAccuracy = (lastSnap.accuracy + snap.accuracy).toDouble()
+            if (segmentMeters < combinedAccuracy) continue
 
-                lastCell = cell; lastCellLat = snap.lat; lastCellLon = snap.lon; lastCellTimeMs = snap.timeMs
-            }
+            // Ghost-drift guard 3: Doppler speed — if the GPS chip reports near-zero
+            // speed for BOTH fixes, the phone is stationary regardless of coordinate shift
+            if (lastSnap.speed < 0.5f && snap.speed < 0.5f && segmentMeters < 50.0) continue
+
+            distKm += segmentKm
+            lastSnap = snap
         }
 
-        // MONOTONIC FIX: displacement should never decrease within a day.
-        // Clamp to at least the previously reported displacement value.
-        val prevDisplacement = DataRepository.latestVector.value?.dailyDisplacementKm ?: 0f
-        if (distKm.toFloat() < prevDisplacement && prevDisplacement > 0f) {
-            Log.d(TAG, "Displacement monotonic clamp: computed=%.3fkm < previous=%.3fkm, using previous".format(distKm, prevDisplacement))
-            distKm = prevDisplacement.toDouble()
+        // Monotonic guarantee: never return less than a previous call for the same day.
+        // This prevents UI flicker where displacement appears to "shrink" at end of day
+        // when the accuracy filter rejects the last few jittery fixes.
+        val prevDisplacement = _lastDisplacementKm
+        if (distKm < prevDisplacement && prevDisplacement > 0) {
+            Log.d(TAG, "Displacement monotonic guard: %.3f → %.3f (keeping higher)".format(prevDisplacement, distKm))
+            distKm = prevDisplacement
         }
+        _lastDisplacementKm = distKm
 
         // ── Time-weighted entropy (same logic as Home Time) ────────────────────
         // Instead of counting GPS pings per cell, we measure the actual wall-clock
@@ -1413,8 +1409,21 @@ class DataCollector(private val context: Context) : SensorEventListener {
                 12 -> { // NOTIFICATION_INTERRUPTION
                     if (!isExcluded(pkg)) {
                         recentNotificationTimes[pkg] = ts
-                        // Also push to shared DataRepository so NLS and DataCollector are in sync
                         DataRepository.setRecentNotificationTime(pkg, ts)
+
+                        // Persist ARRIVAL event for notification DNA metrics
+                        val arrivalDate = synchronized(dateFormat) { dateFormat.format(ts) }
+                        val arrivalId = "arrival_${pkg}_${ts}"
+                        notifEventsToInsert.add(
+                            NotificationEventEntity(
+                                event_id = arrivalId,
+                                app_package = pkg,
+                                arrival_timestamp = ts,
+                                action = "ARRIVAL",
+                                tap_latency_min = null,
+                                date = arrivalDate
+                            )
+                        )
                     }
                 }
             }

@@ -18,7 +18,7 @@ interface Patient {
   };
 }
 
-import { getLatestResult, deletePatient } from '../firebase/dataHelper';
+import { getLatestResult, getBaseline, deletePatient } from '../firebase/dataHelper';
 
 export const PatientList: React.FC = () => {
   const [patients, setPatients] = useState<Patient[]>([]);
@@ -37,14 +37,18 @@ export const PatientList: React.FC = () => {
           const userData = docSnap.data();
           const uid = docSnap.id;
           
-          const latestResult = await getLatestResult(uid);
-          
-          let status = 'Collecting';
+          const [latestResult, baselineData] = await Promise.all([
+            getLatestResult(uid),
+            getBaseline(uid),
+          ]);
+
+          const baselineEstablished = baselineData !== null;
+          let status = baselineEstablished ? 'BaselineEstablished' : 'Collecting';
           let score = 0;
-          
+
           if (latestResult) {
-             score = latestResult.anomaly_score || 0;
-             status = score >= 0.7 ? 'Flagged' : 'Monitoring';
+            score = latestResult.anomaly_score || 0;
+            if (score >= 0.7) status = 'Flagged';
           }
           
           const onboardingDate = userData.onboardingTimestamp || Date.now();
@@ -103,6 +107,11 @@ export const PatientList: React.FC = () => {
         <Clock size={14} /> Building Baseline
       </span>
     );
+    if (status === 'BaselineEstablished') return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', borderRadius: '1rem', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', fontSize: '0.875rem', fontWeight: 500 }}>
+        <ShieldCheck size={14} /> Baseline Established
+      </span>
+    );
     return (
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', padding: '0.25rem 0.75rem', borderRadius: '1rem', background: 'rgba(16, 185, 129, 0.15)', color: 'var(--success)', fontSize: '0.875rem', fontWeight: 500 }}>
         <ShieldCheck size={14} /> Monitoring
@@ -123,8 +132,8 @@ export const PatientList: React.FC = () => {
             <input 
               type="text" 
               placeholder="Search by ID or email..." 
-              className="input-field"
-              style={{ paddingLeft: '2.5rem', width: '300px' }}
+              className="input-field patient-search-input"
+              style={{ paddingLeft: '2.5rem' }}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -132,8 +141,9 @@ export const PatientList: React.FC = () => {
         </div>
       </div>
 
-      <div className="glass-panel" style={{ overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="glass-panel">
+        <div className="table-scroll-wrapper">
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: '1px solid var(--border)', background: 'rgba(0,0,0,0.1)' }}>
               <th style={{ padding: '1rem 1.5rem', color: 'var(--text-secondary)', fontWeight: 500, fontSize: '0.875rem' }}>Anonymous ID</th>
@@ -184,7 +194,8 @@ export const PatientList: React.FC = () => {
               ))
             )}
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );

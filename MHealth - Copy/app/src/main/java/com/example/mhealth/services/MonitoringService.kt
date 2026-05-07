@@ -74,6 +74,7 @@ class MonitoringService : Service() {
     private var musicStartMs: Long = -1L
     private var activeMusicPackage: String? = null
     private var preRestartAudioMs: Long = 0L  // Tracks accumulated audio time before service restart
+    private var lastMusicPollMs: Long = 0L    // Last tick where music was confirmed playing
     private var alarmManager: AlarmManager? = null
 
     // CompletableDeferred ensures runTick() waits for Room rehydration without blocking the main thread.
@@ -431,7 +432,32 @@ class MonitoringService : Service() {
                     }
                 }
         }
-        
+
+        // ── DNA baseline days observer: continue + rebuild when threshold changes ──
+        serviceScope.launch {
+            DataRepository.dnaBaselineDaysRequired
+                .debounce(300)
+                .distinctUntilChanged()
+                .collect { target ->
+                    try {
+                        val db = MHealthDatabase.getInstance(this@MonitoringService)
+                        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                        val dnaDays = db.dailyDnaSnapshotDao().countDistinctDays(userId)
+                        if (dnaDays < target) {
+                            db.userProfileDao().updateDnaReady(userId, false)
+                            DataRepository.setIsDnaBaselineReady(false)
+                            Log.i(TAG, "DNA threshold changed to $target (have $dnaDays) — resuming collection")
+                        } else if (dnaDays >= target) {
+                            db.userProfileDao().updateDnaReady(userId, true)
+                            DataRepository.setIsDnaBaselineReady(true)
+                            Log.i(TAG, "DNA threshold met: $dnaDays >= $target — profile will rebuild on next analysis")
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "DNA threshold observer error: ${e.message}")
+                    }
+                }
+        }
+
         // dev force new-day trigger listener
         serviceScope.launch {
             DataRepository.forceNewDayTrigger.collect { triggers ->
@@ -451,22 +477,35 @@ class MonitoringService : Service() {
                     val now = Date()
                     val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
                     val todayStr = dateFmt.format(now)
-                    
+
                     Log.i("MHealth.Service", "Manual DNA Finalize Clicked. triggers=$triggers, userId=$userId")
                     Log.i("MHealth.Service", "Force-saving snapshot for Day $todayDoy ($todayStr) to ensure worker has data.")
-                    
+
                     // 1. Collect current data and save as a formal row for TODAY
-                    // This ensures the NightlyAnalysisWorker finds a row to analyze even if midnight hasn't passed.
                     val currentSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
-                    
-                    // SUSPEND and wait for save to complete before spawning worker
                     persistDailySnapshot(currentSnapshot, todayDoy, isSimulated = true)
-                    
-                    Log.i("MHealth.Service", "Snapshot persisted synchronously. Spawning NightlyAnalysisWorker for $todayStr...")
-                    
-                    // 2. Trigger the nightly worker to run NOW for TODAY's date
+
+                    // 2. Compute and store DNA snapshot for today (populates daily_dna_snapshot table)
+                    try {
+                        val dnaComputer = com.example.mhealth.logic.AppDnaComputer(this@MonitoringService)
+                        val snapshot = dnaComputer.computeAndStoreDnaSnapshot(userId, todayStr)
+                        if (snapshot != null) {
+                            Log.i("MHealth.Service", "DNA snapshot stored for manual finalize: ${snapshot.totalSessions} sessions, ${snapshot.totalScreenTimeHours}h")
+                            val db = MHealthDatabase.getInstance(this@MonitoringService)
+                            val dnaDays = db.dailyDnaSnapshotDao().countDistinctDays(userId)
+                            DataRepository.updateDnaBaselineProgress(dnaDays)
+                        } else {
+                            Log.i("MHealth.Service", "No sessions for today — DNA snapshot skipped for manual finalize")
+                        }
+                    } catch (e: Exception) {
+                        Log.e("MHealth.Service", "Failed to compute DNA snapshot for manual finalize: ${e.message}", e)
+                    }
+
+                    Log.i("MHealth.Service", "Spawning NightlyAnalysisWorker (force) for $todayStr...")
+
+                    // 3. Trigger the nightly worker with force_run
                     DataRepository.setDnaAnalysing(true)
-                    NightlyAnalysisWorker.runNow(this@MonitoringService, userId, todayStr)
+                    NightlyAnalysisWorker.runNow(this@MonitoringService, userId, todayStr, forceRun = true)
                 }
             }
         }
@@ -608,20 +647,47 @@ class MonitoringService : Service() {
             // Level 2 Digital DNA: Log session events from UsageEvents for behavioral DNA
             dataCollector.logSessionsFromEvents(dataCollector.getStartOfDayMs(), System.currentTimeMillis())
 
-            // REAL-TIME PERSISTENCE: Upsert current day's features to Room every 5th tick.
-            // This ensures the database always has a fresh in-progress snapshot for the day,
-            // enabling continuous updates and surviving app restarts.
-            if (collectionTickCount % 5 == 0) {
-                try {
-                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
-                    val todayStr = dateFmt.format(Date())
-                    val entity = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, false)
-                    MHealthDatabase.getInstance(this@MonitoringService)
-                        .dailyFeaturesDao().upsertByDate(entity)
-                    Log.d("MHealth.Service", "Real-time daily snapshot upserted for $todayStr (tick #$collectionTickCount)")
-                } catch (e: Exception) {
-                    Log.w("MHealth.Service", "Failed to upsert daily snapshot: ${e.message}")
+            // ── Periodic music polling — credits time incrementally each tick ──
+            // Fixes: MediaSession listener unreliable, background audio always 0.
+            // This polls isMusicAppActiveViaMediaSession() every tick and credits
+            // elapsed time if music is playing, capped at 30 min per tick.
+            if (!isSimulated) {
+                val currentlyPlayingPkg = isMusicAppActiveViaMediaSession()
+                val pollNow = System.currentTimeMillis()
+                if (currentlyPlayingPkg != null) {
+                    if (musicStartMs == -1L) {
+                        // New session detected via poll (listener may have missed it)
+                        preRestartAudioMs = 0L
+                        musicStartMs = pollNow
+                        activeMusicPackage = currentlyPlayingPkg
+                    }
+                    // Credit elapsed time since last successful poll
+                    if (lastMusicPollMs > 0L) {
+                        val elapsed = pollNow - lastMusicPollMs
+                        if (elapsed in 1..30 * 60_000L) {
+                            DataRepository.addBgAudioTime(currentlyPlayingPkg, elapsed)
+                        }
+                    }
+                    lastMusicPollMs = pollNow
+                } else {
+                    if (musicStartMs > 0L) {
+                        musicStartMs = -1L
+                        activeMusicPackage = null
+                        preRestartAudioMs = 0L
+                    }
+                    lastMusicPollMs = 0L
                 }
+            }
+
+            // Save/update today's features in daily_features DB on every tick.
+            // Uses REPLACE so the row is continuously updated until midnight finalizes it.
+            try {
+                val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                val todayStr = dateFmt.format(Date())
+                val entity = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, isSimulated = false)
+                MHealthDatabase.getInstance(this@MonitoringService).dailyFeaturesDao().insert(entity)
+            } catch (e: Exception) {
+                Log.d("MHealth.Service", "Live daily features save failed: ${e.message}")
             }
 
             // 2) Provisional Analysis (Live Score)
@@ -643,10 +709,42 @@ class MonitoringService : Service() {
                 val yesterdayStart = startOfToday - 24 * 3600_000L
                 val yesterdayEnd = startOfToday - 1L
 
-                Log.i("MHealth.Service", "Day Transition Detected: Capturing full profile for Day $savedDay [Range: $yesterdayStart to $yesterdayEnd]")
-                
+                // Compute the date string for the day that just ended
+                val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+                val yesterdayStr = dateFmt.format(yesterdayCal.time)
+
+                Log.i("MHealth.Service", "Day Transition Detected: Capturing full profile for Day $savedDay ($yesterdayStr) [Range: $yesterdayStart to $yesterdayEnd]")
+
                 // Collect a 100% accurate snapshot for the entire prior day
                 val fullDaySnapshot = dataCollector.collectSnapshot(locationSnaps, yesterdayStart, yesterdayEnd)
+
+                // ── DNA: Compute daily DNA snapshot from raw sessions BEFORE purge ──
+                try {
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val dnaComputer = com.example.mhealth.logic.AppDnaComputer(this@MonitoringService)
+                    val snapshot = dnaComputer.computeAndStoreDnaSnapshot(userId, yesterdayStr)
+                    if (snapshot != null) {
+                        Log.i("MHealth.Service", "DNA snapshot stored for $yesterdayStr: ${snapshot.totalSessions} sessions, ${snapshot.totalScreenTimeHours}h screen")
+                        // Update DNA progress from the daily_dna_snapshot table
+                        val db = MHealthDatabase.getInstance(this@MonitoringService)
+                        val dnaDays = db.dailyDnaSnapshotDao().countDistinctDays(userId)
+                        DataRepository.updateDnaBaselineProgress(dnaDays)
+                    } else {
+                        Log.i("MHealth.Service", "No sessions for $yesterdayStr — DNA snapshot skipped")
+                    }
+                } catch (e: Exception) {
+                    Log.e("MHealth.Service", "Failed to compute DNA snapshot for $yesterdayStr: ${e.message}", e)
+                }
+
+                // ── DNA: Purge raw sessions and notification events for the previous day ──
+                try {
+                    val db = MHealthDatabase.getInstance(this@MonitoringService)
+                    val sessionsDeleted = db.appSessionDao().deleteByDate(yesterdayStr)
+                    val notifsDeleted = db.notificationEventDao().deleteByDate(yesterdayStr)
+                    Log.i("MHealth.Service", "Purged $sessionsDeleted sessions and $notifsDeleted notification events for $yesterdayStr")
+                } catch (e: Exception) {
+                    Log.e("MHealth.Service", "Failed to purge DNA raw data for $yesterdayStr: ${e.message}", e)
+                }
 
                 // Record this full day in history/baseline
                 if (DataRepository.isBuildingBaseline.value) {
@@ -658,6 +756,7 @@ class MonitoringService : Service() {
                 // Reset daily accumulators for the new day
                 DataRepository.resetDailyState()
                 gpsStateManager.reset()  // Reset GPS state machine to STATIONARY
+                dataCollector.resetDisplacementGuard()  // Reset monotonic displacement for new day
                 DataRepository.setLastProcessedDay(today)
                 Log.i("MHealth.Service", "Day transition logic for Day $savedDay complete.")
             } else {
@@ -666,9 +765,7 @@ class MonitoringService : Service() {
                 // Progress is saved days + 1 (current day)
                 val currentProg = collectedDailyVectors.size + 1
                 DataRepository.updateBaselineProgress(currentProg)
-                // DNA progress is tracked separately via app_sessions distinct days
-                DataRepository.refreshDnaBaselineProgress(this@MonitoringService)
-                
+
                 if (DataRepository.isBuildingBaseline.value) {
                     checkAndFinalizeBaseline(target)
                 }
@@ -686,8 +783,6 @@ class MonitoringService : Service() {
                 collectedDailyVectors.add(snapshot)
                 val prog = collectedDailyVectors.size
                 DataRepository.updateBaselineProgress(prog)
-                // DNA progress is tracked separately via app_sessions distinct days
-                DataRepository.refreshDnaBaselineProgress(this@MonitoringService)
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
                 // Persist end-of-day snapshot to Room

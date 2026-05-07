@@ -372,11 +372,37 @@ def build_daily_vector(
     else:
         switching_rate = 0.0
 
-    # Active hours span
+    # Active hours span (density-based, NOT simple max-min)
     if sessions_today:
-        hours = [datetime.datetime.fromtimestamp(s["open_timestamp"] / 1000.0).hour 
-                 for s in sessions_today]
-        active_span = max(hours) - min(hours)
+        occupied_slots = set()
+        for s in sessions_today:
+            dt = datetime.datetime.fromtimestamp(s["open_timestamp"] / 1000.0)
+            open_hour = dt.hour + dt.minute / 60.0
+            dur_min = (s["close_timestamp"] - s["open_timestamp"]) / 60_000.0
+            close_hour = open_hour + dur_min / 60.0
+            open_slot = int(open_hour * 2) % 48
+            close_slot = int(close_hour * 2) % 48
+            for slot in range(open_slot, close_slot + 1):
+                occupied_slots.add(slot % 48)
+
+        if occupied_slots:
+            sorted_slots = sorted(occupied_slots)
+            best_s = sorted_slots[0]; best_e = sorted_slots[0]
+            cur_s = sorted_slots[0]; cur_e = sorted_slots[0]
+            for i in range(1, len(sorted_slots)):
+                if sorted_slots[i] <= cur_e + 1:
+                    cur_e = sorted_slots[i]
+                else:
+                    if cur_e - cur_s > best_e - best_s:
+                        best_s = cur_s; best_e = cur_e
+                    cur_s = sorted_slots[i]; cur_e = sorted_slots[i]
+            if cur_e - cur_s > best_e - best_s:
+                best_s = cur_s; best_e = cur_e
+            start_h = max(best_s - 1, 0) * 0.5
+            end_h = min(best_e + 2, 48) * 0.5
+            active_span = min(end_h - start_h, 16.0)
+        else:
+            active_span = 0.0
     else:
         active_span = 0.0
 

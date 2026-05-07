@@ -6,7 +6,7 @@ within the Chaquopy environment. Produces a rich JSON profile containing:
   - PersonalityVector (29-feature baseline means/variances)
   - AppDNA (per-app behavioral fingerprints)
   - PhoneDNA (device-level behavioral DNA)
-  - AnchorClusters (DBSCAN archetypes from L1 daily vectors)
+  - AnchorClusters (Clinical-Weighted PCA + Mean-Shift archetypes from L1 daily vectors)
   - ContextualTextureProfiles (L2 texture per archetype)
 """
 
@@ -25,7 +25,6 @@ FEATURE_WEIGHTS = {
     "callsPerDay": 1.3, "callDurationMinutes": 1.2, "uniqueContacts": 1.1,
     "conversationFrequency": 0.9,
     "dailyDisplacementKm": 1.5, "locationEntropy": 1.3, "homeTimeRatio": 1.2,
-    "placesVisited": 1.1,
     "wakeTimeHour": 1.4, "sleepTimeHour": 1.3, "sleepDurationHours": 1.6,
     "darkDurationHours": 1.0,
     "chargeDurationHours": 0.8, "memoryUsagePercent": 0.5, "networkWifiMB": 0.6,
@@ -40,66 +39,69 @@ ALL_L1_FEATURES = list(FEATURE_WEIGHTS.keys())
 
 L1_CLUSTER_FEATURES = [
     "sleepDurationHours", "wakeTimeHour", "sleepTimeHour",
-    "dailyDisplacementKm", "locationEntropy", "placesVisited",
+    "dailyDisplacementKm", "locationEntropy",
     "callsPerDay", "callDurationMinutes", "screenTimeHours",
     "unlockCount", "socialAppRatio", "darkDurationHours",
 ]
 
 
-# ── DBSCAN implementation ─────────────────────────────────────────────────────
+# ── Clinical-Weighted PCA (2D) + Mean-Shift clustering ──────────────────────
 
-def _dbscan(data: np.ndarray, eps: float = 2.0, min_samples: int = 3):
-    """Simple DBSCAN clustering. Returns list of (cluster_id, indices)."""
-    n = len(data)
-    if n == 0:
+def _clinical_weighted_pca(data: np.ndarray, feature_weights: list, n_components: int = 2) -> tuple:
+    """Apply clinical feature weights, then PCA to 2D via SVD."""
+    W = np.diag(feature_weights)
+    weighted = data @ W
+    mean = weighted.mean(axis=0)
+    centered = weighted - mean
+    U, S, Vt = np.linalg.svd(centered, full_matrices=False)
+    components = Vt[:n_components]
+    projected = centered @ components.T
+    return projected, components, mean
+
+
+def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
+    """Mean-Shift clustering (pure numpy). Returns [(cluster_id, indices)]."""
+    if len(data) == 0:
         return []
+    n = len(data)
+    # Auto-estimate bandwidth from pairwise distances
+    if bandwidth is None:
+        dists = np.linalg.norm(data[:, None] - data[None, :], axis=2)
+        bandwidth = float(np.median(dists)) * 0.8
+    if bandwidth <= 0:
+        bandwidth = 1.0
 
-    # Compute pairwise distances
-    dists = np.zeros((n, n))
+    points = data.copy()
+    # Shift each point toward mode
+    for _ in range(50):
+        shifted = np.zeros_like(points)
+        for i in range(n):
+            dists = np.linalg.norm(points - points[i], axis=1)
+            mask = dists <= bandwidth
+            if mask.any():
+                shifted[i] = points[mask].mean(axis=0)
+            else:
+                shifted[i] = points[i]
+        points = shifted
+
+    # Merge converged points into clusters
+    cluster_centers = []
+    cluster_ids = [-1] * n
+    merge_thresh = bandwidth * 0.3
     for i in range(n):
-        for j in range(i + 1, n):
-            d = np.linalg.norm(data[i] - data[j])
-            dists[i][j] = d
-            dists[j][i] = d
+        merged = False
+        for c_idx, center in enumerate(cluster_centers):
+            if np.linalg.norm(points[i] - center) < merge_thresh:
+                cluster_ids[i] = c_idx
+                merged = True
+                break
+        if not merged:
+            cluster_ids[i] = len(cluster_centers)
+            cluster_centers.append(points[i].copy())
 
-    # Find neighbors
-    labels = [-1] * n  # -1 = noise
-    cluster_id = 0
-
-    visited = [False] * n
-
-    for i in range(n):
-        if visited[i]:
-            continue
-        visited[i] = True
-        neighbors = [j for j in range(n) if dists[i][j] <= eps]
-
-        if len(neighbors) < min_samples:
-            labels[i] = -1  # noise
-        else:
-            # Expand cluster
-            labels[i] = cluster_id
-            seed_set = list(neighbors)
-            seed_set = [s for s in seed_set if s != i]
-            while seed_set:
-                q = seed_set.pop(0)
-                if labels[q] == -1:
-                    labels[q] = cluster_id
-                if visited[q]:
-                    continue
-                visited[q] = True
-                labels[q] = cluster_id
-                q_neighbors = [j for j in range(n) if dists[q][j] <= eps]
-                if len(q_neighbors) >= min_samples:
-                    seed_set.extend(q_neighbors)
-            cluster_id += 1
-
-    # Group by cluster
     clusters = {}
-    for i, lbl in enumerate(labels):
-        if lbl >= 0:
-            clusters.setdefault(lbl, []).append(i)
-
+    for i, cid in enumerate(cluster_ids):
+        clusters.setdefault(cid, []).append(i)
     return [(cid, indices) for cid, indices in sorted(clusters.items())]
 
 
@@ -177,7 +179,9 @@ def build_app_dna_profiles(sessions: list) -> dict:
 
 
 def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
-    """Build device-level behavioral DNA."""
+    """Build device-level behavioral DNA with full metric computation."""
+    import datetime
+
     if not daily_features_list and not sessions:
         return {}
 
@@ -191,19 +195,18 @@ def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
     active_window_mean = float(np.mean(screen_times)) if screen_times else 0.0
     active_window_std = float(np.std(screen_times)) if len(screen_times) > 1 else 0.0
 
-    # Notification rates
-    notif_counts = [d.get("notificationsToday", 0.0) for d in daily_features_list if "notificationsToday" in d]
-    notif_rate = float(np.mean(notif_counts)) if notif_counts else 0.0
-
-    # Session duration distribution (5-bin histogram)
-    import datetime
+    # Session duration distribution (5-bin histogram matching phone_dna_builder.py)
     durations = []
     for s in sessions:
-        dur = (s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
+        # Prefer the pre-computed key written by Kotlin's sessionsToJson()
+        if "duration_minutes" in s:
+            dur = float(s["duration_minutes"])
+        else:
+            dur = (s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
         durations.append(max(0.0, dur))
 
     if durations:
-        bins = [0, 1, 5, 15, 60, float('inf')]
+        bins = [0, 2, 15, 30, 60, float('inf')]
         hist = [0] * 5
         for d in durations:
             for i in range(5):
@@ -213,17 +216,58 @@ def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
         total = sum(hist)
         session_dist = [round(h / max(total, 1), 4) for h in hist]
     else:
-        session_dist = [0.2, 0.2, 0.2, 0.2, 0.2]
+        session_dist = [0.0, 0.0, 0.0, 0.0, 0.0]
 
-    # Deep/micro session ratios
+    # Deep/micro session ratios (matching phone_dna_builder.py thresholds)
     if durations:
-        deep = sum(1 for d in durations if d >= 15) / len(durations)
-        micro = sum(1 for d in durations if d < 1) / len(durations)
+        deep = sum(1 for d in durations if d > 20) / len(durations)
+        micro = sum(1 for d in durations if d < 2) / len(durations)
     else:
         deep, micro = 0.0, 0.0
 
+    # Pickup burst rate: fraction of sessions within 5 min of previous session
+    burst_rate = 0.0
+    inter_pickup_mean = 0.0
+    inter_pickup_std = 0.0
+    if sessions:
+        timestamps = sorted(float(s.get("open_timestamp", 0)) for s in sessions if s.get("open_timestamp", 0) > 0)
+        if len(timestamps) > 1:
+            gaps = [(timestamps[i] - timestamps[i - 1]) / 60000.0 for i in range(1, len(timestamps))]
+            burst_count = sum(1 for g in gaps if g < 5)
+            burst_rate = round(burst_count / len(gaps), 4)
+            # Inter-pickup interval (exclude gaps > 24h)
+            valid_gaps = [g for g in gaps if 0 < g < 1440]
+            if valid_gaps:
+                inter_pickup_mean = round(float(np.mean(valid_gaps)), 2)
+                inter_pickup_std = round(float(np.std(valid_gaps)), 2)
+
+    # Notification rates from notification event data (passed in sessions as notification_events)
+    notification_events = []
+    # Check if notification_events were passed separately
+    notif_data = []
+    if isinstance(sessions, dict) and "notification_events" in sessions:
+        notif_data = sessions["notification_events"]
+    # Also try to get from daily features
+    if not notif_data and daily_features_list:
+        # Estimate from notification counts in daily features
+        notif_counts = [d.get("notificationsToday", 0.0) for d in daily_features_list if "notificationsToday" in d]
+        notif_rate = float(np.mean(notif_counts)) if notif_counts else 0.0
+    else:
+        notif_rate = 0.0
+
+    # Compute notification open/dismiss/ignore rates from events
+    notif_open_rate = 0.0
+    notif_dismiss_rate = 0.0
+    notif_ignore_rate = 0.0
+    if notif_data:
+        actions = [n.get("action", "") for n in notif_data]
+        n_total = max(len(actions), 1)
+        notif_open_rate = round(sum(1 for a in actions if a == "TAP") / n_total, 4)
+        notif_dismiss_rate = round(sum(1 for a in actions if a == "DISMISS") / n_total, 4)
+        notif_ignore_rate = round(sum(1 for a in actions if a == "IGNORE") / n_total, 4)
+
     # App cooccurrence (simplified: top 10 apps × top 10 apps)
-    pkg_set = sorted(set(s.get("app_package", "") for s in sessions))[:10]
+    pkg_set = sorted(set(s.get("app_package", "") for s in sessions if isinstance(s, dict)))[:10]
     cooccurrence = [[0] * len(pkg_set) for _ in range(len(pkg_set))]
     if sessions:
         sessions_sorted = sorted(sessions, key=lambda s: s.get("open_timestamp", 0))
@@ -256,14 +300,15 @@ def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
         "first_pickup_hour_std": round(first_pickup_std, 2),
         "active_window_duration_mean": round(active_window_mean, 2),
         "active_window_duration_std": round(active_window_std, 2),
-        "pickup_burst_rate": 0.0,
-        "inter_pickup_interval_mean": 0.0,
+        "pickup_burst_rate": burst_rate,
+        "inter_pickup_interval_mean": inter_pickup_mean,
+        "inter_pickup_interval_std": inter_pickup_std,
         "session_duration_distribution": session_dist,
         "deep_session_ratio": round(deep, 4),
         "micro_session_ratio": round(micro, 4),
-        "notification_open_rate": 0.0,
-        "notification_dismiss_rate": 0.0,
-        "notification_ignore_rate": 0.0,
+        "notification_open_rate": notif_open_rate,
+        "notification_dismiss_rate": notif_dismiss_rate,
+        "notification_ignore_rate": notif_ignore_rate,
         "daily_rhythm_regularity": rhythm_regularity,
         "weekday_weekend_delta": wd_we_delta,
         "app_cooccurrence_labels": pkg_set,
@@ -272,117 +317,159 @@ def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
 
 
 def build_anchor_clusters(daily_features_list: list) -> list:
-    """Build L1 anchor clusters using DBSCAN on 12 cluster features."""
-    if len(daily_features_list) < 5:
+    """Build L1 anchor clusters using Clinical-Weighted PCA (2D) + Mean-Shift."""
+    if len(daily_features_list) < 3:
         return []
 
-    # Extract L1 cluster feature vectors
+    # Extract L1 cluster feature vectors — use 0.0 for missing features rather than
+    # dropping the entire day, so all history contributes to clustering.
     vectors = []
     dates = []
-    for d in daily_features_list:
-        vec = []
-        valid = True
-        for feat in L1_CLUSTER_FEATURES:
-            if feat in d:
-                vec.append(float(d[feat]))
-            else:
-                valid = False
-                break
-        if valid:
-            vectors.append(vec)
-            dates.append(d.get("date", ""))
+    for day in daily_features_list:
+        vec = [float(day.get(feat, 0.0)) for feat in L1_CLUSTER_FEATURES]
+        vectors.append(vec)
+        dates.append(day.get("date", ""))
 
-    if len(vectors) < 5:
-        return []
+    if len(vectors) < 3:
+        return []  # Should never hit given the guard above, but kept for safety
 
     matrix = np.array(vectors)
 
-    # Normalize
+    # Normalize (z-score)
     means = np.mean(matrix, axis=0)
     stds = np.std(matrix, axis=0)
     stds_safe = np.where(stds > 1e-9, stds, 1.0)
     matrix_norm = (matrix - means) / stds_safe
 
-    # DBSCAN
-    clusters = _dbscan(matrix_norm, eps=2.0, min_samples=3)
+    # Build clinical weight vector for clustering features
+    weights = [FEATURE_WEIGHTS.get(f, 1.0) for f in L1_CLUSTER_FEATURES]
+
+    # Clinical-Weighted PCA → 2D projection
+    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, n_components=2)
+
+    # ── Projection params for future mismatch scoring ──────────────────────────
+    # Store the parameters needed to project any new day into the same PCA space.
+    # Serialised as plain Python lists so they survive JSON round-trips.
+    _proj_params = {
+        "features": L1_CLUSTER_FEATURES,
+        "norm_means": [round(float(v), 6) for v in means],
+        "norm_stds":  [round(float(v), 6) for v in stds_safe],
+        "clinical_weights": [round(float(w), 4) for w in weights],
+        "pca_mean": [round(float(v), 6) for v in pca_mean],
+        "pca_components": [
+            [round(float(v), 6) for v in row] for row in pca_components
+        ],
+    }
+
+    # Mean-Shift clustering on 2D projection
+    clusters = _meanshift(projected)
+
+    # If Mean-Shift found no clusters or everything is one blob, that's OK
+    if not clusters:
+        # Single cluster fallback
+        centroid = np.mean(projected, axis=0)
+        return [{
+            "cluster_id": 0,
+            "centroid_features": {feat: round(float(means[i]), 4) for i, feat in enumerate(L1_CLUSTER_FEATURES)},
+            "centroid_pca_2d": [round(float(centroid[0]), 4), round(float(centroid[1]), 4)],
+            "radius": round(float(np.max(np.linalg.norm(projected - centroid, axis=1))), 4),
+            "member_count": len(projected),
+            "member_dates": dates,
+            "method": "clinical_pca_meanshift",
+            "_pca_projection": _proj_params,  # stored on first (only) cluster
+        }]
 
     result = []
-    for cid, indices in clusters:
-        members = matrix_norm[indices]
-        centroid = np.mean(members, axis=0)
+    for idx, (cid, indices) in enumerate(clusters):
+        members_pca = projected[indices]
+        centroid_pca = np.mean(members_pca, axis=0)
 
-        # Radius = max distance from centroid
-        dists = np.linalg.norm(members - centroid, axis=1)
+        # Radius in PCA space
+        dists = np.linalg.norm(members_pca - centroid_pca, axis=1)
         radius = float(np.max(dists)) if len(dists) > 0 else 0.0
 
-        # Denormalize centroid to original feature space
-        centroid_raw = centroid * stds_safe + means
+        # Denormalize centroid back to original feature space (approximate)
+        members_norm = matrix_norm[indices]
+        centroid_norm = np.mean(members_norm, axis=0)
+        centroid_raw = centroid_norm * stds_safe + means
 
-        result.append({
+        cluster_dict = {
             "cluster_id": cid,
             "centroid_features": {feat: round(float(centroid_raw[i]), 4) for i, feat in enumerate(L1_CLUSTER_FEATURES)},
-            "centroid_normalized": [round(float(c), 4) for c in centroid],
+            "centroid_pca_2d": [round(float(centroid_pca[0]), 4), round(float(centroid_pca[1]), 4)],
             "radius": round(radius, 4),
             "member_count": len(indices),
             "member_dates": [dates[i] for i in indices if i < len(dates)],
-        })
+            "method": "clinical_pca_meanshift",
+        }
+        # Attach projection params only to the first cluster (shared across all)
+        if idx == 0:
+            cluster_dict["_pca_projection"] = _proj_params
+        result.append(cluster_dict)
 
     return result
 
 
-def build_texture_profiles(daily_features_list: list, sessions: list) -> list:
-    """Build simplified L2 texture profiles per archetype."""
+def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clusters: list = None) -> list:
+    """
+    Build simplified L2 texture profiles, one per anchor cluster archetype.
+
+    If anchor_clusters is provided, each day is assigned to its nearest cluster
+    and texture stats are computed per-cluster. Falls back to a single global
+    profile when no cluster information is available.
+    """
     if not daily_features_list or not sessions:
         return []
 
-    import datetime
+    import datetime as _dt
 
     # Group sessions by date
     sessions_by_date = {}
     for s in sessions:
-        dt = datetime.datetime.fromtimestamp(s.get("open_timestamp", 0) / 1000.0)
-        date_str = dt.strftime("%Y-%m-%d")
-        sessions_by_date.setdefault(date_str, []).append(s)
+        ts = s.get("open_timestamp", 0)
+        try:
+            dt = _dt.datetime.fromtimestamp(ts / 1000.0)
+            date_str = dt.strftime("%Y-%m-%d")
+        except (OSError, OverflowError, ValueError):
+            date_str = ""
+        if date_str:
+            sessions_by_date.setdefault(date_str, []).append(s)
 
-    # Compute daily texture vectors (simplified 22-feature)
-    texture_data = []
-    for d in daily_features_list:
-        date_str = d.get("date", "")
-        day_sessions = sessions_by_date.get(date_str, [])
+    def _texture_for_day(day_sessions: list) -> dict:
+        """Compute texture feature dict for a single day's sessions."""
+        durations = [
+            (s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
+            for s in day_sessions
+        ]
+        durations = [max(0.0, dur) for dur in durations]
 
-        if not day_sessions:
-            continue
-
-        # Compute simplified texture features
-        durations = [(s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
-                     for s in day_sessions]
-
-        # Abandon rate
-        abandoned = sum(1 for s, dur in zip(day_sessions, durations)
-                       if s.get("interaction_count", 1) < 3 and dur < 0.5)
+        abandoned = sum(
+            1 for s, dur in zip(day_sessions, durations)
+            if s.get("interaction_count", 1) < 3 and dur < 0.5
+        )
         abandon_rate = abandoned / max(len(day_sessions), 1)
-
-        # Self-open ratio
         self_opens = sum(1 for s in day_sessions if s.get("trigger", "SELF") == "SELF")
         self_open_ratio = self_opens / max(len(day_sessions), 1)
+        deep_ratio = sum(1 for dur in durations if dur >= 15) / max(len(durations), 1)
+        micro_ratio = sum(1 for dur in durations if dur < 1) / max(len(durations), 1)
 
-        # Deep/micro session ratios
-        deep_ratio = sum(1 for d in durations if d >= 15) / max(len(durations), 1)
-        micro_ratio = sum(1 for d in durations if d < 1) / max(len(durations), 1)
-
-        # App switching
         sorted_sess = sorted(day_sessions, key=lambda s: s.get("open_timestamp", 0))
-        switches = sum(1 for i in range(1, len(sorted_sess))
-                      if sorted_sess[i].get("app_package") != sorted_sess[i-1].get("app_package"))
+        switches = sum(
+            1 for i in range(1, len(sorted_sess))
+            if sorted_sess[i].get("app_package") != sorted_sess[i - 1].get("app_package")
+        )
         switch_rate = switches / max(len(sorted_sess) - 1, 1)
 
-        # Active hours span
-        hours = [datetime.datetime.fromtimestamp(s.get("open_timestamp", 0) / 1000.0).hour
-                for s in day_sessions]
-        active_span = (max(hours) - min(hours)) if hours else 0
+        try:
+            hours = [
+                _dt.datetime.fromtimestamp(s.get("open_timestamp", 0) / 1000.0).hour
+                for s in day_sessions
+            ]
+            active_span = (max(hours) - min(hours)) if hours else 0
+        except (OSError, OverflowError, ValueError):
+            active_span = 0
 
-        texture_data.append({
-            "date": date_str,
+        return {
             "total_sessions": len(day_sessions),
             "abandon_rate": round(abandon_rate, 4),
             "self_open_ratio": round(self_open_ratio, 4),
@@ -390,29 +477,72 @@ def build_texture_profiles(daily_features_list: list, sessions: list) -> list:
             "micro_session_ratio": round(micro_ratio, 4),
             "app_switching_rate": round(switch_rate, 4),
             "active_hours_span": active_span,
-            "avg_session_minutes": round(float(np.mean(durations)) if durations else 0, 2),
-        })
+            "avg_session_minutes": round(float(np.mean(durations)) if durations else 0.0, 2),
+        }
 
-    if not texture_data:
+    def _aggregate(texture_list: list) -> dict:
+        """Aggregate a list of per-day texture dicts into summary stats."""
+        if not texture_list:
+            return {}
+        keys = ["total_sessions", "abandon_rate", "self_open_ratio",
+                "deep_session_ratio", "micro_session_ratio",
+                "app_switching_rate", "avg_session_minutes"]
+        return {
+            "total_days_analyzed": len(texture_list),
+            **{f"avg_{k}": round(float(np.mean([t[k] for t in texture_list])), 4)
+               for k in keys},
+        }
+
+    # ── Build per-day texture rows ────────────────────────────────────────────
+    # Map date → texture dict; also keep the cluster_id from anchor_clusters.
+    date_to_cluster: dict = {}
+    if anchor_clusters:
+        for cluster in anchor_clusters:
+            for date in cluster.get("member_dates", []):
+                date_to_cluster[date] = cluster.get("cluster_id", 0)
+
+    # Collect texture per day, tagged with cluster_id
+    day_textures: list = []  # list of (cluster_id, texture_dict, date_str)
+    for day in daily_features_list:
+        date_str = day.get("date", "")
+        day_sessions = sessions_by_date.get(date_str, [])
+        if not day_sessions:
+            continue
+        tex = _texture_for_day(day_sessions)
+        tex["date"] = date_str
+        cluster_id = date_to_cluster.get(date_str, 0)
+        day_textures.append((cluster_id, tex))
+
+    if not day_textures:
         return []
 
-    # Compute aggregate texture stats
-    n = len(texture_data)
-    agg = {
-        "total_days_analyzed": n,
-        "avg_sessions_per_day": round(float(np.mean([t["total_sessions"] for t in texture_data])), 1),
-        "avg_abandon_rate": round(float(np.mean([t["abandon_rate"] for t in texture_data])), 4),
-        "avg_self_open_ratio": round(float(np.mean([t["self_open_ratio"] for t in texture_data])), 4),
-        "avg_deep_session_ratio": round(float(np.mean([t["deep_session_ratio"] for t in texture_data])), 4),
-        "avg_micro_session_ratio": round(float(np.mean([t["micro_session_ratio"] for t in texture_data])), 4),
-        "avg_app_switching_rate": round(float(np.mean([t["app_switching_rate"] for t in texture_data])), 4),
-        "avg_session_minutes": round(float(np.mean([t["avg_session_minutes"] for t in texture_data])), 2),
-        "daily_breakdown": texture_data[-14:],  # Last 14 days
-    }
+    # ── If cluster info exists, produce one profile per cluster ───────────────
+    if anchor_clusters and len(anchor_clusters) > 1:
+        cluster_groups: dict = {}
+        for cid, tex in day_textures:
+            cluster_groups.setdefault(cid, []).append(tex)
 
+        result = []
+        for cluster in anchor_clusters:
+            cid = cluster.get("cluster_id", 0)
+            group = cluster_groups.get(cid, [])
+            agg = _aggregate(group)
+            agg["daily_breakdown"] = group[-14:]
+            result.append({
+                "archetype_id": cid,
+                "member_days": len(group),
+                "centroid_pca_2d": cluster.get("centroid_pca_2d", [0.0, 0.0]),
+                "texture_summary": agg,
+            })
+        return result
+
+    # ── Single global profile fallback ────────────────────────────────────────
+    all_textures = [tex for _, tex in day_textures]
+    agg = _aggregate(all_textures)
+    agg["daily_breakdown"] = all_textures[-14:]
     return [{
         "archetype_id": 0,
-        "member_days": n,
+        "member_days": len(all_textures),
         "texture_summary": agg,
     }]
 
@@ -447,8 +577,9 @@ def build_full_profile(
     
     anchor_clusters = build_anchor_clusters(daily_features_list)
     print(f"  [ProfileBuilder] Anchor clusters built: {len(anchor_clusters)}")
-    
-    texture_profiles = build_texture_profiles(daily_features_list, sessions)
+
+    # Pass anchor_clusters so texture profiles are split per archetype
+    texture_profiles = build_texture_profiles(daily_features_list, sessions, anchor_clusters)
     print(f"  [ProfileBuilder] Texture profiles built: {len(texture_profiles)}")
 
     # Weighted feature importance (for UI display)
@@ -479,10 +610,15 @@ def build_full_profile(
             "total_weight": round(float(sum(weights)), 2),
         }
 
+    # Extract PCA projection params from the first anchor cluster (if available)
+    pca_projection = None
+    if anchor_clusters:
+        pca_projection = anchor_clusters[0].get("_pca_projection", None)
+
     return {
         "person_id": person_id,
         "profile_version": "1.0",
-        "built_at": datetime.now().isoformat(),
+        "built_at": datetime.utcnow().isoformat() + "Z",
         "days_of_data": len(daily_features_list),
         "personality_vector": personality_vector,
         "app_dna_profiles": app_dna_profiles,
@@ -491,7 +627,75 @@ def build_full_profile(
         "texture_profiles": texture_profiles,
         "feature_importance": feature_importance,
         "group_summaries": group_summaries,
+        "pca_projection": pca_projection,  # projection params for mismatch scoring
     }
+
+
+def compute_cluster_mismatch(today_features: dict, profile_data: dict) -> float:
+    """
+    Project today's feature vector into the baseline PCA space and compute how
+    far it falls from the nearest anchor cluster centroid, normalised by the
+    cluster radius.
+
+    Returns
+    -------
+    mismatch : float in [0.0, 1.0]
+        0.0 → today sits well inside a known archetype (no penalty)
+        1.0 → today is maximally distant from all known archetypes
+
+    The score is intended to be used as an amplifier on the existing l2_modifier:
+        l2_final = l2_modifier * (1.0 + MISMATCH_WEIGHT * mismatch)
+    where MISMATCH_WEIGHT controls the maximum additional amplification.
+    """
+    try:
+        proj_params = profile_data.get("pca_projection")
+        anchor_clusters = profile_data.get("anchor_clusters", [])
+
+        # Need at least projection params and one cluster with a centroid
+        if not proj_params or not anchor_clusters:
+            return 0.0
+
+        features   = proj_params["features"]
+        norm_means = np.array(proj_params["norm_means"], dtype=float)
+        norm_stds  = np.array(proj_params["norm_stds"],  dtype=float)
+        clin_w     = np.array(proj_params["clinical_weights"], dtype=float)
+        pca_mean   = np.array(proj_params["pca_mean"],   dtype=float)
+        pca_comps  = np.array(proj_params["pca_components"], dtype=float)  # shape (2, N)
+
+        # Build today's raw feature vector using the same feature order
+        raw_vec = np.array([float(today_features.get(f, 0.0)) for f in features])
+
+        # Apply the same normalisation pipeline as during baseline
+        z_vec = (raw_vec - norm_means) / norm_stds          # z-score normalise
+        w_vec = z_vec * clin_w                              # clinical weighting
+        today_pca = (w_vec - pca_mean) @ pca_comps.T       # project → 2D
+
+        # Compute distance from today's projection to each cluster centroid
+        best_excess = None
+        for cluster in anchor_clusters:
+            centroid = np.array(cluster.get("centroid_pca_2d", [0.0, 0.0]), dtype=float)
+            radius   = float(cluster.get("radius", 0.0))
+
+            dist = float(np.linalg.norm(today_pca - centroid))
+
+            # How far beyond the cluster radius is today's point?
+            # 0 if inside the cluster, positive if outside.
+            excess = max(0.0, dist - radius)
+
+            # Normalise: treat 2× the radius as the "full mismatch" distance
+            # to avoid penalising mildly-out-of-cluster days too harshly.
+            norm_radius = max(radius, 1e-6)
+            norm_excess = excess / (2.0 * norm_radius)
+
+            if best_excess is None or norm_excess < best_excess:
+                best_excess = norm_excess
+
+        # Clamp to [0, 1]
+        return float(min(best_excess, 1.0)) if best_excess is not None else 0.0
+
+    except Exception as e:
+        print("  [ClusterMismatch] Failed to compute mismatch: {}".format(e))
+        return 0.0
 
 
 def _get_feature_group(feat: str) -> str:
@@ -501,8 +705,7 @@ def _get_feature_group(feat: str) -> str:
                        "notificationsToday", "socialAppRatio"],
         "communication": ["callsPerDay", "callDurationMinutes", "uniqueContacts",
                           "conversationFrequency"],
-        "location": ["dailyDisplacementKm", "locationEntropy", "homeTimeRatio",
-                     "placesVisited"],
+        "location": ["dailyDisplacementKm", "locationEntropy", "homeTimeRatio"],
         "sleep": ["wakeTimeHour", "sleepTimeHour", "sleepDurationHours",
                   "darkDurationHours"],
         "system": ["chargeDurationHours", "memoryUsagePercent", "networkWifiMB",

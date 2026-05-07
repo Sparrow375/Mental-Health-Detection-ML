@@ -13,6 +13,7 @@ from __future__ import annotations
 import numpy as np
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Dict, List, Optional, Tuple, Any
 
 
@@ -44,7 +45,6 @@ class PersonalityVector:
     dailyDisplacementKm: float = 0.0
     locationEntropy: float = 0.0
     homeTimeRatio: float = 0.0
-    placesVisited: float = 0.0
 
     # ── Sleep & Circadian ─────────────────────────────────────────────────
     wakeTimeHour: float = 0.0
@@ -89,7 +89,6 @@ class PersonalityVector:
             "dailyDisplacementKm": self.dailyDisplacementKm,
             "locationEntropy": self.locationEntropy,
             "homeTimeRatio": self.homeTimeRatio,
-            "placesVisited": self.placesVisited,
             "wakeTimeHour": self.wakeTimeHour,
             "sleepTimeHour": self.sleepTimeHour,
             "sleepDurationHours": self.sleepDurationHours,
@@ -239,6 +238,51 @@ class L1ClusterState:
 
 
 # ---------------------------------------------------------------------------
+# Bayesian Warm Start — Baseline Phase & Posterior State
+# ---------------------------------------------------------------------------
+
+class BaselinePhase(Enum):
+    """Three-phase warm-start schedule for Bayesian baseline."""
+    POPULATION_ANCHORED = "population_anchored"   # Day 0-13
+    BLENDED = "blended"                           # Day 14-59
+    IDIOGRAPHIC = "idiographic"                   # Day 60+
+
+
+@dataclass
+class FeaturePosterior:
+    """Normal-Inverse-Gamma posterior for one feature's mean and variance."""
+
+    mu_0: float = 0.0
+    kappa_0: float = 14.0
+    alpha_0: float = 2.0
+    beta_0: float = 1.0
+
+    mu_n: float = 0.0
+    kappa_n: float = 14.0
+    alpha_n: float = 2.0
+    beta_n: float = 1.0
+
+    n_observations: int = 0
+    sum_observations: float = 0.0
+    sum_sq_observations: float = 0.0
+
+
+@dataclass
+class BayesianState:
+    """Full Bayesian warm-start state across all L1 features."""
+
+    phase: BaselinePhase = BaselinePhase.POPULATION_ANCHORED
+    day_number: int = 0
+    personal_weight: float = 0.0
+    confidence_score: float = 0.0
+    feature_posteriors: Dict[str, FeaturePosterior] = field(default_factory=dict)
+
+    effective_means: Dict[str, float] = field(default_factory=dict)
+    effective_stds: Dict[str, float] = field(default_factory=dict)
+    feature_confidences: Dict[str, float] = field(default_factory=dict)
+
+
+# ---------------------------------------------------------------------------
 # Evidence & Candidate state  (persisted across days)
 # ---------------------------------------------------------------------------
 
@@ -251,6 +295,7 @@ class EvidenceState:
     max_evidence: float = 0.0
     max_sustained_days: int = 0
     max_anomaly_score: float = 0.0
+    max_breadth: int = 0
 
 
 @dataclass
@@ -289,6 +334,8 @@ class AnomalyReport:
     pattern_type: str = 'stable'
     sustained_deviation_days: int = 0
     evidence_accumulated: float = 0.0
+    baseline_phase: str = 'idiographic'
+    baseline_confidence: float = 1.0
 
 
 @dataclass
@@ -306,6 +353,9 @@ class DailyReport:
     top_deviations: Dict[str, float] = field(default_factory=dict)
     notes: str = ''
     l2_modifier: float = 1.0
+    baseline_phase: str = 'idiographic'
+    baseline_confidence: float = 1.0
+    baseline_label: str = ''
 
 
 @dataclass

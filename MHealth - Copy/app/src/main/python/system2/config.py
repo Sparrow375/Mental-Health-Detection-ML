@@ -3,7 +3,7 @@ System 2 Configuration
 ======================
 
 Central source of truth for:
-  - Behavioral feature definitions (16 features, voice + SMS excluded)
+  - Behavioral feature definitions (15 features, voice + SMS excluded)
   - Population norms (healthy mean/std from StudentLife + literature)
   - Disorder prototype vectors — Frame 1 (absolute) & Frame 2 (z-scores)
   - Feature diagnostic weights
@@ -31,7 +31,6 @@ BEHAVIORAL_FEATURES: List[str] = [
     "daily_displacement_km",
     "location_entropy",
     "home_time_ratio",
-    "places_visited",
     "wake_time_hour",
     "sleep_time_hour",
     "sleep_duration_hours",
@@ -55,7 +54,6 @@ POPULATION_NORMS: Dict[str, Dict[str, float]] = {
     "daily_displacement_km":      {"mean": 11.0,  "std": 2.0},
     "location_entropy":           {"mean": 1.5,   "std": 0.7},
     "home_time_ratio":            {"mean": 0.52,  "std": 0.12},
-    "places_visited":             {"mean": 8.1,   "std": 1.5},
     "wake_time_hour":             {"mean": 6.5,   "std": 1.0},
     "sleep_time_hour":            {"mean": 10.9,  "std": 1.0},
     "sleep_duration_hours":       {"mean": 5.8,   "std": 0.9},
@@ -76,7 +74,6 @@ POPULATION_EXPECTED_DRIFT: Dict[str, float] = {
     "daily_displacement_km":      0.8,
     "location_entropy":           0.2,
     "home_time_ratio":            0.04,
-    "places_visited":             0.5,
     "wake_time_hour":             0.3,
     "sleep_time_hour":            0.3,
     "sleep_duration_hours":       0.3,
@@ -100,7 +97,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 11.03,
         "location_entropy": 1.51,
         "home_time_ratio": 0.52,
-        "places_visited": 8.10,
         "wake_time_hour": 6.47,
         "sleep_time_hour": 10.86,
         "sleep_duration_hours": 5.80,
@@ -118,7 +114,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 6.43,
         "location_entropy": 1.32,
         "home_time_ratio": 0.65,
-        "places_visited": 7.96,
         "wake_time_hour": 5.22,
         "sleep_time_hour": 10.73,
         "sleep_duration_hours": 4.0,  # Insomnia pattern
@@ -136,7 +131,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 6.43,
         "location_entropy": 1.32,
         "home_time_ratio": 0.65,
-        "places_visited": 7.96,
         "wake_time_hour": 9.22,   # Late wake time
         "sleep_time_hour": 10.73,
         "sleep_duration_hours": 10.0,  # Hypersomnia pattern
@@ -155,7 +149,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 3.5,  # literature-based (GPS data unreliable)
         "location_entropy": 1.0,       # more constrained
         "home_time_ratio": 0.75,       # more homebound
-        "places_visited": 3.1,
         "wake_time_hour": 2.2,         # CrossCheck mean (early waking)
         "sleep_time_hour": 0.3,
         "sleep_duration_hours": 9.0,   # CrossCheck mean
@@ -173,7 +166,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 4.0,   # variable
         "location_entropy": 2.5,
         "home_time_ratio": 0.55,
-        "places_visited": 4.0,
         "wake_time_hour": 8.0,
         "sleep_time_hour": 0.5,
         "sleep_duration_hours": 6.0,
@@ -191,7 +183,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 1.5,
         "location_entropy": 1.0,
         "home_time_ratio": 0.85,
-        "places_visited": 2.0,
         "wake_time_hour": 10.0,
         "sleep_time_hour": 1.5,
         "sleep_duration_hours": 9.0,
@@ -209,7 +200,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 7.0,
         "location_entropy": 3.8,
         "home_time_ratio": 0.25,
-        "places_visited": 8.0,
         "wake_time_hour": 5.0,
         "sleep_time_hour": 2.0,
         "sleep_duration_hours": 3.5,
@@ -227,7 +217,6 @@ DISORDER_PROTOTYPES_FRAME1: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 2.1,
         "location_entropy": 1.8,
         "home_time_ratio": 0.72,
-        "places_visited": 3.0,
         "wake_time_hour": 6.5,
         "sleep_time_hour": 0.0,
         "sleep_duration_hours": 5.8,
@@ -255,7 +244,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": -0.43,
         "location_entropy": 0.18,
         "home_time_ratio": -0.18,
-        "places_visited": 0.04,
         "wake_time_hour": -0.29,
         "sleep_time_hour": 0.51,
         "sleep_duration_hours": -0.87,
@@ -275,7 +263,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 0.00,
         "location_entropy": 3.41,
         "home_time_ratio": 0.00,
-        "places_visited": 3.50,
         "wake_time_hour": -2.37,
         "sleep_time_hour": 2.50,
         "sleep_duration_hours": 0.22,
@@ -295,7 +282,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 5.00,
         "location_entropy": 1.06,
         "home_time_ratio": 0.00,
-        "places_visited": 1.04,
         "wake_time_hour": -1.07,
         "sleep_time_hour": 0.48,
         "sleep_duration_hours": 0.80,
@@ -317,7 +303,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 0.04,
         "location_entropy": 1.15,
         "home_time_ratio": 0.00,
-        "places_visited": 1.04,
         "wake_time_hour": -0.17,
         "sleep_time_hour": 1.39,
         "sleep_duration_hours": 0.35,
@@ -337,7 +322,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 1.67,
         "location_entropy": 2.77,
         "home_time_ratio": 0.00,
-        "places_visited": 2.68,
         "wake_time_hour": -2.21,
         "sleep_time_hour": 0.00,
         "sleep_duration_hours": 3.11,
@@ -357,7 +341,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 0.99,
         "location_entropy": 1.28,
         "home_time_ratio": 0.00,
-        "places_visited": 1.17,
         "wake_time_hour": -1.30,
         "sleep_time_hour": 2.75,
         "sleep_duration_hours": -2.92,
@@ -379,7 +362,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 0.17,
         "location_entropy": 1.60,
         "home_time_ratio": -0.00,
-        "places_visited": 1.50,
         "wake_time_hour": 0.13,
         "sleep_time_hour": 2.16,
         "sleep_duration_hours": 2.29,
@@ -399,7 +381,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": 0.87,
         "location_entropy": 1.73,
         "home_time_ratio": -0.00,
-        "places_visited": 1.75,
         "wake_time_hour": -1.00,
         "sleep_time_hour": 1.82,
         "sleep_duration_hours": 0.63,
@@ -419,7 +400,6 @@ DISORDER_PROTOTYPES_FRAME2: Dict[str, Dict[str, float]] = {
         "daily_displacement_km": -0.40,
         "location_entropy": -0.35,
         "home_time_ratio": -0.03,
-        "places_visited": -0.33,
         "wake_time_hour": 0.04,
         "sleep_time_hour": 0.05,
         "sleep_duration_hours": 0.10,
@@ -450,7 +430,6 @@ FEATURE_WEIGHTS: Dict[str, float] = {
     "daily_displacement_km":      0.9,   # real z=-2.30, STRONG signal; good coverage
     "location_entropy":           0.4,   # real z=-0.27, moderate
     "home_time_ratio":            0.7,   # real z=+1.07, good signal
-    "places_visited":             0.2,   # real z=-0.09, no signal
     "wake_time_hour":             0.7,   # real z=-1.24, good signal
     "sleep_time_hour":            0.1,   # real z=-0.13, no signal
     "sleep_duration_hours":       0.1,   # real z=-0.13, no signal
@@ -471,9 +450,11 @@ CONFIDENCE_THRESHOLDS = {
 GATE_PARAMS = {
     "gate1_z_threshold":       2.5,   # population z-score threshold
     "gate1_min_features":      3,     # features that must exceed threshold
+    "gate1_stable_cv_threshold": 0.15,  # CV below this = stable baseline
+    "gate1_stable_wide_z":     4.0,   # wider z-threshold for stable features
     "gate2_drift_multiplier":  1.5,   # drift must be > N× expected
     "gate2_min_features":      3,
-    "gate3_healthy_threshold": 0.65,  # confidence above which flag
+    "gate3_healthy_threshold": 0.60,  # confidence above which flag (lowered from 0.65 for anxiety detection)
 }
 
 # ── 8. Temporal Shape Detection Parameters ─────────────────────────────

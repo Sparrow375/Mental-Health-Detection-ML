@@ -19,7 +19,7 @@ from typing import Dict, List, Optional
 
 import numpy as np
 
-from config import (
+from .config import (
     BEHAVIORAL_FEATURES,
     POPULATION_NORMS,
     POPULATION_EXPECTED_DRIFT,
@@ -86,17 +86,38 @@ class BaselineScreener:
 
     # ── Gate 1: Population Anchor Check ─────────────────────────────
 
+    def _compute_baseline_stability(
+        self, weekly_windows: List[Dict[str, float]]
+    ) -> Dict[str, float]:
+        """Per-feature coefficient of variation across weekly windows."""
+        cv: Dict[str, float] = {}
+        for feat in self.features:
+            values = [w.get(feat) for w in weekly_windows if feat in w]
+            if len(values) >= 2:
+                mean = float(np.mean(values))
+                std = float(np.std(values, ddof=0))
+                cv[feat] = std / max(abs(mean), 0.01)
+            else:
+                cv[feat] = 1.0
+        return cv
+
     def gate1_population_deviation_check(
-        self, raw_7day: Dict[str, float]
+        self,
+        raw_7day: Dict[str, float],
+        baseline_cv: Dict[str, float] | None = None,
     ) -> tuple[GateResult, List[str]]:
         """
         Compare first-week averages to healthy population norms.
 
         Returns (result, flagged_features).
         Flags if ≥ gate1_min_features exceed ±gate1_z_threshold SD.
+        For features with stable baselines (CV < threshold), uses a wider
+        z-threshold to avoid flagging demographic differences as anomalies.
         """
         z_threshold = GATE_PARAMS["gate1_z_threshold"]
         min_features = GATE_PARAMS["gate1_min_features"]
+        stable_cv = GATE_PARAMS.get("gate1_stable_cv_threshold", 0.15)
+        wide_z = GATE_PARAMS.get("gate1_stable_wide_z", 4.0)
 
         flagged: List[str] = []
         for feat in self.features:
@@ -106,7 +127,12 @@ class BaselineScreener:
             if norm["std"] == 0:
                 continue
             z = abs(raw_7day[feat] - norm["mean"]) / norm["std"]
-            if z > z_threshold:
+
+            effective_threshold = z_threshold
+            if baseline_cv is not None and baseline_cv.get(feat, 1.0) < stable_cv:
+                effective_threshold = wide_z
+
+            if z > effective_threshold:
                 flagged.append(feat)
 
         if len(flagged) >= min_features:
@@ -164,6 +190,7 @@ class BaselineScreener:
 
         # Build user vector & prototype vectors (same feature order)
         scores: Dict[str, float] = {}
+        cosine_scores: Dict[str, float] = {}
         for disorder, proto in self.prototypes.items():
             u_vec = []
             p_vec = []
@@ -187,11 +214,13 @@ class BaselineScreener:
             p = np.array(p_vec)
             w = np.array(w_vec)
 
-            # Cosine similarity
-            dot = float(np.dot(u, p))
-            norm_u = float(np.linalg.norm(u))
-            norm_p = float(np.linalg.norm(p))
-            cos_sim = dot / (norm_u * norm_p) if (norm_u > 0 and norm_p > 0) else 0.0
+            # Weighted cosine similarity — downweight weak-signal features
+            wu = u * np.sqrt(w)
+            wp = p * np.sqrt(w)
+            dot = float(np.dot(wu, wp))
+            norm_wu = float(np.linalg.norm(wu))
+            norm_wp = float(np.linalg.norm(wp))
+            cos_sim = dot / (norm_wu * norm_wp) if (norm_wu > 0 and norm_wp > 0) else 0.0
 
             # Weighted Euclidean distance
             diff = u - p
@@ -200,8 +229,16 @@ class BaselineScreener:
             # Combined match score
             score = 0.6 * cos_sim + 0.4 * (1.0 / (1.0 + dist))
             scores[disorder] = score
+            cosine_scores[disorder] = cos_sim
 
-        top_match = max(scores, key=scores.get)
+        # Tiebreaker: if top-2 scores are within 0.01, prefer higher cosine
+        # (direction match is more clinically meaningful than magnitude match)
+        sorted_disorders = sorted(scores, key=scores.get, reverse=True)
+        top_match = sorted_disorders[0]
+        if len(sorted_disorders) > 1:
+            gap = scores[sorted_disorders[0]] - scores[sorted_disorders[1]]
+            if gap < 0.01 and cosine_scores.get(sorted_disorders[1], 0) > cosine_scores.get(top_match, 0):
+                top_match = sorted_disorders[1]
         top_score = scores[top_match]
 
         if top_match != "healthy" and top_score > threshold:
@@ -215,6 +252,7 @@ class BaselineScreener:
         raw_7day: Dict[str, float],
         weekly_windows: List[Dict[str, float]],
         raw_28day: Dict[str, float],
+        user_profile=None,
     ) -> ScreeningResult:
         """
         Run all 3 gates and return a combined ScreeningResult.
@@ -227,8 +265,16 @@ class BaselineScreener:
             Feature averages per week (weeks 1, 2, 3).
         raw_28day : dict
             Feature averages for the full 28-day onboarding.
+        user_profile : UserProfile, optional
+            Self-report data from app onboarding. If PHQ-9 >= 10 or
+            GAD-7 >= 10, adds gate_self_report to fired gates.
         """
-        g1_result, g1_flagged = self.gate1_population_deviation_check(raw_7day)
+        # Compute baseline stability for Gate 1 widening
+        baseline_cv = self._compute_baseline_stability(weekly_windows)
+
+        g1_result, g1_flagged = self.gate1_population_deviation_check(
+            raw_7day, baseline_cv=baseline_cv
+        )
         g2_result, g2_flagged = self.gate2_stability_check(weekly_windows)
         g3_result, g3_match, g3_score = self.gate3_prototype_proximity(raw_28day)
 
@@ -240,8 +286,26 @@ class BaselineScreener:
         if g3_result != GateResult.PASS:
             gates_fired.append("gate3")
 
+        # Gate self-report: PHQ-9/GAD-7 from onboarding questionnaire
+        # Gold-standard clinical instrument — overrides sensor-only Gate 3
+        sr_contamination_type = None
+        if user_profile is not None and user_profile.is_baseline_contaminated:
+            gates_fired.append("gate_self_report")
+            sr_contamination_type = user_profile.contamination_type
+
         # Decision matrix (from implementation plan Task 1.4)
-        if not gates_fired:
+        # Self-report gate takes priority — gold-standard clinical instrument
+        if "gate_self_report" in gates_fired:
+            action = RecommendedAction.EARLY_DETECTION
+            frame = 1
+            # Override g3_match with self-report contamination type
+            if sr_contamination_type:
+                if 'depression' in sr_contamination_type:
+                    g3_match = 'depression_insomnia'
+                else:
+                    g3_match = sr_contamination_type
+                g3_score = 0.80  # high confidence from clinical instrument
+        elif not gates_fired:
             action = RecommendedAction.LOCK_BASELINE
             frame = 2
         elif gates_fired == ["gate1"]:

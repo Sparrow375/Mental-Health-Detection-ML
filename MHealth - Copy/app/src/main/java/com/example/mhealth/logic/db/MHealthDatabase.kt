@@ -28,7 +28,7 @@ import androidx.room.RoomDatabase
         NotificationEventEntity::class,
         DailyDnaSnapshotEntity::class
     ],
-    version = 14,
+    version = 15,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -139,6 +139,107 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
+        // Version 15: Replace backgroundAudioHours with musicTimeMinutes.
+        // Must recreate daily_features table because:
+        //  (a) SQLite on older Android lacks DROP COLUMN support
+        //  (b) ALTER TABLE ADD COLUMN bakes DEFAULT values into the schema;
+        //      Room expects 'undefined' for columns without @ColumnInfo(defaultValue),
+        //      so any column originally added via migration has a permanent mismatch.
+        // Table recreation fixes both issues in one atomic step.
+        private val MIGRATION_14_15 = object : androidx.room.migration.Migration(14, 15) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                // 1. Create new table with exact schema Room expects
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_features_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        userId TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        screenTimeHours REAL NOT NULL,
+                        unlockCount REAL NOT NULL,
+                        appLaunchCount REAL NOT NULL,
+                        notificationsToday REAL NOT NULL,
+                        socialAppRatio REAL NOT NULL,
+                        callsPerDay REAL NOT NULL,
+                        callDurationMinutes REAL NOT NULL,
+                        uniqueContacts REAL NOT NULL,
+                        conversationFrequency REAL NOT NULL,
+                        dailyDisplacementKm REAL NOT NULL,
+                        locationEntropy REAL NOT NULL,
+                        homeTimeRatio REAL NOT NULL,
+                        placesVisited REAL NOT NULL,
+                        wakeTimeHour REAL NOT NULL,
+                        sleepTimeHour REAL NOT NULL,
+                        sleepDurationHours REAL NOT NULL,
+                        darkDurationHours REAL NOT NULL,
+                        chargeDurationHours REAL NOT NULL,
+                        memoryUsagePercent REAL NOT NULL,
+                        networkWifiMB REAL NOT NULL,
+                        networkMobileMB REAL NOT NULL,
+                        downloadsToday REAL NOT NULL,
+                        storageUsedGB REAL NOT NULL,
+                        appUninstallsToday REAL NOT NULL,
+                        upiTransactionsToday REAL NOT NULL,
+                        totalAppsCount REAL NOT NULL,
+                        musicTimeMinutes REAL NOT NULL DEFAULT 0.0,
+                        mediaCountToday REAL NOT NULL,
+                        appInstallsToday REAL NOT NULL,
+                        calendarEventsToday REAL NOT NULL,
+                        dailySteps REAL NOT NULL,
+                        appBreakdownJson TEXT NOT NULL,
+                        notificationBreakdownJson TEXT NOT NULL,
+                        appLaunchesBreakdownJson TEXT NOT NULL,
+                        bgAudioBreakdownJson TEXT NOT NULL,
+                        syncedToCloud INTEGER NOT NULL,
+                        isSimulated INTEGER NOT NULL
+                    )
+                """)
+
+                // 2. Copy data, converting backgroundAudioHours → musicTimeMinutes
+                db.execSQL("""
+                    INSERT INTO daily_features_new (
+                        id, userId, date, screenTimeHours, unlockCount, appLaunchCount,
+                        notificationsToday, socialAppRatio, callsPerDay, callDurationMinutes,
+                        uniqueContacts, conversationFrequency, dailyDisplacementKm, locationEntropy,
+                        homeTimeRatio, placesVisited, wakeTimeHour, sleepTimeHour, sleepDurationHours,
+                        darkDurationHours, chargeDurationHours, memoryUsagePercent, networkWifiMB,
+                        networkMobileMB, downloadsToday, storageUsedGB, appUninstallsToday,
+                        upiTransactionsToday, totalAppsCount, musicTimeMinutes, mediaCountToday,
+                        appInstallsToday, calendarEventsToday, dailySteps, appBreakdownJson,
+                        notificationBreakdownJson, appLaunchesBreakdownJson, bgAudioBreakdownJson,
+                        syncedToCloud, isSimulated
+                    )
+                    SELECT
+                        id, userId, date, screenTimeHours, unlockCount, appLaunchCount,
+                        notificationsToday, socialAppRatio, callsPerDay, callDurationMinutes,
+                        uniqueContacts, conversationFrequency, dailyDisplacementKm, locationEntropy,
+                        homeTimeRatio, placesVisited, wakeTimeHour, sleepTimeHour, sleepDurationHours,
+                        darkDurationHours, chargeDurationHours, memoryUsagePercent, networkWifiMB,
+                        networkMobileMB, downloadsToday, storageUsedGB, appUninstallsToday,
+                        upiTransactionsToday, totalAppsCount, backgroundAudioHours * 60.0, mediaCountToday,
+                        appInstallsToday, calendarEventsToday, dailySteps, appBreakdownJson,
+                        notificationBreakdownJson, appLaunchesBreakdownJson, bgAudioBreakdownJson,
+                        syncedToCloud, isSimulated
+                    FROM daily_features
+                """)
+
+                // 3. Drop old table and rename new one
+                db.execSQL("DROP TABLE daily_features")
+                db.execSQL("ALTER TABLE daily_features_new RENAME TO daily_features")
+
+                // 4. Recreate unique index
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_daily_features_userId_date ON daily_features(userId, date)")
+
+                // 5. Migrate baseline table
+                db.execSQL("""
+                    UPDATE baseline 
+                    SET featureName = 'musicTimeMinutes', 
+                        baselineValue = baselineValue * 60.0, 
+                        stdDeviation = stdDeviation * 60.0 
+                    WHERE featureName = 'backgroundAudioHours'
+                """)
+            }
+        }
+
         private val MIGRATION_5_6 = object : androidx.room.migration.Migration(5, 6) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE daily_features ADD COLUMN calendarEventsToday REAL NOT NULL DEFAULT 0.0")
@@ -238,11 +339,11 @@ abstract class MHealthDatabase : RoomDatabase() {
                     MHealthDatabase::class.java,
                     "mhealth_database"
                 )
-                    .addMigrations(
-                        MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
-                        MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                        MIGRATION_12_13, MIGRATION_13_14
-                    )
+                .addMigrations(
+                    MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
+                    MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
+                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15
+                )
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .fallbackToDestructiveMigration()
                     .build()

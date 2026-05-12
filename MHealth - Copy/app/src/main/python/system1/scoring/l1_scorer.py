@@ -205,7 +205,7 @@ class L1Scorer:
         'movement': ['dailyDisplacementKm', 'locationEntropy', 'homeTimeRatio'],
         'sleep': ['wakeTimeHour', 'sleepTimeHour', 'sleepDurationHours',
                   'darkDurationHours', 'chargeDurationHours'],
-        'engagement': ['calendarEventsToday', 'backgroundAudioHours',
+        'engagement': ['calendarEventsToday', 'musicTimeMinutes',
                        'upiTransactionsToday', 'mediaCountToday', 'downloadsToday'],
     }
 

@@ -74,7 +74,7 @@ FEATURE_META: Dict[str, Dict] = {
     "calendarEventsToday":   {"group": "engagement",    "weight": 0.9, "directionality": "shrink_matters"},
     "mediaCountToday":       {"group": "engagement",    "weight": 0.7, "directionality": "shrink_matters"},
     "downloadsToday":        {"group": "engagement",    "weight": 0.6, "directionality": "shrink_matters"},
-    "backgroundAudioHours":  {"group": "engagement",    "weight": 0.9, "directionality": "both"},
+    "musicTimeMinutes":  {"group": "engagement",    "weight": 0.9, "directionality": "both"},
 }
 
 # Ordered list of all feature names (camelCase, matching Android)

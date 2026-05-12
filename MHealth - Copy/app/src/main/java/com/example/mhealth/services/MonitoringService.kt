@@ -18,6 +18,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import com.example.mhealth.MainActivity
 import com.example.mhealth.logic.AnomalyDetector
 import com.example.mhealth.logic.DataCollector
@@ -183,6 +184,7 @@ class MonitoringService : Service() {
         // within ~5 seconds or the app crashes. Moving this to the top.
         startForegroundNotification()
 
+        try { // Safety wrapper — prevent secondary crashes from killing the service
         dataCollector = DataCollector(this)
         gpsStateManager = GpsStateManager(this)
 
@@ -214,18 +216,20 @@ class MonitoringService : Service() {
         }
 
         // FIX 7: Register receivers for event-driven monitoring
-        registerReceiver(powerReceiver, IntentFilter().apply {
+        ContextCompat.registerReceiver(this, powerReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_POWER_CONNECTED)
             addAction(Intent.ACTION_POWER_DISCONNECTED)
-        })
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
 
-        registerReceiver(interactiveReceiver, IntentFilter().apply {
+        ContextCompat.registerReceiver(this, interactiveReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_SCREEN_ON)
             addAction(Intent.ACTION_SCREEN_OFF)
             addAction(Intent.ACTION_USER_PRESENT)
-        })
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
 
-        registerReceiver(dndReceiver, IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED))
+        ContextCompat.registerReceiver(this, dndReceiver,
+            IntentFilter(NotificationManager.ACTION_INTERRUPTION_FILTER_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED)
 
         // FIX 8: Register for MediaSession changes (requires notification access)
         // We pass a ComponentName pointing to our declared NotificationListenerService.
@@ -257,6 +261,9 @@ class MonitoringService : Service() {
 
         // Start passive continuous location tracking with adaptive intervals
         dataCollector.startContinuousLocationTracking()
+        } catch (e: Exception) {
+            Log.e(TAG, "Critical error during MonitoringService initialization", e)
+        }
     }
 
     // FIX 5: Suspend version of restore — called from runBlocking in onCreate
@@ -298,7 +305,7 @@ class MonitoringService : Service() {
                         appUninstallsToday = baselineFields["appUninstallsToday"] ?: 0f,
                         upiTransactionsToday = baselineFields["upiTransactionsToday"] ?: 0f,
                         totalAppsCount = baselineFields["totalAppsCount"] ?: 0f,
-                        backgroundAudioHours = baselineFields["backgroundAudioHours"] ?: 0f,
+                        musicTimeMinutes = baselineFields["musicTimeMinutes"] ?: 0f,
                         mediaCountToday = baselineFields["mediaCountToday"] ?: 0f,
                         appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
                         dailySteps = baselineFields["dailySteps"] ?: 0f,
@@ -1073,7 +1080,7 @@ class MonitoringService : Service() {
             appUninstallsToday = averages["appUninstallsToday"] ?: 0f,
             upiTransactionsToday = averages["upiTransactionsToday"] ?: 0f,
             totalAppsCount = averages["totalAppsCount"] ?: 0f,
-            backgroundAudioHours = averages["backgroundAudioHours"] ?: 0f,
+            musicTimeMinutes = averages["musicTimeMinutes"] ?: 0f,
             mediaCountToday = averages["mediaCountToday"] ?: 0f,
             appInstallsToday = averages["appInstallsToday"] ?: 0f,
             dailySteps = averages["dailySteps"] ?: 0f,
@@ -1148,7 +1155,7 @@ class MonitoringService : Service() {
                     "appUninstallsToday" to entity.appUninstallsToday,
                     "upiTransactionsToday" to entity.upiTransactionsToday,
                     "totalAppsCount" to entity.totalAppsCount,
-                    "backgroundAudioHours" to entity.backgroundAudioHours,
+                    "musicTimeMinutes" to entity.musicTimeMinutes,
                     "mediaCountToday" to entity.mediaCountToday,
                     "appInstallsToday" to entity.appInstallsToday,
                     "calendarEventsToday" to entity.calendarEventsToday,
@@ -1274,7 +1281,7 @@ class MonitoringService : Service() {
      *   • We validate that package against DataCollector.isMusicApp() (3-layer check:
      *     exact package list, keyword scan, OS CATEGORY_AUDIO flag).
      *
-     * This ensures only Spotify, Gaana, OuerTune, etc. add to backgroundAudioHours.
+     * This ensures only Spotify, Gaana, OuerTune, etc. add to musicTimeMinutes.
      */
     private fun isMusicAppActiveViaMediaSession(): String? {
         return try {
@@ -1289,9 +1296,11 @@ class MonitoringService : Service() {
             }
             controller?.packageName
         } catch (e: SecurityException) {
-            // Notification access not granted — AudioManager fallback (no package name)
-            val audioManager = getSystemService(android.media.AudioManager::class.java)
-            if (audioManager?.isMusicActive == true) "unknown_music_app" else null
+            // Notification access not granted — cannot identify package, so don't count.
+            // isMusicActive() fallback REMOVED: it returns true for ANY audio (Instagram
+            // reels, YouTube videos, game sounds, ads) which inflates musicTimeMinutes.
+            Log.w("MHealth.Service", "MediaSession access denied (no NotificationListener) — music tracking disabled until granted")
+            null
         } catch (e: Exception) {
             Log.w("MHealth.Service", "isMusicAppActiveViaMediaSession error: ${e.message}")
             null

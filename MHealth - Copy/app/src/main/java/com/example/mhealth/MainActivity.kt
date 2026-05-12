@@ -966,7 +966,7 @@ fun HomeScreen() {
                         MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SoftCyan)
                         MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", ChartRed)
                         MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
-                        MetricPill("🎧 Bg Audio", "${(v.backgroundAudioHours * 60).toInt()}m", ChartGreen)
+                        MetricPill("🎧 Music Time", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
                     }
                 }
             }
@@ -1569,7 +1569,7 @@ fun AnalysisScreen() {
                             normalizeDev(v.appUninstallsToday, b.appUninstallsToday),
                             normalizeDev(v.upiTransactionsToday, b.upiTransactionsToday),
                             normalizeDev(v.totalAppsCount, b.totalAppsCount),
-                            normalizeDev(v.backgroundAudioHours, b.backgroundAudioHours),
+                            normalizeDev(v.musicTimeMinutes, b.musicTimeMinutes),
                             normalizeDev(v.dailySteps, b.dailySteps)
                         )
                         val baseVals = List(30) { 0.5f }
@@ -2032,7 +2032,7 @@ fun InsightsScreen() {
                                     "Memory"           to "%.0f%%".format(feat.memoryUsagePercent),
                                     "Wi-Fi"            to "%.0f MB".format(feat.networkWifiMB),
                                     "Mobile Data"      to "%.0f MB".format(feat.networkMobileMB),
-                                    "Audio"            to "%.1f hrs".format(feat.backgroundAudioHours),
+                                    "Audio"            to "%.0f min".format(feat.musicTimeMinutes),
                                     "Storage Used"     to "%.1f GB".format(feat.storageUsedGB),
                                     "Downloads"        to "%.0f".format(feat.downloadsToday),
                                     "App Installs"     to "%.0f".format(feat.appInstallsToday),
@@ -2361,7 +2361,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("appUninstalls", day.appUninstallsToday)
                     put("upiTransactions", day.upiTransactionsToday)
                     put("totalApps", day.totalAppsCount)
-                    put("backgroundAudioHours", day.backgroundAudioHours)
+                    put("musicTimeMinutes", day.musicTimeMinutes)
                     put("mediaCount", day.mediaCountToday)
                     put("appInstalls", day.appInstallsToday)
                     put("steps", day.dailySteps)
@@ -2409,7 +2409,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("sleepDurationHours",  liveVector.sleepDurationHours)
                     put("darkDurationHours",   liveVector.darkDurationHours)
                     put("chargeDurationHours", liveVector.chargeDurationHours)
-                    put("backgroundAudioHours", liveVector.backgroundAudioHours)
+                    put("musicTimeMinutes", liveVector.musicTimeMinutes)
                     put("dailySteps",          liveVector.dailySteps)
                     put("storageUsedGB",       liveVector.storageUsedGB)
                     put("networkWifiMB",       liveVector.networkWifiMB)
@@ -2581,7 +2581,7 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         appUninstallsToday = metrics.optDouble("appUninstalls", 0.0).toFloat(),
                         upiTransactionsToday = metrics.optDouble("upiTransactions", 0.0).toFloat(),
                         totalAppsCount = metrics.optDouble("totalApps", 0.0).toFloat(),
-                        backgroundAudioHours = metrics.optDouble("backgroundAudioHours", 0.0).toFloat(),
+                        musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),
                         mediaCountToday = metrics.optDouble("mediaCount", 0.0).toFloat(),
                         appInstallsToday = metrics.optDouble("appInstalls", 0.0).toFloat(),
                         dailySteps = metrics.optDouble("steps", 0.0).toFloat(),

@@ -69,7 +69,7 @@ class PersonalityVector:
     calendarEventsToday: float = 0.0
     mediaCountToday: float = 0.0
     downloadsToday: float = 0.0
-    backgroundAudioHours: float = 0.0
+    musicTimeMinutes: float = 0.0
 
     # ── Internal: per-feature std deviation from baseline ─────────────────
     variances: Optional[Dict[str, float]] = None
@@ -105,7 +105,7 @@ class PersonalityVector:
             "calendarEventsToday": self.calendarEventsToday,
             "mediaCountToday": self.mediaCountToday,
             "downloadsToday": self.downloadsToday,
-            "backgroundAudioHours": self.backgroundAudioHours,
+            "musicTimeMinutes": self.musicTimeMinutes,
         }
 
     @classmethod

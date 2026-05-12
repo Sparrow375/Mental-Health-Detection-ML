@@ -147,6 +147,6 @@ def _get_default_value(feature_name: str) -> float:
         "calendarEventsToday": 2.0,
         "mediaCountToday": 3.0,
         "downloadsToday": 1.0,
-        "backgroundAudioHours": 1.0,
+        "musicTimeMinutes": 1.0,
     }
     return defaults.get(feature_name, 1.0)

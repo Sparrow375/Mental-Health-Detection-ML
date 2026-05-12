@@ -58,7 +58,7 @@ _CAMEL_TO_SNAKE: Dict[str, str] = {
     "darkDurationHours": "dark_duration_hours",
     "chargeDurationHours": "charge_duration_hours",
     "conversationFrequency": "conversation_frequency",
-    "backgroundAudioHours": "background_audio_hours",
+    "musicTimeMinutes": "background_audio_hours",
     "calendarEventsToday": "calendar_events_today",
     "upiTransactionsToday": "upi_transactions_today",
 }

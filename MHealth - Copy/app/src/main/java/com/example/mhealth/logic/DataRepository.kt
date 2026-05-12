@@ -121,7 +121,7 @@ object DataRepository {
         appUninstallsToday = appUninstallsToday,
         upiTransactionsToday = upiTransactionsToday,
         totalAppsCount = totalAppsCount,
-        backgroundAudioHours = backgroundAudioHours,
+        musicTimeMinutes = musicTimeMinutes,
         mediaCountToday = mediaCountToday,
         appInstallsToday = appInstallsToday,
         calendarEventsToday = calendarEventsToday,

@@ -32,7 +32,7 @@ FEATURE_WEIGHTS = {
     "totalAppsCount": 0.8, "upiTransactionsToday": 1.1, "appUninstallsToday": 0.9,
     "appInstallsToday": 0.8,
     "calendarEventsToday": 0.9, "mediaCountToday": 0.7, "downloadsToday": 0.6,
-    "backgroundAudioHours": 1.1,
+    "musicTimeMinutes": 1.1,
 }
 
 ALL_L1_FEATURES = list(FEATURE_WEIGHTS.keys())
@@ -713,7 +713,7 @@ def _get_feature_group(feat: str) -> str:
         "behavioral": ["totalAppsCount", "upiTransactionsToday", "appUninstallsToday",
                        "appInstallsToday"],
         "engagement": ["calendarEventsToday", "mediaCountToday", "downloadsToday",
-                       "backgroundAudioHours"],
+                       "musicTimeMinutes"],
     }
     for grp, feats in groups.items():
         if feat in feats:

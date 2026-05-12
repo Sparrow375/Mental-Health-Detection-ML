@@ -97,7 +97,7 @@ object JsonConverter {
         put("totalAppsCount", e.totalAppsCount)
         put("mediaCountToday", e.mediaCountToday)
         put("appInstallsToday", e.appInstallsToday)
-        put("backgroundAudioHours", e.backgroundAudioHours)
+        put("musicTimeMinutes", e.musicTimeMinutes)
         put("calendarEventsToday", e.calendarEventsToday)
         put("dailySteps", e.dailySteps)
         
@@ -152,7 +152,7 @@ object JsonConverter {
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
         totalAppsCount = v.totalAppsCount,
-        backgroundAudioHours = v.backgroundAudioHours,
+        musicTimeMinutes = v.musicTimeMinutes,
         mediaCountToday = v.mediaCountToday,
         appInstallsToday = v.appInstallsToday,
         calendarEventsToday = v.calendarEventsToday,
@@ -192,7 +192,7 @@ object JsonConverter {
         appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
         totalAppsCount = e.totalAppsCount,
-        backgroundAudioHours = e.backgroundAudioHours,
+        musicTimeMinutes = e.musicTimeMinutes,
         mediaCountToday = e.mediaCountToday,
         appInstallsToday = e.appInstallsToday,
         calendarEventsToday = e.calendarEventsToday,

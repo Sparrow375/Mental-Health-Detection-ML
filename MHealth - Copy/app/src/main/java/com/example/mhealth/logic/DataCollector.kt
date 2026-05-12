@@ -144,7 +144,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             .format(events.screenTimeMs / 3_600_000.0))
 
         // Background audio: use AudioManager-based accumulation from MonitoringService ticks
-        val bgAudioHours = DataRepository.accumulatedBgAudioMs.value / 3_600_000f
+        val musicMinutes = DataRepository.accumulatedBgAudioMs.value / 60_000f
         return PersonalityVector(
             // Digital Wellbeing primary metrics
             screenTimeHours      = events.screenTimeMs / 3_600_000f,
@@ -186,7 +186,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             appUninstallsToday   = appUninstalls.toFloat(),
             upiTransactionsToday = upiLaunches.toFloat(),
             totalAppsCount       = totalApps.toFloat(),
-            backgroundAudioHours = bgAudioHours,
+            musicTimeMinutes     = musicMinutes,
 
             dailySteps           = dailySteps,
 
@@ -435,7 +435,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
         "org.outertune.app",
         "com.kabouzeid.gramophone",             // Gramophone
         "code.name.monkey.retromusic",          // RetroMusicPlayer
-        "com.ichi2.anki",                      // Anki (excluded by keyword anyway)
+        // Anki removed — flashcard app, not music
         "com.mp3player.musicplayer.free",
         "com.bxtech.music",                    // BlackHole
         "io.github.muntashirakon.Music",        // Auxio
@@ -457,10 +457,12 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val lower = pkg.lowercase()
         // 1. Exact match
         if (lower in MUSIC_APP_PACKAGES) return true
-        // 2. Keyword heuristic — catches regional / sideloaded players
-        if (lower.contains("music") || lower.contains("player") ||
+        // 2. Keyword heuristic — catches regional / sideloaded music apps
+        //    NOTE: "player" and "audio" removed — they falsely match video players,
+        //    Instagram, voice recorders, etc. Only music-specific keywords kept.
+        if (lower.contains("music") ||
             lower.contains(".fm") || lower.contains("radio") ||
-            lower.contains("audio") || lower.contains("podcast") ||
+            lower.contains("podcast") ||
             lower.contains("spotify") || lower.contains("gaana") ||
             lower.contains("saavn") || lower.contains("hungama")) return true
         // 3. OS category (Android 8+)

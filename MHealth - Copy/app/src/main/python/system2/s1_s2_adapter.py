@@ -59,7 +59,7 @@ CAMEL_TO_SNAKE: Dict[str, str] = {
     "calendarEventsToday": "calendar_events_today",
     "mediaCountToday": "media_count_today",
     "downloadsToday": "downloads_today",
-    "backgroundAudioHours": "background_audio_hours",
+    "musicTimeMinutes": "background_audio_hours",
 }
 
 SNAKE_TO_CAMEL: Dict[str, str] = {v: k for k, v in CAMEL_TO_SNAKE.items()}

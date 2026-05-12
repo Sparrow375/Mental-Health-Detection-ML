@@ -113,7 +113,7 @@ private val featureLabels = mapOf(
     "calendarEventsToday" to "Calendar Events",
     "mediaCountToday" to "Media Count",
     "downloadsToday" to "Downloads",
-    "backgroundAudioHours" to "Background Audio",
+    "musicTimeMinutes" to "Background Audio",
 )
 
 private val featureUnits = mapOf(

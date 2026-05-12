@@ -27,7 +27,7 @@ graph TD
 
     %% Pipeline
     S & U & T ==> K[Kotlin DataCollector]
-    K -->|31-Feature Vector| E[Edge-ML Orchestrator]
+    K -->|29-Feature Vector| E[Edge-ML Orchestrator]
     
     subgraph "Edge Intelligence (Python)"
         E --> S1[System 1: Statistical Sentinel]
@@ -45,7 +45,7 @@ graph TD
 
 ## 2. Behavioral Domain Matrix
 
-The system maps local telemetry into **31 features** across 7 primary behavioral groups:
+The system maps local telemetry into **29 features** across 7 primary behavioral groups:
 
 | Group | Features Measured | Clinical Objective |
 | :--- | :--- | :--- |
@@ -62,7 +62,7 @@ The system maps local telemetry into **31 features** across 7 primary behavioral
 ## 3. Intelligence Layers
 
 ### 3.1 Adaptive Behavioral Signatures (ABS)
-The system constructs **Personalized Identity Scaffolding** for each user during a 28-day calibration window. Utilizing optimized K-Means clustering, the system identifies **Behavioral Baseline Clusters** (e.g., Workday, Weekend, Travel) to modulate alert sensitivity. 
+The system constructs **Personalized Identity Scaffolding** for each user during a 28-day calibration window. Utilizing optimized **Clinical-Weighted PCA + Mean-Shift clustering**, the system identifies **Behavioral Baseline Clusters** (e.g., Workday, Weekend, Travel) to modulate alert sensitivity. 
 
 Today's behavior is compared against these anchors to adjust the sensitivity of the AI:
 - **Routine Match**: Small deviations are suppressed (high coherence).

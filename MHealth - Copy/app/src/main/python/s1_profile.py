@@ -316,13 +316,8 @@ def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
     }
 
 
-def build_anchor_clusters(daily_features_list: list) -> list:
-    """Build L1 anchor clusters using Clinical-Weighted PCA (2D) + Mean-Shift."""
-    if len(daily_features_list) < 3:
-        return []
-
-    # Extract L1 cluster feature vectors — use 0.0 for missing features rather than
-    # dropping the entire day, so all history contributes to clustering.
+def _run_full_meanshift_clustering(daily_features_list: list) -> list:
+    """Run fresh Mean-Shift clustering on all days. Returns cluster list."""
     vectors = []
     dates = []
     for day in daily_features_list:
@@ -331,25 +326,16 @@ def build_anchor_clusters(daily_features_list: list) -> list:
         dates.append(day.get("date", ""))
 
     if len(vectors) < 3:
-        return []  # Should never hit given the guard above, but kept for safety
+        return []
 
     matrix = np.array(vectors)
-
-    # Normalize (z-score)
     means = np.mean(matrix, axis=0)
     stds = np.std(matrix, axis=0)
     stds_safe = np.where(stds > 1e-9, stds, 1.0)
     matrix_norm = (matrix - means) / stds_safe
-
-    # Build clinical weight vector for clustering features
     weights = [FEATURE_WEIGHTS.get(f, 1.0) for f in L1_CLUSTER_FEATURES]
-
-    # Clinical-Weighted PCA → 2D projection
     projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, n_components=2)
 
-    # ── Projection params for future mismatch scoring ──────────────────────────
-    # Store the parameters needed to project any new day into the same PCA space.
-    # Serialised as plain Python lists so they survive JSON round-trips.
     _proj_params = {
         "features": L1_CLUSTER_FEATURES,
         "norm_means": [round(float(v), 6) for v in means],
@@ -361,12 +347,9 @@ def build_anchor_clusters(daily_features_list: list) -> list:
         ],
     }
 
-    # Mean-Shift clustering on 2D projection
     clusters = _meanshift(projected)
 
-    # If Mean-Shift found no clusters or everything is one blob, that's OK
     if not clusters:
-        # Single cluster fallback
         centroid = np.mean(projected, axis=0)
         return [{
             "cluster_id": 0,
@@ -376,19 +359,15 @@ def build_anchor_clusters(daily_features_list: list) -> list:
             "member_count": len(projected),
             "member_dates": dates,
             "method": "clinical_pca_meanshift",
-            "_pca_projection": _proj_params,  # stored on first (only) cluster
+            "_pca_projection": _proj_params,
         }]
 
     result = []
     for idx, (cid, indices) in enumerate(clusters):
         members_pca = projected[indices]
         centroid_pca = np.mean(members_pca, axis=0)
-
-        # Radius in PCA space
         dists = np.linalg.norm(members_pca - centroid_pca, axis=1)
         radius = float(np.max(dists)) if len(dists) > 0 else 0.0
-
-        # Denormalize centroid back to original feature space (approximate)
         members_norm = matrix_norm[indices]
         centroid_norm = np.mean(members_norm, axis=0)
         centroid_raw = centroid_norm * stds_safe + means
@@ -402,12 +381,152 @@ def build_anchor_clusters(daily_features_list: list) -> list:
             "member_dates": [dates[i] for i in indices if i < len(dates)],
             "method": "clinical_pca_meanshift",
         }
-        # Attach projection params only to the first cluster (shared across all)
         if idx == 0:
             cluster_dict["_pca_projection"] = _proj_params
         result.append(cluster_dict)
 
     return result
+
+
+def _project_day_to_pca(day_features: dict, proj_params: dict) -> Optional[np.ndarray]:
+    """Project a single day's features into the stored PCA space. Returns 2D point or None."""
+    try:
+        features = proj_params["features"]
+        norm_means = np.array(proj_params["norm_means"], dtype=float)
+        norm_stds = np.array(proj_params["norm_stds"], dtype=float)
+        clin_w = np.array(proj_params["clinical_weights"], dtype=float)
+        pca_mean = np.array(proj_params["pca_mean"], dtype=float)
+        pca_comps = np.array(proj_params["pca_components"], dtype=float)
+
+        raw = np.array([float(day_features.get(f, 0.0)) for f in features])
+        z = (raw - norm_means) / norm_stds
+        w = z * clin_w
+        return (w - pca_mean) @ pca_comps.T
+    except Exception:
+        return None
+
+
+def build_anchor_clusters(daily_features_list: list, existing_clusters: list = None) -> list:
+    """
+    Build L1 anchor clusters using Clinical-Weighted PCA (2D) + Mean-Shift.
+
+    If existing_clusters is provided, uses incremental growth:
+      1. Project all days into the stored PCA space.
+      2. Assign each day to nearest existing cluster (within 2× radius).
+      3. Unassigned days (≥3) trigger new cluster discovery via Mean-Shift.
+      4. Existing cluster centroids gently updated with expanded member sets.
+    If existing_clusters is None, runs full Mean-Shift from scratch.
+    """
+    if len(daily_features_list) < 3:
+        return existing_clusters if existing_clusters else []
+
+    # ── FRESH BUILD ────────────────────────────────────────────────────────────
+    if not existing_clusters:
+        print("  [Clusters] Fresh build — running full Mean-Shift")
+        return _run_full_meanshift_clustering(daily_features_list)
+
+    # ── INCREMENTAL GROWTH ─────────────────────────────────────────────────────
+    print(f"  [Clusters] Incremental build — {len(existing_clusters)} existing clusters")
+
+    # Get PCA projection params from the first cluster
+    proj_params = None
+    for c in existing_clusters:
+        if "_pca_projection" in c:
+            proj_params = c["_pca_projection"]
+            break
+
+    if proj_params is None:
+        # No projection params stored — fall back to fresh build
+        print("  [Clusters] No projection params found — falling back to fresh build")
+        return _run_full_meanshift_clustering(daily_features_list)
+
+    # Project all days into PCA space
+    day_projections = []  # (index, pca_2d, date)
+    for i, day in enumerate(daily_features_list):
+        pca_pt = _project_day_to_pca(day, proj_params)
+        if pca_pt is not None:
+            day_projections.append((i, pca_pt, day.get("date", f"day_{i}")))
+
+    if not day_projections:
+        return existing_clusters
+
+    # Assign each day to nearest existing cluster (within 2× radius)
+    # Work on a deep copy so we don't mutate the input
+    import copy
+    updated_clusters = copy.deepcopy(existing_clusters)
+    unassigned = []  # (index, pca_2d, date)
+
+    for idx, pca_pt, date_str in day_projections:
+        best_dist = float('inf')
+        best_cid = -1
+        for ci, cluster in enumerate(updated_clusters):
+            centroid = np.array(cluster.get("centroid_pca_2d", [0.0, 0.0]), dtype=float)
+            radius = max(float(cluster.get("radius", 1.0)), 1e-6)
+            dist = float(np.linalg.norm(pca_pt - centroid))
+            if dist < best_dist:
+                best_dist = dist
+                best_cid = ci
+
+        # Check if within 2× radius of the nearest cluster
+        if best_cid >= 0:
+            nearest = updated_clusters[best_cid]
+            radius = max(float(nearest.get("radius", 1.0)), 1e-6)
+            if best_dist <= radius * 2.0:
+                # Assign to this cluster
+                if date_str not in nearest.get("member_dates", []):
+                    nearest.setdefault("member_dates", []).append(date_str)
+                    nearest["member_count"] = len(nearest["member_dates"])
+            else:
+                unassigned.append((idx, pca_pt, date_str))
+        else:
+            unassigned.append((idx, pca_pt, date_str))
+
+    # Gently update existing cluster centroids from expanded member sets
+    for cluster in updated_clusters:
+        member_dates = set(cluster.get("member_dates", []))
+        member_days = [d for d in daily_features_list if d.get("date", "") in member_dates]
+        if len(member_days) >= 2:
+            member_pca = []
+            for md in member_days:
+                pt = _project_day_to_pca(md, proj_params)
+                if pt is not None:
+                    member_pca.append(pt)
+            if member_pca:
+                arr = np.array(member_pca)
+                new_centroid = np.mean(arr, axis=0)
+                new_dists = np.linalg.norm(arr - new_centroid, axis=1)
+                cluster["centroid_pca_2d"] = [round(float(new_centroid[0]), 4), round(float(new_centroid[1]), 4)]
+                cluster["radius"] = round(float(np.max(new_dists)), 4) if len(new_dists) > 0 else cluster.get("radius", 0.0)
+
+    # Discover new clusters from unassigned days (≥3 needed)
+    if len(unassigned) >= 3:
+        print(f"  [Clusters] {len(unassigned)} unassigned days — running Mean-Shift for new clusters")
+        unassigned_days = [daily_features_list[idx] for idx, _, _ in unassigned]
+        new_clusters = _run_full_meanshift_clustering(unassigned_days)
+        if new_clusters:
+            # Renumber new cluster IDs to continue after existing
+            max_id = max(c.get("cluster_id", 0) for c in updated_clusters)
+            for nc in new_clusters:
+                max_id += 1
+                nc["cluster_id"] = max_id
+                # Remove _pca_projection from new sub-clusters (use the existing one)
+                nc.pop("_pca_projection", None)
+            updated_clusters.extend(new_clusters)
+            print(f"  [Clusters] Discovered {len(new_clusters)} new clusters")
+    elif unassigned:
+        print(f"  [Clusters] {len(unassigned)} unassigned days (need ≥3 for new cluster)")
+
+    # Ensure _pca_projection is on the first cluster
+    if updated_clusters and "_pca_projection" not in updated_clusters[0]:
+        updated_clusters[0]["_pca_projection"] = proj_params
+
+    return updated_clusters
+
+
+def rebuild_clusters_from_scratch(daily_features_list: list) -> list:
+    """Force a complete re-clustering. Called from manual 'Re-build Clusters' button."""
+    print("  [Clusters] Manual rebuild from scratch")
+    return _run_full_meanshift_clustering(daily_features_list)
 
 
 def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clusters: list = None) -> list:
@@ -547,40 +666,32 @@ def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clu
     }]
 
 
-def build_full_profile(
+def build_l1_profile(
     daily_features_list: list,
-    sessions: list,
-    person_id: str = "user"
+    person_id: str = "user",
+    existing_clusters: list = None,
 ) -> dict:
     """
-    Build a complete System 1 PersonProfile.
+    Build Layer 1 profile: PersonalityVector + AnchorClusters + feature importance.
+
+    This is the L1 (Baseline Anomaly Detection) half of the profile.
+    Contains only data relevant to baseline deviation scoring.
 
     Args:
-        daily_features_list: List of daily feature dicts (from 28-day baseline)
-        sessions: List of session dicts from baseline period
+        daily_features_list: List of daily feature dicts
         person_id: User identifier
+        existing_clusters: Previously persisted clusters for incremental growth
 
     Returns:
-        Dict containing the full profile, serializable to JSON.
+        Dict with L1-only fields, serializable to JSON.
     """
-    print(f"  [ProfileBuilder] Starting build for {person_id}")
-    print(f"  [ProfileBuilder] Samples: {len(daily_features_list)} days, {len(sessions)} sessions")
-    
-    personality_vector = build_personality_vector(daily_features_list)
-    print("  [ProfileBuilder] Personality vector built")
-    
-    app_dna_profiles = build_app_dna_profiles(sessions)
-    print(f"  [ProfileBuilder] App DNA built: {len(app_dna_profiles)} apps")
-    
-    phone_dna = build_phone_dna(daily_features_list, sessions)
-    print("  [ProfileBuilder] Phone DNA built")
-    
-    anchor_clusters = build_anchor_clusters(daily_features_list)
-    print(f"  [ProfileBuilder] Anchor clusters built: {len(anchor_clusters)}")
+    print(f"  [L1 Profile] Starting build for {person_id} ({len(daily_features_list)} days)")
 
-    # Pass anchor_clusters so texture profiles are split per archetype
-    texture_profiles = build_texture_profiles(daily_features_list, sessions, anchor_clusters)
-    print(f"  [ProfileBuilder] Texture profiles built: {len(texture_profiles)}")
+    personality_vector = build_personality_vector(daily_features_list)
+    print("  [L1 Profile] Personality vector built")
+
+    anchor_clusters = build_anchor_clusters(daily_features_list, existing_clusters=existing_clusters)
+    print(f"  [L1 Profile] Anchor clusters: {len(anchor_clusters)}")
 
     # Weighted feature importance (for UI display)
     feature_importance = {}
@@ -595,7 +706,6 @@ def build_full_profile(
             "group": _get_feature_group(feat),
         }
 
-    # Group statistics
     groups = {}
     for feat, info in feature_importance.items():
         grp = info["group"]
@@ -610,25 +720,85 @@ def build_full_profile(
             "total_weight": round(float(sum(weights)), 2),
         }
 
-    # Extract PCA projection params from the first anchor cluster (if available)
     pca_projection = None
     if anchor_clusters:
         pca_projection = anchor_clusters[0].get("_pca_projection", None)
 
     return {
         "person_id": person_id,
-        "profile_version": "1.0",
+        "profile_version": "2.0",
+        "profile_layer": "L1",
         "built_at": datetime.utcnow().isoformat() + "Z",
         "days_of_data": len(daily_features_list),
         "personality_vector": personality_vector,
-        "app_dna_profiles": app_dna_profiles,
-        "phone_dna": phone_dna,
         "anchor_clusters": anchor_clusters,
-        "texture_profiles": texture_profiles,
         "feature_importance": feature_importance,
         "group_summaries": group_summaries,
-        "pca_projection": pca_projection,  # projection params for mismatch scoring
+        "pca_projection": pca_projection,
     }
+
+
+def build_l2_texture_profile(
+    daily_features_list: list,
+    sessions: list,
+    anchor_clusters: list = None,
+) -> dict:
+    """
+    Build Layer 2 texture profile: AppDNA + PhoneDNA + TextureProfiles.
+
+    This is the L2 (Behavioral DNA) half of the profile.
+    Contains only micro-level behavioral fingerprinting data.
+
+    Args:
+        daily_features_list: List of daily feature dicts
+        sessions: List of session dicts
+        anchor_clusters: L1 anchor clusters (for per-archetype texture splitting)
+
+    Returns:
+        Dict with L2-only fields, serializable to JSON.
+    """
+    print(f"  [L2 Texture] Building L2 profile ({len(sessions)} sessions)")
+
+    app_dna_profiles = build_app_dna_profiles(sessions)
+    print(f"  [L2 Texture] App DNA: {len(app_dna_profiles)} apps")
+
+    phone_dna = build_phone_dna(daily_features_list, sessions)
+    print("  [L2 Texture] Phone DNA built")
+
+    texture_profiles = build_texture_profiles(daily_features_list, sessions, anchor_clusters)
+    print(f"  [L2 Texture] Texture profiles: {len(texture_profiles)}")
+
+    return {
+        "profile_layer": "L2",
+        "app_dna_profiles": app_dna_profiles,
+        "phone_dna": phone_dna,
+        "texture_profiles": texture_profiles,
+    }
+
+
+def build_full_profile(
+    daily_features_list: list,
+    sessions: list,
+    person_id: str = "user",
+    existing_clusters: list = None,
+) -> dict:
+    """
+    Build a complete PersonProfile (backward-compatible wrapper).
+
+    Calls build_l1_profile() and build_l2_texture_profile() independently,
+    then merges the results.
+    """
+    print(f"  [ProfileBuilder] Starting combined build for {person_id}")
+    print(f"  [ProfileBuilder] Samples: {len(daily_features_list)} days, {len(sessions)} sessions")
+
+    l1 = build_l1_profile(daily_features_list, person_id, existing_clusters=existing_clusters)
+    l2 = build_l2_texture_profile(daily_features_list, sessions, l1.get("anchor_clusters", []))
+
+    # Merge L1 + L2 into a single profile dict
+    merged = {**l1, **l2}
+    merged["profile_version"] = "2.0"
+    merged.pop("profile_layer", None)  # remove layer tag from merged view
+    return merged
 
 
 def compute_cluster_mismatch(today_features: dict, profile_data: dict) -> float:

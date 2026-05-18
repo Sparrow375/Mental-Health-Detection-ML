@@ -18,7 +18,7 @@ from dna_engine import (
     get_released_evidence,
     clear_rejected_candidates,
 )
-from s1_profile import build_full_profile, compute_cluster_mismatch
+from s1_profile import build_full_profile, build_l1_profile, build_l2_texture_profile, compute_cluster_mismatch
 
 
 def run_analysis(json_string: str) -> str:
@@ -58,6 +58,14 @@ def run_analysis(json_string: str) -> str:
         sessions_28day  = data.get("sessions", [])
         sessions_today  = data.get("sessions_today", [])
         dna_json        = data.get("dna", None)
+
+        # Existing profile for cluster persistence (Phase 3)
+        existing_profile = data.get("existing_profile", None)
+        existing_clusters = None
+        if existing_profile and isinstance(existing_profile, dict):
+            existing_clusters = existing_profile.get("anchor_clusters", None)
+            if existing_clusters:
+                print(f"  [Analysis] Loaded {len(existing_clusters)} existing clusters for incremental growth")
 
         # ── Build PersonalityVector baseline from Android mean/std stats ──────
         baseline_means: dict = {}
@@ -124,6 +132,7 @@ def run_analysis(json_string: str) -> str:
                 dna_result["matched_cluster"] = matched
 
                 # Rolling cluster discovery (only when coherence < 0.3)
+                cluster_promoted = False  # Track for evidence engine grace period
                 if coherence < 0.3:
                     evidence_today = float(
                         sum(abs(v) for v in current.values())
@@ -136,6 +145,7 @@ def run_analysis(json_string: str) -> str:
                         dna = clear_rejected_candidates(dna)
                         print(f"  [L2] Candidate rejected, released evidence: {released:.4f}")
                     elif action == "promoted":
+                        cluster_promoted = True
                         print(f"  [L2] Candidate promoted to cluster!")
                     elif action == "candidate_opened":
                         print(f"  [L2] New candidate cluster opened")
@@ -170,9 +180,26 @@ def run_analysis(json_string: str) -> str:
             print(f"  Loaded {len(historical_scores)} historical anomaly scores from Room")
 
         # Fast-forward state using history (oldest first)
+        # IMPORTANT: Only replay actual monitoring days (post-baseline), not
+        # baseline collection days. The number of historical_anomaly_scores
+        # tells us how many previous analysis runs exist — those are the real
+        # monitoring days. Replaying baseline days inflates sustained_deviation_days
+        # because the evidence engine counts each replayed day as a monitoring day.
         deviations_history = []
-        history_start_day = max(0, day_number - len(history))
-        for idx, h in enumerate(history):
+        num_prior_monitoring_days = len(historical_scores)
+        # Only use the most recent N history days that correspond to actual
+        # monitoring (post-baseline) analysis runs.
+        if num_prior_monitoring_days > 0 and len(history) > num_prior_monitoring_days:
+            monitoring_history = history[-num_prior_monitoring_days:]
+        else:
+            monitoring_history = history if num_prior_monitoring_days > 0 else []
+
+        history_start_day = max(0, day_number - len(monitoring_history))
+        print(f"  History fast-forward: {len(history)} total history days, "
+              f"{num_prior_monitoring_days} prior monitoring days, "
+              f"replaying {len(monitoring_history)} days (skipping "
+              f"{len(history) - len(monitoring_history)} baseline days)")
+        for idx, h in enumerate(monitoring_history):
             s1_report_h, _ = s1.analyze(
                 h,
                 deviations_history=list(deviations_history),
@@ -180,12 +207,13 @@ def run_analysis(json_string: str) -> str:
             )
             deviations_history.append(s1_report_h.feature_deviations)
 
-        # Analyze today — with L2 modifier
+        # Analyze today — with L2 modifier and cluster promotion flag
         s1_report, daily_report = s1.analyze(
             current,
             deviations_history=list(deviations_history),
             day_number=day_number,
             l2_modifier=l2_modifier,
+            cluster_just_promoted=cluster_promoted,
         )
 
         # ── System 2 setup ─────────────────────────────────────────────────────
@@ -222,11 +250,12 @@ def run_analysis(json_string: str) -> str:
         gate2 = "gate2" not in s2_output.screening.gates_fired
         gate3 = "gate3" not in s2_output.screening.gates_fired
 
-        # ── Build System 1 Profile (DNA Baseline, Clusters, Texture) ───────────
+        # ── Build System 1 Profile (L1 + L2 decoupled) ─────────────────────────
         profile_data = None
+        l1_profile = None
+        l2_profile = None
         try:
             # Inject date keys so build_anchor_clusters can label member_dates
-            # history is oldest-first; inject synthetic dates if not present
             all_daily = []
             for i, h in enumerate(history):
                 h_copy = dict(h)
@@ -238,22 +267,34 @@ def run_analysis(json_string: str) -> str:
                 cur_copy["date"] = "today"
             all_daily.append(cur_copy)
 
-            profile_data = build_full_profile(
+            # Phase 1: Build L1 and L2 independently
+            l1_profile = build_l1_profile(
+                daily_features_list=all_daily,
+                person_id=data.get("user_id", "user"),
+                existing_clusters=existing_clusters,  # Phase 3: incremental growth
+            )
+            print(f"  [L1 Profile] Built: {l1_profile['days_of_data']} days, "
+                  f"{len(l1_profile.get('anchor_clusters', []))} clusters")
+
+            l2_profile = build_l2_texture_profile(
                 daily_features_list=all_daily,
                 sessions=sessions_28day,
-                person_id=data.get("user_id", "user"),
+                anchor_clusters=l1_profile.get("anchor_clusters", []),
             )
-            print(f"  [Profile] Built profile success: {profile_data['days_of_data']} days")
-            print(f"  [Profile] Clusters: {len(profile_data.get('anchor_clusters', []))}")
-            print(f"  [Profile] Apps: {len(profile_data.get('app_dna_profiles', {}))}")
-            print(f"  [Profile] Texture archetypes: {len(profile_data.get('texture_profiles', []))}")
+            print(f"  [L2 Texture] Built: {len(l2_profile.get('app_dna_profiles', {}))} apps, "
+                  f"{len(l2_profile.get('texture_profiles', []))} textures")
+
+            # Merge into profile_data for backward-compatible output
+            profile_data = {**l1_profile, **l2_profile}
+            profile_data["profile_version"] = "2.0"
+            profile_data.pop("profile_layer", None)
+
         except Exception as e:
             import traceback as _tb
             print(f"  [Profile] Failed to build profile: {e}\n{_tb.format_exc()}")
-            # Always return a minimal valid profile so Kotlin saves it
             profile_data = {
                 "person_id": data.get("user_id", "user"),
-                "profile_version": "1.0",
+                "profile_version": "2.0",
                 "days_of_data": len(history) + 1,
                 "build_error": str(e),
                 "personality_vector": {"means": {}, "variances": {}, "confidence": "LOW", "feature_count": 0},
@@ -269,11 +310,13 @@ def run_analysis(json_string: str) -> str:
         # Weight constant: max +35 % amplification when today is a total archetype
         # outlier. Chosen conservatively so it only noticeably fires when the
         # behavioral pattern is genuinely unprecedented (mismatch ~ 1.0).
+        # Phase 1: Cluster-Mismatch uses ONLY L1 profile (not L2 DNA data)
         MISMATCH_WEIGHT = 0.35
         cluster_mismatch = 0.0
-        if profile_data and profile_data.get("anchor_clusters"):
+        mismatch_source = l1_profile if l1_profile else profile_data
+        if mismatch_source and mismatch_source.get("anchor_clusters"):
             try:
-                cluster_mismatch = compute_cluster_mismatch(current, profile_data)
+                cluster_mismatch = compute_cluster_mismatch(current, mismatch_source)
                 if cluster_mismatch > 0.0:
                     l2_modifier = l2_modifier * (1.0 + MISMATCH_WEIGHT * cluster_mismatch)
                     l2_modifier = min(l2_modifier, 2.5)  # hard ceiling: never more than 2.5×

@@ -517,6 +517,38 @@ class MonitoringService : Service() {
             }
         }
 
+        // Manual Cluster Reset trigger — re-discovers archetypes from scratch
+        serviceScope.launch {
+            DataRepository.clusterResetTrigger.collect { triggers ->
+                if (triggers > 0) {
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val now = Date()
+                    val todayStr = dateFmt.format(now)
+
+                    Log.i("MHealth.Service", "Cluster Reset triggered — will rebuild clusters from scratch for $todayStr")
+
+                    // 1. Collect current data and save as a formal row for TODAY
+                    val currentSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
+                    persistDailySnapshot(currentSnapshot, Calendar.getInstance().get(Calendar.DAY_OF_YEAR), isSimulated = true)
+
+                    // 2. Compute and store DNA snapshot for today
+                    try {
+                        val dnaComputer = com.example.mhealth.logic.AppDnaComputer(this@MonitoringService)
+                        dnaComputer.computeAndStoreDnaSnapshot(userId, todayStr)
+                    } catch (e: Exception) {
+                        Log.e("MHealth.Service", "DNA snapshot for cluster reset failed: ${e.message}", e)
+                    }
+
+                    // 3. Trigger nightly worker with forceResetClusters = true
+                    DataRepository.setDnaAnalysing(true)
+                    NightlyAnalysisWorker.runNow(
+                        this@MonitoringService, userId, todayStr,
+                        forceRun = true, forceResetClusters = true
+                    )
+                }
+            }
+        }
+
         // dev force reset trigger listener
         serviceScope.launch {
             DataRepository.resetTrigger.collect { triggers ->

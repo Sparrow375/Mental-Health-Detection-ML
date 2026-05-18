@@ -252,6 +252,10 @@ object DataRepository {
     private val _dnaFinalizeTrigger = MutableStateFlow(0)
     val dnaFinalizeTrigger: StateFlow<Int> = _dnaFinalizeTrigger
 
+    /** Trigger a DNA rebuild that forces fresh cluster discovery (ignores existing_clusters). */
+    private val _clusterResetTrigger = MutableStateFlow(0)
+    val clusterResetTrigger: StateFlow<Int> = _clusterResetTrigger
+
     // --- Persistence & Init ---
     
     fun init(context: Context) {
@@ -417,6 +421,11 @@ object DataRepository {
 
     fun triggerDnaFinalize() {
         _dnaFinalizeTrigger.value += 1
+    }
+
+    /** Request a fresh cluster rebuild (wipes existing_clusters before engine call). */
+    fun triggerClusterReset() {
+        _clusterResetTrigger.value += 1
     }
 
 

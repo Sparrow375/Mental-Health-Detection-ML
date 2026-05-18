@@ -214,6 +214,7 @@ class AnomalyDetector:
         session_events: Optional[List[Dict]] = None,
         notification_events: Optional[List[Dict]] = None,
         l2_modifier: Optional[float] = None,
+        cluster_just_promoted: bool = False,
     ) -> Tuple[AnomalyReport, DailyReport]:
         """
         Main analysis function - runs the full L1 + L2 pipeline for one day.
@@ -293,7 +294,7 @@ class AnomalyDetector:
                 held = self.candidate_evaluator.reject()
                 self.evidence_engine.release_held_evidence(held)
             if result != 'EVALUATING':
-                self.evidence_engine.update(effective_score, breadth=breadth)
+                self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
         elif (
             self.candidate_evaluator is not None
             and candidate_flag
@@ -306,7 +307,7 @@ class AnomalyDetector:
                 effective_score=effective_score,
             )
         else:
-            self.evidence_engine.update(effective_score, breadth=breadth)
+            self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
 
         # === TRACKING ===
         evidence_state = self.evidence_engine.get_state()

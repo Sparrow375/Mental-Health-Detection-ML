@@ -418,20 +418,35 @@ def build_daily_vector(
     return vector
 
 
-def build_person_dna(sessions_28day: List[dict], person_id: str = "user") -> PersonDNA:
+def build_person_dna(
+    sessions_28day: List[dict],
+    person_id: str = "user",
+    existing_dna: "PersonDNA" = None,
+) -> PersonDNA:
     """
-    Build a full PersonDNA from 28 days of session data.
-    
-    1. Build AppDNA for every unique app_package
-    2. Build 28 daily vectors
-    3. Run K-means with K=3,4,5 — pick K by silhouette score
-    4. Store centroids as anchor_centroids, compute anchor_radii
-    5. candidate_clusters=[], promoted_clusters=[]
+    Build a full PersonDNA from session data.
+
+    Args:
+        sessions_28day: List of session dicts from the collection window
+        person_id: User identifier
+        existing_dna: Previously persisted PersonDNA. When provided:
+            - Union the current session apps with existing_dna.app_profiles
+              to maintain a stable app set across rebuilds.
+            - Existing apps get updated fingerprints from current sessions.
+            - Apps in existing_dna but not in current sessions are preserved
+              with their previous fingerprint (zero-duration placeholder).
+            - This prevents daily vector dimension changes when apps
+              appear/disappear across days, which breaks K-means.
+
+    Returns:
+        PersonDNA with stable app ordering and K-means anchor clusters.
     """
     import datetime
 
     if not sessions_28day:
-        # Return empty DNA
+        # Return empty DNA (or preserve existing if available)
+        if existing_dna is not None:
+            return existing_dna
         return PersonDNA(
             person_id=person_id,
             app_profiles={},
@@ -445,12 +460,23 @@ def build_person_dna(sessions_28day: List[dict], person_id: str = "user") -> Per
             promoted_clusters=[],
         )
 
-    # 1. Build AppDNA for each unique package
-    packages = set(s["app_package"] for s in sessions_28day)
+    # 1. Build AppDNA for each unique package in current sessions
+    current_packages = set(s["app_package"] for s in sessions_28day)
     app_profiles = {}
-    for pkg in packages:
+    for pkg in sorted(current_packages):  # Deterministic ordering
         pkg_sessions = [s for s in sessions_28day if s["app_package"] == pkg]
         app_profiles[pkg] = build_app_dna(pkg_sessions, pkg)
+
+    # Phase 2: Preserve historically seen apps from existing DNA
+    if existing_dna is not None and existing_dna.app_profiles:
+        for pkg, existing_app_dna in existing_dna.app_profiles.items():
+            if pkg not in app_profiles:
+                # App was seen in previous builds but not in current sessions —
+                # preserve its fingerprint so daily vector dimensions stay stable
+                app_profiles[pkg] = existing_app_dna
+        print(f"  [DNA] App set: {len(current_packages)} current + "
+              f"{len(app_profiles) - len(current_packages)} historical = "
+              f"{len(app_profiles)} total apps")
 
     # 2. Group sessions by date
     sessions_by_date = {}

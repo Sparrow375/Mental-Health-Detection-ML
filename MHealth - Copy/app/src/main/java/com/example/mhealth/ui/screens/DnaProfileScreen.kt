@@ -188,25 +188,19 @@ fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgr
             .padding(horizontal = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Header
+        // Header with rebuild controls
         DnaProfileHeader(profile)
 
-        // Personality Vector (29-feature baseline)
-        PersonalityVectorCard(profile)
-
-        // Feature Importance Grid
-        FeatureImportanceCard(profile)
-
-        // Anchor Clusters
+        // Anchor Clusters (L1 archetype discovery)
         AnchorClustersCard(profile)
 
-        // App DNA Profiles
+        // App DNA Profiles (L2 per-app fingerprints)
         AppDnaProfilesCard(profile)
 
-        // Phone DNA
+        // Phone DNA (L2 device-level)
         PhoneDnaCard(profile)
 
-        // Texture Profiles
+        // Texture Profiles (L2 contextual texture)
         TextureProfilesCard(profile)
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -394,15 +388,17 @@ private fun DnaProfileHeader(profile: JSONObject) {
                     modifier = Modifier.fillMaxWidth())
             }
 
-            // ── Rebuild button (always visible when profile exists) ─────────
+            // ── Rebuild buttons (always visible when profile exists) ─────────
             val context = LocalContext.current
             val isAnalysing by DataRepository.isDnaAnalysing.collectAsState()
             Spacer(Modifier.height(12.dp))
+
+            // Incremental rebuild (preserves existing clusters)
             OutlinedButton(
                 onClick = {
                     android.widget.Toast.makeText(
                         context,
-                        "Rebuilding DNA Profile…",
+                        "Rebuilding DNA Profile (incremental)…",
                         android.widget.Toast.LENGTH_SHORT
                     ).show()
                     DataRepository.triggerDnaFinalize()
@@ -421,6 +417,28 @@ private fun DnaProfileHeader(profile: JSONObject) {
                     Spacer(Modifier.width(6.dp))
                     Text("Rebuild DNA Profile", color = AccentBlue, fontSize = 13.sp)
                 }
+            }
+
+            Spacer(Modifier.height(6.dp))
+
+            // Full cluster reset (wipes existing clusters, re-discovers from scratch)
+            OutlinedButton(
+                onClick = {
+                    android.widget.Toast.makeText(
+                        context,
+                        "Re-building clusters from scratch…",
+                        android.widget.Toast.LENGTH_SHORT
+                    ).show()
+                    DataRepository.triggerClusterReset()
+                },
+                enabled = !isAnalysing,
+                modifier = Modifier.fillMaxWidth().height(40.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, AccentOrange.copy(alpha = 0.5f)),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Icon(Icons.Default.Autorenew, contentDescription = null, tint = AccentOrange, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Re-build Clusters (From Scratch)", color = AccentOrange, fontSize = 13.sp)
             }
         }
     }

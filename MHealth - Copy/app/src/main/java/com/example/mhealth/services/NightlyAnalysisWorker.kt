@@ -50,6 +50,7 @@ class NightlyAnalysisWorker(
         const val KEY_USER_ID  = "user_id"
         const val KEY_TARGET_DATE = "target_date"
         const val KEY_FORCE_RUN = "force_run"
+        const val KEY_FORCE_RESET_CLUSTERS = "force_reset_clusters"
         const val WORK_NAME    = "nightly_analysis"
 
 
@@ -84,17 +85,18 @@ class NightlyAnalysisWorker(
             Log.i(TAG, "Nightly analysis scheduled for user=$userId")
         }
 
-        fun runNow(context: Context, userId: String, targetDate: String? = null, forceRun: Boolean = false) {
+        fun runNow(context: Context, userId: String, targetDate: String? = null, forceRun: Boolean = false, forceResetClusters: Boolean = false) {
             val data = workDataOf(
                 KEY_USER_ID to userId,
                 KEY_TARGET_DATE to targetDate,
-                KEY_FORCE_RUN to forceRun
+                KEY_FORCE_RUN to forceRun,
+                KEY_FORCE_RESET_CLUSTERS to forceResetClusters
             )
             val request = OneTimeWorkRequestBuilder<NightlyAnalysisWorker>()
                 .setInputData(data)
                 .build()
             WorkManager.getInstance(context).enqueue(request)
-            Log.i(TAG, "Manual analysis triggered for user=$userId date=$targetDate")
+            Log.i(TAG, "Manual analysis triggered for user=$userId date=$targetDate resetClusters=$forceResetClusters")
         }
 
 
@@ -171,7 +173,10 @@ class NightlyAnalysisWorker(
                 .map { it.anomalyScore }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
-            val dayNumber = dnaDaysCollected + 1
+            // dayNumber = count of existing analysis results + 1 (monitoring days only,
+            // NOT total days of data collection including baseline period)
+            val priorAnalysisCount = db.analysisResultDao().count(userId)
+            val dayNumber = priorAnalysisCount + 1
             val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
             // Inject day_number, gate_state, historical anomaly scores, and session data
@@ -183,23 +188,49 @@ class NightlyAnalysisWorker(
                 historicalScores = historicalScores
             )
 
-            // ── 4b. Inject session data for Phone DNA and App DNA computation ──
+            // ── 4b. Inject session data, existing profile, and identifiers ──────
             val jsonWithSessions = try {
                 val obj = org.json.JSONObject(jsonWithMeta)
-                // Get sessions for the baseline period (last 30 days)
+
+                // Phase 5: Inject user_id and target_date for debug logging
+                obj.put("user_id", userId)
+                obj.put("target_date", targetDate)
+
+                // Phase 5: Expand session window from 30 → 60 days for more complete DNA context
                 val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                 val cal = java.util.Calendar.getInstance()
-                cal.add(java.util.Calendar.DAY_OF_YEAR, -30)
+                cal.add(java.util.Calendar.DAY_OF_YEAR, -60)
                 val startDate = dateFormat.format(cal.time)
                 val cal2 = java.util.Calendar.getInstance()
                 val endDate = dateFormat.format(cal2.time)
                 val allSessions = db.appSessionDao().getByDateRange(startDate, endDate)
                 obj.put("sessions", org.json.JSONArray(JsonConverter.sessionsToJson(allSessions)))
-                Log.d(TAG, "Injected ${allSessions.size} sessions for DNA computation")
+                Log.d(TAG, "Injected ${allSessions.size} sessions (60-day window) for DNA computation")
 
                 // Get today's sessions specifically
                 val todaySessions = db.appSessionDao().getByDate(targetDate)
                 obj.put("sessions_today", org.json.JSONArray(JsonConverter.sessionsToJson(todaySessions)))
+
+                // Phase 3/5: Inject existing profile for cluster persistence
+                // This allows the engine to do incremental cluster growth rather than
+                // re-clustering from scratch every nightly run.
+                // SKIP when forceResetClusters is true — forces fresh cluster discovery.
+                val resetClusters = inputData.getBoolean(KEY_FORCE_RESET_CLUSTERS, false)
+                if (resetClusters) {
+                    Log.i(TAG, "Force cluster reset requested — skipping existing_profile injection")
+                } else {
+                    val existingDna = db.personDnaDao().getByUserId(userId)
+                    if (existingDna != null) {
+                        try {
+                            val existingProfileObj = org.json.JSONObject(existingDna.dna_json)
+                            obj.put("existing_profile", existingProfileObj)
+                            Log.d(TAG, "Injected existing profile for cluster persistence")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse existing profile: ${e.message}")
+                        }
+                    }
+                }
+
                 obj.toString()
             } catch (e: Exception) {
                 Log.w(TAG, "Failed to inject sessions: ${e.message}")

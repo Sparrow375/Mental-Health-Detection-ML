@@ -296,6 +296,7 @@ class EvidenceState:
     max_sustained_days: int = 0
     max_anomaly_score: float = 0.0
     max_breadth: int = 0
+    grace_days_remaining: int = 0  # Phase 4: days to suppress after cluster promotion
 
 
 @dataclass

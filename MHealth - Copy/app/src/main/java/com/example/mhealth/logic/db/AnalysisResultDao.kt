@@ -46,6 +46,9 @@ interface AnalysisResultDao {
     @Update
     suspend fun update(entity: AnalysisResultEntity)
 
+    @Query("SELECT COUNT(*) FROM analysis_results WHERE userId = :userId")
+    suspend fun count(userId: String): Int
+
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 }

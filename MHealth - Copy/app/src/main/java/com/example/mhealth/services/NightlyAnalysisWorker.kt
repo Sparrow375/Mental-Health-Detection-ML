@@ -17,6 +17,7 @@ import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.PersonDnaEntity
 import com.example.mhealth.models.DailyReport
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -29,15 +30,15 @@ import java.util.concurrent.TimeUnit
  *
  * Pipeline:
  *   1. Query today's DailyFeaturesEntity from Room
- *   2. Check baseline readiness (28 days threshold)
+ *   2. Check baseline readiness (configurable threshold)
  *   3. Build JSON input via JsonConverter
  *   4. Call PythonEngine.runAnalysis()
  *   5. Store AnalysisResultEntity in Room
- *   6. Update DataRepository live state (for UI)
- *   7. Enqueue CloudSyncWorker stub (Phase 6)
+ *   6. Trigger immediate CloudSyncWorker sync to Firestore
+ *   7. Update DataRepository live state (for UI)
  *
  * Input data keys:
- *   KEY_USER_ID — the user ID string
+ *   KEY_USER_ID — the user ID string (email)
  */
 class NightlyAnalysisWorker(
     context: Context,
@@ -47,7 +48,11 @@ class NightlyAnalysisWorker(
     companion object {
         const val TAG          = "MHealth.NightlyWorker"
         const val KEY_USER_ID  = "user_id"
+        const val KEY_TARGET_DATE = "target_date"
+        const val KEY_FORCE_RUN = "force_run"
+        const val KEY_FORCE_RESET_CLUSTERS = "force_reset_clusters"
         const val WORK_NAME    = "nightly_analysis"
+
 
         private val DATE_FMT   = SimpleDateFormat("yyyy-MM-dd", Locale.US)
 
@@ -74,11 +79,26 @@ class NightlyAnalysisWorker(
             WorkManager.getInstance(context)
                 .enqueueUniquePeriodicWork(
                     WORK_NAME,
-                    ExistingPeriodicWorkPolicy.KEEP,
+                    ExistingPeriodicWorkPolicy.UPDATE,
                     request
                 )
             Log.i(TAG, "Nightly analysis scheduled for user=$userId")
         }
+
+        fun runNow(context: Context, userId: String, targetDate: String? = null, forceRun: Boolean = false, forceResetClusters: Boolean = false) {
+            val data = workDataOf(
+                KEY_USER_ID to userId,
+                KEY_TARGET_DATE to targetDate,
+                KEY_FORCE_RUN to forceRun,
+                KEY_FORCE_RESET_CLUSTERS to forceResetClusters
+            )
+            val request = OneTimeWorkRequestBuilder<NightlyAnalysisWorker>()
+                .setInputData(data)
+                .build()
+            WorkManager.getInstance(context).enqueue(request)
+            Log.i(TAG, "Manual analysis triggered for user=$userId date=$targetDate resetClusters=$forceResetClusters")
+        }
+
 
         private fun delayUntilMidnight(): Long {
             val now      = Calendar.getInstance()
@@ -101,11 +121,15 @@ class NightlyAnalysisWorker(
             return Result.failure()
         }
 
-        // The day that just ended is always "yesterday" when this worker fires at 00:05.
-        // persistDailySnapshot() stores data under yesterday's date string, so we must match it.
-        val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
-        val targetDate = DATE_FMT.format(yesterdayCal.time)
+        // Date selection: manual targetDate or default to "yesterday" (for nightly runs)
+        val manualDate = inputData.getString(KEY_TARGET_DATE)
+        val targetDate = manualDate ?: run {
+            val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
+            DATE_FMT.format(yesterdayCal.time)
+        }
+        
         Log.i(TAG, "Running nightly analysis for user=$userId date=$targetDate")
+
 
         return try {
             // ── 1. Load today's features ───────────────────────────────────────
@@ -116,13 +140,26 @@ class NightlyAnalysisWorker(
             }
 
             // ── 2. Check baseline readiness ────────────────────────────────────
-            val profileEntity = db.userProfileDao().get(userId)
-            val baselineReady = profileEntity?.baselineReady ?: false
+            val profileEntity = db.userProfileDao().getProfile(userId)
+            val l1BaselineReady = profileEntity?.baselineReady ?: false
             val baselineEntities = db.baselineDao().getBaseline(userId)
 
-            if (!baselineReady || baselineEntities.isEmpty()) {
-                Log.i(TAG, "Baseline not ready yet — storing data only")
+            // DNA (L2) readiness uses daily_dna_snapshot count, NOT daily_features count
+            val dnaDaysCollected = db.dailyDnaSnapshotDao().countDistinctDays(userId)
+            val dnaThreshold = DataRepository.dnaBaselineDaysRequired.value
+            val dnaReady = dnaDaysCollected >= dnaThreshold
+
+            Log.i(TAG, "DNA Progress Check: dnaDays=$dnaDaysCollected, threshold=$dnaThreshold, dnaReady=$dnaReady, l1Ready=$l1BaselineReady")
+
+            val forceRun = inputData.getBoolean(KEY_FORCE_RUN, false)
+
+            if (!dnaReady && !l1BaselineReady && !forceRun) {
+                Log.w(TAG, "Neither baseline nor DNA ready yet (dnaDays=$dnaDaysCollected/$dnaThreshold) — aborting analysis")
                 return Result.success()
+            }
+
+            if (forceRun) {
+                Log.i(TAG, "Force run requested — proceeding with analysis regardless of readiness")
             }
 
             // ── 3. Fetch history (last 14 days) ────────────────────────────────
@@ -136,10 +173,13 @@ class NightlyAnalysisWorker(
                 .map { it.anomalyScore }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
-            val dayNumber = DataRepository.reports.value.size + 1
+            // dayNumber = count of existing analysis results + 1 (monitoring days only,
+            // NOT total days of data collection including baseline period)
+            val priorAnalysisCount = db.analysisResultDao().count(userId)
+            val dayNumber = priorAnalysisCount + 1
             val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
-            // Inject day_number, gate_state, and historical anomaly scores
+            // Inject day_number, gate_state, historical anomaly scores, and session data
             val jsonWithMeta = injectMetadata(
                 inputJson = inputJson,
                 dayNumber = dayNumber,
@@ -148,8 +188,57 @@ class NightlyAnalysisWorker(
                 historicalScores = historicalScores
             )
 
+            // ── 4b. Inject session data, existing profile, and identifiers ──────
+            val jsonWithSessions = try {
+                val obj = org.json.JSONObject(jsonWithMeta)
+
+                // Phase 5: Inject user_id and target_date for debug logging
+                obj.put("user_id", userId)
+                obj.put("target_date", targetDate)
+
+                // Phase 5: Expand session window from 30 → 60 days for more complete DNA context
+                val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+                val cal = java.util.Calendar.getInstance()
+                cal.add(java.util.Calendar.DAY_OF_YEAR, -60)
+                val startDate = dateFormat.format(cal.time)
+                val cal2 = java.util.Calendar.getInstance()
+                val endDate = dateFormat.format(cal2.time)
+                val allSessions = db.appSessionDao().getByDateRange(startDate, endDate)
+                obj.put("sessions", org.json.JSONArray(JsonConverter.sessionsToJson(allSessions)))
+                Log.d(TAG, "Injected ${allSessions.size} sessions (60-day window) for DNA computation")
+
+                // Get today's sessions specifically
+                val todaySessions = db.appSessionDao().getByDate(targetDate)
+                obj.put("sessions_today", org.json.JSONArray(JsonConverter.sessionsToJson(todaySessions)))
+
+                // Phase 3/5: Inject existing profile for cluster persistence
+                // This allows the engine to do incremental cluster growth rather than
+                // re-clustering from scratch every nightly run.
+                // SKIP when forceResetClusters is true — forces fresh cluster discovery.
+                val resetClusters = inputData.getBoolean(KEY_FORCE_RESET_CLUSTERS, false)
+                if (resetClusters) {
+                    Log.i(TAG, "Force cluster reset requested — skipping existing_profile injection")
+                } else {
+                    val existingDna = db.personDnaDao().getByUserId(userId)
+                    if (existingDna != null) {
+                        try {
+                            val existingProfileObj = org.json.JSONObject(existingDna.dna_json)
+                            obj.put("existing_profile", existingProfileObj)
+                            Log.d(TAG, "Injected existing profile for cluster persistence")
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to parse existing profile: ${e.message}")
+                        }
+                    }
+                }
+
+                obj.toString()
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to inject sessions: ${e.message}")
+                jsonWithMeta
+            }
+
             // ── 5. Call Python engine ──────────────────────────────────────────
-            val engineResult = PythonEngine.runAnalysis(jsonWithMeta)
+            val engineResult = PythonEngine.runAnalysis(jsonWithSessions)
             Log.i(TAG, "Engine result: status=${engineResult.engineStatus} " +
                     "alert=${engineResult.alertLevel} match=${engineResult.prototypeMatch}")
 
@@ -169,10 +258,42 @@ class NightlyAnalysisWorker(
                 alertLevel          = engineResult.alertLevel,
                 prototypeMatch      = engineResult.prototypeMatch,
                 matchMessage        = engineResult.matchMessage,
-                prototypeConfidence = engineResult.prototypeConfidence,
-                gateResults         = engineResult.gateResultsJson
+                prototypeConfidence = (engineResult.prototypeConfidence / 10f).coerceIn(0f, 1f),
+                gateResults         = engineResult.gateResultsJson,
+                l2Modifier          = engineResult.l2Modifier,
+                coherence           = engineResult.coherence,
+                rhythmDissolution   = engineResult.rhythmDissolution,
+                sessionIncoherence  = engineResult.sessionIncoherence,
+                effectiveScore      = engineResult.anomalyScore * engineResult.l2Modifier,
+                evidenceAccumulated = engineResult.evidence,
+                patternType         = engineResult.patternType,
+                flaggedFeatures     = org.json.JSONArray(engineResult.flaggedFeatures).toString()
             )
-            db.analysisResultDao().insert(resultEntity)
+            // Dedup: if result already exists for this date, update instead of inserting duplicate
+            val existingResult = db.analysisResultDao().getByDate(userId, targetDate)
+            if (existingResult != null) {
+                db.analysisResultDao().update(resultEntity.copy(id = existingResult.id))
+                Log.i(TAG, "Analysis result updated for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+            } else {
+                db.analysisResultDao().insert(resultEntity)
+                Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
+            }
+
+            // Don't wait for the scheduled CloudSyncWorker - sync immediately after saving
+            try {
+                val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                    .setConstraints(
+                        Constraints.Builder()
+                            .setRequiredNetworkType(NetworkType.CONNECTED)
+                            .build()
+                    )
+                    .build()
+                WorkManager.getInstance(applicationContext).enqueue(syncWork)
+                Log.d(TAG, "Immediate sync triggered for analysis result")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue immediate sync: ${e.message}", e)
+                // Don't fail the worker - CloudSyncWorker will run on its schedule
+            }
 
             // ── 7. Update live DataRepository state (feeds existing UI) ─────────
             val dailyReport = DailyReport(
@@ -189,23 +310,74 @@ class NightlyAnalysisWorker(
             )
             DataRepository.addReport(dailyReport)
 
-            // ── 8. Enqueue CloudSyncWorker (Phase 6) ──────────────────────
-            val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
-                .setConstraints(
-                    Constraints.Builder()
-                        .setRequiredNetworkType(NetworkType.CONNECTED)
-                        .build()
-                )
-                .build()
-            WorkManager.getInstance(applicationContext).enqueue(syncWork)
-            Log.d(TAG, "Enqueued CloudSyncWorker for data upload")
+            // ── 7b. Persist System 1 Profile (DNA Baseline, Clusters, Texture) ──
+            val profileJson = engineResult.profileJson
+            Log.i(TAG, "Engine returned Profile JSON | Length: ${profileJson.length}")
+            if (profileJson.length > 2) {
+                Log.d(TAG, "Profile JSON Snippet: ${profileJson.take(200)}...")
+            }
+
+            // Save whenever the profile is a real JSON object (not "{}" or empty/null)
+            val hasProfile = profileJson.length > 2 &&
+                profileJson.trimStart().startsWith("{") &&
+                profileJson != "{}"
+            
+            if (hasProfile) {
+                try {
+                    val existingDna = db.personDnaDao().getByUserId(userId)
+                    val now = System.currentTimeMillis()
+                    if (existingDna != null) {
+                        db.personDnaDao().updateDna(userId, engineResult.profileJson, now)
+                    } else {
+                        db.personDnaDao().insert(
+                            PersonDnaEntity(
+                                person_id = userId,
+                                dna_json = engineResult.profileJson,
+                                created_at = now,
+                                last_updated = now
+                            )
+                        )
+                    }
+                    DataRepository.updateS1Profile(engineResult.profileJson)
+                    Log.i(TAG, "System 1 profile persisted to person_dna for $userId")
+
+                    // Mark DNA as ready in the database if it isn't already
+                    val profile = db.userProfileDao().getProfile(userId)
+                    if (profile != null && !profile.dnaReady) {
+                        db.userProfileDao().updateDnaReady(userId, true)
+                        DataRepository.setIsDnaBaselineReady(true)
+                        Log.i(TAG, "DNA Baseline marked as READY for $userId")
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to persist profile: ${e.message}", e)
+                }
+            } else {
+                Log.w(TAG, "Profile JSON was empty or null — not saving to person_dna. profileJson='${engineResult.profileJson}'")
+            }
+
+            // ── 8. Trigger immediate sync to Firestore ────────────────────────
+            // Don't wait for the scheduled CloudSyncWorker - sync immediately after analysis
+            try {
+                val constraints = Constraints.Builder()
+                    .setRequiredNetworkType(NetworkType.CONNECTED)
+                    .build()
+                val syncWork = OneTimeWorkRequestBuilder<CloudSyncWorker>()
+                    .setConstraints(constraints)
+                    .build()
+                WorkManager.getInstance(applicationContext).enqueue(syncWork)
+                Log.d(TAG, "Immediate sync triggered after analysis and DNA persistence")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to enqueue immediate sync: ${e.message}", e)
+            }
 
             Log.i(TAG, "Nightly analysis complete for $targetDate")
             Result.success()
 
         } catch (e: Exception) {
-            Log.e(TAG, "Nightly worker failed: ${e.message}", e)
+            Log.e(TAG, "Worker failed: ${e.message}", e)
             Result.retry()
+        } finally {
+            DataRepository.setDnaAnalysing(false)
         }
     }
 

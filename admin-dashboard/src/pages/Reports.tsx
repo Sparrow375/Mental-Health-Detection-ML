@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { Download, AlertTriangle, Users, TrendingUp } from 'lucide-react';
+import { Download, AlertTriangle, TrendingUp } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 export const Reports: React.FC = () => {
   const [downloading, setDownloading] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [weeklyAnomalies, setWeeklyAnomalies] = useState([
     { day: 'Mon', anomalies: 0 },
     { day: 'Tue', anomalies: 0 },
@@ -30,7 +29,7 @@ export const Reports: React.FC = () => {
         let activeUsers = 0;
         let cCount = 0;
         let syncCount = 0;
-        let csvLines = ["PatientID,Date,Status,AnomalyScore"];
+        const csvLines = ["PatientID,Date,Status,AnomalyScore"];
         
         for (const u of users) {
           activeUsers++;
@@ -44,7 +43,9 @@ export const Reports: React.FC = () => {
           for (const res of hist) {
              const score = res.anomaly_score;
              if (score >= 0.4) {
-                const d = new Date(res.date);
+                // Parse as LOCAL date to avoid UTC-midnight off-by-one in UTC+ timezones (e.g. IST +5:30)
+                const [yr, mo, dy] = (res.date as string).split('-').map(Number);
+                const d = new Date(yr, mo - 1, dy);
                 const dayStr = d.toLocaleDateString('en-US', { weekday: 'short' });
                 counts[dayStr] = (counts[dayStr] || 0) + 1;
              }
@@ -74,8 +75,6 @@ export const Reports: React.FC = () => {
         setWeeklyAnomalies(past7Days);
       } catch (err) {
         console.error("Error fetching report data", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchAggregateData();
@@ -87,7 +86,7 @@ export const Reports: React.FC = () => {
       const encodedUri = encodeURI(csvData);
       const link = document.createElement("a");
       link.setAttribute("href", encodedUri);
-      link.setAttribute("download", "mhealth_system_report.csv");
+      link.setAttribute("download", "lumen_system_report.csv");
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

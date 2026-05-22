@@ -16,12 +16,12 @@ private val FEATURE_META = mapOf(
     "notificationsToday"   to 0.8f, "socialAppRatio"       to 1.3f, "callsPerDay"          to 1.3f,
     "callDurationMinutes"  to 1.2f, "uniqueContacts"       to 1.1f, "conversationFrequency" to 0.9f,
     "dailyDisplacementKm"  to 1.5f, "locationEntropy"      to 1.3f, "homeTimeRatio"        to 1.2f,
-    "placesVisited"        to 1.1f, "wakeTimeHour"         to 1.4f, "sleepTimeHour"        to 1.3f,
+    "wakeTimeHour"         to 1.4f, "sleepTimeHour"        to 1.3f,
     "sleepDurationHours"   to 1.6f, "darkDurationHours"    to 1.0f, "chargeDurationHours"  to 0.8f,
     "memoryUsagePercent"   to 0.5f, "networkWifiMB"        to 0.6f, "networkMobileMB"      to 0.6f,
     "storageUsedGB"        to 0.4f, "totalAppsCount"       to 0.8f, "upiTransactionsToday" to 1.1f,
     "appUninstallsToday"   to 0.9f, "appInstallsToday"     to 0.8f, "calendarEventsToday"  to 0.9f,
-    "mediaCountToday"      to 0.7f, "downloadsToday"       to 0.6f, "backgroundAudioHours" to 0.9f,
+    "mediaCountToday"      to 0.7f, "downloadsToday"       to 0.6f, "musicTimeMinutes" to 0.9f,
     "dailySteps"           to 1.0f
 )
 
@@ -47,12 +47,12 @@ class AnomalyDetector(
             "screenTimeHours", "unlockCount", "appLaunchCount", "notificationsToday",
             "socialAppRatio", "callsPerDay", "callDurationMinutes", "uniqueContacts",
             "conversationFrequency", "dailyDisplacementKm", "locationEntropy",
-            "homeTimeRatio", "placesVisited", "wakeTimeHour", "sleepTimeHour",
+            "homeTimeRatio", "wakeTimeHour", "sleepTimeHour",
             "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
             "memoryUsagePercent", "networkWifiMB", "networkMobileMB", "calendarEventsToday",
             "downloadsToday", "storageUsedGB", "appUninstallsToday",
             "upiTransactionsToday", "totalAppsCount", "mediaCountToday",
-            "appInstallsToday", "dailySteps", "backgroundAudioHours"
+            "appInstallsToday", "dailySteps", "musicTimeMinutes"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
 

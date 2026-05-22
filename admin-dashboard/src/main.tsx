@@ -10,7 +10,7 @@ class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean,
     this.state = { hasError: false, error: null };
   }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
-  componentDidCatch(error: Error, info: any) { console.error("App Crash:", error, info); }
+  componentDidCatch(error: Error, info: { componentStack: string }) { console.error("App Crash:", error, info); }
   render() {
     if (this.state.hasError) {
       return (

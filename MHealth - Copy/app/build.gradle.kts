@@ -15,13 +15,13 @@ android {
         applicationId = "com.example.mhealth"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
         }
     }
 
@@ -50,8 +50,11 @@ chaquopy {
     defaultConfig {
         version = "3.11"
         pip {
-            install("numpy")
-            install("pandas")
+            install("numpy==1.26.2")
+            install("pandas==2.1.3")
+            install("python-dateutil==2.9.0")
+            install("six==1.17.0")
+            install("pytz==2024.1")
         }
     }
 }

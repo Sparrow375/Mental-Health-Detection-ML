@@ -3,6 +3,7 @@ package com.example.mhealth.ui.charts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -33,15 +34,15 @@ fun ArcProgressRing(
     label: String,
     unit: String = "",
     size: Dp = 100.dp,
-    strokeWidth: Dp = 10.dp
+    strokeWidth: Dp = 10.dp,
+    showPercentage: Boolean = false
 ) {
-    val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(value) {
-        animProgress.animateTo(
-            (value / maxValue.coerceAtLeast(0.01f)).coerceIn(0f, 1f),
-            animationSpec = tween(2000, easing = LinearOutSlowInEasing)
-        )
-    }
+    val fraction = (value / maxValue.coerceAtLeast(0.1f)).coerceIn(0f, 1f)
+    val animProgress by animateFloatAsState(
+        targetValue = fraction,
+        animationSpec = tween(if (fraction > 0f) 1000 else 0, easing = LinearOutSlowInEasing),
+        label = "ArcProgress"
+    )
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Box(contentAlignment = Alignment.Center, modifier = Modifier.size(size)) {
             Canvas(modifier = Modifier.size(size)) {
@@ -67,7 +68,7 @@ fun ArcProgressRing(
                         center = Offset(this.size.width / 2, this.size.height / 2)
                     ),
                     startAngle = startAngle,
-                    sweepAngle = sweepTotal * animProgress.value,
+                    sweepAngle = sweepTotal * animProgress,
                     useCenter = false,
                     topLeft = Offset(inset, inset),
                     size = arcSize,
@@ -76,12 +77,12 @@ fun ArcProgressRing(
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = if (maxValue <= 1f) "%.0f%%".format(value * 100) else "%.1f".format(value),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = if (showPercentage) "%.0f%%".format(value * 100) else value.toInt().toString(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.ExtraBold,
                     color = color
                 )
-                if (unit.isNotBlank()) Text(unit, fontSize = 10.sp, color = TextSecondary)
+                if (unit.isNotBlank()) Text(unit, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Bold)
             }
         }
         Spacer(Modifier.height(4.dp))
@@ -153,10 +154,11 @@ fun RadarChart(
     modifier: Modifier = Modifier,
     prototypeValues: List<Float>? = null    // 0-1 prototype shape — drawn ONLY when non-null
 ) {
-    val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(values) {
-        animProgress.animateTo(1f, tween(2400, easing = LinearOutSlowInEasing))
-    }
+    val animProgress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(1800, easing = LinearOutSlowInEasing),
+        label = "RadarAnim"
+    )
 
     Canvas(modifier = modifier) {
         val cx = size.width / 2f
@@ -220,7 +222,7 @@ fun RadarChart(
         // ── Current polygon (animated, colour-filled) ────────────────────────
         val valuePath = Path()
         for (i in 0 until n) {
-            val r = maxRadius * (values.getOrElse(i) { 0f }).coerceIn(0f, 1f) * animProgress.value
+            val r = maxRadius * (values.getOrElse(i) { 0f }).coerceIn(0f, 1f) * animProgress
             val pt = polarOffset(i, r)
             if (i == 0) valuePath.moveTo(pt.x, pt.y) else valuePath.lineTo(pt.x, pt.y)
         }
@@ -230,7 +232,7 @@ fun RadarChart(
 
         // Vertex dots
         for (i in 0 until n) {
-            val r = maxRadius * (values.getOrElse(i) { 0f }).coerceIn(0f, 1f) * animProgress.value
+            val r = maxRadius * (values.getOrElse(i) { 0f }).coerceIn(0f, 1f) * animProgress
             val pt = polarOffset(i, r)
             drawCircle(color, 5f, pt)
             drawCircle(Color.White, 2.5f, pt)
@@ -249,14 +251,17 @@ fun HorizontalBarChart(
     unitSuffix: String = "",
     modifier: Modifier = Modifier
 ) {
-    val animProgress = remember { Animatable(0f) }
-    LaunchedEffect(items) { animProgress.animateTo(1f, tween(1800, easing = LinearOutSlowInEasing)) }
+    val animProgress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(1200, easing = LinearOutSlowInEasing),
+        label = "BarChartAnim"
+    )
 
     val pm = LocalContext.current.packageManager
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         items.take(6).forEach { (label, value) ->
-            val fraction = (value / maxValue.coerceAtLeast(0.01f)) * animProgress.value
+            val fraction = (value / maxValue.coerceAtLeast(0.01f)) * animProgress
             
             val appName = try {
                 val appInfo = pm.getApplicationInfo(label, 0)
@@ -296,8 +301,11 @@ fun AnomalyScoreGauge(
     score: Float,           // 0-1
     modifier: Modifier = Modifier
 ) {
-    val animScore = remember { Animatable(0f) }
-    LaunchedEffect(score) { animScore.animateTo(score.coerceIn(0f, 1f), tween(2000, easing = LinearOutSlowInEasing)) }
+    val animScore by animateFloatAsState(
+        targetValue = score.coerceIn(0f, 1f),
+        animationSpec = tween(1500, easing = LinearOutSlowInEasing),
+        label = "AnomalyGauge"
+    )
 
     Canvas(modifier = modifier) {
         val cx = size.width / 2; val cy = size.height * 0.85f
@@ -318,7 +326,7 @@ fun AnomalyScoreGauge(
         }
 
         // Needle
-        val needleAngle = Math.toRadians((180 + animScore.value * 180).toDouble())
+        val needleAngle = Math.toRadians((180 + animScore * 180).toDouble())
         val needleLen = radius * 0.7f
         drawLine(
             TextPrimary, Offset(cx, cy),
@@ -343,14 +351,11 @@ fun PieChart(
     modifier: Modifier = Modifier
 ) {
     val total = data.values.sum().coerceAtLeast(0.01f)
-    val animProgress = remember { Animatable(0f) }
-    
-    LaunchedEffect(data) {
-        animProgress.animateTo(
-            1f, 
-            animationSpec = tween(2000, easing = LinearOutSlowInEasing)
-        )
-    }
+    val animProgress by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(1500, easing = LinearOutSlowInEasing),
+        label = "PieChartAnim"
+    )
 
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -368,9 +373,9 @@ fun PieChart(
 
                 data.forEach { (key, value) ->
                     val sweepAngle = (value / total) * 360f
-                    val sweepAnimated = sweepAngle * animProgress.value
+                    val sweepAnimated = sweepAngle * animProgress
                     
-                    if (sweepAnimated > 0.5f) {
+                    if (sweepAnimated.toFloat() > 0.5f) {
                         drawArc(
                             color = colors[key] ?: Color.Gray,
                             startAngle = startAngle,

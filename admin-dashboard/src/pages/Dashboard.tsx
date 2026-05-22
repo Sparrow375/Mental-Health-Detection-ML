@@ -1,119 +1,138 @@
-import React from 'react';
-import { Routes, Route, NavLink, useNavigate, useLocation } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
+import { Routes, Route, NavLink } from 'react-router-dom';
 import { auth } from '../firebase/config';
 import { signOut } from 'firebase/auth';
-import { Activity, Users, Settings as SettingsIcon, LogOut, BarChart3, Eye, EyeOff } from 'lucide-react';
+import { Users, Settings as SettingsIcon, LogOut, BarChart3, Eye, EyeOff, Mic, Menu, X } from 'lucide-react';
 import { PatientList } from './PatientList';
 import { PatientDetail } from './PatientDetail';
 import { Reports } from './Reports';
 import { Overview } from './Overview';
 import { UserDashboard } from './UserDashboard';
 import { Settings } from './Settings';
-import { usePrivacy } from '../context/PrivacyContext';
+import { usePrivacy } from '../hooks/usePrivacy';
+import { VoiceAssessment } from '../components/VoiceAssessment';
 
 export const Dashboard: React.FC = () => {
   const { isAnonymous, togglePrivacy } = usePrivacy();
   const role = auth.currentUser?.email?.includes('admin') ? 'admin' : 'user';
   const isAdmin = role === 'admin';
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = useCallback(() => setSidebarOpen(false), []);
 
   const handleLogout = async () => {
     try {
       await signOut(auth);
     } catch (e) {
-      console.warn("Firebase signout failed", e);
+      console.warn('Firebase signout failed', e);
     }
     window.location.href = '/login';
   };
 
-  // Helper for NavLink styles
-  const navStyle = ({ isActive }: { isActive: boolean }) => ({
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.75rem',
-    padding: '0.75rem 1rem',
-    borderRadius: 'var(--radius-md)',
-    color: isActive ? '#fff' : 'var(--text-secondary)',
-    background: isActive ? 'var(--accent-primary)' : 'transparent',
-    textDecoration: 'none',
-    transition: 'all 0.2s ease',
-    fontWeight: isActive ? 500 : 400
-  });
-
   return (
     <div className="app-container">
-      {/* Sidebar Navigation */}
-      <aside className="sidebar">
-        <div style={{ padding: '1.5rem', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', color: 'var(--accent-primary)' }}>
-            <Activity size={24} />
-            <span style={{ fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.025em', color: 'var(--text-primary)' }}>
-              {isAdmin ? 'MHealth Platform' : 'Caregiver Portal'}
-            </span>
-          </div>
-        </div>
-        
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', flex: 1, padding: '0 1rem' }}>
-          <NavLink to="/" style={navStyle}>
-            <Activity size={20} /> Overview
-          </NavLink>
-          {isAdmin && (
-            <>
-              <NavLink to="/patients" style={navStyle}>
-                <Users size={20} /> Patients
-              </NavLink>
-              <NavLink to="/reports" style={navStyle}>
-                <BarChart3 size={20} /> Reports
-              </NavLink>
-            </>
-          )}
-          <NavLink to="/settings" style={navStyle}>
-            <SettingsIcon size={20} /> Settings
-          </NavLink>
-        </nav>
+      {/* Top Header Bar */}
+      <header className="top-header">
+        {/* Mobile hamburger — hidden on desktop via CSS */}
+        <button
+          id="mobile-menu-toggle"
+          className="hamburger-btn"
+          onClick={() => setSidebarOpen(prev => !prev)}
+          aria-label="Toggle navigation"
+        >
+          {sidebarOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
 
-        <div style={{ marginTop: 'auto', paddingTop: '2rem', borderTop: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: '0.75rem', padding: '0 1rem 1rem 1rem' }}>
-          <button 
-            onClick={togglePrivacy} 
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', 
-              padding: '0.75rem 1rem', color: isAnonymous ? 'var(--success)' : 'var(--warning)', 
-              background: 'var(--bg-card-hover)', cursor: 'pointer', borderRadius: 'var(--radius-md)', 
-              border: '1px solid var(--border)', transition: 'all 0.2s' 
-            }}
+        <div className="header-brand">
+          <span className="header-brand-text">Lumen</span>
+        </div>
+        <div className="header-actions">
+          <button
+            onClick={togglePrivacy}
+            className={`header-btn ${isAnonymous ? 'header-btn--success' : 'header-btn--warning'}`}
           >
-            {isAnonymous ? <EyeOff size={20} /> : <Eye size={20} />} {isAnonymous ? 'Privacy: ON' : 'Privacy: OFF'}
+            {isAnonymous ? <EyeOff size={16} /> : <Eye size={16} />} <span>{isAnonymous ? 'Privacy: ON' : 'Privacy: OFF'}</span>
           </button>
-          
-          <button 
-            onClick={handleLogout} 
-            style={{ 
-              display: 'flex', alignItems: 'center', gap: '0.75rem', width: '100%', 
-              padding: '0.75rem 1rem', color: 'var(--danger)', background: 'transparent', 
-              border: '1px solid var(--danger)', cursor: 'pointer', borderRadius: 'var(--radius-md)', 
-              transition: 'all 0.2s' 
-            }}
-            onMouseOver={(e) => { e.currentTarget.style.background = 'var(--danger)'; e.currentTarget.style.color = '#fff'; }}
-            onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--danger)'; }}
+
+          <button
+            onClick={handleLogout}
+            className="header-btn header-btn--danger"
           >
-            <LogOut size={20} /> Logout
+            <LogOut size={16} /> <span>Logout</span>
           </button>
         </div>
-      </aside>
+      </header>
 
-      {/* Main Content Area */}
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={isAdmin ? <Overview /> : <UserDashboard />} />
-          {isAdmin && (
-            <>
-              <Route path="/patients" element={<PatientList />} />
-              <Route path="/patients/:id" element={<PatientDetail />} />
-              <Route path="/reports" element={<Reports />} />
-            </>
-          )}
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </main>
+      {/* Mobile backdrop overlay */}
+      {sidebarOpen && (
+        <div className="sidebar-backdrop" onClick={closeSidebar} aria-hidden="true" />
+      )}
+
+      {/* Content Wrapper - Sidebar + Main side-by-side */}
+      <div className="content-wrapper">
+        {/* Sidebar Navigation */}
+        <aside className={`sidebar${sidebarOpen ? ' sidebar--open' : ''}`}>
+          <nav className="sidebar-nav">
+            {!isAdmin && (
+              <NavLink
+                to="/dashboard"
+                end
+                className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={closeSidebar}
+              >
+                My Dashboard
+              </NavLink>
+            )}
+            {isAdmin && (
+              <>
+                <NavLink to="/dashboard" end className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
+                  Overview
+                </NavLink>
+                <NavLink to="/dashboard/patients" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
+                  <Users size={18} /> Patients
+                </NavLink>
+                <NavLink to="/dashboard/reports" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
+                  <BarChart3 size={18} /> Reports
+                </NavLink>
+                <NavLink to="/dashboard/voice" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
+                  <Mic size={18} /> Voice AI
+                </NavLink>
+              </>
+            )}
+            <NavLink to="/dashboard/settings" className={({ isActive }) => `sidebar-link ${isActive ? 'active' : ''}`} onClick={closeSidebar}>
+              <SettingsIcon size={18} /> Settings
+            </NavLink>
+          </nav>
+        </aside>
+
+        {/* Main Content Area */}
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={isAdmin ? <Overview /> : <UserDashboard />} />
+            {isAdmin && (
+              <>
+                <Route path="patients" element={<PatientList />} />
+                <Route path="patients/:id" element={<PatientDetail />} />
+                <Route path="reports" element={<Reports />} />
+                <Route path="voice" element={
+                  <div className="animate-fade-in">
+                    <div className="page-header">
+                      <div>
+                        <h1 className="page-title">Voice Assessment</h1>
+                        <p style={{ color: 'var(--text-secondary)' }}>Run AI voice analysis and log patient scores</p>
+                      </div>
+                    </div>
+                    <div className="glass-panel" style={{ padding: '2rem' }}>
+                      <VoiceAssessment isAdmin={true} />
+                    </div>
+                  </div>
+                } />
+              </>
+            )}
+            <Route path="settings" element={<Settings />} />
+          </Routes>
+        </main>
+      </div>
     </div>
   );
 };

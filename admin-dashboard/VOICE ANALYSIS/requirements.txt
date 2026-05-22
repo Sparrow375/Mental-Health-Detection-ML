@@ -1,0 +1,11 @@
+# requirements.txt — Lumen WavLM API Proxy (api_server.py)
+# ─────────────────────────────────────────────────────────
+# Install:  pip install -r requirements.txt
+# Run:      HF_SPACE_URL=https://... uvicorn api_server:app --reload --port 8000
+#
+# NOTE: modal is intentionally absent — the Modal SDK has been removed.
+
+fastapi[standard]==0.111.0
+httpx==0.27.0
+python-multipart==0.0.9
+uvicorn[standard]==0.30.1

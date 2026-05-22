@@ -1,193 +1,83 @@
-## System Architecture Overview
+# MHealth System Architecture
 
-### **LAYER 1: Data Collection (The Sensor)**
-**Mobile app continuously monitors:**
-- **Audio**: Voice pitch, tempo, volume, speech rate, pauses, stuttering
-- **Activity**: Screen time, app usage patterns, typing speed, call/text frequency
-- **Movement**: Location changes, step count, time spent at locations
-- **Phone interaction**: Unlock frequency, notification response time
-- **Sleep proxy**: Phone usage patterns at night, movement data
-- **Optional self-report**: Quick daily mood check-ins (1-10 scale)
+> [!NOTE]
+> This document provides a high-level overview. For the professional matrix-style diagram and technical specifications, refer to the **[System Architecture Master](./System_Architecture_Master.md)**.
 
-**Sampling strategy:**
-- Passive data: Continuous collection
-- Voice: Triggered by calls, voice notes, or opt-in recording windows
-- Preprocessing at edge (on-device) for privacy
+## 1. System Matrix
+The following diagram illustrates the relationship between **Contextual Inputs (Horizontal)** and the **Processing Workflow (Vertical)**.
+
+### Figure 1: MHealth Scientific Multi-Layer Architecture
+![Figure 1: MHealth Scientific Architecture](file:///C:/Users/SRIRAM/.gemini/antigravity/brain/57239e25-31a9-4528-9376-d495d92c2d98/mhealth_scientific_architecture_fig1_1776151499648.png)
+
+The MHealth (Mental Health Detection) platform utilizes a secure **Edge-ML** architecture. All data analysis is computed locally on the user's Android device via an embedded Python engine (Chaquopy), ensuring that sensitive raw sensor data is never transmitted to the cloud.
 
 ---
 
-### **LAYER 2: Baseline Establishment (Weeks 1-4+)**
-**Goal**: Build the "Personal Normal" vector
+## 2. Top-Level Data Flow
 
-**Process:**
-1. Collect all multimodal data for minimum 4-6 weeks
-2. Screen for existing symptoms (brief questionnaire) to ensure clean baseline
-3. Calculate baseline metrics:
-   - **Voice**: Mean/SD of pitch, tempo, energy
-   - **Activity**: Average phone usage, social interaction frequency
-   - **Movement**: Typical location radius, daily displacement
-   - **Temporal**: Standard wake/sleep times, daily routines
+The architecture follows a matrix-style flow where behavioral domains serve as horizontal inputs to a vertical processing pipeline.
 
-**Output**: 
-- **Personality Vector (P₀)**: Multi-dimensional baseline profile
-- **Variance bounds**: Normal fluctuation ranges for each feature
+```mermaid
+graph TD
+    %% Inputs
+    subgraph "Inputs"
+        direction LR
+        S[Sensors] --- U[Telemetry] --- T[Behavioral Metrics]
+    end
 
----
-
-### **LAYER 3: Continuous Monitoring (Post-baseline)**
-**Process:**
-- Collect same data as baseline period
-- Calculate current state vector (P_current) over sliding windows:
-  - **Short window**: 24-48 hours (acute changes)
-  - **Medium window**: 1 week (trend detection)
-  - **Long window**: 2-4 weeks (persistent shifts)
-
-**Feed both to:**
-- System 1 (anomaly detection)
-- Baseline adaptation logic
-
----
-
-### **SYSTEM 1: Anomaly Detection Engine**
-
-**Core function**: Detect deviations from P₀
-
-**Calculates:**
-1. **Deviation magnitude**: |P_current - P₀| for each feature
-2. **Deviation velocity**: Rate of change over time
-3. **Deviation frequency**: How often changes occur
-4. **Recovery time**: Time between fluctuations returning to baseline
-5. **Multi-feature correlation**: Are multiple domains changing together?
-
-**Outputs:**
-- **Anomaly score** (0-1): Overall deviation severity
-- **Feature-specific flags**: Which aspects are deviating
-- **Temporal pattern**: Rapid cycling vs gradual drift vs episodic spikes
-- **Trend direction**: Moving away from or toward baseline
-
-**Thresholds**:
-- Mild: 1-2 SD from baseline
-- Moderate: 2-3 SD
-- Severe: >3 SD or persistent 2+ SD for >1 week
-
----
-
-### **SYSTEM 2: Disorder Characterization (Classification Layer)**
-
-**Inputs from System 1:**
-- Anomaly scores
-- Deviation patterns
-- Affected feature domains
-- Temporal dynamics
-
-**Additional raw features:**
-- Specific voice characteristics
-- Social interaction patterns
-- Circadian disruption metrics
-
-**Pattern matching logic:**
-
-| Disorder | Signature Pattern |
-|----------|------------------|
-| **BPD** | High deviation velocity + frequent rapid cycling + relationship/social volatility |
-| **Depression** | Gradual drift downward + sustained low activity + social withdrawal + speech slowing |
-| **Bipolar** | Episodic bidirectional swings + decreased sleep with increased activity (mania) |
-| **Anxiety** | Episodic spikes + physiological markers (if available) + avoidance patterns |
-| **Schizophrenia** | Speech disorganization + social withdrawal + circadian disruption + gradual onset |
-
-**Model approach:**
-- **Option A**: Multi-class classifier (Random Forest, XGBoost, Neural Net)
-- **Option B**: Ensemble of binary classifiers per disorder
-- **Option C**: Probabilistic graphical model (accounts for comorbidity)
-
-**Outputs:**
-- **Probability distribution** over disorders (not single diagnosis)
-- **Confidence score**: How certain is the pattern match
-- **Key contributing features**: What's driving the prediction
-- **Trajectory**: Getting worse/stable/improving
-
----
-
-### **LAYER 4: Baseline Adaptation (Dynamic Learning)**
-
-**Handles legitimate life changes vs. pathological shifts**
-
-**Logic:**
-1. If deviation is **persistent** (>4-6 weeks) AND **gradual** AND **stabilizes at new level**:
-   - Likely life change (new job, relationship, moved cities)
-   - Gradually shift P₀ toward new stable state
-   
-2. If deviation is **fluctuating** OR **progressive deterioration** OR **acute**:
-   - Likely pathological
-   - Don't update baseline; flag for monitoring
-
-**Safety**: Require manual confirmation or clinical validation before major baseline shifts
-
----
-
-### **LAYER 5: Alert & Output System**
-
-**Tiered alert system:**
-
-**Green**: Within normal bounds
-- No action
-
-**Yellow**: Mild deviation detected
-- In-app notification: "We've noticed some changes in your patterns. How are you feeling?"
-- Log for tracking
-
-**Orange**: Moderate deviation or concerning pattern
-- Stronger notification
-- Suggest self-care resources
-- Optional: Share with designated trusted contact
-
-**Red**: Severe or persistent deviation + high disorder probability
-- Urgent notification
-- Recommend professional consultation
-- Provide crisis resources if needed
-
-**Dashboard for user:**
-- Trends over time (visualized)
-- Which areas are changing
-- Educational content about patterns
-- NOT a diagnosis, framed as "pattern awareness"
-
----
-
-### **Data Flow Summary**
-
-```
-Sensors (phone) 
-    ↓
-Data Collection Layer
-    ↓
-[Baseline Phase] → P₀ (Personality Vector)
-    ↓
-[Monitoring Phase] → P_current
-    ↓
-System 1 (Anomaly Detection)
-    ├→ Deviation metrics
-    └→ Temporal patterns
-         ↓
-System 2 (Disorder Characterization)
-    ├→ Pattern matching
-    └→ Probability scores
-         ↓
-Alert System + User Dashboard
-         ↓
-[Feedback loop] → Baseline Adaptation
+    %% Pipeline
+    S & U & T ==> K[Kotlin DataCollector]
+    K -->|29-Feature Vector| E[Edge-ML Orchestrator]
+    
+    subgraph "Edge Intelligence (Python)"
+        E --> S1[System 1: Statistical Sentinel]
+        E --> ABS[Adaptive Behavioral Signatures - ABS]
+        ABS -->|Level 2 Modulation| S1
+        S1 -->|Alert Flagged| S2[System 2: Diagnostic Pipeline]
+    end
+    
+    S2 --> DB[Local SQLite/Room DB]
+    DB --> Cloud[Cloud Sync: Firebase Firestore]
+    Cloud --> Web[Web Dashboard: Clinician View]
 ```
 
 ---
 
-### **Key Technical Considerations**
+## 2. Behavioral Domain Matrix
 
-1. **Privacy**: All processing on-device where possible; encrypted cloud storage only for aggregated/anonymized data
-2. **Battery**: Optimize collection to minimize drain
-3. **Storage**: Efficient compression; rolling window storage
-4. **Interpretability**: SHAP values or attention mechanisms to explain predictions
-5. **Validation**: Need longitudinal clinical data to train System 2
+The system maps local telemetry into **29 features** across 7 primary behavioral groups:
 
-This architecture separates concerns cleanly: collect → establish baseline → detect anomalies → characterize patterns → adapt baseline → alert. Each layer can be developed and validated independently.
+| Group | Features Measured | Clinical Objective |
+| :--- | :--- | :--- |
+| **A: Screen & App** | Unlocks, Launch counts, Notifications | Monitor engagement and digital dependency. |
+| **B: Communication** | Call density, Conversation frequency | Identify social surges or withdrawals. |
+| **C: Movement** | Displacement, Entropy, Home Ratio | Detect motor retardation or erratic movement. |
+| **D: Chronobiology** | Dark Duration, Sleep Interruption | Capture circadian rhythm shifts. |
+| **E: System Usage** | Charge Duration, Storage, Network | Proxies for device attachment/detachment. |
+| **F: Instrumental** | UPI launches, App Churn, Installs | Measure impulsivity and organizational flow. |
+| **G: Active/Passive** | Steps, Media usage, Audio hours | Differentiate active focus from sedentary modes. |
 
+---
 
+## 3. Intelligence Layers
+
+### 3.1 Adaptive Behavioral Signatures (ABS)
+The system constructs **Personalized Identity Scaffolding** for each user during a 28-day calibration window. Utilizing optimized **Clinical-Weighted PCA + Mean-Shift clustering**, the system identifies **Behavioral Baseline Clusters** (e.g., Workday, Weekend, Travel) to modulate alert sensitivity. 
+
+Today's behavior is compared against these anchors to adjust the sensitivity of the AI:
+- **Routine Match**: Small deviations are suppressed (high coherence).
+- **Routine Deviation**: Deviations in unknown territory are amplified (low coherence).
+
+### 3.2 System 1: Statistical Anomaly Engine
+System 1 acts as the first responder, calculating the **Magnitude** ($70\%$) and **Velocity** ($30\%$) of behavioral change. It uses a cumulative evidence threshold ($> 0.38$) to prevent false positives from single-day outliers.
+
+### 3.3 System 2: Clinical Diagnostic Pipeline
+When a significant anomaly is flagged, it is passed through a 6-phase diagnostic journey to label the pattern:
+- **Phase 1-2**: Saturation screening and Life Event filtering (e.g., travel).
+- **Phase 3-4**: Comparison against **Clinical Archetypes** (Depression, Mania, etc.) using Weighted Euclidean Distance, overseen by hard-coded Clinical Guardrails.
+- **Phase 5-6**: Generation of human-readable **Explainability Narratives** for the clinician.
+
+---
+
+## 4. Clinician Oversight
+Results are synced via **Firebase** to the Admin Dashboard, where clinicians can prioritize patients based on their alert status and view the specific behavioral deconstruction behind every alert.

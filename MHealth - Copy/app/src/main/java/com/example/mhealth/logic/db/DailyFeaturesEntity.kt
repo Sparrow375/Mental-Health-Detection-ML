@@ -62,7 +62,8 @@ data class DailyFeaturesEntity(
     val appUninstallsToday: Float = 0f,
     val upiTransactionsToday: Float = 0f,
     val totalAppsCount: Float = 0f,
-    val backgroundAudioHours: Float = 0f,
+    @androidx.room.ColumnInfo(defaultValue = "0.0")
+    val musicTimeMinutes: Float = 0f,
     val mediaCountToday: Float = 0f,
     val appInstallsToday: Float = 0f,
     val calendarEventsToday: Float = 0f,

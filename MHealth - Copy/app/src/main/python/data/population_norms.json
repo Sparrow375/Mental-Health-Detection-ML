@@ -9,7 +9,6 @@
     "daily_displacement_km":       {"mean": 4.5,   "std": 2.0},
     "location_entropy":            {"mean": 2.8,   "std": 0.7},
     "home_time_ratio":             {"mean": 0.55,  "std": 0.12},
-    "places_visited":              {"mean": 5.0,   "std": 1.5},
     "wake_time_hour":              {"mean": 7.5,   "std": 1.0},
     "sleep_time_hour":             {"mean": 23.5,  "std": 1.0},
     "sleep_duration_hours":        {"mean": 7.2,   "std": 0.9},

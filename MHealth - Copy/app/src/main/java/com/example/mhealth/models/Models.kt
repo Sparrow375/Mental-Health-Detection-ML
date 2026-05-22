@@ -40,7 +40,6 @@ data class PersonalityVector(
     val dailyDisplacementKm: Float = 0f,
     val locationEntropy: Float = 0f,
     val homeTimeRatio: Float = 0f,
-    val placesVisited: Float = 0f,
 
     // ── SLEEP PROXY (from phone dark/usage gaps) ─────────────────────────────
     val wakeTimeHour: Float = 0f,          // hour of first phone use today
@@ -63,7 +62,7 @@ data class PersonalityVector(
     val appUninstallsToday: Float = 0f,    // apps removed today
     val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
     val totalAppsCount: Float = 0f,        // total installed apps
-    val backgroundAudioHours: Float = 0f,  // intentional audio apps in background
+    val musicTimeMinutes: Float = 0f,  // intentional audio apps in background
 
     // ── MISC / RECOVERED ──────────────────────────────────────────────────────
     val dailySteps: Float = 0f,            // steps elapsed since morning baseline
@@ -91,7 +90,6 @@ data class PersonalityVector(
         "dailyDisplacementKm"  to dailyDisplacementKm,
         "locationEntropy"      to locationEntropy,
         "homeTimeRatio"        to homeTimeRatio,
-        "placesVisited"        to placesVisited,
         "wakeTimeHour"         to wakeTimeHour,
         "sleepTimeHour"        to sleepTimeHour,
         "sleepDurationHours"   to sleepDurationHours,
@@ -110,7 +108,7 @@ data class PersonalityVector(
         "mediaCountToday"      to mediaCountToday,
         "appInstallsToday"     to appInstallsToday,
         "dailySteps"           to dailySteps,
-        "backgroundAudioHours" to backgroundAudioHours
+        "musicTimeMinutes" to musicTimeMinutes
     )
 }
 

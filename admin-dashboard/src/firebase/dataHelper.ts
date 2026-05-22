@@ -1,21 +1,25 @@
-import { collection, query, orderBy, limit, getDocs, doc, getDoc, where, deleteDoc, writeBatch } from 'firebase/firestore';
+import { collection, query, orderBy, limit, getDocs, writeBatch, doc } from 'firebase/firestore';
 import { db } from './config';
 
 export interface Patient {
   id: string; // The uid
   email: string; // Stored in users/{uid} document if available
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface MLResult {
   date: string;
   anomaly_score: number;
+  anomaly_detected?: boolean;
+  anomaly_message?: string;
+  alert_level?: string;           // "green" | "yellow" | "orange" | "red"
+  sustained_days?: number;        // consecutive days above anomaly threshold
   prototype_match: string | null;
   match_message: string | null;
-  all_scores_json?: string;       // JSON blob of all prototype match scores (from CloudSyncWorker)
   prototype_confidence?: number;   // 0.0–1.0 confidence of top match
-  alert_level?: string;           // "green" | "yellow" | "orange" | "red"
-  [key: string]: any;
+  gate_results?: string;           // JSON blob of 3-gate screener pass/fail
+  all_scores_json?: string;        // JSON blob of all prototype match scores (legacy)
+  [key: string]: unknown;
 }
 
 export interface DailyFeatures {
@@ -47,10 +51,10 @@ export interface DailyFeatures {
   upiTransactionsToday?: number;
   totalAppsCount?: number;
   dailySteps?: number;
-  appBreakdown?: Record<string, any>;
-  notificationBreakdown?: Record<string, any>;
-  appLaunchesBreakdown?: Record<string, any>;
-  [key: string]: any;
+  appBreakdown?: Record<string, unknown>;
+  notificationBreakdown?: Record<string, unknown>;
+  appLaunchesBreakdown?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export interface BaselineData {
@@ -104,7 +108,7 @@ export async function getHistoricalResults(uid: string, days: number = 14): Prom
 }
 
 // Helper: parse Firestore daily_features doc into DailyFeatures
-function parseDailyDoc(docId: string, data: Record<string, any>): DailyFeatures {
+function parseDailyDoc(docId: string, data: Record<string, unknown>): DailyFeatures {
   const parsed: DailyFeatures = { date: docId, ...data };
   // The Android/System2 backend stores breakdown fields as JSON strings with 'Json' suffix
   const jsonFields: [string, string][] = [

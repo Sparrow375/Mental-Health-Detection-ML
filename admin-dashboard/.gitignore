@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build/cache artifacts
+src.zip
+*.apk
+.firebase/hosting.*.cache

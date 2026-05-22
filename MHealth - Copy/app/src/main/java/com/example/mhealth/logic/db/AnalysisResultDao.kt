@@ -31,6 +31,9 @@ interface AnalysisResultDao {
     @Query("SELECT * FROM analysis_results WHERE userId = :userId AND syncedToCloud = 0")
     suspend fun getUnsynced(userId: String): List<AnalysisResultEntity>
 
+    @Query("UPDATE analysis_results SET syncedToCloud = 0 WHERE userId = :userId")
+    suspend fun resetSyncFlags(userId: String)
+
     @Query("UPDATE analysis_results SET syncedToCloud = 1 WHERE id = :id")
     suspend fun markSynced(id: Long): Int
 
@@ -39,6 +42,12 @@ interface AnalysisResultDao {
 
     @Query("SELECT * FROM analysis_results WHERE userId = :userId AND date = :date LIMIT 1")
     suspend fun getByDate(userId: String, date: String): AnalysisResultEntity?
+
+    @Update
+    suspend fun update(entity: AnalysisResultEntity)
+
+    @Query("SELECT COUNT(*) FROM analysis_results WHERE userId = :userId")
+    suspend fun count(userId: String): Int
 
     @Query("DELETE FROM analysis_results WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int

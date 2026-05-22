@@ -1,17 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { usePrivacy } from '../context/PrivacyContext';
-import { Settings as SettingsIcon, Shield, Palette, Database, Bell, Save } from 'lucide-react';
+import React, { useState } from 'react';
+import { usePrivacy } from '../hooks/usePrivacy';
+import { Settings as SettingsIcon, Shield, Palette, Save } from 'lucide-react';
 
 export const Settings: React.FC = () => {
   const { isAnonymous, togglePrivacy } = usePrivacy();
-  const [theme, setTheme] = useState<'system'|'dark'>('dark');
+  const [theme, setTheme] = useState<'system'|'dark'>(() => {
+    if (typeof window !== 'undefined') {
+      return (localStorage.getItem('themePref') as 'system'|'dark') || 'dark';
+    }
+    return 'dark';
+  });
   const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    // Load local preferences
-    const savedTheme = localStorage.getItem('themePref') || 'dark';
-    setTheme(savedTheme as any);
-  }, []);
 
   const handleSave = () => {
     localStorage.setItem('themePref', theme);
@@ -75,7 +74,7 @@ export const Settings: React.FC = () => {
             </div>
             <select 
               value={theme}
-              onChange={(e) => setTheme(e.target.value as any)}
+              onChange={(e) => setTheme(e.target.value as 'system' | 'dark')}
               style={{ padding: '0.5rem', borderRadius: 'var(--radius-md)', background: 'var(--bg-card-hover)', border: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer' }}
             >
               <option value="system">System Default</option>

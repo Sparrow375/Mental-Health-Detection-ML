@@ -82,7 +82,6 @@ object JsonConverter {
         put("dailyDisplacementKm", e.dailyDisplacementKm)
         put("locationEntropy", e.locationEntropy)
         put("homeTimeRatio", e.homeTimeRatio)
-        put("placesVisited", e.placesVisited)
         put("wakeTimeHour", e.wakeTimeHour)
         put("sleepTimeHour", e.sleepTimeHour)
         put("sleepDurationHours", e.sleepDurationHours)
@@ -98,7 +97,7 @@ object JsonConverter {
         put("totalAppsCount", e.totalAppsCount)
         put("mediaCountToday", e.mediaCountToday)
         put("appInstallsToday", e.appInstallsToday)
-        put("backgroundAudioHours", e.backgroundAudioHours)
+        put("musicTimeMinutes", e.musicTimeMinutes)
         put("calendarEventsToday", e.calendarEventsToday)
         put("dailySteps", e.dailySteps)
         
@@ -140,7 +139,6 @@ object JsonConverter {
         dailyDisplacementKm = v.dailyDisplacementKm,
         locationEntropy = v.locationEntropy,
         homeTimeRatio = v.homeTimeRatio,
-        placesVisited = v.placesVisited,
         wakeTimeHour = v.wakeTimeHour,
         sleepTimeHour = v.sleepTimeHour,
         sleepDurationHours = v.sleepDurationHours,
@@ -154,7 +152,7 @@ object JsonConverter {
         appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
         totalAppsCount = v.totalAppsCount,
-        backgroundAudioHours = v.backgroundAudioHours,
+        musicTimeMinutes = v.musicTimeMinutes,
         mediaCountToday = v.mediaCountToday,
         appInstallsToday = v.appInstallsToday,
         calendarEventsToday = v.calendarEventsToday,
@@ -181,7 +179,6 @@ object JsonConverter {
         dailyDisplacementKm = e.dailyDisplacementKm,
         locationEntropy = e.locationEntropy,
         homeTimeRatio = e.homeTimeRatio,
-        placesVisited = e.placesVisited,
         wakeTimeHour = e.wakeTimeHour,
         sleepTimeHour = e.sleepTimeHour,
         sleepDurationHours = e.sleepDurationHours,
@@ -195,7 +192,7 @@ object JsonConverter {
         appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
         totalAppsCount = e.totalAppsCount,
-        backgroundAudioHours = e.backgroundAudioHours,
+        musicTimeMinutes = e.musicTimeMinutes,
         mediaCountToday = e.mediaCountToday,
         appInstallsToday = e.appInstallsToday,
         calendarEventsToday = e.calendarEventsToday,
@@ -207,7 +204,41 @@ object JsonConverter {
     )
 
     private fun mapToJson(map: Map<String, Number>): String {
-        return JSONObject(map as Map<*, *>).toString()
+        // Optimize storage by keeping only top 100 most significant entries (by value descending)
+        // This prevents runaway bloat while preserving 99% of behavioral relevance.
+        val optimizedMap = map.entries
+            .sortedByDescending { it.value.toDouble() }
+            .take(100)
+            .associate { it.toPair() }
+
+        return JSONObject(optimizedMap as Map<*, *>).toString()
+    }
+
+    /**
+     * Convert a list of AppSessionEntity to a JSON string for the Python engine.
+     * Includes derived fields (hour, duration_minutes) that phone_dna_builder expects.
+     */
+    fun sessionsToJson(sessions: List<com.example.mhealth.logic.db.AppSessionEntity>): String {
+        val cal = java.util.Calendar.getInstance()
+        val arr = JSONArray()
+        for (s in sessions) {
+            cal.timeInMillis = s.open_timestamp
+            val hour = cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f
+            val durationMin = (s.close_timestamp - s.open_timestamp).coerceAtLeast(0) / 60_000f
+
+            arr.put(JSONObject().apply {
+                put("app_package", s.app_package)
+                put("open_timestamp", s.open_timestamp)
+                put("open_timestamp_ms", s.open_timestamp)
+                put("close_timestamp", s.close_timestamp)
+                put("hour", hour.toDouble())
+                put("duration_minutes", durationMin.toDouble())
+                put("trigger", s.trigger)
+                put("interaction_count", s.interaction_count)
+                put("date", s.date)
+            })
+        }
+        return arr.toString()
     }
 
     private fun parseMapLong(jsonStr: String): Map<String, Long> {

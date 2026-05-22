@@ -1,5 +1,15 @@
 package com.example.mhealth
 
+import androidx.compose.material.icons.filled.Shield
+import com.example.mhealth.ui.theme.TextMuted
+import com.example.mhealth.ui.theme.MhealthChartSlate
+import com.example.mhealth.ui.theme.MhealthChartIndigo
+import com.example.mhealth.ui.theme.MhealthIndigo
+import com.example.mhealth.ui.theme.MhealthTeal
+import com.example.mhealth.ui.theme.MhealthAccentPurple
+import com.example.mhealth.ui.components.ScreenHeader
+import com.example.mhealth.ui.charts.AnomalyScoreGauge
+import com.example.mhealth.ui.screens.DnaProfileSection
 import android.Manifest
 import android.app.AppOpsManager
 import android.content.Context
@@ -78,6 +88,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -98,6 +110,7 @@ import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.UserCredentialsEntity
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
+import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.services.MonitoringService
 import com.example.mhealth.ui.charts.*
 import com.example.mhealth.ui.components.*
@@ -138,6 +151,7 @@ class MainActivity : ComponentActivity() {
 enum class AppDest(val label: String, val icon: ImageVector) {
     HOME("Sensors", Icons.Default.Sensors),
     MONITOR("Monitor", Icons.AutoMirrored.Filled.ShowChart),
+    DNA("DNA", Icons.Default.Favorite),
     ANALYSIS("Analysis", Icons.Default.Analytics),
     INSIGHTS("Insights", Icons.Default.Lightbulb),
     SETTINGS("Settings", Icons.Default.Settings)
@@ -180,6 +194,9 @@ fun CoveApp() {
 fun MainDashboard() {
     var current by remember { mutableStateOf(AppDest.HOME) }
     val context = LocalContext.current
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
+    val analysisHistory by DataRepository.analysisHistory.collectAsState()
 
     // ── Foreground permissions (everything EXCEPT background location) ──
     val perms = buildList {
@@ -253,7 +270,8 @@ fun MainDashboard() {
         ) {
             when (current) {
                 AppDest.HOME     -> HomeScreen()
-                AppDest.MONITOR  -> MonitorScreen()
+                AppDest.MONITOR  -> com.example.mhealth.ui.screens.MonitorScreen()
+                AppDest.DNA      -> com.example.mhealth.ui.screens.DnaScreen()
                 AppDest.ANALYSIS -> AnalysisScreen()
                 AppDest.INSIGHTS -> InsightsScreen()
                 AppDest.SETTINGS -> SettingsScreen()
@@ -293,6 +311,9 @@ fun LoginScreen(
     onRegistered: () -> Unit
 ) {
     val context = LocalContext.current
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
+    val analysisHistory by DataRepository.analysisHistory.collectAsState()
     val scope = rememberCoroutineScope()
     val db = remember { MHealthDatabase.getInstance(context) }
 
@@ -869,6 +890,9 @@ fun alertColor(level: String) = when (level.lowercase()) {
 fun HomeScreen() {
     val vector by DataRepository.latestVector.collectAsState()
     val context = LocalContext.current
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
+    val analysisHistory by DataRepository.analysisHistory.collectAsState()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -914,7 +938,6 @@ fun HomeScreen() {
                     Spacer(Modifier.height(16.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         ArcProgressRing(v.notificationsToday, 200f, AlertOrange, "Notifs", "")
-                        ArcProgressRing(v.placesVisited, 10f, ChartPurple, "Places Vis.", "")
                         // socialAppRatio is 0–1 fraction — multiply by 100 for % display
                         ArcProgressRing(v.socialAppRatio * 100f, 100f, ChartGreen, "Social", "%")
                     }
@@ -931,7 +954,6 @@ fun HomeScreen() {
                     }
                     Spacer(Modifier.height(12.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📍 Places", "${v.placesVisited.toInt()}", ChartPurple)
                         MetricPill("🔀 Entropy", "%.2f".format(v.locationEntropy), AlertOrange)
                     }
                 }
@@ -944,7 +966,7 @@ fun HomeScreen() {
                         MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SoftCyan)
                         MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", ChartRed)
                         MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
-                        MetricPill("🎧 Bg Audio", "${(v.backgroundAudioHours * 60).toInt()}m", ChartGreen)
+                        MetricPill("🎧 Music Time", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
                     }
                 }
             }
@@ -973,20 +995,11 @@ fun HomeScreen() {
                 }
             }
 
-            // Individual App Usage Patterns (Replaces the 3 aggregate bar charts)
-            if (v.appBreakdown.isNotEmpty() || v.appLaunchesBreakdown.isNotEmpty() || v.notificationBreakdown.isNotEmpty()) {
-                item {
-                    PerAppBreakdownCard(vector = v)
-                }
-            }
-
-            // Advanced Sensors — category-aware storage, installs, downloads, UPI, night checks
+            // Advanced Sensors — category-aware storage, installs, downloads, UPI
             item {
                 val ctx = LocalContext.current
                 val collector = remember { com.example.mhealth.logic.DataCollector(ctx) }
-                
-                // Efficiently compute heavy file/package queries on a background thread
-                // so the UI never lags or gives inaccurate stale reads due to main thread blocking.
+
                 val advancedData by produceState(
                     initialValue = Pair(emptyMap<String, Float>(), emptyMap<String, Int>()),
                     key1 = v
@@ -1013,8 +1026,6 @@ fun HomeScreen() {
                 )
 
                 InfoCard("Advanced Sensors", headerColor = AlertOrange) {
-
-                    // ── Storage by Category (card grid) ──────────────────────
                     if (storageByCategory.isEmpty() && allAppsByCategory.isEmpty()) {
                         Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1027,59 +1038,37 @@ fun HomeScreen() {
                         Text("💾 Storage Occupies", fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold, color = TextPrimary,
                             modifier = Modifier.padding(bottom = 12.dp))
-
                         val storageCatIcons = mapOf(
-                            "Games"        to "🎮",
-                            "Social"       to "💬",
-                            "Finance"      to "💳",
-                            "Media"        to "🎵",
-                            "Photos"       to "📸",
-                            "Health"       to "🏋️",
-                            "Productivity" to "💼",
-                            "News"         to "📰",
-                            "Maps"         to "🗺️",
-                            "Other"        to "📦"
+                            "Games" to "🎮", "Social" to "💬", "Finance" to "💳",
+                            "Media" to "🎵", "Photos" to "📸", "Health" to "🏋️",
+                            "Productivity" to "💼", "News" to "📰", "Maps" to "🗺️", "Other" to "📦"
                         )
                         PieChart(
-                            data = storageByCategory,
-                            colors = catColors,
-                            icons = storageCatIcons,
+                            data = storageByCategory, colors = catColors, icons = storageCatIcons,
                             centerText = "%.1f".format(storageByCategory.values.sum()),
                             centerSubtext = "GB Total",
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                     }
 
-                    // ── Apps Installed by Category (card grid) ────────────────
                     if (allAppsByCategory.isNotEmpty()) {
                         Text("🛒 Apps by Category", fontSize = 13.sp,
                             fontWeight = FontWeight.SemiBold, color = TextPrimary,
                             modifier = Modifier.padding(bottom = 12.dp))
-
                         val appCatIcons = mapOf(
-                            "Games"        to "🎮",
-                            "Social"       to "📱",
-                            "Finance"      to "💰",
-                            "Media"        to "🎬",
-                            "Photos"       to "🖼️",
-                            "Health"       to "❤️",
-                            "Productivity" to "✅",
-                            "News"         to "📰",
-                            "Maps"         to "🗺️",
-                            "Other"        to "📦"
+                            "Games" to "🎮", "Social" to "📱", "Finance" to "💰",
+                            "Media" to "🎬", "Photos" to "🖼️", "Health" to "❤️",
+                            "Productivity" to "✅", "News" to "📰", "Maps" to "🗺️", "Other" to "📦"
                         )
                         val floatApps = allAppsByCategory.mapValues { it.value.toFloat() }
                         PieChart(
-                            data = floatApps,
-                            colors = catColors,
-                            icons = appCatIcons,
+                            data = floatApps, colors = catColors, icons = appCatIcons,
                             centerText = "${allAppsByCategory.values.sum()}",
                             centerSubtext = "Apps",
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
                     }
 
-                    // ── Quick stats row ───────────────────────────────────────
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                         MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
                         MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", OceanBlue)
@@ -1099,9 +1088,11 @@ fun HomeScreen() {
             }
 
             item { Spacer(Modifier.height(12.dp)) }
+
         }
     }
 }
+
 
 @Composable
 fun MetricPill(label: String, value: String, color: Color) {
@@ -1115,191 +1106,7 @@ fun MetricPill(label: String, value: String, color: Color) {
     }
 }
 
-// =============================================================================
-// MONITOR SCREEN — Layers 2 & 3: Baseline & Continuous Monitoring
-// =============================================================================
-@Composable
-fun MonitorScreen() {
-    val progress by DataRepository.baselineProgress.collectAsState()
-    val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-    val vector by DataRepository.latestVector.collectAsState()
-    val baseline by DataRepository.baseline.collectAsState()
-    val hourly by DataRepository.hourlySnapshots.collectAsState()
-    val reports by DataRepository.reports.collectAsState()
-    val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
-    val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
-    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
-
-    LazyColumn(Modifier.fillMaxSize()) {
-        item {
-            Box(
-                Modifier.fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(SoftCyan, ChartPurple)))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Text("Baseline & Monitoring", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.White)
-                    Text("Layers 2 & 3 — ${if (isBuilding) "Building Personal Normal" else "Continuous Tracking"}", fontSize = 13.sp, color = Color.White.copy(0.85f))
-                }
-            }
-        }
-
-        // Baseline progress arc
-        item {
-            InfoCard("Baseline Progress (P₀)", headerColor = SoftCyan) {
-                if (isBuilding) {
-                    val target = baselineDaysReq.toFloat()
-                    val frac = (progress / target).coerceIn(0f, 1f)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ArcProgressRing(progress.toFloat(), target, SoftCyan, "Days", "/ ${target.toInt()}", size = 90.dp)
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text("Learning Your Unique Patterns", fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Text("Day $progress of ${target.toInt()} in mathematically establishing your scientific P₀ baseline. Collecting multidimensional behavioral data continuously for accuracy.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
-                            Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { frac },
-                                color = SoftCyan,
-                                trackColor = SoftCyan.copy(0.15f),
-                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
-                            )
-                        }
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val statusText = if (latestResult != null) {
-                            "Baseline Locked - ${latestResult?.alertLevel?.uppercase() ?: "UNKNOWN"} Status"
-                        } else {
-                            "Scientific Baseline Established"
-                        }
-                        val statusColor = latestResult?.let { alertColor(it.alertLevel) } ?: AlertGreen
-                        val isHighRisk = latestResult?.alertLevel?.lowercase() in listOf("orange", "red")
-                        val icon = if (isHighRisk) Icons.Default.Warning else Icons.Default.CheckCircle
-                        
-                        Icon(icon, null, tint = statusColor, modifier = Modifier.size(40.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(statusText, fontWeight = FontWeight.SemiBold, color = statusColor)
-                            
-                            val descriptionText = if (latestResult != null) {
-                                "Your current behavioral vector is being compared against your ${baselineDaysReq}-day P₀ baseline. " + 
-                                when(latestResult?.alertLevel?.lowercase()) {
-                                    "green" -> "Data indicates high alignment with your normal routines."
-                                    "yellow" -> "Slight deviations from your baseline detected. Tracking for potential shifts."
-                                    "orange" -> "Moderate departure from baseline established. Behavioral patterns show significant variance."
-                                    "red" -> "Critical deviation from your established P₀. Immediate attention recommended."
-                                    else -> "Continuous monitoring active."
-                                }
-                            } else {
-                                "${baselineDaysReq}-day P₀ vector is locked. Real-time multidimensional tracking is now active."
-                            }
-                            Text(descriptionText, fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
-                        }
-                    }
-                }
-                
-                if (baselineVectors.isNotEmpty()) {
-                    Spacer(Modifier.height(20.dp))
-                    Text(if (isBuilding) "Multi-Sensor Formation Trend" else "Composite Behavioral Index", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(12.dp))
-                    
-                    val composite = baselineVectors.takeLast(baselineDaysReq).map { v ->
-                        val screen = (v.screenTimeHours / 12f).coerceIn(0f, 1f) * 40f
-                        val move = (v.dailyDisplacementKm / 20f).coerceIn(0f, 1f) * 30f
-                        val comms = (v.callsPerDay / 10f).coerceIn(0f, 1f) * 30f
-                        screen + move + comms
-                    }
-                    
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text("Activity Index (Last $baselineDaysReq Days)", fontSize = 11.sp, color = TextSecondary)
-                        if (composite.isNotEmpty()) {
-                            Text("%.0f".format(composite.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SoftCyan)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    SparklineChart(composite, SoftCyan, Modifier.fillMaxWidth().height(80.dp), showDots = true)
-                }
-            }
-        }
-
-        // Intraday sparklines
-        item {
-            InfoCard("Today's Intraday Trends", headerColor = ChartPurple) {
-                if (hourly.size < 2) {
-                    Text("Collecting hourly snapshots…", color = TextSecondary, fontSize = 12.sp)
-                } else {
-                    val screenTimes = hourly.map { it.screenTimeHours }
-                    val places = hourly.map { it.placesVisited }
-                    val distances = hourly.map { it.dailyDisplacementKm }
-                    SparklineLabel("Screen Time (hrs)", screenTimes, OceanBlue)
-                    Spacer(Modifier.height(12.dp))
-                    SparklineLabel("Distance (km)", distances, ChartRed)
-                    Spacer(Modifier.height(12.dp))
-                    SparklineLabel("Places Visited", places, ChartPurple)
-                }
-            }
-        }
-
-        // Current vs Baseline comparison (only available post-baseline)
-        if (!isBuilding && baseline != null && vector != null) {
-            item {
-                InfoCard("Current vs Baseline", headerColor = OceanBlue) {
-                    val v = checkNotNull(vector); val b = checkNotNull(baseline)
-                    val rows = listOf(
-                        Triple("Screen Time", v.screenTimeHours, b.screenTimeHours),
-                        Triple("Places Visited", v.placesVisited, b.placesVisited),
-                        Triple("Calls/Day", v.callsPerDay, b.callsPerDay),
-                        Triple("Social Ratio %", v.socialAppRatio * 100, b.socialAppRatio * 100),
-                        Triple("Sleep Hours", v.sleepDurationHours, b.sleepDurationHours),
-                        Triple("Displacement (km)", v.dailyDisplacementKm, b.dailyDisplacementKm)
-                    )
-                    rows.forEach { (label, cur, base) ->
-                        ComparisonRow(label, cur, base)
-                    }
-                }
-            }
-        }
-
-        // Full baseline feature table (all features, mean ± σ vs current)
-        if (!isBuilding && baseline != null && vector != null) {
-            item {
-                baseline?.let { b -> vector?.let { v -> FeatureTableCard(baseline = b, current = v) } }
-            }
-        }
-
-        // Per-App Breakdown section
-        if (!isBuilding && vector != null) {
-            item {
-                vector?.let { v -> 
-                    PerAppBreakdownCard(vector = v)
-                    BgAudioBreakdownCard(vector = v)
-                }
-            }
-        }
-
-        // System Evidence Accumulation Graph
-        if (!isBuilding && reports.isNotEmpty()) {
-            item {
-                InfoCard("System Evidence Accumulation", headerColor = AlertRed) {
-                    val evidenceHistory = reports.takeLast(14).map { it.evidenceAccumulated }
-                    
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text("Deviation Evidence (Last 14 Days)", fontSize = 11.sp, color = TextSecondary)
-                        if (evidenceHistory.isNotEmpty()) {
-                            Text("%.2f".format(evidenceHistory.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = AlertRed)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    SparklineChart(evidenceHistory, AlertRed, Modifier.fillMaxWidth().height(60.dp), showDots = true)
-                }
-            }
-        }
-
-
-
-        item { Spacer(Modifier.height(12.dp)) }
-    }
-}
+// MonitorScreen is now imported from com.example.mhealth.ui.screens.MonitorScreen
 
 @Composable
 fun SparklineLabel(label: String, values: List<Float>, color: Color) {
@@ -1376,7 +1183,6 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "dailyDisplacementKm" to Pair("Displacement",          "km"),
     "locationEntropy"      to Pair("Location Entropy",     ""),
     "homeTimeRatio"        to Pair("Home Time Ratio",      "%"),
-    "placesVisited"        to Pair("Places Visited",       ""),
     "wakeTimeHour"         to Pair("Wake Time",            "hr"),
     "sleepTimeHour"        to Pair("Sleep Time",           "hr"),
     "sleepDurationHours"   to Pair("Sleep Duration",       "hrs"),
@@ -1400,19 +1206,18 @@ fun FeatureTableCard(
     baseline: com.example.mhealth.models.PersonalityVector,
     current: com.example.mhealth.models.PersonalityVector
 ) {
-    val baselineMap = baseline.toMap()
-    val currentMap  = current.toMap()
+    val rows = remember(baseline, current) {
+        val baselineMap = baseline.toMap()
+        val currentMap = current.toMap()
+        val RATIO_FEATURES = setOf("socialAppRatio", "homeTimeRatio")
 
-    // Ratio features: multiply by 100 for % display in the table
-    val RATIO_FEATURES = setOf("socialAppRatio", "homeTimeRatio")
-
-    val rows = featureLabels.mapNotNull { (key, labelUnit) ->
-        val meanRaw = baselineMap[key] ?: return@mapNotNull null
-        val stdRaw  = baseline.variances[key] ?: 0f
-        val curRaw  = currentMap[key] ?: 0f
-        // Scale ratios for display
-        val scale = if (key in RATIO_FEATURES) 100f else 1f
-        FeatureRow(labelUnit.first, labelUnit.second, meanRaw * scale, stdRaw * scale, curRaw * scale)
+        featureLabels.mapNotNull { (key, labelUnit) ->
+            val meanRaw = baselineMap[key] ?: return@mapNotNull null
+            val stdRaw = baseline.variances[key] ?: 0f
+            val curRaw = currentMap[key] ?: 0f
+            val scale = if (key in RATIO_FEATURES) 100f else 1f
+            FeatureRow(labelUnit.first, labelUnit.second, meanRaw * scale, stdRaw * scale, curRaw * scale)
+        }
     }
 
     InfoCard("Full Baseline Reference", headerColor = SoftCyan) {
@@ -1482,44 +1287,51 @@ fun FeatureTableCard(
 
 @Composable
 fun PerAppBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
-    val pm = androidx.compose.ui.platform.LocalContext.current.packageManager
-    val topApps = vector.appBreakdown
-        .filterKeys { it.isNotBlank() }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(7)
-
-    if (topApps.isEmpty() && vector.bgAudioBreakdown.isEmpty()) return
-
-    if (topApps.isNotEmpty()) {
-        InfoCard("Per-App Screen Breakdown", headerColor = ChartPurple) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                Text("App",      fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
-                Text("Screen",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
-                Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                Text("Notifs",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
-            }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
-            Spacer(Modifier.height(4.dp))
-
-            topApps.forEach { (pkg, minutes) ->
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pm = remember(context) { context.packageManager }
+    
+    val appData = remember(vector) {
+        vector.appBreakdown
+            .filterKeys { it.isNotBlank() }
+            .toList()
+            .sortedByDescending { it.second }
+            .take(7)
+            .map { (pkg, minutes) ->
                 val appName = try {
                     pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
                 } catch (e: Exception) { pkg.substringAfterLast(".") }
                 val launches = vector.appLaunchesBreakdown[pkg] ?: 0
-                val notifs   = vector.notificationBreakdown[pkg] ?: 0
-                val hrs  = minutes / 60L
+                val notifs = vector.notificationBreakdown[pkg] ?: 0
+                val hrs = minutes / 60L
                 val mins = minutes % 60L
                 val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
+                
+                AppRowData(appName, timeStr, launches, notifs)
+            }
+    }
 
+    if (appData.isEmpty() && vector.bgAudioBreakdown.isEmpty()) return
+
+    if (appData.isNotEmpty()) {
+        InfoCard("Per-App Screen Breakdown", headerColor = ChartPurple) {
+            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
+                Text("App", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
+                Text("Screen", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
+                Text("Notifs", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
+            }
+            HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
+            Spacer(Modifier.height(4.dp))
+
+            appData.forEach { data ->
                 Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(appName,   fontSize = 11.sp, color = TextPrimary,   modifier = Modifier.weight(2.5f),
+                    Text(data.name, fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(2.5f),
                         maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text(timeStr,   fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
-                    Text("$launches", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                    Text("$notifs",   fontSize = 11.sp,
-                        color = if (notifs > 30) AlertOrange else TextSecondary,
-                        fontWeight = if (notifs > 30) FontWeight.Bold else FontWeight.Normal,
+                    Text(data.time, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
+                    Text("${data.launches}", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
+                    Text("${data.notifs}", fontSize = 11.sp,
+                        color = if (data.notifs > 30) AlertOrange else TextSecondary,
+                        fontWeight = if (data.notifs > 30) FontWeight.Bold else FontWeight.Normal,
                         modifier = Modifier.weight(1.2f))
                 }
                 HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
@@ -1528,16 +1340,36 @@ fun PerAppBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
     }
 }
 
+data class AppRowData(val name: String, val time: String, val launches: Int, val notifs: Int)
+data class AudioRowData(val name: String, val time: String)
+
 @Composable
 fun BgAudioBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
-    val pm = androidx.compose.ui.platform.LocalContext.current.packageManager
-    val audioApps = vector.bgAudioBreakdown
-        .filterKeys { it.isNotBlank() }
-        .toList()
-        .sortedByDescending { it.second }
-        .take(5)
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val pm = remember(context) { context.packageManager }
 
-    if (audioApps.isEmpty()) return
+    val audioAppData = remember(vector) {
+        vector.bgAudioBreakdown
+            .filterKeys { it.isNotBlank() }
+            .toList()
+            .sortedByDescending { it.second }
+            .take(5)
+            .map { (pkg, ms) ->
+                val appName = try {
+                    if (pkg == "unknown_music_app") "Other Audio"
+                    else pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
+                } catch (e: Exception) { pkg.substringAfterLast(".") }
+
+                val totalSec = ms / 1000
+                val minutes = totalSec / 60
+                val seconds = totalSec % 60
+                val timeStr = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
+                
+                AudioRowData(appName, timeStr)
+            }
+    }
+
+    if (audioAppData.isEmpty()) return
 
     InfoCard("Background Audio Breakdown", headerColor = MhealthIndigo) {
         Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
@@ -1547,21 +1379,11 @@ fun BgAudioBreakdownCard(vector: com.example.mhealth.models.PersonalityVector) {
         HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
         Spacer(Modifier.height(4.dp))
 
-        audioApps.forEach { (pkg, ms) ->
-            val appName = try {
-                if (pkg == "unknown_music_app") "Other Audio"
-                else pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-            } catch (e: Exception) { pkg.substringAfterLast(".") }
-            
-            val totalSec = ms / 1000
-            val minutes = totalSec / 60
-            val seconds = totalSec % 60
-            val timeStr = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
-
+        audioAppData.forEach { data ->
             Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(appName, fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(3f),
+                Text(data.name, fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(3f),
                     maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(timeStr, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
+                Text(data.time, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
             }
             HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
         }
@@ -1611,7 +1433,7 @@ fun AnalysisScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(32.dp), color = SoftCyan)
                         Spacer(Modifier.width(12.dp))
-                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after 28 days.", color = TextSecondary, fontSize = 12.sp)
+                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after ${DataRepository.baselineDaysRequired.collectAsState().value} days.", color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -1673,7 +1495,7 @@ fun AnalysisScreen() {
 
                     // Hardcoded Frame-2 z-scores for the 6 radar features per disorder.
                     // Mirrors DISORDER_PROTOTYPES_FRAME2 in config.py (screen_time_hours,
-                    // social_app_ratio, places_visited, daily_displacement_km,
+                    // social_app_ratio, daily_displacement_km,
                     // sleep_duration_hours, conversation_frequency).
                     val PROTO_RADAR_ZSCORES: Map<String, List<Float>> = mapOf(
                         "depression_type_1"    to listOf(-0.60f, -0.03f,  0.04f, -0.43f, -0.87f, -0.81f),
@@ -1701,7 +1523,16 @@ fun AnalysisScreen() {
 
                     InfoCard("Feature Deviation Radar", headerColor = ChartPurple) {
                         val b = checkNotNull(baseline); val v = checkNotNull(vector)
-                        val radarLabels = listOf("Screen\nTime", "Social", "Places", "Location", "Sleep", "Comms")
+                        // 30-feature DNA radar — full personality vector polygon
+                        val radarLabels = listOf(
+                            "ScrT", "Unlk", "AppL", "Notif", "SocR",
+                            "Call", "CallD", "Cont", "Conv",
+                            "Disp", "LocE", "Home",
+                            "Wake", "SlpH", "SlpD", "Dark",
+                            "Chrg", "Mem", "WiFi", "Mob", "CalE",
+                            "Media", "Inst", "Dnld", "Stor",
+                            "Unin", "UPI", "TotA", "BgA", "Step"
+                        )
                         val normalizeDev: (Float, Float) -> Float = { cur, base ->
                             if (base <= 0.01f) {
                                 if (cur <= 0.01f) 0.5f else 1.0f
@@ -1711,13 +1542,37 @@ fun AnalysisScreen() {
                         }
                         val curVals = listOf(
                             normalizeDev(v.screenTimeHours, b.screenTimeHours),
+                            normalizeDev(v.unlockCount, b.unlockCount),
+                            normalizeDev(v.appLaunchCount, b.appLaunchCount),
+                            normalizeDev(v.notificationsToday, b.notificationsToday),
                             normalizeDev(v.socialAppRatio, b.socialAppRatio),
-                            normalizeDev(v.placesVisited.toFloat(), b.placesVisited.toFloat()),
+                            normalizeDev(v.callsPerDay, b.callsPerDay),
+                            normalizeDev(v.callDurationMinutes, b.callDurationMinutes),
+                            normalizeDev(v.uniqueContacts, b.uniqueContacts),
+                            normalizeDev(v.conversationFrequency, b.conversationFrequency),
                             normalizeDev(v.dailyDisplacementKm, b.dailyDisplacementKm),
+                            normalizeDev(v.locationEntropy, b.locationEntropy),
+                            normalizeDev(v.homeTimeRatio, b.homeTimeRatio),
+                            normalizeDev(v.wakeTimeHour, b.wakeTimeHour),
+                            normalizeDev(v.sleepTimeHour, b.sleepTimeHour),
                             normalizeDev(v.sleepDurationHours, b.sleepDurationHours),
-                            normalizeDev(v.conversationFrequency, b.conversationFrequency)
+                            normalizeDev(v.darkDurationHours, b.darkDurationHours),
+                            normalizeDev(v.chargeDurationHours, b.chargeDurationHours),
+                            normalizeDev(v.memoryUsagePercent, b.memoryUsagePercent),
+                            normalizeDev(v.networkWifiMB, b.networkWifiMB),
+                            normalizeDev(v.networkMobileMB, b.networkMobileMB),
+                            normalizeDev(v.calendarEventsToday, b.calendarEventsToday),
+                            normalizeDev(v.mediaCountToday, b.mediaCountToday),
+                            normalizeDev(v.appInstallsToday, b.appInstallsToday),
+                            normalizeDev(v.downloadsToday, b.downloadsToday),
+                            normalizeDev(v.storageUsedGB, b.storageUsedGB),
+                            normalizeDev(v.appUninstallsToday, b.appUninstallsToday),
+                            normalizeDev(v.upiTransactionsToday, b.upiTransactionsToday),
+                            normalizeDev(v.totalAppsCount, b.totalAppsCount),
+                            normalizeDev(v.musicTimeMinutes, b.musicTimeMinutes),
+                            normalizeDev(v.dailySteps, b.dailySteps)
                         )
-                        val baseVals = listOf(0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f)
+                        val baseVals = List(30) { 0.5f }
 
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                             RadarChart(
@@ -2018,6 +1873,9 @@ fun InsightsScreen() {
         // Pattern History Card — full 30-day list, each row clickable for Day Report dialog
         item {
             val context = LocalContext.current
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
+    val analysisHistory by DataRepository.analysisHistory.collectAsState()
             val history by DataRepository.analysisHistory.collectAsState()
             var selectedResult by remember { mutableStateOf<com.example.mhealth.logic.db.AnalysisResultEntity?>(null) }
             var selectedFeatures by remember { mutableStateOf<com.example.mhealth.logic.db.DailyFeaturesEntity?>(null) }
@@ -2174,7 +2032,7 @@ fun InsightsScreen() {
                                     "Memory"           to "%.0f%%".format(feat.memoryUsagePercent),
                                     "Wi-Fi"            to "%.0f MB".format(feat.networkWifiMB),
                                     "Mobile Data"      to "%.0f MB".format(feat.networkMobileMB),
-                                    "Audio"            to "%.1f hrs".format(feat.backgroundAudioHours),
+                                    "Audio"            to "%.0f min".format(feat.musicTimeMinutes),
                                     "Storage Used"     to "%.1f GB".format(feat.storageUsedGB),
                                     "Downloads"        to "%.0f".format(feat.downloadsToday),
                                     "App Installs"     to "%.0f".format(feat.appInstallsToday),
@@ -2219,8 +2077,14 @@ fun SettingsScreen() {
     var commsEnabled by remember { mutableStateOf(true) }
 
     // Dev Setting States
-    val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
-    val intervalMins by DataRepository.monitoringIntervalMinutes.collectAsState()
+    val baselineDaysReqGlobal by DataRepository.baselineDaysRequired.collectAsState()
+    var baselineDaysReqLocal by remember(baselineDaysReqGlobal) { mutableIntStateOf(baselineDaysReqGlobal) }
+
+    val dnaBaselineDaysGlobal by DataRepository.dnaBaselineDaysRequired.collectAsState()
+    var dnaBaselineDaysLocal by remember(dnaBaselineDaysGlobal) { mutableIntStateOf(dnaBaselineDaysGlobal) }
+
+    val intervalMinsGlobal by DataRepository.monitoringIntervalMinutes.collectAsState()
+    var intervalLocal by remember(intervalMinsGlobal) { mutableLongStateOf(intervalMinsGlobal) }
 
     LazyColumn(Modifier.fillMaxSize().padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
         item { ScreenHeader("Settings", "Adaptation layer configurations", Icons.Default.Settings) }
@@ -2250,7 +2114,7 @@ fun SettingsScreen() {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Column {
                         Text(if (isBuilding) "Building Baseline" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Text("Day $progress / $baselineDaysReq established", fontSize = 12.sp, color = TextSecondary)
+                        Text("Day $progress / $baselineDaysReqLocal established", fontSize = 12.sp, color = TextSecondary)
                     }
                     Button(onClick = { DataRepository.triggerReset() }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed)) {
                         Text("Reset", fontSize = 12.sp, color = Color.White)
@@ -2267,26 +2131,42 @@ fun SettingsScreen() {
                          fontSize = 11.sp, color = TextMuted, lineHeight = 14.sp)
                     Spacer(Modifier.height(16.dp))
                     
-                    Text("Baseline Time Period: $baselineDaysReq days", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("Baseline Time Period: $baselineDaysReqLocal days", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                     Slider(
-                        value = baselineDaysReq.toFloat(),
-                        onValueChange = { DataRepository.setBaselineDaysRequired(it.toInt()) },
+                        value = baselineDaysReqLocal.toFloat(),
+                        onValueChange = { baselineDaysReqLocal = it.toInt() },
+                        onValueChangeFinished = { DataRepository.setBaselineDaysRequired(baselineDaysReqLocal) },
                         valueRange = 1f..35f,
                         steps = 34,
                         colors = SliderDefaults.colors(thumbColor = ChartOrange, activeTrackColor = ChartOrange)
                     )
                     
                     Spacer(Modifier.height(8.dp))
-                    
-                    Text("Polling Interval: $intervalMins mins", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+
+                    Text("Polling Interval: $intervalLocal mins", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                     Slider(
-                        value = intervalMins.toFloat(),
-                        onValueChange = { DataRepository.setMonitoringIntervalMinutes(it.toLong()) },
+                        value = intervalLocal.toFloat(),
+                        onValueChange = { intervalLocal = it.toLong() },
+                        onValueChangeFinished = { DataRepository.setMonitoringIntervalMinutes(intervalLocal) },
                         valueRange = 1f..60f,
                         steps = 59,
                         colors = SliderDefaults.colors(thumbColor = ChartOrange, activeTrackColor = ChartOrange)
                     )
-                    
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Text("DNA Baseline Period: $dnaBaselineDaysLocal days", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
+                    Text("(Days of data used for System 1 personality DNA profile)",
+                         fontSize = 10.sp, color = TextMuted)
+                    Slider(
+                        value = dnaBaselineDaysLocal.toFloat(),
+                        onValueChange = { dnaBaselineDaysLocal = it.toInt() },
+                        onValueChangeFinished = { DataRepository.setDnaBaselineDaysRequired(dnaBaselineDaysLocal) },
+                        valueRange = 3f..30f,
+                        steps = 27,
+                        colors = SliderDefaults.colors(thumbColor = ChartPurple, activeTrackColor = ChartPurple)
+                    )
+
                     Spacer(Modifier.height(16.dp))
                     
                     Button(
@@ -2383,6 +2263,9 @@ fun SettingsScreen() {
         // Action Toggles
         item {
             val context = LocalContext.current
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
+    val analysisHistory by DataRepository.analysisHistory.collectAsState()
             
             Card(Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = CardWhite), elevation = CardDefaults.cardElevation(2.dp)) {
                 Column {
@@ -2416,7 +2299,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
             val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
             val baselineRows = db.baselineDao().getBaseline(userId)
             val analysisReports = db.analysisResultDao().getAll(userId)
-            val profile = db.userProfileDao().get(userId)
+            val profile = db.userProfileDao().getProfile(userId)
             
             // 2. Construct Master JSON
             val masterJson = org.json.JSONObject()
@@ -2478,7 +2361,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("appUninstalls", day.appUninstallsToday)
                     put("upiTransactions", day.upiTransactionsToday)
                     put("totalApps", day.totalAppsCount)
-                    put("backgroundAudioHours", day.backgroundAudioHours)
+                    put("musicTimeMinutes", day.musicTimeMinutes)
                     put("mediaCount", day.mediaCountToday)
                     put("appInstalls", day.appInstallsToday)
                     put("steps", day.dailySteps)
@@ -2521,13 +2404,12 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("displacementKm",      liveVector.dailyDisplacementKm)
                     put("locationEntropy",     liveVector.locationEntropy)
                     put("homeTimeRatio",       liveVector.homeTimeRatio)
-                    put("placesVisited",       liveVector.placesVisited)
                     put("wakeTimeHour",        liveVector.wakeTimeHour)
                     put("sleepTimeHour",       liveVector.sleepTimeHour)
                     put("sleepDurationHours",  liveVector.sleepDurationHours)
                     put("darkDurationHours",   liveVector.darkDurationHours)
                     put("chargeDurationHours", liveVector.chargeDurationHours)
-                    put("backgroundAudioHours", liveVector.backgroundAudioHours)
+                    put("musicTimeMinutes", liveVector.musicTimeMinutes)
                     put("dailySteps",          liveVector.dailySteps)
                     put("storageUsedGB",       liveVector.storageUsedGB)
                     put("networkWifiMB",       liveVector.networkWifiMB)
@@ -2551,6 +2433,16 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                 
                 masterJson.put("today_live", todayObj)
             }
+
+            // E. DNA Profile (System 1)
+            try {
+                val dnaEntity = db.personDnaDao().getByUserId(userId)
+                if (dnaEntity != null) {
+                    masterJson.put("dna_profile", org.json.JSONObject(dnaEntity.dna_json))
+                }
+            } catch (_: Exception) {}
+
+
 
             // D. Analysis History (Anomaly detections)
             val reportsArr = org.json.JSONArray()
@@ -2689,7 +2581,7 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         appUninstallsToday = metrics.optDouble("appUninstalls", 0.0).toFloat(),
                         upiTransactionsToday = metrics.optDouble("upiTransactions", 0.0).toFloat(),
                         totalAppsCount = metrics.optDouble("totalApps", 0.0).toFloat(),
-                        backgroundAudioHours = metrics.optDouble("backgroundAudioHours", 0.0).toFloat(),
+                        musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),
                         mediaCountToday = metrics.optDouble("mediaCount", 0.0).toFloat(),
                         appInstallsToday = metrics.optDouble("appInstalls", 0.0).toFloat(),
                         dailySteps = metrics.optDouble("steps", 0.0).toFloat(),
@@ -2741,7 +2633,7 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         sustainedDays = reportObj.optInt("sustainedDays", 0),
                         prototypeMatch = reportObj.optString("prototypeMatch", "Normal"),
                         matchMessage = reportObj.optString("matchMessage", ""),
-                        prototypeConfidence = reportObj.optDouble("prototypeConfidence", 0.0).toFloat(),
+                        prototypeConfidence = ((reportObj.optDouble("prototypeConfidence", 0.0)) / 10.0).coerceIn(0.0, 1.0).toFloat(),
                         gateResults = reportObj.optJSONObject("gateResults")?.toString() ?: "{}"
                     )
                     db.analysisResultDao().insert(r)
@@ -2796,5 +2688,165 @@ fun startMonitoringService(context: Context) {
         context.startForegroundService(intent)
     } else {
         context.startService(intent)
+    }
+}
+
+// ── Helper composables for L2 visualization ──────────────────────────────────
+
+@Composable
+private fun L2MetricRow(
+    label: String,
+    value: Float,
+    maxValue: Float,
+    color: Color,
+    description: String
+) {
+    Column {
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(label, fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+            Text(
+                "%.2f".format(value),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = color
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        // Progress bar
+        Box(
+            Modifier
+                .fillMaxWidth()
+                .height(6.dp)
+                .clip(RoundedCornerShape(3.dp))
+                .background(color.copy(alpha = 0.15f))
+        ) {
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .fillMaxWidth((value / maxValue.coerceAtLeast(0.01f)).coerceIn(0f, 1f))
+                    .clip(RoundedCornerShape(3.dp))
+                    .background(color)
+            )
+        }
+        Spacer(Modifier.height(2.dp))
+        Text(description, fontSize = 10.sp, color = TextMuted)
+    }
+}
+
+@Composable
+private fun EvidenceStatPill(
+    label: String,
+    value: String,
+    color: Color
+) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .background(color.copy(alpha = 0.1f))
+                .padding(horizontal = 14.dp, vertical = 6.dp)
+        ) {
+            Text(
+                value,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = color
+            )
+        }
+        Spacer(Modifier.height(3.dp))
+        Text(label, fontSize = 10.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun FlaggedFeatureChip(feature: String) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .background(AlertOrange.copy(alpha = 0.08f))
+            .padding(horizontal = 10.dp, vertical = 5.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(AlertOrange)
+            )
+            Spacer(Modifier.width(6.dp))
+            Text(
+                feature,
+                fontSize = 11.sp,
+                color = AlertOrange,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+}
+
+// ── Utility functions ────────────────────────────────────────────────────────
+
+private fun alertColorForLevel(level: String): Color = when (level.lowercase()) {
+    "green" -> AlertGreen
+    "yellow" -> AlertYellow
+    "orange" -> AlertOrange
+    "red" -> AlertRed
+    else -> AlertGreen
+}
+
+private fun alertIconForLevel(level: String): String = when (level.lowercase()) {
+    "green" -> "✅"
+    "yellow" -> "⚠️"
+    "orange" -> "🟠"
+    "red" -> "🔴"
+    else -> "✅"
+}
+
+private fun l2ModifierColor(modifier: Float): Color = when {
+    modifier < 0.5f -> AlertGreen       // Strong suppression — known context
+    modifier < 0.9f -> MhealthTeal      // Moderate suppression
+    modifier < 1.1f -> MhealthIndigo    // Neutral
+    modifier < 1.5f -> AlertOrange      // Moderate amplification
+    else -> AlertRed                     // Strong amplification — clinical signal
+}
+
+private fun modifierDescription(modifier: Float): String = when {
+    modifier < 0.5f -> "Strongly suppressed — known context"
+    modifier < 0.9f -> "Partially suppressed — mostly matches baseline"
+    modifier < 1.1f -> "Neutral — mixed signals"
+    modifier < 1.5f -> "Amplified — unfamiliar pattern detected"
+    else -> "Strongly amplified — clinical signal"
+}
+
+private fun patternLabel(pattern: String): String = when (pattern) {
+    "rapid_cycling" -> "Cycling"
+    "acute_spike" -> "Acute"
+    "gradual_drift" -> "Drift"
+    "mixed_pattern" -> "Mixed"
+    "stable" -> "Stable"
+    else -> pattern.replaceFirstChar { it.uppercase() }
+}
+
+private fun patternColor(pattern: String): Color = when (pattern) {
+    "stable" -> AlertGreen
+    "gradual_drift" -> MhealthTeal
+    "mixed_pattern" -> AlertYellow
+    "rapid_cycling" -> AlertOrange
+    "acute_spike" -> AlertRed
+    else -> TextSecondary
+}
+
+private fun parseFlaggedFeatures(json: String): List<String> {
+    return try {
+        // Simple parse: remove [ ] and quotes, split by comma
+        val cleaned = json.trim().removeSurrounding("[", "]").removeSurrounding("\"", "\"")
+        if (cleaned.isBlank()) emptyList()
+        else cleaned.split("\",\"").map { it.removeSurrounding("\"").trim() }.filter { it.isNotBlank() }
+    } catch (e: Exception) {
+        emptyList()
     }
 }

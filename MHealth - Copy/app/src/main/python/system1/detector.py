@@ -245,6 +245,9 @@ class AnomalyDetector:
         velocities = self.l1_scorer.calculate_deviation_velocity(current_data)
         l1_score = self.l1_scorer.calculate_anomaly_score(deviations, velocities)
 
+        if day_number >= 30:
+            print(f"  [L1Scorer Debug] day={day_number} current_data={current_data.get('sleepDurationHours')} deviations={deviations} l1_score={l1_score}")
+
         # === L2 SCORING ===
         coherence = 0.0
         matched_ctx = -1

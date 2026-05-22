@@ -21,11 +21,11 @@ interface AnalysisResultDao {
     @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date DESC LIMIT 1")
     fun getLatestFlow(userId: String): Flow<AnalysisResultEntity?>
 
-    @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM analysis_results WHERE userId = :userId GROUP BY date ORDER BY date DESC LIMIT :limit")
     suspend fun getLatestN(userId: String, limit: Int): List<AnalysisResultEntity>
 
     /** Reactive version for history list — emits on every insert/update. */
-    @Query("SELECT * FROM analysis_results WHERE userId = :userId ORDER BY date DESC LIMIT :limit")
+    @Query("SELECT * FROM analysis_results WHERE userId = :userId GROUP BY date ORDER BY date DESC LIMIT :limit")
     fun getLatestNFlow(userId: String, limit: Int = 30): Flow<List<AnalysisResultEntity>>
 
     @Query("SELECT * FROM analysis_results WHERE userId = :userId AND syncedToCloud = 0")
@@ -46,7 +46,7 @@ interface AnalysisResultDao {
     @Update
     suspend fun update(entity: AnalysisResultEntity)
 
-    @Query("SELECT COUNT(*) FROM analysis_results WHERE userId = :userId")
+    @Query("SELECT COUNT(DISTINCT date) FROM analysis_results WHERE userId = :userId")
     suspend fun count(userId: String): Int
 
     @Query("DELETE FROM analysis_results WHERE userId = :userId")

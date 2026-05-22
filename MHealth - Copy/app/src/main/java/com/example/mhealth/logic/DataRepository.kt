@@ -386,7 +386,12 @@ object DataRepository {
 
     fun addReport(report: DailyReport) {
         val current = _reports.value.toMutableList()
-        current.add(report)
+        val index = current.indexOfFirst { it.dayNumber == report.dayNumber }
+        if (index != -1) {
+            current[index] = report
+        } else {
+            current.add(report)
+        }
         _reports.value = current
     }
 

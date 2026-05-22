@@ -573,6 +573,7 @@ class MonitoringService : Service() {
                             )
                         )
                         DataRepository.clearReports()
+                        DataRepository.updateProvisionalAnalysis(null)  // Clear stale provisional
 
                         Log.i("MHealth.Service", "Reset triggered: Simulated data removed, old baseline wiped.")
 
@@ -605,7 +606,10 @@ class MonitoringService : Service() {
                                 val vec = JsonConverter.toPersonalityVector(feature)
                                 val r = detector!!.analyze(vec, idx + 1)
                                 rebuiltReports.add(r)
-                                persistAnomalyResultToRoom(r, feature.date, false)
+                                // NOTE: Do NOT persist Kotlin-replayed results to Room.
+                                // The Kotlin detector's sustained/evidence values compound
+                                // unreliably during replay. Let NightlyAnalysisWorker generate
+                                // proper Python-backed results with correct evidence tracking.
                             }
                             DataRepository.updateReports(rebuiltReports)
 

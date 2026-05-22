@@ -44,6 +44,12 @@ L1_CLUSTER_FEATURES = [
     "unlockCount", "socialAppRatio", "darkDurationHours",
 ]
 
+L2_CLUSTER_FEATURES = [
+    "total_sessions", "abandon_rate", "self_open_ratio",
+    "deep_session_ratio", "micro_session_ratio", "app_switching_rate",
+    "active_hours_span", "avg_session_minutes", "notifications",
+]
+
 
 # ── Clinical-Weighted PCA (2D) + Mean-Shift clustering ──────────────────────
 
@@ -60,34 +66,62 @@ def _clinical_weighted_pca(data: np.ndarray, feature_weights: list, n_components
 
 
 def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
-    """Mean-Shift clustering (pure numpy). Returns [(cluster_id, indices)]."""
+    """Mean-Shift clustering (pure numpy). Returns [(cluster_id, indices)].
+
+    Bandwidth auto-estimation uses the 30th percentile of pairwise distances
+    (not the median) to avoid archetype collapse on small datasets (15-28 days).
+    The PCA-projected data is also z-score normalized before clustering to
+    ensure both PCA dimensions contribute equally.
+    """
     if len(data) == 0:
         return []
     n = len(data)
-    # Auto-estimate bandwidth from pairwise distances
+
+    # Z-score normalize the projected data so both PCA axes have equal weight
+    col_std = np.std(data, axis=0)
+    col_std = np.where(col_std > 1e-9, col_std, 1.0)
+    col_mean = np.mean(data, axis=0)
+    data_norm = (data - col_mean) / col_std
+
+    # Sklearn-compatible bandwidth estimation
     if bandwidth is None:
-        dists = np.linalg.norm(data[:, None] - data[None, :], axis=2)
-        bandwidth = float(np.median(dists)) * 0.8
+        n_neighbors = int(n * 0.3)  # default quantile 0.3
+        if n_neighbors < 1:
+            n_neighbors = 1
+        
+        pairwise = np.linalg.norm(data_norm[:, None] - data_norm[None, :], axis=2)
+        sorted_dists = np.sort(pairwise, axis=1)
+        # In sklearn, NearestNeighbors returns n_neighbors elements including the point itself.
+        # The furthest of these is at index n_neighbors - 1.
+        kth_dists = sorted_dists[:, n_neighbors - 1]
+        bandwidth = float(np.median(kth_dists))
+        print(f"  [MeanShift] Auto bandwidth={bandwidth:.4f} (sklearn-aligned, quantile=0.3)")
     if bandwidth <= 0:
         bandwidth = 1.0
 
-    points = data.copy()
-    # Shift each point toward mode
-    for _ in range(50):
+    points = data_norm.copy()
+    # Shift each point toward mode (using ORIGINAL data_norm points in the neighborhood)
+    for iteration in range(50):
         shifted = np.zeros_like(points)
+        max_shift = 0.0
         for i in range(n):
-            dists = np.linalg.norm(points - points[i], axis=1)
+            dists = np.linalg.norm(data_norm - points[i], axis=1)
             mask = dists <= bandwidth
             if mask.any():
-                shifted[i] = points[mask].mean(axis=0)
+                shifted[i] = data_norm[mask].mean(axis=0)
             else:
                 shifted[i] = points[i]
+            max_shift = max(max_shift, np.linalg.norm(shifted[i] - points[i]))
         points = shifted
+        # Early convergence check
+        if max_shift < 1e-6:
+            print(f"  [MeanShift] Converged at iteration {iteration}")
+            break
 
     # Merge converged points into clusters
     cluster_centers = []
     cluster_ids = [-1] * n
-    merge_thresh = bandwidth * 0.3
+    merge_thresh = bandwidth * 0.5
     for i in range(n):
         merged = False
         for c_idx, center in enumerate(cluster_centers):
@@ -102,7 +136,10 @@ def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
     clusters = {}
     for i, cid in enumerate(cluster_ids):
         clusters.setdefault(cid, []).append(i)
-    return [(cid, indices) for cid, indices in sorted(clusters.items())]
+
+    result = [(cid, indices) for cid, indices in sorted(clusters.items())]
+    print(f"  [MeanShift] Found {len(result)} clusters from {n} points")
+    return result
 
 
 # ── Profile Builder ───────────────────────────────────────────────────────────
@@ -140,15 +177,26 @@ def build_personality_vector(daily_features_list: list) -> dict:
     }
 
 
-def build_app_dna_profiles(sessions: list) -> dict:
-    """Build per-app DNA profiles from session data."""
+def build_app_dna_profiles(sessions: list, existing_profiles: dict = None) -> dict:
+    """Build per-app DNA profiles from session data.
+
+    If existing_profiles is provided, historical app profiles are preserved
+    and merged with current session data. This prevents the DNA fingerprint
+    from losing apps that weren't used in the current session window.
+    """
     from dna import build_app_dna
 
+    profiles = {}
+
+    # Start with existing profiles as the base (preserves historical apps)
+    if existing_profiles and isinstance(existing_profiles, dict):
+        profiles.update(existing_profiles)
+        print(f"  [AppDNA] Starting with {len(profiles)} historical app profiles")
+
     if not sessions:
-        return {}
+        return profiles
 
     packages = set(s.get("app_package", "") for s in sessions)
-    profiles = {}
     for pkg in packages:
         if not pkg:
             continue
@@ -157,25 +205,33 @@ def build_app_dna_profiles(sessions: list) -> dict:
             app_dna = build_app_dna(pkg_sessions, pkg)
             profiles[pkg] = app_dna.to_dict()
         except Exception:
-            # Fallback minimal profile
-            profiles[pkg] = {
-                "app_id": pkg,
-                "avg_session_minutes": 0.0,
-                "session_duration_std": 0.0,
-                "sessions_per_active_day": float(len(pkg_sessions)),
-                "abandon_rate": 0.0,
-                "self_open_ratio": 0.0,
-                "temporal_anchor_std": 0.0,
-            }
+            # Fallback minimal profile (only if not already in existing profiles)
+            if pkg not in profiles:
+                profiles[pkg] = {
+                    "app_id": pkg,
+                    "avg_session_minutes": 0.0,
+                    "session_duration_std": 0.0,
+                    "sessions_per_active_day": float(len(pkg_sessions)),
+                    "abandon_rate": 0.0,
+                    "self_open_ratio": 0.0,
+                    "temporal_anchor_std": 0.0,
+                }
 
-    # Return top 15 apps by session count (keeps JSON manageable)
+    # Return top 50 apps by session count (keeps JSON manageable)
+    # All apps with current sessions are scored; existing-only apps get 0
     pkg_counts = {}
     for s in sessions:
         pkg = s.get("app_package", "")
         pkg_counts[pkg] = pkg_counts.get(pkg, 0) + 1
 
-    top_pkgs = sorted(pkg_counts.keys(), key=lambda p: pkg_counts[p], reverse=True)[:15]
-    return {pkg: profiles[pkg] for pkg in top_pkgs if pkg in profiles}
+    # Score: apps with current sessions ranked first, then historical by alphabetical
+    def _sort_key(p):
+        return (-pkg_counts.get(p, 0), p)
+
+    all_pkgs = sorted(profiles.keys(), key=_sort_key)[:50]
+    result = {pkg: profiles[pkg] for pkg in all_pkgs if pkg in profiles}
+    print(f"  [AppDNA] Final: {len(result)} apps ({len(packages)} current + {len(profiles) - len(packages)} historical)")
+    return result
 
 
 def build_phone_dna(daily_features_list: list, sessions: list) -> dict:
@@ -325,7 +381,7 @@ def _run_full_meanshift_clustering(daily_features_list: list) -> list:
         vectors.append(vec)
         dates.append(day.get("date", ""))
 
-    if len(vectors) < 3:
+    if len(vectors) < 1:
         return []
 
     matrix = np.array(vectors)
@@ -410,123 +466,68 @@ def build_anchor_clusters(daily_features_list: list, existing_clusters: list = N
     """
     Build L1 anchor clusters using Clinical-Weighted PCA (2D) + Mean-Shift.
 
-    If existing_clusters is provided, uses incremental growth:
-      1. Project all days into the stored PCA space.
-      2. Assign each day to nearest existing cluster (within 2× radius).
-      3. Unassigned days (≥3) trigger new cluster discovery via Mean-Shift.
-      4. Existing cluster centroids gently updated with expanded member sets.
-    If existing_clusters is None, runs full Mean-Shift from scratch.
+    As per user request: always clusters the entire historical daily_features_list 
+    to assign points dynamically to clusters or form new ones.
     """
-    if len(daily_features_list) < 3:
+    if len(daily_features_list) < 1:
         return existing_clusters if existing_clusters else []
 
-    # ── FRESH BUILD ────────────────────────────────────────────────────────────
-    if not existing_clusters:
-        print("  [Clusters] Fresh build — running full Mean-Shift")
-        return _run_full_meanshift_clustering(daily_features_list)
+    print("  [Clusters] Full clustering on all available days using Mean-Shift")
+    return _run_full_meanshift_clustering(daily_features_list)
 
-    # ── INCREMENTAL GROWTH ─────────────────────────────────────────────────────
-    print(f"  [Clusters] Incremental build — {len(existing_clusters)} existing clusters")
-
-    # Get PCA projection params from the first cluster
-    proj_params = None
-    for c in existing_clusters:
-        if "_pca_projection" in c:
-            proj_params = c["_pca_projection"]
-            break
-
-    if proj_params is None:
-        # No projection params stored — fall back to fresh build
-        print("  [Clusters] No projection params found — falling back to fresh build")
-        return _run_full_meanshift_clustering(daily_features_list)
-
-    # Project all days into PCA space
-    day_projections = []  # (index, pca_2d, date)
-    for i, day in enumerate(daily_features_list):
-        pca_pt = _project_day_to_pca(day, proj_params)
-        if pca_pt is not None:
-            day_projections.append((i, pca_pt, day.get("date", f"day_{i}")))
-
-    if not day_projections:
-        return existing_clusters
-
-    # Assign each day to nearest existing cluster (within 2× radius)
-    # Work on a deep copy so we don't mutate the input
-    import copy
-    updated_clusters = copy.deepcopy(existing_clusters)
-    unassigned = []  # (index, pca_2d, date)
-
-    for idx, pca_pt, date_str in day_projections:
-        best_dist = float('inf')
-        best_cid = -1
-        for ci, cluster in enumerate(updated_clusters):
-            centroid = np.array(cluster.get("centroid_pca_2d", [0.0, 0.0]), dtype=float)
-            radius = max(float(cluster.get("radius", 1.0)), 1e-6)
-            dist = float(np.linalg.norm(pca_pt - centroid))
-            if dist < best_dist:
-                best_dist = dist
-                best_cid = ci
-
-        # Check if within 2× radius of the nearest cluster
-        if best_cid >= 0:
-            nearest = updated_clusters[best_cid]
-            radius = max(float(nearest.get("radius", 1.0)), 1e-6)
-            if best_dist <= radius * 2.0:
-                # Assign to this cluster
-                if date_str not in nearest.get("member_dates", []):
-                    nearest.setdefault("member_dates", []).append(date_str)
-                    nearest["member_count"] = len(nearest["member_dates"])
-            else:
-                unassigned.append((idx, pca_pt, date_str))
-        else:
-            unassigned.append((idx, pca_pt, date_str))
-
-    # Gently update existing cluster centroids from expanded member sets
-    for cluster in updated_clusters:
-        member_dates = set(cluster.get("member_dates", []))
-        member_days = [d for d in daily_features_list if d.get("date", "") in member_dates]
-        if len(member_days) >= 2:
-            member_pca = []
-            for md in member_days:
-                pt = _project_day_to_pca(md, proj_params)
-                if pt is not None:
-                    member_pca.append(pt)
-            if member_pca:
-                arr = np.array(member_pca)
-                new_centroid = np.mean(arr, axis=0)
-                new_dists = np.linalg.norm(arr - new_centroid, axis=1)
-                cluster["centroid_pca_2d"] = [round(float(new_centroid[0]), 4), round(float(new_centroid[1]), 4)]
-                cluster["radius"] = round(float(np.max(new_dists)), 4) if len(new_dists) > 0 else cluster.get("radius", 0.0)
-
-    # Discover new clusters from unassigned days (≥3 needed)
-    if len(unassigned) >= 3:
-        print(f"  [Clusters] {len(unassigned)} unassigned days — running Mean-Shift for new clusters")
-        unassigned_days = [daily_features_list[idx] for idx, _, _ in unassigned]
-        new_clusters = _run_full_meanshift_clustering(unassigned_days)
-        if new_clusters:
-            # Renumber new cluster IDs to continue after existing
-            max_id = max(c.get("cluster_id", 0) for c in updated_clusters)
-            for nc in new_clusters:
-                max_id += 1
-                nc["cluster_id"] = max_id
-                # Remove _pca_projection from new sub-clusters (use the existing one)
-                nc.pop("_pca_projection", None)
-            updated_clusters.extend(new_clusters)
-            print(f"  [Clusters] Discovered {len(new_clusters)} new clusters")
-    elif unassigned:
-        print(f"  [Clusters] {len(unassigned)} unassigned days (need ≥3 for new cluster)")
-
-    # Ensure _pca_projection is on the first cluster
-    if updated_clusters and "_pca_projection" not in updated_clusters[0]:
-        updated_clusters[0]["_pca_projection"] = proj_params
-
-    return updated_clusters
 
 
 def rebuild_clusters_from_scratch(daily_features_list: list) -> list:
     """Force a complete re-clustering. Called from manual 'Re-build Clusters' button."""
     print("  [Clusters] Manual rebuild from scratch")
     return _run_full_meanshift_clustering(daily_features_list)
+
+
+def compute_texture_for_day(day_sessions: list) -> dict:
+    """Compute texture feature dict for a single day's sessions."""
+    import datetime as _dt
+    durations = [
+        (s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
+        for s in day_sessions
+    ]
+    durations = [max(0.0, dur) for dur in durations]
+
+    abandoned = sum(
+        1 for s, dur in zip(day_sessions, durations)
+        if s.get("interaction_count", 1) < 3 and dur < 0.5
+    )
+    abandon_rate = abandoned / max(len(day_sessions), 1)
+    self_opens = sum(1 for s in day_sessions if s.get("trigger", "SELF") == "SELF")
+    self_open_ratio = self_opens / max(len(day_sessions), 1)
+    deep_ratio = sum(1 for dur in durations if dur >= 15) / max(len(durations), 1)
+    micro_ratio = sum(1 for dur in durations if dur < 1) / max(len(durations), 1)
+
+    sorted_sess = sorted(day_sessions, key=lambda s: s.get("open_timestamp", 0))
+    switches = sum(
+        1 for i in range(1, len(sorted_sess))
+        if sorted_sess[i].get("app_package") != sorted_sess[i - 1].get("app_package")
+    )
+    switch_rate = switches / max(len(sorted_sess) - 1, 1)
+
+    try:
+        hours = [
+            _dt.datetime.fromtimestamp(s.get("open_timestamp", 0) / 1000.0).hour
+            for s in day_sessions
+        ]
+        active_span = (max(hours) - min(hours)) if hours else 0
+    except (OSError, OverflowError, ValueError):
+        active_span = 0
+
+    return {
+        "total_sessions": len(day_sessions),
+        "abandon_rate": round(abandon_rate, 4),
+        "self_open_ratio": round(self_open_ratio, 4),
+        "deep_session_ratio": round(deep_ratio, 4),
+        "micro_session_ratio": round(micro_ratio, 4),
+        "app_switching_rate": round(switch_rate, 4),
+        "active_hours_span": active_span,
+        "avg_session_minutes": round(float(np.mean(durations)) if durations else 0.0, 2),
+    }
 
 
 def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clusters: list = None) -> list:
@@ -555,49 +556,7 @@ def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clu
             sessions_by_date.setdefault(date_str, []).append(s)
 
     def _texture_for_day(day_sessions: list) -> dict:
-        """Compute texture feature dict for a single day's sessions."""
-        durations = [
-            (s.get("close_timestamp", 0) - s.get("open_timestamp", 0)) / 60000.0
-            for s in day_sessions
-        ]
-        durations = [max(0.0, dur) for dur in durations]
-
-        abandoned = sum(
-            1 for s, dur in zip(day_sessions, durations)
-            if s.get("interaction_count", 1) < 3 and dur < 0.5
-        )
-        abandon_rate = abandoned / max(len(day_sessions), 1)
-        self_opens = sum(1 for s in day_sessions if s.get("trigger", "SELF") == "SELF")
-        self_open_ratio = self_opens / max(len(day_sessions), 1)
-        deep_ratio = sum(1 for dur in durations if dur >= 15) / max(len(durations), 1)
-        micro_ratio = sum(1 for dur in durations if dur < 1) / max(len(durations), 1)
-
-        sorted_sess = sorted(day_sessions, key=lambda s: s.get("open_timestamp", 0))
-        switches = sum(
-            1 for i in range(1, len(sorted_sess))
-            if sorted_sess[i].get("app_package") != sorted_sess[i - 1].get("app_package")
-        )
-        switch_rate = switches / max(len(sorted_sess) - 1, 1)
-
-        try:
-            hours = [
-                _dt.datetime.fromtimestamp(s.get("open_timestamp", 0) / 1000.0).hour
-                for s in day_sessions
-            ]
-            active_span = (max(hours) - min(hours)) if hours else 0
-        except (OSError, OverflowError, ValueError):
-            active_span = 0
-
-        return {
-            "total_sessions": len(day_sessions),
-            "abandon_rate": round(abandon_rate, 4),
-            "self_open_ratio": round(self_open_ratio, 4),
-            "deep_session_ratio": round(deep_ratio, 4),
-            "micro_session_ratio": round(micro_ratio, 4),
-            "app_switching_rate": round(switch_rate, 4),
-            "active_hours_span": active_span,
-            "avg_session_minutes": round(float(np.mean(durations)) if durations else 0.0, 2),
-        }
+        return compute_texture_for_day(day_sessions)
 
     def _aggregate(texture_list: list) -> dict:
         """Aggregate a list of per-day texture dicts into summary stats."""
@@ -738,28 +697,152 @@ def build_l1_profile(
     }
 
 
+def _run_full_l2_meanshift_clustering(l2_daily_features_list: list) -> list:
+    """Run fresh Mean-Shift clustering on all L2 daily features. Returns cluster list."""
+    vectors = []
+    dates = []
+    for day in l2_daily_features_list:
+        vec = [float(day.get(feat, 0.0)) for feat in L2_CLUSTER_FEATURES]
+        vectors.append(vec)
+        dates.append(day.get("date", ""))
+
+    if len(vectors) < 1:
+        return []
+
+    matrix = np.array(vectors)
+    means = np.mean(matrix, axis=0)
+    stds = np.std(matrix, axis=0)
+    stds_safe = np.where(stds > 1e-9, stds, 1.0)
+    matrix_norm = (matrix - means) / stds_safe
+    weights = [1.0] * len(L2_CLUSTER_FEATURES)
+    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, n_components=2)
+
+    _proj_params = {
+        "features": L2_CLUSTER_FEATURES,
+        "norm_means": [round(float(v), 6) for v in means],
+        "norm_stds":  [round(float(v), 6) for v in stds_safe],
+        "clinical_weights": [1.0] * len(L2_CLUSTER_FEATURES),
+        "pca_mean": [round(float(v), 6) for v in pca_mean],
+        "pca_components": [
+            [round(float(v), 6) for v in row] for row in pca_components
+        ],
+    }
+
+    clusters = _meanshift(projected)
+
+    if not clusters:
+        centroid = np.mean(projected, axis=0)
+        radius = float(np.max(np.linalg.norm(projected - centroid, axis=1))) if len(projected) > 1 else 0.0
+        return [{
+            "cluster_id": 0,
+            "centroid_features": {feat: round(float(means[i]), 4) for i, feat in enumerate(L2_CLUSTER_FEATURES)},
+            "centroid_pca_2d": [round(float(centroid[0]), 4), round(float(centroid[1]), 4)],
+            "radius": round(radius, 4),
+            "member_count": len(projected),
+            "member_dates": dates,
+            "method": "l2_pca_meanshift",
+            "_pca_projection": _proj_params,
+        }]
+
+    result = []
+    for idx, (cid, indices) in enumerate(clusters):
+        members_pca = projected[indices]
+        centroid_pca = np.mean(members_pca, axis=0)
+        dists = np.linalg.norm(members_pca - centroid_pca, axis=1)
+        radius = float(np.max(dists)) if len(dists) > 0 else 0.0
+        members_norm = matrix_norm[indices]
+        centroid_norm = np.mean(members_norm, axis=0)
+        centroid_raw = centroid_norm * stds_safe + means
+
+        cluster_dict = {
+            "cluster_id": cid,
+            "centroid_features": {feat: round(float(centroid_raw[i]), 4) for i, feat in enumerate(L2_CLUSTER_FEATURES)},
+            "centroid_pca_2d": [round(float(centroid_pca[0]), 4), round(float(centroid_pca[1]), 4)],
+            "radius": round(radius, 4),
+            "member_count": len(indices),
+            "member_dates": [dates[i] for i in indices if i < len(dates)],
+            "method": "l2_pca_meanshift",
+        }
+        if idx == 0:
+            cluster_dict["_pca_projection"] = _proj_params
+        result.append(cluster_dict)
+
+    return result
+
+
+def build_l2_anchor_clusters(daily_features_list: list, sessions: list, existing_l2_clusters: list = None) -> list:
+    """
+    Build L2 anchor clusters using daily sessions DNA features + Mean-Shift.
+    As per user request: always clusters all available days.
+    """
+    if len(daily_features_list) < 1:
+        return existing_l2_clusters if existing_l2_clusters else []
+
+    import datetime as _dt
+    # Group sessions by date
+    sessions_by_date = {}
+    for s in sessions:
+        ts = s.get("open_timestamp", 0)
+        try:
+            dt = _dt.datetime.fromtimestamp(ts / 1000.0)
+            date_str = dt.strftime("%Y-%m-%d")
+        except (OSError, OverflowError, ValueError):
+            date_str = ""
+        if date_str:
+            sessions_by_date.setdefault(date_str, []).append(s)
+
+    l2_daily_features_list = []
+    for day in daily_features_list:
+        date_str = day.get("date", "")
+        day_sessions = sessions_by_date.get(date_str, [])
+        if not day_sessions:
+            continue
+
+        tex = compute_texture_for_day(day_sessions)
+        l2_day = {
+            "date": date_str,
+            "total_sessions": tex["total_sessions"],
+            "abandon_rate": tex["abandon_rate"],
+            "self_open_ratio": tex["self_open_ratio"],
+            "deep_session_ratio": tex["deep_session_ratio"],
+            "micro_session_ratio": tex["micro_session_ratio"],
+            "app_switching_rate": tex["app_switching_rate"],
+            "active_hours_span": tex["active_hours_span"],
+            "avg_session_minutes": tex["avg_session_minutes"],
+            "notifications": float(day.get("notificationsToday", 0.0)),
+        }
+        l2_daily_features_list.append(l2_day)
+
+    print("  [L2 Clusters] Full clustering on all available days using Mean-Shift")
+    return _run_full_l2_meanshift_clustering(l2_daily_features_list)
+
+
 def build_l2_texture_profile(
     daily_features_list: list,
     sessions: list,
     anchor_clusters: list = None,
+    existing_app_profiles: dict = None,
+    existing_l2_clusters: list = None,
 ) -> dict:
     """
-    Build Layer 2 texture profile: AppDNA + PhoneDNA + TextureProfiles.
+    Build Layer 2 texture profile: AppDNA + PhoneDNA + TextureProfiles + L2 AnchorClusters.
 
     This is the L2 (Behavioral DNA) half of the profile.
-    Contains only micro-level behavioral fingerprinting data.
+    Contains micro-level behavioral fingerprinting and texture clustering data.
 
     Args:
         daily_features_list: List of daily feature dicts
         sessions: List of session dicts
         anchor_clusters: L1 anchor clusters (for per-archetype texture splitting)
+        existing_app_profiles: Previously built app DNA profiles to merge with
+        existing_l2_clusters: Previously built L2 anchor clusters to merge with
 
     Returns:
         Dict with L2-only fields, serializable to JSON.
     """
     print(f"  [L2 Texture] Building L2 profile ({len(sessions)} sessions)")
 
-    app_dna_profiles = build_app_dna_profiles(sessions)
+    app_dna_profiles = build_app_dna_profiles(sessions, existing_profiles=existing_app_profiles)
     print(f"  [L2 Texture] App DNA: {len(app_dna_profiles)} apps")
 
     phone_dna = build_phone_dna(daily_features_list, sessions)
@@ -768,11 +851,22 @@ def build_l2_texture_profile(
     texture_profiles = build_texture_profiles(daily_features_list, sessions, anchor_clusters)
     print(f"  [L2 Texture] Texture profiles: {len(texture_profiles)}")
 
+    l2_anchor_clusters = build_l2_anchor_clusters(
+        daily_features_list, sessions, existing_l2_clusters=existing_l2_clusters
+    )
+    print(f"  [L2 Texture] L2 Anchor clusters: {len(l2_anchor_clusters)}")
+
+    l2_pca_projection = None
+    if l2_anchor_clusters:
+        l2_pca_projection = l2_anchor_clusters[0].get("_pca_projection", None)
+
     return {
         "profile_layer": "L2",
         "app_dna_profiles": app_dna_profiles,
         "phone_dna": phone_dna,
         "texture_profiles": texture_profiles,
+        "l2_anchor_clusters": l2_anchor_clusters,
+        "l2_pca_projection": l2_pca_projection,
     }
 
 
@@ -781,6 +875,7 @@ def build_full_profile(
     sessions: list,
     person_id: str = "user",
     existing_clusters: list = None,
+    existing_app_profiles: dict = None,
 ) -> dict:
     """
     Build a complete PersonProfile (backward-compatible wrapper).
@@ -792,7 +887,10 @@ def build_full_profile(
     print(f"  [ProfileBuilder] Samples: {len(daily_features_list)} days, {len(sessions)} sessions")
 
     l1 = build_l1_profile(daily_features_list, person_id, existing_clusters=existing_clusters)
-    l2 = build_l2_texture_profile(daily_features_list, sessions, l1.get("anchor_clusters", []))
+    l2 = build_l2_texture_profile(
+        daily_features_list, sessions, l1.get("anchor_clusters", []),
+        existing_app_profiles=existing_app_profiles,
+    )
 
     # Merge L1 + L2 into a single profile dict
     merged = {**l1, **l2}

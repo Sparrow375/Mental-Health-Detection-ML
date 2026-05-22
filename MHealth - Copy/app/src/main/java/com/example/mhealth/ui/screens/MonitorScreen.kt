@@ -8,6 +8,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Circle
+import androidx.compose.material.icons.filled.Hub
 import androidx.compose.material.icons.filled.Sensors
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.*
@@ -17,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.mhealth.logic.DataRepository
@@ -32,6 +35,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import com.example.mhealth.FeatureTableCard
 import com.example.mhealth.PerAppBreakdownCard
 import com.example.mhealth.BgAudioBreakdownCard
+import org.json.JSONObject
 
 @Composable
 fun MonitorScreen() {
@@ -43,6 +47,13 @@ fun MonitorScreen() {
     val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
     val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
     val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+    val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+
+    // Parse anchor clusters from profile JSON
+    val profileObj = remember(s1ProfileJson) {
+        if (s1ProfileJson.isNullOrBlank() || s1ProfileJson == "{}") null
+        else try { JSONObject(s1ProfileJson!!) } catch (_: Exception) { null }
+    }
 
     LazyColumn(Modifier.fillMaxSize()) {
         item { HeaderSection(isBuilding) }
@@ -55,6 +66,11 @@ fun MonitorScreen() {
                 latestResult = latestResult,
                 baselineVectors = baselineVectors
             )
+        }
+
+        // L1 Anchor Clusters — behavioral archetypes (System 1)
+        if (!isBuilding && profileObj != null) {
+            item { AnchorClustersCard(profileObj!!) }
         }
 
         item { IntradayTrendsCard(hourly) }
@@ -232,6 +248,91 @@ private fun ComparisonCard(
                         fontSize = 10.sp, color = deltaColor, fontWeight = FontWeight.Medium,
                         modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
                     )
+                }
+            }
+        }
+    }
+}
+
+// ── L1 Anchor Clusters Card (Behavioral Archetypes) ──────────────────────────
+
+@Composable
+private fun AnchorClustersCard(profile: JSONObject) {
+    val clustersArr = profile.optJSONArray("anchor_clusters") ?: return
+    if (clustersArr.length() == 0) return
+
+    val clusterMethod = clustersArr.optJSONObject(0)?.optString("method", "clinical_pca_meanshift")
+        ?.replace("_", " ") ?: "PCA + Mean-Shift"
+
+    InfoCard(
+        "Behavioral Archetypes (L1 Clusters)",
+        headerColor = AccentPurple
+    ) {
+        Text(
+            "${clustersArr.length()} cluster(s) · $clusterMethod",
+            color = TextSecondary, fontSize = 11.sp
+        )
+        Spacer(Modifier.height(8.dp))
+
+        for (i in 0 until clustersArr.length()) {
+            val cluster = clustersArr.optJSONObject(i) ?: continue
+            val clusterId = cluster.optInt("cluster_id", 0)
+            val memberCount = cluster.optInt("member_count", 0)
+            val radius = cluster.optDouble("radius", 0.0)
+            val centroidFeatures = cluster.optJSONObject("centroid_features") ?: continue
+            val memberDates = cluster.optJSONArray("member_dates")
+
+            val clusterColor = when (i % 4) {
+                0 -> AccentPurple; 1 -> AccentBlue; 2 -> AccentGreen; else -> AccentOrange
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = BgLight),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Circle, null, tint = clusterColor, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Archetype $clusterId", color = clusterColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.weight(1f))
+                        Text("$memberCount days", color = TextSecondary, fontSize = 11.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("r=${String.format("%.2f", radius)}", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.height(6.dp))
+
+                    // Centroid feature bars (top 6 features)
+                    val maxVal = centroidFeatures.keys().asSequence().mapNotNull {
+                        kotlin.runCatching { Math.abs(centroidFeatures.optDouble(it)) }.getOrNull()
+                    }.maxOrNull() ?: 1.0
+
+                    centroidFeatures.keys().asSequence().take(6).forEach { feat ->
+                        val value = centroidFeatures.optDouble(feat, 0.0)
+                        val fraction = (Math.abs(value) / maxVal).toFloat().coerceIn(0f, 1f)
+                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.dp)) {
+                            Text(feat, color = TextSecondary, fontSize = 9.sp, modifier = Modifier.width(120.dp),
+                                maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Box(
+                                modifier = Modifier.weight(1f).height(4.dp).background(BorderLight, RoundedCornerShape(2.dp))
+                            ) {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(fraction).fillMaxHeight()
+                                        .background(clusterColor, RoundedCornerShape(2.dp))
+                                )
+                            }
+                            Text(String.format("%.1f", value), color = TextSecondary, fontSize = 9.sp,
+                                modifier = Modifier.width(40.dp))
+                        }
+                    }
+
+                    // Member dates
+                    if (memberDates != null && memberDates.length() > 0) {
+                        Spacer(Modifier.height(4.dp))
+                        Text("Dates: ${(0 until minOf(memberDates.length(), 5)).joinToString(", ") { memberDates.getString(it) }}${if (memberDates.length() > 5) " …" else ""}",
+                            color = TextSecondary, fontSize = 9.sp)
+                    }
                 }
             }
         }

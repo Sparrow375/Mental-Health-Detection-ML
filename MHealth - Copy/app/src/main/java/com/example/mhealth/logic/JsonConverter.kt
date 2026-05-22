@@ -68,8 +68,8 @@ object JsonConverter {
         return root.toString()
     }
 
-    /** Converts a DailyFeaturesEntity to a flat JSON object of feature → value */
     private fun featureEntityToJson(e: DailyFeaturesEntity): JSONObject = JSONObject().apply {
+        put("date", e.date)
         put("screenTimeHours", e.screenTimeHours)
         put("unlockCount", e.unlockCount)
         put("appLaunchCount", e.appLaunchCount)

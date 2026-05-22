@@ -191,9 +191,6 @@ fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgr
         // Header with rebuild controls
         DnaProfileHeader(profile)
 
-        // Anchor Clusters (L1 archetype discovery)
-        AnchorClustersCard(profile)
-
         // App DNA Profiles (L2 per-app fingerprints)
         AppDnaProfilesCard(profile)
 
@@ -202,6 +199,9 @@ fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgr
 
         // Texture Profiles (L2 contextual texture)
         TextureProfilesCard(profile)
+
+        // L2 Anchor Clusters (Behavioral Texture Archetypes)
+        L2AnchorClustersCard(profile)
 
         Spacer(modifier = Modifier.height(24.dp))
     }
@@ -378,7 +378,6 @@ private fun DnaProfileHeader(profile: JSONObject) {
                     Icons.Default.Verified, "Confidence", confidence,
                     when(confidence) { "HIGH" -> AccentGreen; "MEDIUM" -> AccentOrange; else -> AccentRed }
                 )
-                StatChip(Icons.Default.Hub, "Clusters", "$nClusters", AccentPurple)
                 StatChip(Icons.Default.Apps, "Apps", "$nApps", AccentCyan)
             }
 
@@ -628,85 +627,6 @@ private fun FeatureImportanceCard(profile: JSONObject) {
     }
 }
 
-// ── Anchor Clusters Card ─────────────────────────────────────────────────────
-
-@Composable
-private fun AnchorClustersCard(profile: JSONObject) {
-    val clustersArr = profile.optJSONArray("anchor_clusters") ?: return
-    if (clustersArr.length() == 0) return
-
-    var expanded by remember { mutableStateOf(true) }
-
-    // Read the clustering method from the first cluster's 'method' field
-    val clusterMethod = clustersArr.optJSONObject(0)?.optString("method", "clinical_pca_meanshift")
-        ?.replace("_", " ") ?: "PCA + Mean-Shift"
-
-    CollapsibleCard(
-        title = "Anchor Clusters (L1 Behavioral Archetypes)",
-        subtitle = "${clustersArr.length()} cluster(s) · $clusterMethod",
-        icon = Icons.Default.Hub,
-        expanded = expanded,
-        onToggle = { expanded = !expanded }
-    ) {
-        for (i in 0 until clustersArr.length()) {
-            val cluster = clustersArr.optJSONObject(i) ?: continue
-            val clusterId = cluster.optInt("cluster_id", 0)
-            val memberCount = cluster.optInt("member_count", 0)
-            val radius = cluster.optDouble("radius", 0.0)
-            val centroidFeatures = cluster.optJSONObject("centroid_features") ?: continue
-            val memberDates = cluster.optJSONArray("member_dates")
-
-            Card(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                colors = CardDefaults.cardColors(containerColor = BgLight),
-                shape = RoundedCornerShape(8.dp)
-            ) {
-                Column(modifier = Modifier.padding(12.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.Circle, null, tint = AccentPurple, modifier = Modifier.size(12.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Cluster $clusterId", color = AccentPurple, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Spacer(Modifier.weight(1f))
-                        Text("$memberCount days", color = TextSecondary, fontSize = 11.sp)
-                        Spacer(Modifier.width(8.dp))
-                        Text("r=${String.format("%.2f", radius)}", color = TextSecondary, fontSize = 11.sp)
-                    }
-                    Spacer(Modifier.height(6.dp))
-
-                    // Centroid feature bars
-                    val maxVal = centroidFeatures.keys().asSequence().mapNotNull {
-                        kotlin.runCatching { Math.abs(centroidFeatures.optDouble(it)) }.getOrNull()
-                    }.maxOrNull() ?: 1.0
-
-                    centroidFeatures.keys().asSequence().take(6).forEach { feat ->
-                        val value = centroidFeatures.optDouble(feat, 0.0)
-                        val fraction = (Math.abs(value) / maxVal).toFloat().coerceIn(0f, 1f)
-                        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = 1.dp)) {
-                            Text(feat, color = TextSecondary, fontSize = 9.sp, modifier = Modifier.width(120.dp))
-                            Box(
-                                modifier = Modifier.weight(1f).height(4.dp).background(BorderLight, RoundedCornerShape(2.dp))
-                            ) {
-                                Box(
-                                    modifier = Modifier.fillMaxWidth(fraction).fillMaxHeight()
-                                        .background(AccentBlue, RoundedCornerShape(2.dp))
-                                )
-                            }
-                            Text(String.format("%.1f", value), color = TextSecondary, fontSize = 9.sp,
-                                modifier = Modifier.width(40.dp))
-                        }
-                    }
-
-                    // Member dates
-                    if (memberDates != null && memberDates.length() > 0) {
-                        Spacer(Modifier.height(4.dp))
-                        Text("Dates: ${(0 until minOf(memberDates.length(), 5)).joinToString(", ") { memberDates.getString(it) }}${if (memberDates.length() > 5) " …" else ""}",
-                            color = TextSecondary, fontSize = 9.sp)
-                    }
-                }
-            }
-        }
-    }
-}
 
 // ── App DNA Profiles Card ────────────────────────────────────────────────────
 
@@ -962,6 +882,63 @@ private fun TextureProfilesCard(profile: JSONObject) {
                             )
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+
+// ── L2 Anchor Clusters Card ──────────────────────────────────────────────────
+
+@Composable
+private fun L2AnchorClustersCard(profile: JSONObject) {
+    val clustersArr = profile.optJSONArray("l2_anchor_clusters") ?: return
+    if (clustersArr.length() == 0) return
+
+    var expanded by remember { mutableStateOf(true) }
+
+    CollapsibleCard(
+        title = "L2 Anchor Clusters (Texture Archetypes)",
+        subtitle = "${clustersArr.length()} cluster(s)",
+        icon = Icons.Default.BubbleChart,
+        expanded = expanded,
+        onToggle = { expanded = !expanded }
+    ) {
+        val clusterMethod = clustersArr.optJSONObject(0)?.optString("method", "clinical_pca_meanshift")
+            ?.replace("_", " ") ?: "PCA + Mean-Shift"
+            
+        Text(
+            "${clustersArr.length()} cluster(s) · $clusterMethod",
+            color = TextSecondary, fontSize = 11.sp
+        )
+        Spacer(Modifier.height(8.dp))
+
+        for (i in 0 until clustersArr.length()) {
+            val cluster = clustersArr.optJSONObject(i) ?: continue
+            val clusterId = cluster.optInt("cluster_id", 0)
+            val memberCount = cluster.optInt("member_count", 0)
+            val radius = cluster.optDouble("radius", 0.0)
+
+            val clusterColor = when (i % 4) {
+                0 -> AccentCyan; 1 -> AccentBlue; 2 -> AccentPurple; else -> AccentGreen
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                colors = CardDefaults.cardColors(containerColor = BgLight),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Circle, null, tint = clusterColor, modifier = Modifier.size(12.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Texture Archetype $clusterId", color = clusterColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        Spacer(Modifier.weight(1f))
+                        Text("$memberCount days", color = TextSecondary, fontSize = 11.sp)
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text("Radius: ${String.format("%.2f", radius)}", color = TextSecondary, fontSize = 10.sp)
                 }
             }
         }

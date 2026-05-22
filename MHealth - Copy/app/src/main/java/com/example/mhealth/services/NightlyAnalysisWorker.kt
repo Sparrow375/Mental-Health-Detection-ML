@@ -163,7 +163,7 @@ class NightlyAnalysisWorker(
             }
 
             // ── 3. Fetch history (last 14 days) ────────────────────────────────
-            val history = db.dailyFeaturesDao().getLatestN(userId, limit = 15)
+            val history = db.dailyFeaturesDao().getAllFeatures(userId)
                 .filter { it.date != targetDate }   // exclude the analysis day from history
                 .sortedBy { it.date }           // oldest first
 
@@ -175,8 +175,14 @@ class NightlyAnalysisWorker(
             // ── 4. Build JSON input ────────────────────────────────────────────
             // dayNumber = count of existing analysis results + 1 (monitoring days only,
             // NOT total days of data collection including baseline period)
+            // If we are overwriting today's result, dayNumber should NOT increment.
+            val prevResult = db.analysisResultDao().getByDate(userId, targetDate)
             val priorAnalysisCount = db.analysisResultDao().count(userId)
-            val dayNumber = priorAnalysisCount + 1
+            val dayNumber = if (prevResult != null) {
+                java.lang.Math.max(1, priorAnalysisCount)
+            } else {
+                priorAnalysisCount + 1
+            }
             val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
 
             // Inject day_number, gate_state, historical anomaly scores, and session data

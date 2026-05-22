@@ -1412,6 +1412,8 @@ fun AnalysisScreen() {
     val baseline by DataRepository.baseline.collectAsState()
     val vector by DataRepository.latestVector.collectAsState()
     val last = reports.lastOrNull()
+    // Authoritative Python engine result from Room DB — always prefer over Kotlin provisional
+    val latestDbResult by DataRepository.latestAnalysisResult.collectAsState()
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -1441,8 +1443,10 @@ fun AnalysisScreen() {
             // Anomaly Score Gauge
             item {
                 val provisional by DataRepository.provisionalAnalysis.collectAsState()
-                val score = provisional?.anomalyScore ?: last?.anomalyScore ?: 0f
-                val isLive = provisional != null
+                // Prefer authoritative Python engine score from Room DB;
+                // fall back to Kotlin provisional only when no DB result exists yet
+                val score = latestDbResult?.anomalyScore ?: provisional?.anomalyScore ?: last?.anomalyScore ?: 0f
+                val isLive = provisional != null && latestDbResult == null
 
                 InfoCard("Anomaly Score", headerColor = ChartRed) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1480,7 +1484,7 @@ fun AnalysisScreen() {
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChartRed
                         )
                         Text(
-                            "Pattern: ${(provisional?.patternType ?: last?.patternType ?: "stable").replace("_", " ").uppercase()}",
+                            "Pattern: ${(latestDbResult?.patternType ?: provisional?.patternType ?: last?.patternType ?: "stable").replace("_", " ").uppercase()}",
                             fontSize = 12.sp, color = TextSecondary
                         )
                     }
@@ -1644,9 +1648,14 @@ fun AnalysisScreen() {
                             Icon(Icons.Default.Timeline, null, tint = SoftCyan)
                             Spacer(Modifier.width(8.dp))
                             Column {
-                                Text(report.patternType.replace("_", " ").replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                                Text("Sustained deviation days: ${report.sustainedDeviationDays}", fontSize = 12.sp, color = TextSecondary)
-                                Text("Evidence accumulated: ${"%.2f".format(report.evidenceAccumulated)}", fontSize = 12.sp, color = TextSecondary)
+                                // Use authoritative Python engine values from Room DB;
+                                // Kotlin detector values are unreliable (inflate after reset)
+                                val dbPattern = latestDbResult?.patternType ?: report.patternType
+                                val dbSustained = latestDbResult?.sustainedDays ?: 0
+                                val dbEvidence = latestDbResult?.evidenceAccumulated ?: 0f
+                                Text(dbPattern.replace("_", " ").replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, color = TextPrimary)
+                                Text("Sustained deviation days: $dbSustained", fontSize = 12.sp, color = TextSecondary)
+                                Text("Evidence accumulated: ${"%.2f".format(dbEvidence)}", fontSize = 12.sp, color = TextSecondary)
                             }
                         }
                     }
@@ -1830,16 +1839,19 @@ fun InsightsScreen() {
             }
         }
 
-        // Alert history timeline
-        if (reports.size > 1) {
-            item {
+        // Alert history timeline — use Room-backed data for consistency
+        item {
+            val history by DataRepository.analysisHistory.collectAsState()
+            if (history.size > 1) {
                 InfoCard("Alert History", headerColor = ChartBlue) {
-                    reports.takeLast(10).reversed().forEach { report ->
+                    history.take(10).forEach { result ->
                         Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(report.alertLevel)))
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(result.alertLevel)))
                             Spacer(Modifier.width(10.dp))
-                            Text("Day ${report.dayNumber}", fontSize = 12.sp, color = TextPrimary, modifier = Modifier.weight(1f))
-                            Text(report.alertLevel.uppercase(), fontSize = 11.sp, color = alertColor(report.alertLevel), fontWeight = FontWeight.Bold)
+                            Text(result.date, fontSize = 12.sp, color = TextPrimary, modifier = Modifier.weight(1f))
+                            Text("${"%.2f".format(result.anomalyScore)}", fontSize = 11.sp, color = TextSecondary)
+                            Spacer(Modifier.width(8.dp))
+                            Text(result.alertLevel.uppercase(), fontSize = 11.sp, color = alertColor(result.alertLevel), fontWeight = FontWeight.Bold)
                         }
                     }
                 }

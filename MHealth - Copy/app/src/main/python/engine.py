@@ -59,13 +59,17 @@ def run_analysis(json_string: str) -> str:
         sessions_today  = data.get("sessions_today", [])
         dna_json        = data.get("dna", None)
 
-        # Existing profile for cluster persistence (Phase 3)
+        # Existing profile for cluster persistence (Phase 3) and app DNA persistence
         existing_profile = data.get("existing_profile", None)
         existing_clusters = None
+        existing_app_profiles = None
         if existing_profile and isinstance(existing_profile, dict):
             existing_clusters = existing_profile.get("anchor_clusters", None)
             if existing_clusters:
                 print(f"  [Analysis] Loaded {len(existing_clusters)} existing clusters for incremental growth")
+            existing_app_profiles = existing_profile.get("app_dna_profiles", None)
+            if existing_app_profiles:
+                print(f"  [Analysis] Loaded {len(existing_app_profiles)} existing app DNA profiles")
 
         # ── Build PersonalityVector baseline from Android mean/std stats ──────
         baseline_means: dict = {}
@@ -102,6 +106,8 @@ def run_analysis(json_string: str) -> str:
                 print(f"  [L2] Failed to deserialize DNA: {e}")
                 dna = None
 
+        cluster_promoted = False  # Track for evidence engine grace period
+
         # Build DNA if sessions available and no DNA yet
         if dna is None and sessions_28day:
             try:
@@ -132,7 +138,6 @@ def run_analysis(json_string: str) -> str:
                 dna_result["matched_cluster"] = matched
 
                 # Rolling cluster discovery (only when coherence < 0.3)
-                cluster_promoted = False  # Track for evidence engine grace period
                 if coherence < 0.3:
                     evidence_today = float(
                         sum(abs(v) for v in current.values())
@@ -233,9 +238,7 @@ def run_analysis(json_string: str) -> str:
             s2_output.baseline_contaminated = True
 
         # ── Evidence score for UI ──────────────────────────────────────────────
-        evidence_score = float(
-            sum(abs(v) for v in s1_report.feature_deviations.values())
-        ) if s1_report.feature_deviations else 0.0
+        evidence_score = float(s1_report.evidence_accumulated)
 
         # ── Top 3 contributing features from System 2 explanation ─────────────
         top3_list = []
@@ -249,6 +252,7 @@ def run_analysis(json_string: str) -> str:
         gate1 = "gate1" not in s2_output.screening.gates_fired
         gate2 = "gate2" not in s2_output.screening.gates_fired
         gate3 = "gate3" not in s2_output.screening.gates_fired
+        gates_fired_list = s2_output.screening.gates_fired
 
         # ── Build System 1 Profile (L1 + L2 decoupled) ─────────────────────────
         profile_data = None
@@ -280,6 +284,7 @@ def run_analysis(json_string: str) -> str:
                 daily_features_list=all_daily,
                 sessions=sessions_28day,
                 anchor_clusters=l1_profile.get("anchor_clusters", []),
+                existing_app_profiles=existing_app_profiles,
             )
             print(f"  [L2 Texture] Built: {len(l2_profile.get('app_dna_profiles', {}))} apps, "
                   f"{len(l2_profile.get('texture_profiles', []))} textures")
@@ -344,6 +349,7 @@ def run_analysis(json_string: str) -> str:
                     if s2_output.temporal_result else "stable"
                 ),
                 "message": daily_report.notes,
+                "gates_fired": gates_fired_list,
             },
             "prototype": {
                 "match":            s2_output.disorder,

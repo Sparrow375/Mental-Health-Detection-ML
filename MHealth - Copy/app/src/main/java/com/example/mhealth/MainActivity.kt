@@ -2207,24 +2207,8 @@ fun SettingsScreen() {
                         valueRange = 1f..60f,
                         steps = 59,
                         colors = SliderDefaults.colors(thumbColor = ChartOrange, activeTrackColor = ChartOrange)
-                    )
-
-                    Spacer(Modifier.height(8.dp))
-
-                    Text("DNA Baseline Period: $dnaBaselineDaysLocal days", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
-                    Text("(Days of data used for System 1 personality DNA profile)",
-                         fontSize = 10.sp, color = TextMuted)
-                    Slider(
-                        value = dnaBaselineDaysLocal.toFloat(),
-                        onValueChange = { dnaBaselineDaysLocal = it.toInt() },
-                        onValueChangeFinished = { DataRepository.setDnaBaselineDaysRequired(dnaBaselineDaysLocal) },
-                        valueRange = 3f..30f,
-                        steps = 27,
-                        colors = SliderDefaults.colors(thumbColor = ChartPurple, activeTrackColor = ChartPurple)
-                    )
 
                     Spacer(Modifier.height(16.dp))
-                    
                     Button(
                         onClick = { DataRepository.triggerNewDay() },
                         colors = ButtonDefaults.buttonColors(containerColor = ChartPurple),

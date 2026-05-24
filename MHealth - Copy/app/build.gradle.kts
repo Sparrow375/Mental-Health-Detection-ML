@@ -11,6 +11,15 @@ android {
     namespace = "com.example.mhealth"
     compileSdk = 35
 
+    signingConfigs {
+        create("sharedDebug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     defaultConfig {
         applicationId = "com.example.mhealth"
         minSdk = 26
@@ -26,8 +35,12 @@ android {
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("sharedDebug")
+        }
         release {
             isMinifyEnabled = false
+            signingConfig = signingConfigs.getByName("sharedDebug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

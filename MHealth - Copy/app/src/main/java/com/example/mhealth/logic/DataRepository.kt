@@ -271,8 +271,9 @@ object DataRepository {
         prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
 
         // Dev Settings
-        _baselineDaysRequired.value = prefs?.getInt("dev_baseline_days", 28) ?: 28
-        _dnaBaselineDaysRequired.value = prefs?.getInt("dev_dna_baseline_days", 3) ?: 3
+        val baselineDays = prefs?.getInt("dev_baseline_days", 28) ?: 28
+        _baselineDaysRequired.value = baselineDays
+        _dnaBaselineDaysRequired.value = baselineDays
         _monitoringIntervalMinutes.value = prefs?.getLong("dev_monitoring_interval", 15L) ?: 15L
         
         // Restore Onboarding State
@@ -357,12 +358,20 @@ object DataRepository {
 
     fun setBaselineDaysRequired(days: Int) {
         _baselineDaysRequired.value = days
-        prefs?.edit()?.putInt("dev_baseline_days", days)?.apply()
+        _dnaBaselineDaysRequired.value = days
+        prefs?.edit()?.apply {
+            putInt("dev_baseline_days", days)
+            putInt("dev_dna_baseline_days", days)
+        }?.apply()
     }
 
     fun setDnaBaselineDaysRequired(days: Int) {
         _dnaBaselineDaysRequired.value = days
-        prefs?.edit()?.putInt("dev_dna_baseline_days", days)?.apply()
+        _baselineDaysRequired.value = days
+        prefs?.edit()?.apply {
+            putInt("dev_baseline_days", days)
+            putInt("dev_dna_baseline_days", days)
+        }?.apply()
     }
 
     fun setMonitoringIntervalMinutes(minutes: Long) {

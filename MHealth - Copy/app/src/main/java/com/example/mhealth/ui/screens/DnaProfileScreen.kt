@@ -246,8 +246,9 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
                 fontSize = 18.sp
             )
             Spacer(Modifier.height(8.dp))
+            val displayProgress = currentProgress.coerceAtMost(baselineDays)
             Text(
-                "Collecting your unique behavioral patterns. Progress: Day $currentProgress/$baselineDays",
+                "Collecting your unique behavioral patterns. Progress: Day $displayProgress/$baselineDays",
                 color = TextSecondary,
                 fontSize = 14.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -256,7 +257,7 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
             Spacer(Modifier.height(24.dp))
             
             LinearProgressIndicator(
-                progress = (currentProgress.toFloat() / baselineDays.coerceAtLeast(1)).coerceIn(0f, 1f),
+                progress = (displayProgress.toFloat() / baselineDays.coerceAtLeast(1)).coerceIn(0f, 1f),
                 modifier = Modifier.fillMaxWidth().height(8.dp),
                 color = AccentBlue,
                 trackColor = BorderLight,
@@ -265,7 +266,7 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
             
             Spacer(Modifier.height(8.dp))
             Text(
-                "Day $currentProgress of $baselineDays collected",
+                "Day $displayProgress of $baselineDays collected",
                 color = TextSecondary,
                 fontSize = 12.sp
             )

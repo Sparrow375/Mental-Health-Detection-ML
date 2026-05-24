@@ -68,7 +68,12 @@ fun MonitorScreen() {
             )
         }
 
-        // L1 Anchor Clusters — behavioral archetypes (System 1)
+        if (!isBuilding && latestResult != null) {
+            item {
+                AnomalyScoreFlowCard(latestResult = latestResult!!)
+            }
+        }
+
         if (!isBuilding && profileObj != null) {
             item { AnchorClustersCard(profileObj!!) }
         }
@@ -134,8 +139,8 @@ private fun BaselineProgressCard(
                 value = displayProgress,
                 maxValue = displayMax,
                 color = if (isMonitoring) AlertGreen else SoftCyan,
-                label = "Days",
-                unit = "/ $target",
+                label = if (isMonitoring) "Monitored" else "Days",
+                unit = if (isMonitoring) "Total" else "/ $target",
                 size = 90.dp
             )
             Spacer(Modifier.width(16.dp))
@@ -335,6 +340,393 @@ private fun AnchorClustersCard(profile: JSONObject) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AnomalyScoreFlowCard(
+    latestResult: com.example.mhealth.logic.db.AnalysisResultEntity
+) {
+    InfoCard(
+        title = "Daily Anomaly Diagnostics Flow",
+        headerColor = AccentBlue
+    ) {
+        Column(Modifier.fillMaxWidth()) {
+            Text(
+                "Each night, the dual-layer diagnostic pipeline processes 30 Surface features and millions of session data points. Here is today's step-by-step mathematical flow.",
+                fontSize = 12.sp,
+                color = TextSecondary,
+                lineHeight = 16.sp
+            )
+            Spacer(Modifier.height(16.dp))
+
+            // STEP 1: Layer 1
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(AccentBlue.copy(0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("1", color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Layer 1: Raw Surface Anomaly Score",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    String.format("%.3f", latestResult.anomalyScore),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = AccentBlue
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Aggregated Mahalanobis Z-score magnitude and EWMA velocity of all 30 L1 telemetry features.",
+                fontSize = 10.sp,
+                color = TextSecondary,
+                lineHeight = 14.sp
+            )
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { latestResult.anomalyScore.coerceIn(0f, 1f) },
+                color = AccentBlue,
+                trackColor = BorderLight,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(RoundedCornerShape(3.dp))
+            )
+
+            // CONNECTOR ×
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .width(1.dp)
+                            .height(16.dp)
+                            .background(BorderLight)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text("×", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                    Spacer(Modifier.width(12.dp))
+                    Box(
+                        Modifier
+                            .width(1.dp)
+                            .height(16.dp)
+                            .background(BorderLight)
+                    )
+                }
+            }
+
+            // STEP 2: Layer 2
+            val modifierColor = when {
+                latestResult.l2Modifier < 0.9f -> AlertGreen
+                latestResult.l2Modifier > 1.1f -> AlertOrange
+                else -> TextSecondary
+            }
+            val modifierLabel = when {
+                latestResult.l2Modifier < 0.9f -> "Suppression (Matches Known Routine)"
+                latestResult.l2Modifier > 1.1f -> "Amplification (Degraded/Disorganized)"
+                else -> "Neutral (No Modifier Influence)"
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .background(modifierColor.copy(0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("2", color = modifierColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Layer 2: Digital DNA Modifier",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    String.format("× %.3f", latestResult.l2Modifier),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 15.sp,
+                    color = modifierColor
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Effect: $modifierLabel",
+                fontSize = 11.sp,
+                color = modifierColor,
+                fontWeight = FontWeight.SemiBold
+            )
+            Spacer(Modifier.height(8.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = BorderLight.copy(0.2f)),
+                shape = RoundedCornerShape(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Context Coherence
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Context Coherence",
+                                fontSize = 12.sp,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                String.format("%.2f", latestResult.coherence),
+                                fontSize = 12.sp,
+                                color = AlertGreen,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            "Measures alignment with discovered DBSCAN baseline archetypes (reduces anomaly).",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            lineHeight = 13.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { latestResult.coherence.coerceIn(0f, 1f) },
+                            color = AlertGreen,
+                            trackColor = BorderLight,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                    }
+
+                    // Rhythm Dissolution
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Rhythm Dissolution",
+                                fontSize = 12.sp,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                String.format("%.2f", latestResult.rhythmDissolution),
+                                fontSize = 12.sp,
+                                color = AlertOrange,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            "KL divergence of today's hourly app usage from typical day-of-week DNA (amplifies anomaly).",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            lineHeight = 13.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { latestResult.rhythmDissolution.coerceIn(0f, 1f) },
+                            color = AlertOrange,
+                            trackColor = BorderLight,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                    }
+
+                    // Session Incoherence
+                    Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Session Incoherence",
+                                fontSize = 12.sp,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(Modifier.weight(1f))
+                            Text(
+                                String.format("%.2f", latestResult.sessionIncoherence),
+                                fontSize = 12.sp,
+                                color = ChartRed,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Text(
+                            "Abandon rate spike + duration collapse on high-depth apps (amplifies anomaly).",
+                            fontSize = 10.sp,
+                            color = TextSecondary,
+                            lineHeight = 13.sp
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        LinearProgressIndicator(
+                            progress = { latestResult.sessionIncoherence.coerceIn(0f, 1f) },
+                            color = ChartRed,
+                            trackColor = BorderLight,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                        )
+                    }
+                }
+            }
+
+            // CONNECTOR =
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        Modifier
+                            .width(1.dp)
+                            .height(16.dp)
+                            .background(BorderLight)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Text("=", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextSecondary)
+                    Spacer(Modifier.width(12.dp))
+                    Box(
+                        Modifier
+                            .width(1.dp)
+                            .height(16.dp)
+                            .background(BorderLight)
+                    )
+                }
+            }
+
+            // STEP 3: Effective Score
+            val effectiveScoreColor = alertColor(latestResult.alertLevel)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .background(effectiveScoreColor.copy(0.15f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        Icons.Default.Shield,
+                        contentDescription = null,
+                        tint = effectiveScoreColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    "Effective Fused Score",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    String.format("%.3f", latestResult.effectiveScore),
+                    fontWeight = FontWeight.ExtraBold,
+                    fontSize = 18.sp,
+                    color = effectiveScoreColor
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Trigger threshold: 0.380 (Score below 0.38 is healthy)",
+                fontSize = 10.sp,
+                color = TextSecondary
+            )
+            Spacer(Modifier.height(8.dp))
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(8.dp)
+                    .background(BorderLight, RoundedCornerShape(4.dp))
+            ) {
+                Box(
+                    Modifier
+                        .fillMaxWidth(latestResult.effectiveScore.coerceIn(0f, 1f))
+                        .fillMaxHeight()
+                        .background(effectiveScoreColor, RoundedCornerShape(4.dp))
+                )
+                // Threshold mark at 38%
+                Box(
+                    Modifier
+                        .fillMaxWidth(0.38f)
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .background(TextPrimary)
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text("0.00", fontSize = 9.sp, color = TextSecondary)
+                Spacer(Modifier.weight(0.38f))
+                Text(
+                    "Gate (0.38)",
+                    fontSize = 9.sp,
+                    color = TextPrimary,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.weight(0.62f))
+                Text(
+                    "1.00",
+                    fontSize = 9.sp,
+                    color = TextSecondary,
+                    modifier = Modifier.align(Alignment.End)
+                )
+            }
+
+            // STEP 4: Evidence
+            Spacer(Modifier.height(16.dp))
+            HorizontalDivider(color = Color.Gray.copy(0.1f))
+            Spacer(Modifier.height(12.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    if (latestResult.effectiveScore > 0.38f) Icons.Default.Warning else Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = if (latestResult.effectiveScore > 0.38f) AlertOrange else AlertGreen,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    if (latestResult.effectiveScore > 0.38f) "Compounding Sustained Evidence" else "Normal (Decaying Evidence)",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp,
+                    color = TextPrimary
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    String.format("%.3f", latestResult.evidenceAccumulated),
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 13.sp,
+                    color = if (latestResult.effectiveScore > 0.38f) AlertOrange else AlertGreen
+                )
+            }
+            Spacer(Modifier.height(4.dp))
+            Text(
+                if (latestResult.effectiveScore > 0.38f)
+                    "Score > 0.38 triggers evidence compounding (+15% scale per sustained day) to evaluate diagnostic alert levels."
+                else
+                    "Score <= 0.38 signals healthy routine alignment. Cumulative anomaly evidence decays by 8% today.",
+                fontSize = 10.sp,
+                color = TextSecondary,
+                lineHeight = 14.sp
+            )
         }
     }
 }

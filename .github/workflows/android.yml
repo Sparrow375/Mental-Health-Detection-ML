@@ -2,9 +2,9 @@ name: Android CI Cloud Build
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "**" ]
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:

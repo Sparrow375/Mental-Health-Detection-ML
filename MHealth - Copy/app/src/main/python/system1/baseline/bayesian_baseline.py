@@ -108,6 +108,60 @@ _FALLBACK_DEFAULTS: Dict[str, float] = {
 _POPULATED_FEATURES_SNAKE: Dict[str, str] = _CAMEL_TO_SNAKE
 
 
+# Robust Variance Floor Heuristic to prevent division-by-zero or excessively small standard deviations.
+_FEATURE_STD_FLOORS: Dict[str, float] = {
+    # Screen & App Activity
+    "screenTimeHours": 0.5,
+    "unlockCount": 2.0,
+    "appLaunchCount": 5.0,
+    "notificationsToday": 5.0,
+    "socialAppRatio": 0.05,
+
+    # Communication
+    "callsPerDay": 1.0,
+    "callDurationMinutes": 2.0,
+    "uniqueContacts": 1.0,
+    "conversationFrequency": 0.5,
+
+    # Location & Movement
+    "dailyDisplacementKm": 0.5,      # 500 meters
+    "locationEntropy": 0.1,
+    "homeTimeRatio": 0.05,
+
+    # Sleep & Circadian
+    "wakeTimeHour": 0.5,
+    "sleepTimeHour": 0.5,
+    "sleepDurationHours": 0.5,
+
+    # Physical Activity
+    "dailyStepCount": 500.0,          # 500 steps minimum
+    "activeMinutes": 5.0,
+
+    # Interaction Dynamics
+    "keystrokeSpeed": 0.2,
+    "backspaceRatio": 0.05,
+    "scrollVelocity": 20.0,
+
+    # Circadian & Environment
+    "daylightExposureMinutes": 10.0,
+    "chargeRegularity": 0.05,
+
+    # System Usage
+    "chargeDurationHours": 0.5,
+
+    # Behavioural Signals
+    "upiTransactionsToday": 1.0,
+    "appUninstallsToday": 0.5,
+    "appInstallsToday": 0.5,
+
+    # Calendar & Engagement
+    "calendarEventsToday": 0.5,
+    "mediaCountToday": 1.0,
+    "downloadsToday": 0.5,
+    "musicTimeMinutes": 10.0,
+}
+
+
 def _prior_for_feature(
     feature: str,
     population_norms: Dict[str, Dict[str, float]],
@@ -209,9 +263,22 @@ class BayesianBaseline:
 
         for feat in self.feature_names:
             p = self._posteriors[feat]
-            effective_means[feat] = p.mu_n
-            posterior_var = p.beta_n / (p.alpha_n + 1)
-            effective_stds[feat] = math.sqrt(max(posterior_var, 0.0)) + 0.05
+            
+            # --- PURELY IDIOGRAPHIC OVERRIDE WITH ROBUST VARIANCE FLOOR ---
+            n = p.n_observations
+            if n > 0:
+                x_bar = p.sum_observations / n
+                # personal empirical variance
+                sample_var = max(p.sum_sq_observations / n - x_bar ** 2, 0.0)
+                std_empirical = math.sqrt(sample_var)
+            else:
+                x_bar = p.mu_0
+                std_empirical = 0.0
+                
+            effective_means[feat] = x_bar
+            floor = _FEATURE_STD_FLOORS.get(feat, 0.5)
+            effective_stds[feat] = max(std_empirical, floor)
+            # --------------------------------------------------------------
 
             var_mu_posterior = p.beta_n / (p.alpha_n * p.kappa_n)
             var_mu_prior = p.beta_0 / (p.alpha_0 * p.kappa_0)

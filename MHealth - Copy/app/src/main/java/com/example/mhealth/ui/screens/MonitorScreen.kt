@@ -123,11 +123,12 @@ private fun BaselineProgressCard(
     baselineVectors: List<com.example.mhealth.models.PersonalityVector>
 ) {
     val isMonitoring = !isBuilding
-    val displayProgress = remember(progress, target, isMonitoring) {
-        if (isMonitoring) progress.toFloat() else progress.toFloat().coerceAtMost(target.toFloat())
+    val activeTrackingDay = if (isMonitoring) (progress - target + 1).coerceAtLeast(1) else 1
+    val displayProgress = remember(progress, target, isMonitoring, activeTrackingDay) {
+        if (isMonitoring) activeTrackingDay.toFloat() else progress.toFloat().coerceAtMost(target.toFloat())
     }
-    val displayMax = remember(progress, target, isMonitoring) {
-        if (isMonitoring) progress.toFloat().coerceAtLeast(1f) else target.toFloat()
+    val displayMax = remember(progress, target, isMonitoring, activeTrackingDay) {
+        if (isMonitoring) activeTrackingDay.toFloat() else target.toFloat()
     }
 
     InfoCard(
@@ -139,8 +140,8 @@ private fun BaselineProgressCard(
                 value = displayProgress,
                 maxValue = displayMax,
                 color = if (isMonitoring) AlertGreen else SoftCyan,
-                label = if (isMonitoring) "Monitored" else "Days",
-                unit = if (isMonitoring) "Total" else "/ $target",
+                label = if (isMonitoring) "Tracking" else "Days",
+                unit = if (isMonitoring) "Day" else "/ $target",
                 size = 90.dp
             )
             Spacer(Modifier.width(16.dp))
@@ -148,7 +149,7 @@ private fun BaselineProgressCard(
                 if (isMonitoring) {
                     val statusColor = latestResult?.let { alertColor(it.alertLevel) } ?: AlertGreen
                     Text("Continuous Tracking Active", fontWeight = FontWeight.Bold, color = statusColor)
-                    Text("Tracking your days over P₀. Comparison against your $target-day established baseline is live.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
+                    Text("Day $activeTrackingDay of active tracking. Comparison against your $target-day established baseline is live.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                 } else {
                     val frac = (progress / target.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
                     Text("Learning Your Unique Patterns", fontWeight = FontWeight.Bold, color = TextPrimary)
@@ -362,7 +363,10 @@ private fun AnomalyScoreFlowCard(
             Spacer(Modifier.height(16.dp))
 
             // STEP 1: Layer 1
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -372,19 +376,23 @@ private fun AnomalyScoreFlowCard(
                     Text("1", color = AccentBlue, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    "Layer 1: Raw Surface Anomaly Score",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    String.format("%.3f", latestResult.anomalyScore),
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 15.sp,
-                    color = AccentBlue
-                )
+                Column(Modifier.weight(1f)) {
+                    Text("Layer 1: Raw Surface Anomaly Score", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
+                    Text("Telemetry Z-score magnitude and velocity", fontSize = 10.sp, color = TextSecondary)
+                }
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    color = AccentBlue.copy(0.1f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = String.format(" %.3f ", latestResult.anomalyScore),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        color = AccentBlue,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -441,7 +449,10 @@ private fun AnomalyScoreFlowCard(
                 latestResult.l2Modifier > 1.1f -> "Amplification (Degraded/Disorganized)"
                 else -> "Neutral (No Modifier Influence)"
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Box(
                     modifier = Modifier
                         .size(24.dp)
@@ -451,19 +462,23 @@ private fun AnomalyScoreFlowCard(
                     Text("2", color = modifierColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    "Layer 2: Digital DNA Modifier",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 13.sp,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    String.format("× %.3f", latestResult.l2Modifier),
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 15.sp,
-                    color = modifierColor
-                )
+                Column(Modifier.weight(1f)) {
+                    Text("Layer 2: Digital DNA Modifier", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = TextPrimary)
+                    Text("Rhythm KL-divergence & session coherence", fontSize = 10.sp, color = TextSecondary)
+                }
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    color = modifierColor.copy(0.1f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = String.format(" ×%.3f ", latestResult.l2Modifier),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 14.sp,
+                        color = modifierColor,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 4.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(
@@ -615,7 +630,10 @@ private fun AnomalyScoreFlowCard(
 
             // STEP 3: Effective Score
             val effectiveScoreColor = alertColor(latestResult.alertLevel)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 Box(
                     modifier = Modifier
                         .size(28.dp)
@@ -630,19 +648,23 @@ private fun AnomalyScoreFlowCard(
                     )
                 }
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    "Effective Fused Score",
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 14.sp,
-                    color = TextPrimary
-                )
-                Spacer(Modifier.weight(1f))
-                Text(
-                    String.format("%.3f", latestResult.effectiveScore),
-                    fontWeight = FontWeight.ExtraBold,
-                    fontSize = 18.sp,
-                    color = effectiveScoreColor
-                )
+                Column(Modifier.weight(1f)) {
+                    Text("Effective Fused Score", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = TextPrimary)
+                    Text("Final anomaly index following dual-layer fusion", fontSize = 10.sp, color = TextSecondary)
+                }
+                Spacer(Modifier.width(8.dp))
+                Surface(
+                    color = effectiveScoreColor.copy(0.1f),
+                    shape = RoundedCornerShape(6.dp)
+                ) {
+                    Text(
+                        text = String.format(" %.3f ", latestResult.effectiveScore),
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp,
+                        color = effectiveScoreColor,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
             }
             Spacer(Modifier.height(4.dp))
             Text(

@@ -199,14 +199,17 @@ class L1Scorer:
 
     LIFESTYLE_FEATURE_MAP: Dict[str, List[str]] = {
         'screen': ['screenTimeHours', 'unlockCount', 'socialAppRatio',
-                    'appLaunchCount', 'notificationsToday', 'totalAppsCount'],
+                   'appLaunchCount', 'notificationsToday'],
         'communication': ['callsPerDay', 'callDurationMinutes', 'uniqueContacts',
                           'conversationFrequency'],
-        'movement': ['dailyDisplacementKm', 'locationEntropy', 'homeTimeRatio'],
+        'movement': ['dailyDisplacementKm', 'locationEntropy', 'homeTimeRatio',
+                     'dailyStepCount', 'activeMinutes'],
         'sleep': ['wakeTimeHour', 'sleepTimeHour', 'sleepDurationHours',
-                  'darkDurationHours', 'chargeDurationHours'],
+                  'chargeDurationHours', 'daylightExposureMinutes', 'chargeRegularity'],
         'engagement': ['calendarEventsToday', 'musicTimeMinutes',
-                       'upiTransactionsToday', 'mediaCountToday', 'downloadsToday'],
+                       'upiTransactionsToday', 'mediaCountToday', 'downloadsToday',
+                       'keystrokeSpeed', 'backspaceRatio', 'scrollVelocity',
+                       'appUninstallsToday', 'appInstallsToday'],
     }
 
     def apply_lifestyle_weights(self, user_profile) -> None:

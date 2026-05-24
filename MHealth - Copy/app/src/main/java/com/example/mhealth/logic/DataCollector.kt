@@ -236,7 +236,6 @@ class DataCollector(private val context: Context) : SensorEventListener {
             appLaunchesBreakdown = events.appLaunches
         )
     }
-    }
 
     /** Start passive continuous location tracking with adaptive intervals. */
     @SuppressLint("MissingPermission")

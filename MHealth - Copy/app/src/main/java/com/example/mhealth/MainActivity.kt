@@ -977,7 +977,7 @@ fun HomeScreen() {
                     Column {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
                             ArcProgressRing(v.sleepDurationHours, 10f, ChartPurple, "Est. Sleep", "hrs")
-                            ArcProgressRing(v.darkDurationHours, 12f, SoftCyan.copy(0.7f), "Dark Hours", "hrs")
+                            ArcProgressRing(v.chargeRegularity * 100f, 100f, SoftCyan.copy(0.7f), "Charge Reg.", "%")
                             ArcProgressRing(v.chargeDurationHours, 6f, AlertOrange, "Charge", "hrs")
                         }
                         Spacer(Modifier.height(16.dp))
@@ -995,94 +995,39 @@ fun HomeScreen() {
                 }
             }
 
-            // Advanced Sensors — category-aware storage, installs, downloads, UPI
+            // Physical Activity & Interaction Dynamics
             item {
-                val ctx = LocalContext.current
-                val collector = remember { com.example.mhealth.logic.DataCollector(ctx) }
-
-                val advancedData by produceState(
-                    initialValue = Pair(emptyMap<String, Float>(), emptyMap<String, Int>()),
-                    key1 = v
-                ) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        val storage = runCatching { collector.getStorageByCategory() }.getOrDefault(emptyMap())
-                        val apps = runCatching { collector.getAllAppsByCategory() }.getOrDefault(emptyMap())
-                        value = Pair(storage, apps)
-                    }
-                }
-                val storageByCategory = advancedData.first
-                val allAppsByCategory = advancedData.second
-
-                val catColors = mapOf(
-                    "Games"       to ChartPurple,
-                    "Social"      to ChartRed,
-                    "Finance"     to OceanBlue,
-                    "Media"       to AlertOrange,
-                    "Photos"      to SoftCyan,
-                    "Health"      to ChartGreen,
-                    "Productivity" to ChartBlue,
-                    "News"        to AlertYellow,
-                    "Other"       to TextSecondary
-                )
-
-                InfoCard("Advanced Sensors", headerColor = AlertOrange) {
-                    if (storageByCategory.isEmpty() && allAppsByCategory.isEmpty()) {
-                        Box(Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(color = AlertOrange, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
-                                Spacer(Modifier.height(8.dp))
-                                Text("Analyzing Deep Sensors", fontSize = 11.sp, color = TextSecondary)
-                            }
-                        }
-                    } else if (storageByCategory.isNotEmpty()) {
-                        Text("💾 Storage Occupies", fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold, color = TextPrimary,
-                            modifier = Modifier.padding(bottom = 12.dp))
-                        val storageCatIcons = mapOf(
-                            "Games" to "🎮", "Social" to "💬", "Finance" to "💳",
-                            "Media" to "🎵", "Photos" to "📸", "Health" to "🏋️",
-                            "Productivity" to "💼", "News" to "📰", "Maps" to "🗺️", "Other" to "📦"
-                        )
-                        PieChart(
-                            data = storageByCategory, colors = catColors, icons = storageCatIcons,
-                            centerText = "%.1f".format(storageByCategory.values.sum()),
-                            centerSubtext = "GB Total",
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
-                    if (allAppsByCategory.isNotEmpty()) {
-                        Text("🛒 Apps by Category", fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold, color = TextPrimary,
-                            modifier = Modifier.padding(bottom = 12.dp))
-                        val appCatIcons = mapOf(
-                            "Games" to "🎮", "Social" to "📱", "Finance" to "💰",
-                            "Media" to "🎬", "Photos" to "🖼️", "Health" to "❤️",
-                            "Productivity" to "✅", "News" to "📰", "Maps" to "🗺️", "Other" to "📦"
-                        )
-                        val floatApps = allAppsByCategory.mapValues { it.value.toFloat() }
-                        PieChart(
-                            data = floatApps, colors = catColors, icons = appCatIcons,
-                            centerText = "${allAppsByCategory.values.sum()}",
-                            centerSubtext = "Apps",
-                            modifier = Modifier.padding(bottom = 16.dp)
-                        )
-                    }
-
+                InfoCard("Physical Activity", headerColor = ChartGreen) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
-                        MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", OceanBlue)
-                        MetricPill("📱 Total Apps", "${v.totalAppsCount.toInt()}", ChartPurple)
+                        ArcProgressRing(v.dailyStepCount, 10000f, ChartGreen, "Steps", "")
+                        ArcProgressRing(v.activeMinutes, 120f, SoftCyan, "Active", "min")
                     }
                 }
             }
 
-            // System stats row
+            // Interaction Dynamics (Accessibility-based)
             item {
-                InfoCard("System", headerColor = ChartBlue) {
+                InfoCard("Interaction Dynamics", headerColor = MhealthAccentPurple) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📶 WiFi Data", "%.0f MB".format(v.networkWifiMB), ChartBlue)
-                        MetricPill("📶 Mobile Data", "%.0f MB".format(v.networkMobileMB), AlertOrange)
+                        MetricPill("⌨️ Key Speed", "%.1f ch/s".format(v.keystrokeSpeed), MhealthAccentPurple)
+                        MetricPill("⌫ Backspace", "%.0f%%".format(v.backspaceRatio * 100), ChartRed)
+                        MetricPill("📜 Scroll", "%.0f px/s".format(v.scrollVelocity), OceanBlue)
+                    }
+                }
+            }
+
+            // Circadian & Environment
+            item {
+                InfoCard("Circadian & Environment", headerColor = AlertOrange) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        ArcProgressRing(v.daylightExposureMinutes, 120f, AlertOrange, "Daylight", "min")
+                        ArcProgressRing(v.chargeRegularity * 100f, 100f, SoftCyan, "Charge Reg.", "%")
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                        MetricPill("⬇️ Downloads", "${v.downloadsToday.toInt()}", AlertOrange)
+                        MetricPill("💳 UPI/Pay", "${v.upiTransactionsToday.toInt()}", OceanBlue)
+                        MetricPill("🎧 Music", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
                     }
                 }
             }
@@ -1186,19 +1131,21 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "wakeTimeHour"         to Pair("Wake Time",            "hr"),
     "sleepTimeHour"        to Pair("Sleep Time",           "hr"),
     "sleepDurationHours"   to Pair("Sleep Duration",       "hrs"),
-    "darkDurationHours"    to Pair("Screen-off Time",      "hrs"),
+    "dailyStepCount"       to Pair("Step Count",           "steps"),
+    "activeMinutes"        to Pair("Active Minutes",       "min"),
+    "keystrokeSpeed"       to Pair("Keystroke Speed",      "char/s"),
+    "backspaceRatio"       to Pair("Backspace Ratio",      "%"),
+    "scrollVelocity"       to Pair("Scroll Velocity",      "px/s"),
+    "daylightExposureMinutes" to Pair("Daylight Exposure", "min"),
+    "chargeRegularity"     to Pair("Charge Regularity",    "%"),
     "chargeDurationHours"  to Pair("Charging Time",        "hrs"),
-    "memoryUsagePercent"   to Pair("Memory Usage",         "%"),
-    "networkWifiMB"        to Pair("Wi-Fi Usage",          "MB"),
-    "networkMobileMB"      to Pair("Mobile Data",          "MB"),
-    "calendarEventsToday" to Pair("Calendar Events",        ""),
-    "downloadsToday"       to Pair("Downloads Today",       ""),
-    "storageUsedGB"        to Pair("Storage Used",          "GB"),
-    "appUninstallsToday"  to Pair("App Uninstalls",         ""),
     "upiTransactionsToday" to Pair("UPI / Payments",        ""),
-    "totalAppsCount"      to Pair("Total Apps",             ""),
+    "appUninstallsToday"   to Pair("App Uninstalls",         ""),
+    "appInstallsToday"     to Pair("App Installs",          ""),
+    "calendarEventsToday"  to Pair("Calendar Events",        ""),
     "mediaCountToday"      to Pair("Media Files",           ""),
-    "appInstallsToday"     to Pair("App Installs",          "")
+    "downloadsToday"       to Pair("Downloads Today",       ""),
+    "musicTimeMinutes"     to Pair("Music Time",           "min")
 )
 
 @Composable
@@ -1532,10 +1479,11 @@ fun AnalysisScreen() {
                             "ScrT", "Unlk", "AppL", "Notif", "SocR",
                             "Call", "CallD", "Cont", "Conv",
                             "Disp", "LocE", "Home",
-                            "Wake", "SlpH", "SlpD", "Dark",
-                            "Chrg", "Mem", "WiFi", "Mob", "CalE",
-                            "Media", "Inst", "Dnld", "Stor",
-                            "Unin", "UPI", "TotA", "BgA", "Step"
+                            "Wake", "SlpH", "SlpD", "Step",
+                            "ActM", "Keys", "BckR", "ScrV",
+                            "DayL", "ChrR", "ChrD", "UPI",
+                            "Unin", "Inst", "CalE", "Medi",
+                            "Dnld", "MusT"
                         )
                         val normalizeDev: (Float, Float) -> Float = { cur, base ->
                             if (base <= 0.01f) {
@@ -1560,21 +1508,21 @@ fun AnalysisScreen() {
                             normalizeDev(v.wakeTimeHour, b.wakeTimeHour),
                             normalizeDev(v.sleepTimeHour, b.sleepTimeHour),
                             normalizeDev(v.sleepDurationHours, b.sleepDurationHours),
-                            normalizeDev(v.darkDurationHours, b.darkDurationHours),
+                            normalizeDev(v.dailyStepCount, b.dailyStepCount),
+                            normalizeDev(v.activeMinutes, b.activeMinutes),
+                            normalizeDev(v.keystrokeSpeed, b.keystrokeSpeed),
+                            normalizeDev(v.backspaceRatio, b.backspaceRatio),
+                            normalizeDev(v.scrollVelocity, b.scrollVelocity),
+                            normalizeDev(v.daylightExposureMinutes, b.daylightExposureMinutes),
+                            normalizeDev(v.chargeRegularity, b.chargeRegularity),
                             normalizeDev(v.chargeDurationHours, b.chargeDurationHours),
-                            normalizeDev(v.memoryUsagePercent, b.memoryUsagePercent),
-                            normalizeDev(v.networkWifiMB, b.networkWifiMB),
-                            normalizeDev(v.networkMobileMB, b.networkMobileMB),
+                            normalizeDev(v.upiTransactionsToday, b.upiTransactionsToday),
+                            normalizeDev(v.appUninstallsToday, b.appUninstallsToday),
+                            normalizeDev(v.appInstallsToday, b.appInstallsToday),
                             normalizeDev(v.calendarEventsToday, b.calendarEventsToday),
                             normalizeDev(v.mediaCountToday, b.mediaCountToday),
-                            normalizeDev(v.appInstallsToday, b.appInstallsToday),
                             normalizeDev(v.downloadsToday, b.downloadsToday),
-                            normalizeDev(v.storageUsedGB, b.storageUsedGB),
-                            normalizeDev(v.appUninstallsToday, b.appUninstallsToday),
-                            normalizeDev(v.upiTransactionsToday, b.upiTransactionsToday),
-                            normalizeDev(v.totalAppsCount, b.totalAppsCount),
-                            normalizeDev(v.musicTimeMinutes, b.musicTimeMinutes),
-                            normalizeDev(v.dailySteps, b.dailySteps)
+                            normalizeDev(v.musicTimeMinutes, b.musicTimeMinutes)
                         )
                         val baseVals = List(30) { 0.5f }
 
@@ -2017,17 +1965,17 @@ fun InsightsScreen() {
                                 Spacer(Modifier.height(6.dp))
                                 val rows = listOf(
                                     "Screen Time"      to "%.1f hrs".format(feat.screenTimeHours),
-                                    "Unlocks"          to "%.0f".format(feat.unlockCount),
-                                    "App Launches"     to "%.0f".format(feat.appLaunchCount),
+                                    "Phone Unlocks"    to "%.0f".format(feat.unlockCount),
+                                    "App Opens"        to "%.0f".format(feat.appLaunchCount),
                                     "Notifications"    to "%.0f".format(feat.notificationsToday),
-                                    "Social Ratio"     to "%.0f%%".format(feat.socialAppRatio * 100),
+                                    "Social App Ratio" to "%.1f%%".format(feat.socialAppRatio * 100),
                                     "Calls"            to "%.0f".format(feat.callsPerDay),
-                                    "Call Duration"    to "%.0f min".format(feat.callDurationMinutes),
-                                    "Contacts"         to "%.0f".format(feat.uniqueContacts),
+                                    "Call Duration"    to "%.1f min".format(feat.callDurationMinutes),
+                                    "Unique Contacts"  to "%.0f".format(feat.uniqueContacts),
+                                    "Conversation Freq" to "%.1f".format(feat.conversationFrequency),
                                     "Displacement"     to "%.2f km".format(feat.dailyDisplacementKm),
                                     "Location Entropy" to "%.2f".format(feat.locationEntropy),
                                     "Home Time"        to "%.0f%%".format(feat.homeTimeRatio * 100),
-                                    "Places Visited"   to "%.0f".format(feat.placesVisited),
                                     "Wake Time"        to run {
                                         val h = feat.wakeTimeHour.toInt(); val m = ((feat.wakeTimeHour - h) * 60).toInt()
                                         val amPm = if (h < 12) "AM" else "PM"; val hr12 = if (h % 12 == 0) 12 else h % 12
@@ -2039,20 +1987,21 @@ fun InsightsScreen() {
                                         "%02d:%02d %s".format(hr12, m, amPm)
                                     },
                                     "Sleep Duration"   to "%.1f hrs".format(feat.sleepDurationHours),
-                                    "Dark Duration"    to "%.1f hrs".format(feat.darkDurationHours),
-                                    "Charge Time"      to "%.1f hrs".format(feat.chargeDurationHours),
-                                    "Memory"           to "%.0f%%".format(feat.memoryUsagePercent),
-                                    "Wi-Fi"            to "%.0f MB".format(feat.networkWifiMB),
-                                    "Mobile Data"      to "%.0f MB".format(feat.networkMobileMB),
-                                    "Audio"            to "%.0f min".format(feat.musicTimeMinutes),
-                                    "Storage Used"     to "%.1f GB".format(feat.storageUsedGB),
-                                    "Downloads"        to "%.0f".format(feat.downloadsToday),
-                                    "App Installs"     to "%.0f".format(feat.appInstallsToday),
-                                    "App Uninstalls"   to "%.0f".format(feat.appUninstallsToday),
+                                    "Step Count"       to "%.0f steps".format(feat.dailyStepCount),
+                                    "Active Minutes"   to "%.0f min".format(feat.activeMinutes),
+                                    "Keystroke Speed"  to "%.1f char/s".format(feat.keystrokeSpeed),
+                                    "Backspace Ratio"  to "%.1f%%".format(feat.backspaceRatio * 100),
+                                    "Scroll Velocity"  to "%.1f px/s".format(feat.scrollVelocity),
+                                    "Daylight Exposure" to "%.1f min".format(feat.daylightExposureMinutes),
+                                    "Charge Regularity" to "%.1f%%".format(feat.chargeRegularity * 100),
+                                    "Charging Time"    to "%.1f hrs".format(feat.chargeDurationHours),
                                     "UPI Transactions" to "%.0f".format(feat.upiTransactionsToday),
-                                    "Total Apps"       to "%.0f".format(feat.totalAppsCount),
+                                    "App Uninstalls"   to "%.0f".format(feat.appUninstallsToday),
+                                    "App Installs"     to "%.0f".format(feat.appInstallsToday),
+                                    "Calendar Events"  to "%.0f".format(feat.calendarEventsToday),
                                     "Media Files"      to "%.0f".format(feat.mediaCountToday),
-                                    "Calendar Events"  to "%.0f".format(feat.calendarEventsToday)
+                                    "Downloads"        to "%.0f".format(feat.downloadsToday),
+                                    "Music Time"       to "%.0f min".format(feat.musicTimeMinutes)
                                 )
                                 rows.forEach { (label, value) ->
                                     Row(Modifier.fillMaxWidth().padding(vertical = 3.dp)) {
@@ -2346,7 +2295,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                 // Anomaly score for this day (–1 means no analysis has run yet for that day)
                 dayObj.put("anomaly_score", scoreByDate[day.date] ?: -1.0)
 
-                // All 30+ Features
+                // All 30 Features (aligned with PersonalityVector.toMap())
                 val features = org.json.JSONObject().apply {
                     put("screenTimeHours", day.screenTimeHours)
                     put("unlockCount", day.unlockCount)
@@ -2356,29 +2305,28 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("callsPerDay", day.callsPerDay)
                     put("callDurationMins", day.callDurationMinutes)
                     put("uniqueContacts", day.uniqueContacts)
+                    put("conversationFrequency", day.conversationFrequency)
                     put("displacementKm", day.dailyDisplacementKm)
                     put("locationEntropy", day.locationEntropy)
                     put("homeTimeRatio", day.homeTimeRatio)
-                    put("placesVisited", day.placesVisited)
                     put("wakeTimeHour", day.wakeTimeHour)
                     put("sleepTimeHour", day.sleepTimeHour)
                     put("sleepDurationHours", day.sleepDurationHours)
-                    put("darkDurationHours", day.darkDurationHours)
+                    put("dailyStepCount", day.dailyStepCount)
+                    put("activeMinutes", day.activeMinutes)
+                    put("keystrokeSpeed", day.keystrokeSpeed)
+                    put("backspaceRatio", day.backspaceRatio)
+                    put("scrollVelocity", day.scrollVelocity)
+                    put("daylightExposureMinutes", day.daylightExposureMinutes)
+                    put("chargeRegularity", day.chargeRegularity)
                     put("chargeDurationHours", day.chargeDurationHours)
-                    put("memoryUsagePercent", day.memoryUsagePercent)
-                    put("networkWifiMB", day.networkWifiMB)
-                    put("networkMobileMB", day.networkMobileMB)
-                    put("downloads", day.downloadsToday)
-                    put("storageUsedGB", day.storageUsedGB)
-                    put("appUninstalls", day.appUninstallsToday)
                     put("upiTransactions", day.upiTransactionsToday)
-                    put("totalApps", day.totalAppsCount)
-                    put("musicTimeMinutes", day.musicTimeMinutes)
-                    put("mediaCount", day.mediaCountToday)
+                    put("appUninstalls", day.appUninstallsToday)
                     put("appInstalls", day.appInstallsToday)
-                    put("steps", day.dailySteps)
-                    put("conversationFrequency", day.conversationFrequency)
                     put("calendarEvents", day.calendarEventsToday)
+                    put("mediaCount", day.mediaCountToday)
+                    put("downloads", day.downloadsToday)
+                    put("musicTimeMinutes", day.musicTimeMinutes)
                 }
                 dayObj.put("metrics", features)
 
@@ -2413,28 +2361,28 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("callsPerDay",         liveVector.callsPerDay)
                     put("callDurationMins",    liveVector.callDurationMinutes)
                     put("uniqueContacts",      liveVector.uniqueContacts)
+                    put("conversationFrequency", liveVector.conversationFrequency)
                     put("displacementKm",      liveVector.dailyDisplacementKm)
                     put("locationEntropy",     liveVector.locationEntropy)
                     put("homeTimeRatio",       liveVector.homeTimeRatio)
                     put("wakeTimeHour",        liveVector.wakeTimeHour)
                     put("sleepTimeHour",       liveVector.sleepTimeHour)
                     put("sleepDurationHours",  liveVector.sleepDurationHours)
-                    put("darkDurationHours",   liveVector.darkDurationHours)
+                    put("dailyStepCount",      liveVector.dailyStepCount)
+                    put("activeMinutes",       liveVector.activeMinutes)
+                    put("keystrokeSpeed",      liveVector.keystrokeSpeed)
+                    put("backspaceRatio",      liveVector.backspaceRatio)
+                    put("scrollVelocity",      liveVector.scrollVelocity)
+                    put("daylightExposureMinutes", liveVector.daylightExposureMinutes)
+                    put("chargeRegularity",    liveVector.chargeRegularity)
                     put("chargeDurationHours", liveVector.chargeDurationHours)
-                    put("musicTimeMinutes", liveVector.musicTimeMinutes)
-                    put("dailySteps",          liveVector.dailySteps)
-                    put("storageUsedGB",       liveVector.storageUsedGB)
-                    put("networkWifiMB",       liveVector.networkWifiMB)
-                    put("networkMobileMB",     liveVector.networkMobileMB)
-                    put("conversationFrequency", liveVector.conversationFrequency)
-                    put("memoryUsagePercent",  liveVector.memoryUsagePercent)
-                    put("downloads",           liveVector.downloadsToday)
-                    put("appUninstalls",       liveVector.appUninstallsToday)
                     put("upiTransactions",     liveVector.upiTransactionsToday)
-                    put("totalApps",           liveVector.totalAppsCount)
-                    put("mediaCount",          liveVector.mediaCountToday)
+                    put("appUninstalls",       liveVector.appUninstallsToday)
                     put("appInstalls",         liveVector.appInstallsToday)
                     put("calendarEvents",      liveVector.calendarEventsToday)
+                    put("mediaCount",          liveVector.mediaCountToday)
+                    put("downloads",           liveVector.downloadsToday)
+                    put("musicTimeMinutes",    liveVector.musicTimeMinutes)
                 })
                 
                 // Also serialize in-memory accumulators so live data doesn't revert to 0 on import
@@ -2576,29 +2524,28 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         callsPerDay = metrics.optDouble("callsPerDay", 0.0).toFloat(),
                         callDurationMinutes = metrics.optDouble("callDurationMins", 0.0).toFloat(),
                         uniqueContacts = metrics.optDouble("uniqueContacts", 0.0).toFloat(),
+                        conversationFrequency = metrics.optDouble("conversationFrequency", 0.0).toFloat(),
                         dailyDisplacementKm = metrics.optDouble("displacementKm", 0.0).toFloat(),
                         locationEntropy = metrics.optDouble("locationEntropy", 0.0).toFloat(),
                         homeTimeRatio = metrics.optDouble("homeTimeRatio", 0.0).toFloat(),
-                        placesVisited = metrics.optDouble("placesVisited", 0.0).toFloat(),
                         wakeTimeHour = metrics.optDouble("wakeTimeHour", 0.0).toFloat(),
                         sleepTimeHour = metrics.optDouble("sleepTimeHour", 0.0).toFloat(),
                         sleepDurationHours = metrics.optDouble("sleepDurationHours", 0.0).toFloat(),
-                        darkDurationHours = metrics.optDouble("darkDurationHours", 0.0).toFloat(),
+                        dailyStepCount = metrics.optDouble("dailyStepCount", 0.0).toFloat(),
+                        activeMinutes = metrics.optDouble("activeMinutes", 0.0).toFloat(),
+                        keystrokeSpeed = metrics.optDouble("keystrokeSpeed", 0.0).toFloat(),
+                        backspaceRatio = metrics.optDouble("backspaceRatio", 0.0).toFloat(),
+                        scrollVelocity = metrics.optDouble("scrollVelocity", 0.0).toFloat(),
+                        daylightExposureMinutes = metrics.optDouble("daylightExposureMinutes", 0.0).toFloat(),
+                        chargeRegularity = metrics.optDouble("chargeRegularity", 0.0).toFloat(),
                         chargeDurationHours = metrics.optDouble("chargeDurationHours", 0.0).toFloat(),
-                        memoryUsagePercent = metrics.optDouble("memoryUsagePercent", 0.0).toFloat(),
-                        networkWifiMB = metrics.optDouble("networkWifiMB", 0.0).toFloat(),
-                        networkMobileMB = metrics.optDouble("networkMobileMB", 0.0).toFloat(),
-                        downloadsToday = metrics.optDouble("downloads", 0.0).toFloat(),
-                        storageUsedGB = metrics.optDouble("storageUsedGB", 0.0).toFloat(),
-                        appUninstallsToday = metrics.optDouble("appUninstalls", 0.0).toFloat(),
                         upiTransactionsToday = metrics.optDouble("upiTransactions", 0.0).toFloat(),
-                        totalAppsCount = metrics.optDouble("totalApps", 0.0).toFloat(),
-                        musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),
-                        mediaCountToday = metrics.optDouble("mediaCount", 0.0).toFloat(),
+                        appUninstallsToday = metrics.optDouble("appUninstalls", 0.0).toFloat(),
                         appInstallsToday = metrics.optDouble("appInstalls", 0.0).toFloat(),
-                        dailySteps = metrics.optDouble("steps", 0.0).toFloat(),
-                        conversationFrequency = metrics.optDouble("conversationFrequency", 0.0).toFloat(),
                         calendarEventsToday = metrics.optDouble("calendarEvents", 0.0).toFloat(),
+                        mediaCountToday = metrics.optDouble("mediaCount", 0.0).toFloat(),
+                        downloadsToday = metrics.optDouble("downloads", 0.0).toFloat(),
+                        musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),
                         appBreakdownJson = logs?.optJSONObject("app_breakdown")?.toString() ?: "{}",
                         notificationBreakdownJson = logs?.optJSONObject("notifications_breakdown")?.toString() ?: "{}",
                         appLaunchesBreakdownJson = logs?.optJSONObject("app_launches_breakdown")?.toString() ?: "{}"

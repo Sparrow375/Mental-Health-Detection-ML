@@ -3,24 +3,23 @@ package com.example.mhealth.models
 import java.util.Date
 
 /**
- * PersonalityVector — every metric maps directly to what Android's Digital Wellbeing API
- * exposes, plus additional sensors available through the platform SDK.
+ * PersonalityVector — 30 behavioural features captured from Android platform APIs.
  *
- * Digital Wellbeing source APIs:
+ * Source APIs:
  *   - UsageEvents (FOREGROUND/BACKGROUND pairs)  → screenTimeHours, appBreakdown, unlockCount, appLaunchCount
  *   - UsageEvents (KEYGUARD_HIDDEN/SHOWN)        → unlockCount, wakeTimeHour, sleepTimeHour
  *   - UsageEvents (NOTIFICATION_SEEN/INTERACTED) → notificationsToday
- *   - NetworkStatsManager                         → networkWifiMB, networkMobileMB
- *   - ActivityManager.MemoryInfo                  → memoryUsagePercent
- *   - StatFs(dataDir)                             → storageUsagePercent
- *   - BatteryManager broadcast                    → batteryLevel, chargeDurationHours
- *   - TYPE_STEP_COUNTER sensor                    → stepCount (daily delta)
- *   - ContentResolver(CallLog)                    → callsPerDay
- *   - ContentResolver(Telephony.Sms)              → textsPerDay
+ *   - BatteryManager broadcast                    → chargeDurationHours, chargeRegularity
+ *   - TYPE_STEP_COUNTER sensor                    → dailyStepCount
+ *   - TYPE_STEP_DETECTOR sensor + time bucketing  → activeMinutes
+ *   - AccessibilityService (key events)           → keystrokeSpeed, backspaceRatio
+ *   - AccessibilityService (scroll events)        → scrollVelocity
+ *   - TYPE_LIGHT sensor                           → daylightExposureMinutes
+ *   - ContentResolver(CallLog)                    → callsPerDay, callDurationMinutes, conversationFrequency
  *   - ContentResolver(Contacts)                   → uniqueContacts
  *   - ContentResolver(CalendarContract)           → calendarEventsToday
  *   - FusedLocationProviderClient (multi-point)   → dailyDisplacementKm, locationEntropy, homeTimeRatio
- *   - UsageEvents gap analysis                    → sleepDurationHours, darkDurationHours
+ *   - UsageEvents gap analysis                    → sleepDurationHours
  */
 data class PersonalityVector(
     // ── SCREEN / APP USAGE (Digital Wellbeing primary) ──────────────────────

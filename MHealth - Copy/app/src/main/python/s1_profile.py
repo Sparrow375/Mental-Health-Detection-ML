@@ -26,13 +26,13 @@ FEATURE_WEIGHTS = {
     "conversationFrequency": 0.9,
     "dailyDisplacementKm": 1.5, "locationEntropy": 1.3, "homeTimeRatio": 1.2,
     "wakeTimeHour": 1.4, "sleepTimeHour": 1.3, "sleepDurationHours": 1.6,
-    "darkDurationHours": 1.0,
-    "chargeDurationHours": 0.8, "memoryUsagePercent": 0.5, "networkWifiMB": 0.6,
-    "networkMobileMB": 0.6, "storageUsedGB": 0.4,
-    "totalAppsCount": 0.8, "upiTransactionsToday": 1.1, "appUninstallsToday": 0.9,
-    "appInstallsToday": 0.8,
+    "dailyStepCount": 1.4, "activeMinutes": 1.2,
+    "keystrokeSpeed": 1.3, "backspaceRatio": 1.2, "scrollVelocity": 1.1,
+    "daylightExposureMinutes": 1.1, "chargeRegularity": 1.2,
+    "chargeDurationHours": 0.8,
+    "upiTransactionsToday": 1.1, "appUninstallsToday": 0.9, "appInstallsToday": 0.8,
     "calendarEventsToday": 0.9, "mediaCountToday": 0.7, "downloadsToday": 0.6,
-    "musicTimeMinutes": 1.1,
+    "musicTimeMinutes": 0.9,
 }
 
 ALL_L1_FEATURES = list(FEATURE_WEIGHTS.keys())
@@ -40,8 +40,8 @@ ALL_L1_FEATURES = list(FEATURE_WEIGHTS.keys())
 L1_CLUSTER_FEATURES = [
     "sleepDurationHours", "wakeTimeHour", "sleepTimeHour",
     "dailyDisplacementKm", "locationEntropy",
-    "callsPerDay", "callDurationMinutes", "screenTimeHours",
-    "unlockCount", "socialAppRatio", "darkDurationHours",
+    "callsPerDay", "conversationFrequency", "screenTimeHours",
+    "unlockCount", "socialAppRatio", "dailyStepCount", "chargeRegularity"
 ]
 
 L2_CLUSTER_FEATURES = [
@@ -1090,12 +1090,12 @@ def _get_feature_group(feat: str) -> str:
         "communication": ["callsPerDay", "callDurationMinutes", "uniqueContacts",
                           "conversationFrequency"],
         "location": ["dailyDisplacementKm", "locationEntropy", "homeTimeRatio"],
-        "sleep": ["wakeTimeHour", "sleepTimeHour", "sleepDurationHours",
-                  "darkDurationHours"],
-        "system": ["chargeDurationHours", "memoryUsagePercent", "networkWifiMB",
-                   "networkMobileMB", "storageUsedGB"],
-        "behavioral": ["totalAppsCount", "upiTransactionsToday", "appUninstallsToday",
-                       "appInstallsToday"],
+        "sleep": ["wakeTimeHour", "sleepTimeHour", "sleepDurationHours"],
+        "activity": ["dailyStepCount", "activeMinutes"],
+        "dynamics": ["keystrokeSpeed", "backspaceRatio", "scrollVelocity"],
+        "circadian": ["daylightExposureMinutes", "chargeRegularity"],
+        "system": ["chargeDurationHours"],
+        "behavioral": ["upiTransactionsToday", "appUninstallsToday", "appInstallsToday"],
         "engagement": ["calendarEventsToday", "mediaCountToday", "downloadsToday",
                        "musicTimeMinutes"],
     }

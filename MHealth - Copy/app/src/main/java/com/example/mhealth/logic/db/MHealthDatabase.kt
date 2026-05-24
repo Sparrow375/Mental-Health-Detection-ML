@@ -332,6 +332,102 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
+        // Version 16: Replace 7 defunct features with 7 new clinical features.
+        // Removes: placesVisited, darkDurationHours, memoryUsagePercent, networkWifiMB,
+        //          networkMobileMB, storageUsedGB, totalAppsCount, dailySteps
+        // Adds:    dailyStepCount, activeMinutes, keystrokeSpeed, backspaceRatio,
+        //          scrollVelocity, daylightExposureMinutes, chargeRegularity
+        // Table recreation is required (SQLite lacks DROP COLUMN on older Android).
+        private val MIGRATION_15_16 = object : androidx.room.migration.Migration(15, 16) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("""
+                    CREATE TABLE IF NOT EXISTS daily_features_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        userId TEXT NOT NULL,
+                        date TEXT NOT NULL,
+                        screenTimeHours REAL NOT NULL,
+                        unlockCount REAL NOT NULL,
+                        appLaunchCount REAL NOT NULL,
+                        notificationsToday REAL NOT NULL,
+                        socialAppRatio REAL NOT NULL,
+                        callsPerDay REAL NOT NULL,
+                        callDurationMinutes REAL NOT NULL,
+                        uniqueContacts REAL NOT NULL,
+                        conversationFrequency REAL NOT NULL,
+                        dailyDisplacementKm REAL NOT NULL,
+                        locationEntropy REAL NOT NULL,
+                        homeTimeRatio REAL NOT NULL,
+                        wakeTimeHour REAL NOT NULL,
+                        sleepTimeHour REAL NOT NULL,
+                        sleepDurationHours REAL NOT NULL,
+                        dailyStepCount REAL NOT NULL,
+                        activeMinutes REAL NOT NULL,
+                        keystrokeSpeed REAL NOT NULL,
+                        backspaceRatio REAL NOT NULL,
+                        scrollVelocity REAL NOT NULL,
+                        daylightExposureMinutes REAL NOT NULL,
+                        chargeRegularity REAL NOT NULL,
+                        chargeDurationHours REAL NOT NULL,
+                        upiTransactionsToday REAL NOT NULL,
+                        appUninstallsToday REAL NOT NULL,
+                        appInstallsToday REAL NOT NULL,
+                        calendarEventsToday REAL NOT NULL,
+                        mediaCountToday REAL NOT NULL,
+                        downloadsToday REAL NOT NULL,
+                        musicTimeMinutes REAL NOT NULL,
+                        appBreakdownJson TEXT NOT NULL,
+                        notificationBreakdownJson TEXT NOT NULL,
+                        appLaunchesBreakdownJson TEXT NOT NULL,
+                        bgAudioBreakdownJson TEXT NOT NULL,
+                        syncedToCloud INTEGER NOT NULL,
+                        isSimulated INTEGER NOT NULL
+                    )
+                """)
+
+                // Copy data, mapping dailySteps → dailyStepCount; new columns default to 0
+                db.execSQL("""
+                    INSERT INTO daily_features_new (
+                        id, userId, date, screenTimeHours, unlockCount, appLaunchCount,
+                        notificationsToday, socialAppRatio, callsPerDay, callDurationMinutes,
+                        uniqueContacts, conversationFrequency, dailyDisplacementKm, locationEntropy,
+                        homeTimeRatio, wakeTimeHour, sleepTimeHour, sleepDurationHours,
+                        dailyStepCount, activeMinutes, keystrokeSpeed, backspaceRatio,
+                        scrollVelocity, daylightExposureMinutes, chargeRegularity,
+                        chargeDurationHours, upiTransactionsToday, appUninstallsToday,
+                        appInstallsToday, calendarEventsToday, mediaCountToday, downloadsToday,
+                        musicTimeMinutes, appBreakdownJson, notificationBreakdownJson,
+                        appLaunchesBreakdownJson, bgAudioBreakdownJson, syncedToCloud, isSimulated
+                    )
+                    SELECT
+                        id, userId, date, screenTimeHours, unlockCount, appLaunchCount,
+                        notificationsToday, socialAppRatio, callsPerDay, callDurationMinutes,
+                        uniqueContacts, conversationFrequency, dailyDisplacementKm, locationEntropy,
+                        homeTimeRatio, wakeTimeHour, sleepTimeHour, sleepDurationHours,
+                        dailySteps, 0.0, 0.0, 0.0,
+                        0.0, 0.0, 0.0,
+                        chargeDurationHours, upiTransactionsToday, appUninstallsToday,
+                        appInstallsToday, calendarEventsToday, mediaCountToday, downloadsToday,
+                        musicTimeMinutes, appBreakdownJson, notificationBreakdownJson,
+                        appLaunchesBreakdownJson, bgAudioBreakdownJson, syncedToCloud, isSimulated
+                    FROM daily_features
+                """)
+
+                db.execSQL("DROP TABLE daily_features")
+                db.execSQL("ALTER TABLE daily_features_new RENAME TO daily_features")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_daily_features_userId_date ON daily_features(userId, date)")
+
+                // Clean up baseline entries for removed features
+                db.execSQL("""
+                    DELETE FROM baseline WHERE featureName IN (
+                        'placesVisited', 'darkDurationHours', 'memoryUsagePercent',
+                        'networkWifiMB', 'networkMobileMB', 'storageUsedGB', 'totalAppsCount'
+                    )
+                """)
+                // Rename dailySteps → dailyStepCount in baseline
+                db.execSQL("UPDATE baseline SET featureName = 'dailyStepCount' WHERE featureName = 'dailySteps'")
+            }
+        }
+
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -342,7 +438,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                     MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15
+                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16
                 )
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .fallbackToDestructiveMigration()

@@ -183,15 +183,18 @@ def _get_default_value(feature_name: str) -> float:
         "wakeTimeHour": 8.0,
         "sleepTimeHour": 23.5,
         "sleepDurationHours": 7.5,
-        "darkDurationHours": 8.0,
-        # System Usage
+        # Physical Activity
+        "dailyStepCount": 6000.0,
+        "activeMinutes": 45.0,
+        # Interaction Dynamics
+        "keystrokeSpeed": 3.5,
+        "backspaceRatio": 0.08,
+        "scrollVelocity": 250.0,
+        # Circadian & Environment
+        "daylightExposureMinutes": 60.0,
+        "chargeRegularity": 0.85,
         "chargeDurationHours": 6.0,
-        "memoryUsagePercent": 65.0,
-        "networkWifiMB": 500.0,
-        "networkMobileMB": 200.0,
-        "storageUsedGB": 32.0,
         # Behavioural Signals
-        "totalAppsCount": 25.0,
         "upiTransactionsToday": 1.0,
         "appUninstallsToday": 0.0,
         "appInstallsToday": 0.0,
@@ -199,6 +202,6 @@ def _get_default_value(feature_name: str) -> float:
         "calendarEventsToday": 2.0,
         "mediaCountToday": 3.0,
         "downloadsToday": 1.0,
-        "musicTimeMinutes": 1.0,
+        "musicTimeMinutes": 45.0,
     }
     return defaults.get(feature_name, 1.0)

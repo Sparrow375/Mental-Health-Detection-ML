@@ -100,20 +100,21 @@ private val featureLabels = mapOf(
     "wakeTimeHour" to "Wake Time",
     "sleepTimeHour" to "Sleep Time",
     "sleepDurationHours" to "Sleep Duration",
-    "darkDurationHours" to "Dark Hours",
+    "dailyStepCount" to "Step Count",
+    "activeMinutes" to "Active Minutes",
+    "keystrokeSpeed" to "Keystroke Speed",
+    "backspaceRatio" to "Backspace Ratio",
+    "scrollVelocity" to "Scroll Velocity",
+    "daylightExposureMinutes" to "Daylight Exposure",
+    "chargeRegularity" to "Charge Regularity",
     "chargeDurationHours" to "Charge Time",
-    "memoryUsagePercent" to "Memory Usage",
-    "networkWifiMB" to "WiFi Usage",
-    "networkMobileMB" to "Mobile Data",
-    "storageUsedGB" to "Storage",
-    "totalAppsCount" to "Total Apps",
     "upiTransactionsToday" to "UPI Transactions",
     "appUninstallsToday" to "Uninstalls",
     "appInstallsToday" to "Installs",
     "calendarEventsToday" to "Calendar Events",
     "mediaCountToday" to "Media Count",
     "downloadsToday" to "Downloads",
-    "musicTimeMinutes" to "Background Audio",
+    "musicTimeMinutes" to "Music Time",
 )
 
 private val featureUnits = mapOf(
@@ -123,7 +124,10 @@ private val featureUnits = mapOf(
     "conversationFrequency" to "", "dailyDisplacementKm" to "km",
     "locationEntropy" to "", "homeTimeRatio" to "%",
     "wakeTimeHour" to "h", "sleepTimeHour" to "h", "sleepDurationHours" to "hrs",
-    "darkDurationHours" to "hrs", "chargeDurationHours" to "hrs",
+    "dailyStepCount" to "steps", "activeMinutes" to "min",
+    "keystrokeSpeed" to "ch/s", "backspaceRatio" to "%", "scrollVelocity" to "px/s",
+    "daylightExposureMinutes" to "min", "chargeRegularity" to "%",
+    "chargeDurationHours" to "hrs", "musicTimeMinutes" to "min",
 )
 
 // ── Main composable ──────────────────────────────────────────────────────────

@@ -100,7 +100,7 @@ class LifeEventFilter:
             # 0b. Physical Illness (Flu, Injury, etc.)
             if user_profile.physical_health_rating <= 3:
                 # Being sick: 0 displacement, high home time, high sleep, low social apps
-                illness_feats = ['daily_displacement_km', 'home_time_ratio', 'sleep_duration_hours', 'places_visited', 'calls_per_day']
+                illness_feats = ['daily_displacement_km', 'home_time_ratio', 'sleep_duration_hours', 'daily_step_count', 'calls_per_day']
                 non_illness_devs = sum(
                     1 for feat, dev in report.feature_deviations.items()
                     if abs(dev) > 1.5 and feat not in illness_feats
@@ -110,8 +110,8 @@ class LifeEventFilter:
 
             # 0c. Recent Life Event (Vacation, Moving, Travel)
             if user_profile.recent_life_event:
-                # Travel: massive displacement, high places visited, erratic sleep, erratic screen time
-                travel_feats = ['daily_displacement_km', 'places_visited', 'sleep_duration_hours', 'wake_time_hour', 'screen_time_hours', 'social_app_ratio']
+                # Travel: massive displacement, high step count/activity, erratic sleep, erratic screen time
+                travel_feats = ['daily_displacement_km', 'daily_step_count', 'sleep_duration_hours', 'wake_time_hour', 'screen_time_hours', 'social_app_ratio']
                 non_travel_devs = sum(
                     1 for feat, dev in report.feature_deviations.items()
                     if abs(dev) > 1.5 and feat not in travel_feats

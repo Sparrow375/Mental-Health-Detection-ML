@@ -180,7 +180,7 @@ class AnomalyDetector(
     private fun determineAlertLevel(anomalyScore: Float, deviations: Map<String, Float>): String {
         val criticalFeatures = listOf(
             "sleepDurationHours", "screenTimeHours", "dailyDisplacementKm",
-            "socialAppRatio", "totalAppsCount", "upiTransactionsToday",
+            "socialAppRatio", "dailyStepCount", "upiTransactionsToday",
             "wakeTimeHour", "callsPerDay"
         )
         val criticalDeviation = criticalFeatures.map { abs(deviations[it] ?: 0f) }.maxOrNull() ?: 0f

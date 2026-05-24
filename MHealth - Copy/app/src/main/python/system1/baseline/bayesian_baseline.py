@@ -46,21 +46,34 @@ _POPULATION_NORMS: Optional[Dict[str, Dict[str, float]]] = None
 _CAMEL_TO_SNAKE: Dict[str, str] = {
     "screenTimeHours": "screen_time_hours",
     "unlockCount": "unlock_count",
+    "appLaunchCount": "app_launch_count",
+    "notificationsToday": "notifications_today",
     "socialAppRatio": "social_app_ratio",
     "callsPerDay": "calls_per_day",
+    "callDurationMinutes": "call_duration_minutes",
     "uniqueContacts": "unique_contacts",
+    "conversationFrequency": "conversation_frequency",
     "dailyDisplacementKm": "daily_displacement_km",
     "locationEntropy": "location_entropy",
     "homeTimeRatio": "home_time_ratio",
     "wakeTimeHour": "wake_time_hour",
     "sleepTimeHour": "sleep_time_hour",
     "sleepDurationHours": "sleep_duration_hours",
-    "darkDurationHours": "dark_duration_hours",
+    "dailyStepCount": "daily_step_count",
+    "activeMinutes": "active_minutes",
+    "keystrokeSpeed": "keystroke_speed",
+    "backspaceRatio": "backspace_ratio",
+    "scrollVelocity": "scroll_velocity",
+    "daylightExposureMinutes": "daylight_exposure_minutes",
+    "chargeRegularity": "charge_regularity",
     "chargeDurationHours": "charge_duration_hours",
-    "conversationFrequency": "conversation_frequency",
-    "musicTimeMinutes": "background_audio_hours",
-    "calendarEventsToday": "calendar_events_today",
     "upiTransactionsToday": "upi_transactions_today",
+    "appUninstallsToday": "app_uninstalls_today",
+    "appInstallsToday": "app_installs_today",
+    "calendarEventsToday": "calendar_events_today",
+    "mediaCountToday": "media_count_today",
+    "downloadsToday": "downloads_today",
+    "musicTimeMinutes": "music_time_minutes",
 }
 
 
@@ -73,21 +86,22 @@ def _get_population_norms() -> Dict[str, Dict[str, float]]:
     return _POPULATION_NORMS
 
 
-# Default values for features NOT in POPULATION_NORMS.
-# Keys are camelCase matching MHealth PersonalityVector.
 _FALLBACK_DEFAULTS: Dict[str, float] = {
     'appLaunchCount': 40.0,
     'notificationsToday': 30.0,
-    'callDurationMinutes': 5.0,
-    'memoryUsagePercent': 50.0,
-    'networkWifiMB': 100.0,
-    'networkMobileMB': 50.0,
-    'totalAppsCount': 25.0,
-    'appUninstallsToday': 0.5,
-    'appInstallsToday': 0.5,
+    'callDurationMinutes': 15.0,
+    'dailyStepCount': 6000.0,
+    'activeMinutes': 45.0,
+    'keystrokeSpeed': 3.5,
+    'backspaceRatio': 0.08,
+    'scrollVelocity': 250.0,
+    'daylightExposureMinutes': 60.0,
+    'chargeRegularity': 0.85,
+    'appUninstallsToday': 0.2,
+    'appInstallsToday': 0.3,
     'mediaCountToday': 3.0,
-    'downloadsToday': 1.0,
-    'storageUsedGB': 32.0,
+    'downloadsToday': 0.5,
+    'musicTimeMinutes': 45.0,
 }
 
 # camelCase features that have corresponding snake_case entries in POPULATION_NORMS.

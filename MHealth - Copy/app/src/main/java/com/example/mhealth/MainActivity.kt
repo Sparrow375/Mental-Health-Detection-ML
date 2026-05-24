@@ -1568,7 +1568,7 @@ fun AnalysisScreen() {
                                     )
                                 }
                                 Text(
-                                    " ${latestResult?.prototypeMatch
+                                    " ${activeResult?.prototypeMatch
                                         ?.replace("_", " ")
                                         ?.replaceFirstChar { it.uppercase() }}",
                                     fontSize = 11.sp,

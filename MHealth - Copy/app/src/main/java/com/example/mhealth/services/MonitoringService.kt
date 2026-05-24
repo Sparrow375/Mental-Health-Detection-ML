@@ -1039,7 +1039,7 @@ class MonitoringService : Service() {
                         coherence = result.coherence,
                         rhythmDissolution = result.rhythmDissolution,
                         sessionIncoherence = result.sessionIncoherence,
-                        effectiveScore = result.effectiveScore,
+                        effectiveScore = result.anomalyScore * result.l2Modifier,
                         evidenceAccumulated = result.evidence,
                         patternType = result.patternType,
                         flaggedFeatures = org.json.JSONArray(result.flaggedFeatures).toString()
@@ -1050,9 +1050,38 @@ class MonitoringService : Service() {
                     
                     // Construct live baseline PersonalityVector using bayesianMeans/bayesianStds
                     if (result.bayesianMeans.isNotEmpty() && result.bayesianStds.isNotEmpty()) {
-                        val provisionalBaselineVector = PersonalityVector.from_dict(
-                            result.bayesianMeans,
-                            result.bayesianStds
+                        val provisionalBaselineVector = PersonalityVector(
+                            screenTimeHours = result.bayesianMeans["screenTimeHours"] ?: 0f,
+                            unlockCount = result.bayesianMeans["unlockCount"] ?: 0f,
+                            appLaunchCount = result.bayesianMeans["appLaunchCount"] ?: 0f,
+                            notificationsToday = result.bayesianMeans["notificationsToday"] ?: 0f,
+                            socialAppRatio = result.bayesianMeans["socialAppRatio"] ?: 0f,
+                            callsPerDay = result.bayesianMeans["callsPerDay"] ?: 0f,
+                            callDurationMinutes = result.bayesianMeans["callDurationMinutes"] ?: 0f,
+                            uniqueContacts = result.bayesianMeans["uniqueContacts"] ?: 0f,
+                            conversationFrequency = result.bayesianMeans["conversationFrequency"] ?: 0f,
+                            dailyDisplacementKm = result.bayesianMeans["dailyDisplacementKm"] ?: 0f,
+                            locationEntropy = result.bayesianMeans["locationEntropy"] ?: 0f,
+                            homeTimeRatio = result.bayesianMeans["homeTimeRatio"] ?: 0f,
+                            wakeTimeHour = result.bayesianMeans["wakeTimeHour"] ?: 0f,
+                            sleepTimeHour = result.bayesianMeans["sleepTimeHour"] ?: 0f,
+                            sleepDurationHours = result.bayesianMeans["sleepDurationHours"] ?: 0f,
+                            dailyStepCount = result.bayesianMeans["dailyStepCount"] ?: 0f,
+                            activeMinutes = result.bayesianMeans["activeMinutes"] ?: 0f,
+                            keystrokeSpeed = result.bayesianMeans["keystrokeSpeed"] ?: 0f,
+                            backspaceRatio = result.bayesianMeans["backspaceRatio"] ?: 0f,
+                            scrollVelocity = result.bayesianMeans["scrollVelocity"] ?: 0f,
+                            daylightExposureMinutes = result.bayesianMeans["daylightExposureMinutes"] ?: 0f,
+                            chargeRegularity = result.bayesianMeans["chargeRegularity"] ?: 0f,
+                            chargeDurationHours = result.bayesianMeans["chargeDurationHours"] ?: 0f,
+                            upiTransactionsToday = result.bayesianMeans["upiTransactionsToday"] ?: 0f,
+                            appUninstallsToday = result.bayesianMeans["appUninstallsToday"] ?: 0f,
+                            appInstallsToday = result.bayesianMeans["appInstallsToday"] ?: 0f,
+                            calendarEventsToday = result.bayesianMeans["calendarEventsToday"] ?: 0f,
+                            mediaCountToday = result.bayesianMeans["mediaCountToday"] ?: 0f,
+                            downloadsToday = result.bayesianMeans["downloadsToday"] ?: 0f,
+                            musicTimeMinutes = result.bayesianMeans["musicTimeMinutes"] ?: 0f,
+                            variances = result.bayesianStds
                         )
                         DataRepository.updateProvisionalBaseline(provisionalBaselineVector)
                     }

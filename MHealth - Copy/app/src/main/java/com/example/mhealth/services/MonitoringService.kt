@@ -21,6 +21,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.mhealth.MainActivity
 import com.example.mhealth.logic.AnomalyDetector
+import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataCollector
 import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.GpsStateManager
@@ -808,12 +809,9 @@ class MonitoringService : Service() {
                 Log.d("MHealth.Service", "Live daily features save failed: ${e.message}")
             }
 
-            // 2) Provisional Analysis (Live Score)
-            if (!DataRepository.isBuildingBaseline.value && detector != null) {
-                val provisionalReport = detector?.analyze(liveSnapshot, DataRepository.analysisHistory.value.size + 1, isProvisional = true)
-                provisionalReport?.let {
-                    DataRepository.updateProvisionalAnalysis(it)
-                }
+            // 2) Provisional Analysis (Authoritative Python Live Score)
+            if (!DataRepository.isBuildingBaseline.value) {
+                runProvisionalAnalysisAsync(liveSnapshot)
             }
 
             val today = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
@@ -948,6 +946,119 @@ class MonitoringService : Service() {
                 } finally {
                     isPersistingBaseline = false
                 }
+            }
+        }
+    }
+
+    private fun runProvisionalAnalysisAsync(liveSnapshot: PersonalityVector) {
+        val userId = DataRepository.userProfile.value?.email ?: "default_user"
+        serviceScope.launch(Dispatchers.Default) {
+            try {
+                val db = MHealthDatabase.getInstance(this@MonitoringService)
+                
+                // 1. Load baseline entities
+                val baselineEntities = db.baselineDao().getBaseline(userId)
+                if (baselineEntities.isEmpty()) return@launch
+                
+                // 2. Load daily features history (excluding today)
+                val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                val history = db.dailyFeaturesDao().getAllFeatures(userId)
+                    .filter { it.date != todayStr }
+                    .sortedBy { it.date }
+                
+                // 3. Load historical anomaly scores
+                val historicalScores = db.analysisResultDao().getLatestN(userId, 14)
+                    .reversed()
+                    .map { it.anomalyScore }
+                
+                // 4. Calculate day number
+                val priorAnalysisCount = db.analysisResultDao().count(userId)
+                val dayNumber = priorAnalysisCount + 1
+                
+                // 5. Construct JSON input via JsonConverter
+                val todayFeatures = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, isSimulated = false)
+                val inputJsonStr = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
+                
+                // 6. Build meta JSON
+                val root = org.json.JSONObject(inputJsonStr)
+                root.put("day_number", dayNumber)
+                val profile = db.userProfileDao().getProfile(userId)
+                root.put("baseline_contaminated", profile?.baselineContaminated ?: false)
+                root.put("is_provisional", true)
+                root.put("user_id", userId)
+                root.put("target_date", todayStr)
+                
+                val latestResult = db.analysisResultDao().getLatest(userId)
+                val gateState = try {
+                    org.json.JSONObject(latestResult?.gateResults ?: "{}")
+                } catch (e: Exception) {
+                    org.json.JSONObject()
+                }
+                root.put("gate_state", gateState)
+                
+                if (historicalScores.isNotEmpty()) {
+                    val scoresArray = org.json.JSONArray()
+                    historicalScores.forEach { scoresArray.put(it.toDouble()) }
+                    root.put("historical_anomaly_scores", scoresArray)
+                }
+                
+                // 7. Inject sessions
+                val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -60) }
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                val startDate = dateFormat.format(cal.time)
+                
+                val allSessions = db.appSessionDao().getByDateRange(startDate, todayStr)
+                root.put("sessions", org.json.JSONArray(JsonConverter.sessionsToJson(allSessions)))
+                
+                val todaySessions = db.appSessionDao().getByDate(todayStr)
+                root.put("sessions_today", org.json.JSONArray(JsonConverter.sessionsToJson(todaySessions)))
+                
+                val existingDna = db.personDnaDao().getByUserId(userId)
+                if (existingDna != null) {
+                    try {
+                        root.put("existing_profile", org.json.JSONObject(existingDna.dna_json))
+                    } catch (_: Exception) {}
+                }
+                
+                // 8. Call Python Engine in real-time
+                val result = PythonEngine.runAnalysis(root.toString())
+                if (result.engineStatus == "ok") {
+                    val provisionalEntity = AnalysisResultEntity(
+                        userId = userId,
+                        date = todayStr,
+                        anomalyDetected = result.anomalyDetected,
+                        anomalyMessage = result.anomalyMessage,
+                        anomalyScore = result.anomalyScore,
+                        sustainedDays = result.sustainedDays,
+                        alertLevel = result.alertLevel,
+                        prototypeMatch = result.prototypeMatch,
+                        matchMessage = result.matchMessage,
+                        prototypeConfidence = result.prototypeConfidence,
+                        gateResults = result.gateResultsJson,
+                        l2Modifier = result.l2Modifier,
+                        coherence = result.coherence,
+                        rhythmDissolution = result.rhythmDissolution,
+                        sessionIncoherence = result.sessionIncoherence,
+                        effectiveScore = result.effectiveScore,
+                        evidenceAccumulated = result.evidence,
+                        patternType = result.patternType,
+                        flaggedFeatures = org.json.JSONArray(result.flaggedFeatures).toString()
+                    )
+                    
+                    // Push live results to DataRepository
+                    DataRepository.updateProvisionalAnalysis(provisionalEntity)
+                    
+                    // Construct live baseline PersonalityVector using bayesianMeans/bayesianStds
+                    if (result.bayesianMeans.isNotEmpty() && result.bayesianStds.isNotEmpty()) {
+                        val provisionalBaselineVector = PersonalityVector.from_dict(
+                            result.bayesianMeans,
+                            result.bayesianStds
+                        )
+                        DataRepository.updateProvisionalBaseline(provisionalBaselineVector)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("MHealth.Service", "Provisional real-time analysis failed: ${e.message}", e)
             }
         }
     }

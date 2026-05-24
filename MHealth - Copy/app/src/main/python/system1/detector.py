@@ -215,6 +215,7 @@ class AnomalyDetector:
         notification_events: Optional[List[Dict]] = None,
         l2_modifier: Optional[float] = None,
         cluster_just_promoted: bool = False,
+        is_provisional: bool = False,
     ) -> Tuple[AnomalyReport, DailyReport]:
         """
         Main analysis function - runs the full L1 + L2 pipeline for one day.
@@ -230,6 +231,27 @@ class AnomalyDetector:
 
         Returns (AnomalyReport, DailyReport).
         """
+
+        # === STATE BACKUP FOR PROVISIONAL RUNS ===
+        if is_provisional:
+            import copy
+            # 1. Backup bayesian baseline posteriors and state
+            back_posteriors = {feat: copy.deepcopy(p) for feat, p in self.bayesian_baseline._posteriors.items()}
+            back_state = copy.deepcopy(self.bayesian_baseline._state)
+            
+            # 2. Backup L1 Scorer history and state
+            back_history = {feat: list(deq) for feat, deq in self.l1_scorer.feature_history.items()}
+            back_l1_bayesian_state = copy.deepcopy(self.l1_scorer.bayesian_state)
+            
+            # 3. Backup evidence engine state
+            back_evidence = copy.deepcopy(self.evidence_engine._state)
+            
+            # 4. Backup candidate cluster evaluator state
+            back_candidate = copy.deepcopy(self.candidate_evaluator._state) if self.candidate_evaluator else None
+            
+            # 5. Backup detector history lists
+            back_anomaly_history = list(self.anomaly_score_history)
+            back_full_history = list(self.full_anomaly_history)
 
         # === BAYESIAN BASELINE UPDATE ===
         self.bayesian_state = self.bayesian_baseline.update(current_data, day_number)
@@ -371,6 +393,29 @@ class AnomalyDetector:
         daily_report.baseline_label = self.alert_engine.get_baseline_label(
             phase, confidence,
         )
+
+        if is_provisional:
+            # 1. Restore bayesian baseline
+            self.bayesian_baseline._posteriors = back_posteriors
+            self.bayesian_baseline._state = back_state
+
+            # 2. Restore L1 Scorer history and state
+            from collections import deque
+            self.l1_scorer.feature_history = {feat: deque(lst, maxlen=self.l1_scorer.history_window) for feat, lst in back_history.items()}
+            self.l1_scorer.bayesian_state = back_l1_bayesian_state
+
+            # 3. Restore evidence engine
+            self.evidence_engine._state = back_evidence
+
+            # 4. Restore candidate cluster evaluator
+            if self.candidate_evaluator and back_candidate:
+                self.candidate_evaluator._state = back_candidate
+
+            # 5. Restore detector history lists
+            self.anomaly_score_history.clear()
+            self.anomaly_score_history.extend(back_anomaly_history)
+            self.full_anomaly_history.clear()
+            self.full_anomaly_history.extend(back_full_history)
 
         return anomaly_report, daily_report
 

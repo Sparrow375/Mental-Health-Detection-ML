@@ -49,9 +49,9 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "latest"
-        name: "MHealth Continuous Build (${{ github.ref_name }})"
+        name: "Lumen Android Dev Build Latest Release (${{ github.ref_name }})"
         body: |
-          This is the continuous, rolling pre-release build of the MHealth application.
+          This is the continuous, rolling pre-release build of the Lumen application.
           The APK file attached below is updated automatically on every push.
           
           * **Latest Commit**: `${{ github.sha }}`

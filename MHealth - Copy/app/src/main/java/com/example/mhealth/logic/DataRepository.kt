@@ -30,8 +30,12 @@ object DataRepository {
     val latestAnalysisResult: StateFlow<AnalysisResultEntity?> = _latestAnalysisResult
 
     /** Emits the live, non-persisted analysis for the current day's progress. */
-    private val _provisionalAnalysis = MutableStateFlow<com.example.mhealth.models.DailyReport?>(null)
-    val provisionalAnalysis: StateFlow<com.example.mhealth.models.DailyReport?> = _provisionalAnalysis
+    private val _provisionalAnalysis = MutableStateFlow<AnalysisResultEntity?>(null)
+    val provisionalAnalysis: StateFlow<AnalysisResultEntity?> = _provisionalAnalysis
+
+    /** Emits the live, dynamically updated Bayesian baseline vector during monitoring. */
+    private val _provisionalBaseline = MutableStateFlow<PersonalityVector?>(null)
+    val provisionalBaseline: StateFlow<PersonalityVector?> = _provisionalBaseline
 
     /** Emits the last 30 analysis results (newest first) for the history sparkline. */
     private val _analysisHistory = MutableStateFlow<List<AnalysisResultEntity>>(emptyList())
@@ -399,8 +403,12 @@ object DataRepository {
         _latestVector.value = vector
     }
 
-    fun updateProvisionalAnalysis(result: com.example.mhealth.models.DailyReport?) {
+    fun updateProvisionalAnalysis(result: AnalysisResultEntity?) {
         _provisionalAnalysis.value = result
+    }
+
+    fun updateProvisionalBaseline(vector: PersonalityVector?) {
+        _provisionalBaseline.value = vector
     }
 
     fun addReport(report: DailyReport) {
@@ -656,6 +664,7 @@ object DataRepository {
         _analysisHistory.value = emptyList()
         _weeklyFeatureHistory.value = emptyList()
         _provisionalAnalysis.value = null
+        _provisionalBaseline.value = null
         _reports.value = emptyList()
         _isDnaAnalysing.value = false
         // Daily intraday state

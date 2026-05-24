@@ -53,6 +53,7 @@ def run_analysis(json_string: str) -> str:
         contaminated = data.get("baseline_contaminated", False)
         day_number   = data.get("day_number", 0)
         historical_scores = data.get("historical_anomaly_scores", [])
+        is_provisional = data.get("is_provisional", False)
 
         # Level 2 Behavioral DNA inputs
         sessions_28day  = data.get("sessions", [])
@@ -219,6 +220,7 @@ def run_analysis(json_string: str) -> str:
             day_number=day_number,
             l2_modifier=l2_modifier,
             cluster_just_promoted=cluster_promoted,
+            is_provisional=is_provisional,
         )
 
         # ── System 2 setup ─────────────────────────────────────────────────────
@@ -391,6 +393,10 @@ def run_analysis(json_string: str) -> str:
             },
             "dna": dna_result,
             "profile": profile_data,
+            "bayesian_baseline": {
+                "means": s1.bayesian_state.effective_means if s1.bayesian_state else {},
+                "stds": s1.bayesian_state.effective_stds if s1.bayesian_state else {}
+            },
         }
 
         return json.dumps(result_dict)

@@ -48,6 +48,10 @@ object PythonEngine {
         // System 1 Profile (DNA Baseline, Clusters, Texture Profiles)
         val profileJson: String            = "{}",
 
+        // Bayesian baseline live update vectors
+        val bayesianMeans: Map<String, Float> = emptyMap(),
+        val bayesianStds: Map<String, Float>  = emptyMap(),
+
         // Meta
         val engineStatus: String           = "ok",
         val errorMessage: String           = ""
@@ -107,6 +111,29 @@ object PythonEngine {
             val profileObj = root.optJSONObject("profile")
             val profileJson = profileObj?.toString() ?: "{}"
 
+            // Bayesian baseline live update vectors
+            val bayesian = root.optJSONObject("bayesian_baseline")
+            val bayesianMeans = mutableMapOf<String, Float>()
+            val bayesianStds = mutableMapOf<String, Float>()
+            if (bayesian != null) {
+                val meansObj = bayesian.optJSONObject("means")
+                if (meansObj != null) {
+                    val keys = meansObj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        bayesianMeans[key] = meansObj.optDouble(key, 0.0).toFloat()
+                    }
+                }
+                val stdsObj = bayesian.optJSONObject("stds")
+                if (stdsObj != null) {
+                    val keys = stdsObj.keys()
+                    while (keys.hasNext()) {
+                        val key = keys.next()
+                        bayesianStds[key] = stdsObj.optDouble(key, 1.0).toFloat()
+                    }
+                }
+            }
+
             AnalysisResult(
                 anomalyDetected     = anomaly.optBoolean("detected",      false),
                 anomalyScore        = anomaly.optDouble("anomaly_score",   0.0).toFloat(),
@@ -127,6 +154,8 @@ object PythonEngine {
                 sessionIncoherence  = dna.optDouble("session_incoherence", 0.0).toFloat(),
                 clusterMismatch     = dna.optDouble("cluster_mismatch", 0.0).toFloat(),
                 profileJson         = profileJson,
+                bayesianMeans       = bayesianMeans,
+                bayesianStds        = bayesianStds,
                 engineStatus        = status,
                 errorMessage        = root.optString("error_message", "")
             )

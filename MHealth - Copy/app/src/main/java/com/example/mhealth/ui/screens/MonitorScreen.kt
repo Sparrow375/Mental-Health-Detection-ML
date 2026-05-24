@@ -48,12 +48,20 @@ fun MonitorScreen() {
     val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
     val latestResult by DataRepository.latestAnalysisResult.collectAsState()
     val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
+    val provisional by DataRepository.provisionalAnalysis.collectAsState()
+    val provisionalBaseline by DataRepository.provisionalBaseline.collectAsState()
 
     // Parse anchor clusters from profile JSON
     val profileObj = remember(s1ProfileJson) {
         if (s1ProfileJson.isNullOrBlank() || s1ProfileJson == "{}") null
         else try { JSONObject(s1ProfileJson!!) } catch (_: Exception) { null }
     }
+
+    // Determine today's date formatted string and whether today's nightly result has been finalized in DB
+    val todayStr = remember { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) }
+    val isTodayFinalized = latestResult?.date == todayStr
+    val activeResult = if (isTodayFinalized) latestResult else (provisional ?: latestResult)
+    val activeBaseline = if (isTodayFinalized) baseline else (provisionalBaseline ?: baseline)
 
     LazyColumn(Modifier.fillMaxSize()) {
         item { HeaderSection(isBuilding) }
@@ -63,14 +71,14 @@ fun MonitorScreen() {
                 progress = progress,
                 target = baselineDaysReq,
                 isBuilding = isBuilding,
-                latestResult = latestResult,
+                latestResult = activeResult,
                 baselineVectors = baselineVectors
             )
         }
 
-        if (!isBuilding && latestResult != null) {
+        if (!isBuilding && activeResult != null) {
             item {
-                AnomalyScoreFlowCard(latestResult = latestResult!!)
+                AnomalyScoreFlowCard(latestResult = activeResult!!)
             }
         }
 
@@ -80,12 +88,12 @@ fun MonitorScreen() {
 
         item { IntradayTrendsCard(hourly) }
 
-        if (!isBuilding && baseline != null && vector != null) {
+        if (!isBuilding && activeBaseline != null && vector != null) {
             item {
-                ComparisonCard(vector = vector!!, baseline = baseline!!)
+                ComparisonCard(vector = vector!!, baseline = activeBaseline!!)
             }
             item {
-                FeatureTableCard(baseline = baseline!!, current = vector!!)
+                FeatureTableCard(baseline = activeBaseline!!, current = vector!!)
             }
         }
 

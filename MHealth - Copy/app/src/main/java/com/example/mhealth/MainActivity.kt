@@ -1361,6 +1361,12 @@ fun AnalysisScreen() {
     val last = reports.lastOrNull()
     // Authoritative Python engine result from Room DB — always prefer over Kotlin provisional
     val latestDbResult by DataRepository.latestAnalysisResult.collectAsState()
+    val provisional by DataRepository.provisionalAnalysis.collectAsState()
+    val provisionalBaseline by DataRepository.provisionalBaseline.collectAsState()
+
+    val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    val isTodayFinalized = latestDbResult?.date == todayStr
+    val activeResult = if (isTodayFinalized) latestDbResult else (provisional ?: latestDbResult)
 
     LazyColumn(Modifier.fillMaxSize()) {
         item {
@@ -1389,11 +1395,10 @@ fun AnalysisScreen() {
         } else {
             // Anomaly Score Gauge
             item {
-                val provisional by DataRepository.provisionalAnalysis.collectAsState()
                 // Prefer authoritative Python engine score from Room DB;
                 // fall back to Kotlin provisional only when no DB result exists yet
-                val score = latestDbResult?.anomalyScore ?: provisional?.anomalyScore ?: last?.anomalyScore ?: 0f
-                val isLive = provisional != null && latestDbResult == null
+                val score = activeResult?.anomalyScore ?: last?.anomalyScore ?: 0f
+                val isLive = provisional != null && !isTodayFinalized
 
                 InfoCard("Anomaly Score", headerColor = ChartRed) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1431,7 +1436,7 @@ fun AnalysisScreen() {
                             fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChartRed
                         )
                         Text(
-                            "Pattern: ${(latestDbResult?.patternType ?: provisional?.patternType ?: last?.patternType ?: "stable").replace("_", " ").uppercase()}",
+                            "Pattern: ${(activeResult?.patternType ?: last?.patternType ?: "stable").replace("_", " ").uppercase()}",
                             fontSize = 12.sp, color = TextSecondary
                         )
                     }
@@ -1441,8 +1446,7 @@ fun AnalysisScreen() {
             // Radar chart — with optional disorder prototype overlay
             if (baseline != null && vector != null) {
                 item {
-                    // Read the latest classification result for the prototype overlay
-                    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+                    val activeBaseline = if (isTodayFinalized) checkNotNull(baseline) else (provisionalBaseline ?: checkNotNull(baseline))
 
                     // Hardcoded Frame-2 z-scores for the 6 radar features per disorder.
                     // Mirrors DISORDER_PROTOTYPES_FRAME2 in config.py (screen_time_hours,
@@ -1462,7 +1466,7 @@ fun AnalysisScreen() {
                     fun zToRadar(z: Float): Float = ((z / 5f) * 0.5f + 0.5f).coerceIn(0f, 1f)
 
                     // Determine if a real clinical match has fired
-                    val matchedDisorder = latestResult?.prototypeMatch?.lowercase()?.trim()
+                    val matchedDisorder = activeResult?.prototypeMatch?.lowercase()?.trim()
                     val isRealMatch = matchedDisorder != null &&
                         matchedDisorder != "normal" &&
                         matchedDisorder != "situational" &&
@@ -1473,7 +1477,7 @@ fun AnalysisScreen() {
                     } else null
 
                     InfoCard("Feature Deviation Radar", headerColor = ChartPurple) {
-                        val b = checkNotNull(baseline); val v = checkNotNull(vector)
+                        val b = activeBaseline; val v = checkNotNull(vector)
                         // 30-feature DNA radar — full personality vector polygon
                         val radarLabels = listOf(
                             "ScrT", "Unlk", "AppL", "Notif", "SocR",

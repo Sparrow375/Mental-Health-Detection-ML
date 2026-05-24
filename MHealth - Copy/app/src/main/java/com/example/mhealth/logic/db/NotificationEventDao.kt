@@ -52,4 +52,8 @@ interface NotificationEventDao {
     /** Get all notification events (for Firebase sync). */
     @Query("SELECT * FROM notification_events ORDER BY arrival_timestamp ASC")
     suspend fun getAll(): List<NotificationEventEntity>
+
+    /** Hard Reset: Delete ALL notification events across all users. */
+    @Query("DELETE FROM notification_events")
+    suspend fun clearAll(): Int
 }

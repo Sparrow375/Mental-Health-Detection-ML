@@ -56,4 +56,8 @@ interface AppSessionDao {
     /** Get all sessions (for Firebase sync). */
     @Query("SELECT * FROM app_sessions ORDER BY open_timestamp ASC")
     suspend fun getAll(): List<AppSessionEntity>
+
+    /** Hard Reset: Delete ALL sessions across all users. */
+    @Query("DELETE FROM app_sessions")
+    suspend fun clearAll(): Int
 }

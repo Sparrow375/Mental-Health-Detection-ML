@@ -260,7 +260,7 @@ class AppDnaComputer(private val context: Context) {
                     put("primaryTimeRange", app.primaryTimeRange)
                     put("notificationCount", app.notificationCount)
                     put("notificationTapCount", app.notificationTapCount)
-                    put("avgTapLatencyMinutes", app.avgTapLatencyMinutes?.toDouble() ?: JSONObject.NULL)
+                    put("avgTapLatencyMinutes", app.avgTapLatencyMinutes?.toDouble() ?: org.json.JSONObject.NULL)
                 })
             }
         }.toString()

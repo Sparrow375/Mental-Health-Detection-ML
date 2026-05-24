@@ -2071,18 +2071,113 @@ fun SettingsScreen() {
 
         // Baseline Status
         item {
+            val context = LocalContext.current
+            var showHardResetDialog by remember { mutableStateOf(false) }
+
+            // ── Hard Reset Confirmation Dialog ──────────────────────────────
+            if (showHardResetDialog) {
+                androidx.compose.material3.AlertDialog(
+                    onDismissRequest = { showHardResetDialog = false },
+                    containerColor = CardWhite,
+                    titleContentColor = TextPrimary,
+                    textContentColor = TextSecondary,
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = AlertRed, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Clear All Data?", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                "This will permanently delete ALL collected data — Layer 1 daily features, Layer 2 sessions, DNA baselines, and analysis history.",
+                                fontSize = 13.sp, lineHeight = 18.sp, color = TextSecondary
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "✅ Your data will be automatically backed up as a JSON file before deletion.",
+                                fontSize = 12.sp, lineHeight = 16.sp, color = OceanBlue,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Both Layer 1 and Layer 2 will restart from Day 1 in sync.",
+                                fontSize = 12.sp, color = TextSecondary
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showHardResetDialog = false
+                                // Step 1: Export data for preservation
+                                exportDataAsJson(context, filePrefix = "mhealth_backup_before_reset_")
+                                // Step 2: Trigger the full nuclear DB wipe via MonitoringService
+                                DataRepository.triggerHardReset()
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "✅ Backup saved. All data cleared — starting fresh from Day 1.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Clear All Data", color = Color.White, fontSize = 13.sp)
+                        }
+                    },
+                    dismissButton = {
+                        Button(
+                            onClick = { showHardResetDialog = false },
+                            colors = ButtonDefaults.buttonColors(containerColor = SurfaceBlue),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Cancel", color = TextPrimary, fontSize = 13.sp)
+                        }
+                    }
+                )
+            }
+
             InfoCard("Baseline Status", headerColor = OceanBlue) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                    Column {
-                        Text(if (isBuilding) "Building Baseline" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        Text("Day $progress / $baselineDaysReqLocal established", fontSize = 12.sp, color = TextSecondary)
+                Column(Modifier.fillMaxWidth()) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text(if (isBuilding) "Building Baseline" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+                            Text("Day $progress / $baselineDaysReqLocal established", fontSize = 12.sp, color = TextSecondary)
+                        }
+                        // Dev-only soft reset (keeps real data, just clears simulated + baseline)
+                        Button(
+                            onClick = { DataRepository.triggerReset() },
+                            colors = ButtonDefaults.buttonColors(containerColor = ChartOrange),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Dev: Soft Reset", fontSize = 11.sp, color = Color.White)
+                        }
                     }
-                    Button(onClick = { DataRepository.triggerReset() }, colors = ButtonDefaults.buttonColors(containerColor = AlertRed)) {
-                        Text("Reset", fontSize = 12.sp, color = Color.White)
+
+                    Spacer(Modifier.height(12.dp))
+
+                    // Hard Reset — preserves data as JSON then wipes everything
+                    Button(
+                        onClick = { showHardResetDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = AlertRed),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, null, tint = Color.White, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Clear All Data (Fresh Start)", fontSize = 13.sp, color = Color.White, fontWeight = FontWeight.Bold)
                     }
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Exports a JSON backup then wipes all L1 + L2 data. Both layers restart from Day 1 in sync.",
+                        fontSize = 10.sp, color = TextMuted, lineHeight = 13.sp
+                    )
                 }
             }
         }
+
         
         // Developer Settings Block
         item {

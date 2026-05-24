@@ -87,7 +87,7 @@ object DataRepository {
             
             // Also check profile for dnaReady flag
             val profile = db.userProfileDao().getProfile(userId)
-            _isDnaBaselineReady.value = profile?.dnaReady ?: false
+            _isDnaBaselineReady.value = (dnaEntity != null) && (profile?.dnaReady ?: false)
         }
     }
 
@@ -259,6 +259,10 @@ object DataRepository {
     /** Trigger a DNA rebuild that forces fresh cluster discovery (ignores existing_clusters). */
     private val _clusterResetTrigger = MutableStateFlow(0)
     val clusterResetTrigger: StateFlow<Int> = _clusterResetTrigger
+
+    /** Hard Reset: wipes ALL local database tables + resets all in-memory state to Day 1. */
+    private val _hardResetTrigger = MutableStateFlow(0)
+    val hardResetTrigger: StateFlow<Int> = _hardResetTrigger
 
     // --- Persistence & Init ---
     
@@ -439,6 +443,15 @@ object DataRepository {
         _clusterResetTrigger.value += 1
     }
 
+    /**
+     * Hard Reset: Wipes ALL collected data (L1 daily features, L2 sessions, DNA baseline,
+     * analysis history, and all in-memory state), returning the app to Day 1 of onboarding.
+     * Automatically triggers a JSON data export for preservation before the wipe begins.
+     */
+    fun triggerHardReset() {
+        _hardResetTrigger.value += 1
+    }
+
 
     fun updateCollectedBaselineVectors(vectors: List<PersonalityVector>) {
         _collectedBaselineVectors.value = vectors.toList()
@@ -615,11 +628,28 @@ object DataRepository {
         }
     }
 
+    /**
+     * Full in-memory state reset — called after a hard reset wipes the database.
+     * Resets all UI flows to their Day-1 defaults so the app renders as if freshly installed.
+     */
     fun clearAllState() {
-        _baselineProgress.value = 0
+        // L1 baseline state
+        _baselineProgress.value = 1
         _collectedBaselineVectors.value = emptyList()
         _baseline.value = null
         _isBuildingBaseline.value = true
+        // L2 DNA state
+        _dnaBaselineProgress.value = 1
+        _isDnaBaselineReady.value = false
+        _s1ProfileJson.value = null
+        // Analysis / history state
+        _latestAnalysisResult.value = null
+        _analysisHistory.value = emptyList()
+        _weeklyFeatureHistory.value = emptyList()
+        _provisionalAnalysis.value = null
+        _reports.value = emptyList()
+        _isDnaAnalysing.value = false
+        // Daily intraday state
         resetDailyState()
     }
 

@@ -335,7 +335,9 @@ class MonitoringService : Service() {
             collectedDailyVectors.clear()
             collectedDailyVectors.addAll(pastVectors)
             // Progress is count of saved days + 1 (today)
-            DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
+            val currentProg = collectedDailyVectors.size + 1
+            DataRepository.updateBaselineProgress(currentProg)
+            DataRepository.updateDnaBaselineProgress(currentProg)
             DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
             // Immediate check for baseline readiness on startup
@@ -586,7 +588,9 @@ class MonitoringService : Service() {
                         collectedDailyVectors.addAll(allRealFeatures.map { JsonConverter.toPersonalityVector(it) })
                         
                         // Update UI progress: Count of saved days + 1 (for the current day)
-                        DataRepository.updateBaselineProgress(collectedDailyVectors.size + 1)
+                        val currentProg = collectedDailyVectors.size + 1
+                        DataRepository.updateBaselineProgress(currentProg)
+                        DataRepository.updateDnaBaselineProgress(currentProg)
                         DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
                         // 5. If we have enough real days left to build a new baseline instantly
@@ -628,6 +632,76 @@ class MonitoringService : Service() {
                         runTick()
                     } catch (e: Exception) {
                         Log.e("MHealth.Service", "Error during master reset", e)
+                    }
+                }
+            }
+        }
+
+        // ── Hard Reset: Complete nuclear wipe of ALL data ────────────────────
+        // Triggered from the "Clear All Data" button in Settings.
+        // Automatically called AFTER exportDataAsJson() saves a JSON backup.
+        serviceScope.launch {
+            DataRepository.hardResetTrigger.collect { triggers ->
+                if (triggers > 0) {
+                    val userId = DataRepository.userProfile.value?.email ?: "default_user"
+                    val db = MHealthDatabase.getInstance(this@MonitoringService)
+                    try {
+                        Log.w(TAG, "⚠️ HARD RESET triggered for $userId — wiping all data tables")
+
+                        // 1. Wipe ALL L1 daily feature vectors
+                        val l1Count = db.dailyFeaturesDao().clearAll(userId)
+                        Log.i(TAG, "  Cleared $l1Count L1 daily feature rows")
+
+                        // 2. Wipe ALL L2 raw session events
+                        val sessCount = db.appSessionDao().clearAll()
+                        Log.i(TAG, "  Cleared $sessCount app session rows")
+
+                        // 3. Wipe ALL L2 notification events
+                        val notifCount = db.notificationEventDao().clearAll()
+                        Log.i(TAG, "  Cleared $notifCount notification event rows")
+
+                        // 4. Wipe ALL L2 computed DNA snapshots
+                        val snapCount = db.dailyDnaSnapshotDao().clearAll(userId)
+                        Log.i(TAG, "  Cleared $snapCount DNA snapshot rows")
+
+                        // 5. Wipe the L2 Person DNA baseline clusters
+                        db.personDnaDao().deleteByUserId(userId)
+                        Log.i(TAG, "  Cleared Person DNA baseline")
+
+                        // 6. Wipe the L1 mathematical baseline (mean/std per feature)
+                        db.baselineDao().clearBaseline(userId)
+                        Log.i(TAG, "  Cleared L1 baseline")
+
+                        // 7. Wipe all anomaly analysis results / history
+                        db.analysisResultDao().clearAll(userId)
+                        Log.i(TAG, "  Cleared analysis result history")
+
+                        // 8. Reset UserProfile to fresh onboarding defaults
+                        db.userProfileDao().upsert(
+                            UserProfileEntity(
+                                userId = userId,
+                                baselineReady = false,
+                                dnaReady = false,
+                                baselineDays = DataRepository.baselineDaysRequired.value,
+                                currentStatus = "Learning Baseline"
+                            )
+                        )
+
+                        // 9. Clear all in-memory accumulators and local caches
+                        collectedDailyVectors.clear()
+                        detector = null
+                        nightlyWorkerScheduled = false
+
+                        // 10. Reset all DataRepository UI state flows to Day-1 defaults
+                        DataRepository.clearAllState()
+
+                        Log.i(TAG, "✅ Hard Reset complete — app is back to Day 1 baseline collection")
+
+                        // 11. Kick off a fresh telemetry tick so sensors tab shows live data
+                        runTick()
+
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error during hard reset", e)
                     }
                 }
             }
@@ -811,6 +885,7 @@ class MonitoringService : Service() {
                 // Progress is saved days + 1 (current day)
                 val currentProg = collectedDailyVectors.size + 1
                 DataRepository.updateBaselineProgress(currentProg)
+                DataRepository.updateDnaBaselineProgress(currentProg)
 
                 if (DataRepository.isBuildingBaseline.value) {
                     checkAndFinalizeBaseline(target)
@@ -829,6 +904,7 @@ class MonitoringService : Service() {
                 collectedDailyVectors.add(snapshot)
                 val prog = collectedDailyVectors.size
                 DataRepository.updateBaselineProgress(prog)
+                DataRepository.updateDnaBaselineProgress(prog)
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
                 // Persist end-of-day snapshot to Room

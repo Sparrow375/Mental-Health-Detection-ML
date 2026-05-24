@@ -393,8 +393,18 @@ def _run_full_meanshift_clustering(daily_features_list: list) -> list:
         vectors.append(vec)
         dates.append(day.get("date", ""))
 
-    if len(vectors) < 1:
-        return []
+    if len(vectors) < 2:
+        if len(vectors) == 0:
+            return []
+        return [{
+            "cluster_id": 0,
+            "centroid_features": {feat: round(float(vectors[0][i]), 4) for i, feat in enumerate(L1_CLUSTER_FEATURES)},
+            "centroid_pca_2d": [0.0, 0.0],
+            "radius": 1.25,
+            "member_count": 1,
+            "member_dates": dates,
+            "method": "clinical_pca_meanshift",
+        }]
 
     matrix = np.array(vectors)
     means = np.mean(matrix, axis=0)
@@ -822,8 +832,18 @@ def _run_full_l2_meanshift_clustering(l2_daily_features_list: list) -> list:
         vectors.append(vec)
         dates.append(day.get("date", ""))
 
-    if len(vectors) < 1:
-        return []
+    if len(vectors) < 2:
+        if len(vectors) == 0:
+            return []
+        return [{
+            "cluster_id": 0,
+            "centroid_features": {feat: round(float(vectors[0][i]), 4) for i, feat in enumerate(L2_CLUSTER_FEATURES)},
+            "centroid_pca_2d": [0.0, 0.0],
+            "radius": 1.25,
+            "member_count": 1,
+            "member_dates": dates,
+            "method": "l2_pca_meanshift",
+        }]
 
     matrix = np.array(vectors)
     means = np.mean(matrix, axis=0)

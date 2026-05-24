@@ -8,6 +8,7 @@ import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
+import java.util.Calendar
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob

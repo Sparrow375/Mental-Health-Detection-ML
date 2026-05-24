@@ -50,17 +50,24 @@ class PersonalityVector:
     wakeTimeHour: float = 0.0
     sleepTimeHour: float = 0.0
     sleepDurationHours: float = 0.0
-    darkDurationHours: float = 0.0
+
+    # ── Physical Activity ─────────────────────────────────────────────────
+    dailyStepCount: float = 0.0
+    activeMinutes: float = 0.0
+
+    # ── Interaction Dynamics ──────────────────────────────────────────────
+    keystrokeSpeed: float = 0.0
+    backspaceRatio: float = 0.0
+    scrollVelocity: float = 0.0
+
+    # ── Circadian & Environment ───────────────────────────────────────────
+    daylightExposureMinutes: float = 0.0
+    chargeRegularity: float = 0.0
 
     # ── System Usage ──────────────────────────────────────────────────────
     chargeDurationHours: float = 0.0
-    memoryUsagePercent: float = 0.0
-    networkWifiMB: float = 0.0
-    networkMobileMB: float = 0.0
-    storageUsedGB: float = 0.0
 
     # ── Behavioural Signals ───────────────────────────────────────────────
-    totalAppsCount: float = 0.0
     upiTransactionsToday: float = 0.0
     appUninstallsToday: float = 0.0
     appInstallsToday: float = 0.0
@@ -92,13 +99,14 @@ class PersonalityVector:
             "wakeTimeHour": self.wakeTimeHour,
             "sleepTimeHour": self.sleepTimeHour,
             "sleepDurationHours": self.sleepDurationHours,
-            "darkDurationHours": self.darkDurationHours,
+            "dailyStepCount": self.dailyStepCount,
+            "activeMinutes": self.activeMinutes,
+            "keystrokeSpeed": self.keystrokeSpeed,
+            "backspaceRatio": self.backspaceRatio,
+            "scrollVelocity": self.scrollVelocity,
+            "daylightExposureMinutes": self.daylightExposureMinutes,
+            "chargeRegularity": self.chargeRegularity,
             "chargeDurationHours": self.chargeDurationHours,
-            "memoryUsagePercent": self.memoryUsagePercent,
-            "networkWifiMB": self.networkWifiMB,
-            "networkMobileMB": self.networkMobileMB,
-            "storageUsedGB": self.storageUsedGB,
-            "totalAppsCount": self.totalAppsCount,
             "upiTransactionsToday": self.upiTransactionsToday,
             "appUninstallsToday": self.appUninstallsToday,
             "appInstallsToday": self.appInstallsToday,

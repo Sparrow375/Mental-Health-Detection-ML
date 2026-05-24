@@ -202,6 +202,19 @@ class NightlyAnalysisWorker(
                 obj.put("user_id", userId)
                 obj.put("target_date", targetDate)
 
+                // Inject demographic profile for dynamic weights calibration
+                val profile = DataRepository.userProfile.value
+                if (profile != null) {
+                    val profileJson = org.json.JSONObject().apply {
+                        put("gender", profile.gender)
+                        put("age", profile.age)
+                        put("profession", profile.profession)
+                        put("country", profile.country)
+                    }
+                    obj.put("user_profile", profileJson)
+                    Log.d(TAG, "Injected demographic profile: age=${profile.age}, profession=${profile.profession}")
+                }
+
                 // Phase 5: Expand session window from 30 → 60 days for more complete DNA context
                 val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
                 val cal = java.util.Calendar.getInstance()
@@ -264,7 +277,7 @@ class NightlyAnalysisWorker(
                 alertLevel          = engineResult.alertLevel,
                 prototypeMatch      = engineResult.prototypeMatch,
                 matchMessage        = engineResult.matchMessage,
-                prototypeConfidence = (engineResult.prototypeConfidence / 10f).coerceIn(0f, 1f),
+                prototypeConfidence = engineResult.prototypeConfidence.coerceIn(0f, 1f),
                 gateResults         = engineResult.gateResultsJson,
                 l2Modifier          = engineResult.l2Modifier,
                 coherence           = engineResult.coherence,

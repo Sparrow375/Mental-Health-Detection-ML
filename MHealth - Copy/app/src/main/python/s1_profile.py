@@ -53,46 +53,59 @@ L2_CLUSTER_FEATURES = [
 
 # ── Clinical-Weighted PCA (2D) + Mean-Shift clustering ──────────────────────
 
-def _clinical_weighted_pca(data: np.ndarray, feature_weights: list, n_components: int = 2) -> tuple:
-    """Apply clinical feature weights, then PCA to 2D via SVD."""
+# ── Clinical-Weighted PCA (Dynamic Variance >= 85%) + Mean-Shift clustering ──────────────────────
+
+def _clinical_weighted_pca(data: np.ndarray, feature_weights: list, target_variance: float = 0.85) -> tuple:
+    """Apply clinical feature weights, then PCA via SVD.
+    Determines the number of components dynamically to capture >= target_variance (85%)
+    of cumulative explained variance. Returns (projected, components, mean).
+    """
     W = np.diag(feature_weights)
     weighted = data @ W
     mean = weighted.mean(axis=0)
     centered = weighted - mean
     U, S, Vt = np.linalg.svd(centered, full_matrices=False)
+    
+    variances = S**2
+    total_var = np.sum(variances)
+    if total_var > 1e-9:
+        explained_variance_ratio = variances / total_var
+    else:
+        explained_variance_ratio = np.ones_like(variances) / len(variances)
+        
+    cumulative_variance = np.cumsum(explained_variance_ratio)
+    k = int(np.argmax(cumulative_variance >= target_variance) + 1)
+    n_components = max(2, min(5, k, centered.shape[1]))
+    
     components = Vt[:n_components]
     projected = centered @ components.T
+    
+    print(f"  [PCA] Dynamic PCA: components={n_components}, explained_variance={cumulative_variance[n_components-1]:.3f}")
     return projected, components, mean
 
 
 def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
     """Mean-Shift clustering (pure numpy). Returns [(cluster_id, indices)].
-
-    Bandwidth auto-estimation uses the 30th percentile of pairwise distances
-    (not the median) to avoid archetype collapse on small datasets (15-28 days).
-    The PCA-projected data is also z-score normalized before clustering to
-    ensure both PCA dimensions contribute equally.
+    
+    Bandwidth auto-estimation uses the 30th percentile (quantile=0.3) of pairwise distances
+    to avoid archetype collapse, matching the successful branch.
     """
     if len(data) == 0:
         return []
     n = len(data)
 
-    # Z-score normalize the projected data so both PCA axes have equal weight
-    col_std = np.std(data, axis=0)
-    col_std = np.where(col_std > 1e-9, col_std, 1.0)
-    col_mean = np.mean(data, axis=0)
-    data_norm = (data - col_mean) / col_std
+    # Use the PCA projected data directly without z-score re-normalization,
+    # to preserve the correct variance ratio between PCs.
+    data_norm = data
 
-    # Sklearn-compatible bandwidth estimation
+    # Bandwidth estimation using quantile=0.3
     if bandwidth is None:
-        n_neighbors = int(n * 0.3)  # default quantile 0.3
+        n_neighbors = int(n * 0.3)  # quantile 0.3 matching successful branch
         if n_neighbors < 1:
             n_neighbors = 1
         
         pairwise = np.linalg.norm(data_norm[:, None] - data_norm[None, :], axis=2)
         sorted_dists = np.sort(pairwise, axis=1)
-        # In sklearn, NearestNeighbors returns n_neighbors elements including the point itself.
-        # The furthest of these is at index n_neighbors - 1.
         kth_dists = sorted_dists[:, n_neighbors - 1]
         bandwidth = float(np.median(kth_dists))
         print(f"  [MeanShift] Auto bandwidth={bandwidth:.4f} (sklearn-aligned, quantile=0.3)")
@@ -100,7 +113,7 @@ def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
         bandwidth = 1.0
 
     points = data_norm.copy()
-    # Shift each point toward mode (using ORIGINAL data_norm points in the neighborhood)
+    # Shift each point toward mode
     for iteration in range(50):
         shifted = np.zeros_like(points)
         max_shift = 0.0
@@ -113,7 +126,6 @@ def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
                 shifted[i] = points[i]
             max_shift = max(max_shift, np.linalg.norm(shifted[i] - points[i]))
         points = shifted
-        # Early convergence check
         if max_shift < 1e-6:
             print(f"  [MeanShift] Converged at iteration {iteration}")
             break
@@ -390,7 +402,9 @@ def _run_full_meanshift_clustering(daily_features_list: list) -> list:
     stds_safe = np.where(stds > 1e-9, stds, 1.0)
     matrix_norm = (matrix - means) / stds_safe
     weights = [FEATURE_WEIGHTS.get(f, 1.0) for f in L1_CLUSTER_FEATURES]
-    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, n_components=2)
+    
+    # Target explained variance = 85%
+    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, target_variance=0.85)
 
     _proj_params = {
         "features": L1_CLUSTER_FEATURES,
@@ -410,8 +424,8 @@ def _run_full_meanshift_clustering(daily_features_list: list) -> list:
         return [{
             "cluster_id": 0,
             "centroid_features": {feat: round(float(means[i]), 4) for i, feat in enumerate(L1_CLUSTER_FEATURES)},
-            "centroid_pca_2d": [round(float(centroid[0]), 4), round(float(centroid[1]), 4)],
-            "radius": round(float(np.max(np.linalg.norm(projected - centroid, axis=1))), 4),
+            "centroid_pca_2d": [round(float(c), 4) for c in centroid],
+            "radius": round(float(np.max(np.linalg.norm(projected - centroid, axis=1))), 4) if len(projected) > 1 else 1.25,
             "member_count": len(projected),
             "member_dates": dates,
             "method": "clinical_pca_meanshift",
@@ -431,8 +445,8 @@ def _run_full_meanshift_clustering(daily_features_list: list) -> list:
         cluster_dict = {
             "cluster_id": cid,
             "centroid_features": {feat: round(float(centroid_raw[i]), 4) for i, feat in enumerate(L1_CLUSTER_FEATURES)},
-            "centroid_pca_2d": [round(float(centroid_pca[0]), 4), round(float(centroid_pca[1]), 4)],
-            "radius": round(radius, 4),
+            "centroid_pca_2d": [round(float(c), 4) for c in centroid_pca],
+            "radius": round(max(radius, 1.25), 4),
             "member_count": len(indices),
             "member_dates": [dates[i] for i in indices if i < len(dates)],
             "method": "clinical_pca_meanshift",
@@ -625,10 +639,94 @@ def build_texture_profiles(daily_features_list: list, sessions: list, anchor_clu
     }]
 
 
+def load_dynamic_weights_config() -> dict:
+    try:
+        from com.chaquo.python import Python
+        context = Python.getPlatform().getApplication()
+        asset_manager = context.getAssets()
+        input_stream = asset_manager.open("dynamic_weights_config.json")
+        import json
+        size = input_stream.available()
+        buffer = bytearray(size)
+        input_stream.read(buffer)
+        input_stream.close()
+        return json.loads(buffer.decode('utf-8'))
+    except Exception as e:
+        print(f"  [AdaptiveWeights] Warning: could not load dynamic_weights_config.json from assets: {e}")
+        return {}
+
+
+def compute_dynamic_adaptive_weights(daily_features_list: list, user_profile: dict = None) -> dict:
+    # 1. Start with static/clinical baseline weights from FEATURE_WEIGHTS
+    weights = {feat: float(FEATURE_WEIGHTS.get(feat, 1.0)) for feat in ALL_L1_FEATURES}
+    total_original = sum(weights.values())
+
+    # 2. Subjective Questionnaire Anchoring (Onboarding Multipliers)
+    if user_profile:
+        config = load_dynamic_weights_config()
+        # Scale by profession multipliers
+        prof = user_profile.get("profession", "")
+        prof_config = config.get("profession_multipliers", {}).get(prof, {})
+        for feat, mult in prof_config.items():
+            if feat in weights:
+                weights[feat] *= float(mult)
+
+        # Scale by age multipliers
+        age = int(user_profile.get("age", 25))
+        age_group = "middle"
+        if age < 25:
+            age_group = "young"
+        elif age >= 60:
+            age_group = "elder"
+        
+        age_config = config.get("age_multipliers", {}).get(age_group, {})
+        for feat, mult in age_config.items():
+            if feat in weights:
+                weights[feat] *= float(mult)
+        print(f"  [AdaptiveWeights] Applied subjective multipliers for profession={prof}, age={age} ({age_group})")
+
+    # 3. Objective Telemetry Stability Scaling (Coefficient of Variation)
+    if daily_features_list:
+        import pandas as pd
+        df = pd.DataFrame(daily_features_list)
+        CV_TARGET = 0.15
+        for feat in ALL_L1_FEATURES:
+            if feat not in df.columns:
+                weights[feat] = 0.0
+                continue
+            values = df[feat].dropna().values.astype(float)
+            if len(values) < 3:
+                continue
+            std = np.std(values)
+            if std < 0.05:
+                # Near-zero variance drops the weight to 0
+                weights[feat] = 0.0
+                continue
+            mean = np.mean(values)
+            cv = std / (mean + 1e-6)
+            if cv < CV_TARGET:
+                # Highly stable -> boost
+                weights[feat] *= (1.0 + 0.3 * (CV_TARGET - cv))
+            else:
+                # Noisy -> damp
+                weights[feat] *= (1.0 / (1.0 + 0.5 * (cv - CV_TARGET)))
+
+    # 4. Re-normalize to preserve the total clinical weight budget
+    active_total = sum(weights.values())
+    if active_total > 0:
+        scale = total_original / active_total
+        weights = {k: v * scale for k, v in weights.items()}
+
+    return weights
+
+
 def build_l1_profile(
     daily_features_list: list,
     person_id: str = "user",
     existing_clusters: list = None,
+    user_profile: dict = None,
+    existing_profile: dict = None,
+    cluster_just_promoted: bool = False,
 ) -> dict:
     """
     Build Layer 1 profile: PersonalityVector + AnchorClusters + feature importance.
@@ -640,6 +738,9 @@ def build_l1_profile(
         daily_features_list: List of daily feature dicts
         person_id: User identifier
         existing_clusters: Previously persisted clusters for incremental growth
+        user_profile: User demographic profile dictionary from onboarding
+        existing_profile: Previously built full profile
+        cluster_just_promoted: True if a new cluster was just promoted, requiring weight recalibration
 
     Returns:
         Dict with L1-only fields, serializable to JSON.
@@ -652,12 +753,27 @@ def build_l1_profile(
     anchor_clusters = build_anchor_clusters(daily_features_list, existing_clusters=existing_clusters)
     print(f"  [L1 Profile] Anchor clusters: {len(anchor_clusters)}")
 
+    # Retrieve frozen weights if available, to prevent clinical normalization bias during monitoring
+    adaptive_weights = None
+    if existing_profile and not cluster_just_promoted:
+        feat_imp = existing_profile.get("feature_importance", {})
+        if feat_imp:
+            adaptive_weights = {}
+            for feat in ALL_L1_FEATURES:
+                if feat in feat_imp and "weight" in feat_imp[feat]:
+                    adaptive_weights[feat] = float(feat_imp[feat]["weight"])
+            print("  [AdaptiveWeights] Using frozen baseline weights from existing profile")
+
+    if adaptive_weights is None:
+        # Compute dynamic adaptive feature weights (onboarding or post-promotion update)
+        adaptive_weights = compute_dynamic_adaptive_weights(daily_features_list, user_profile=user_profile)
+
     # Weighted feature importance (for UI display)
     feature_importance = {}
     for feat in ALL_L1_FEATURES:
         mean_val = personality_vector["means"].get(feat, 0.0)
         std_val = personality_vector["variances"].get(feat, 0.0)
-        weight = FEATURE_WEIGHTS.get(feat, 1.0)
+        weight = adaptive_weights.get(feat, 1.0)
         feature_importance[feat] = {
             "mean": mean_val,
             "std": std_val,
@@ -672,7 +788,7 @@ def build_l1_profile(
 
     group_summaries = {}
     for grp, feats in groups.items():
-        weights = [FEATURE_WEIGHTS.get(f, 1.0) for f in feats]
+        weights = [adaptive_weights.get(f, 1.0) for f in feats]
         group_summaries[grp] = {
             "features": feats,
             "avg_weight": round(float(np.mean(weights)), 2),
@@ -715,7 +831,7 @@ def _run_full_l2_meanshift_clustering(l2_daily_features_list: list) -> list:
     stds_safe = np.where(stds > 1e-9, stds, 1.0)
     matrix_norm = (matrix - means) / stds_safe
     weights = [1.0] * len(L2_CLUSTER_FEATURES)
-    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, n_components=2)
+    projected, pca_components, pca_mean = _clinical_weighted_pca(matrix_norm, weights, target_variance=0.85)
 
     _proj_params = {
         "features": L2_CLUSTER_FEATURES,
@@ -732,12 +848,12 @@ def _run_full_l2_meanshift_clustering(l2_daily_features_list: list) -> list:
 
     if not clusters:
         centroid = np.mean(projected, axis=0)
-        radius = float(np.max(np.linalg.norm(projected - centroid, axis=1))) if len(projected) > 1 else 0.0
+        radius = float(np.max(np.linalg.norm(projected - centroid, axis=1))) if len(projected) > 1 else 1.25
         return [{
             "cluster_id": 0,
             "centroid_features": {feat: round(float(means[i]), 4) for i, feat in enumerate(L2_CLUSTER_FEATURES)},
-            "centroid_pca_2d": [round(float(centroid[0]), 4), round(float(centroid[1]), 4)],
-            "radius": round(radius, 4),
+            "centroid_pca_2d": [round(float(c), 4) for c in centroid],
+            "radius": round(max(radius, 1.25), 4),
             "member_count": len(projected),
             "member_dates": dates,
             "method": "l2_pca_meanshift",
@@ -757,8 +873,8 @@ def _run_full_l2_meanshift_clustering(l2_daily_features_list: list) -> list:
         cluster_dict = {
             "cluster_id": cid,
             "centroid_features": {feat: round(float(centroid_raw[i]), 4) for i, feat in enumerate(L2_CLUSTER_FEATURES)},
-            "centroid_pca_2d": [round(float(centroid_pca[0]), 4), round(float(centroid_pca[1]), 4)],
-            "radius": round(radius, 4),
+            "centroid_pca_2d": [round(float(c), 4) for c in centroid_pca],
+            "radius": round(max(radius, 1.25), 4),
             "member_count": len(indices),
             "member_dates": [dates[i] for i in indices if i < len(dates)],
             "method": "l2_pca_meanshift",

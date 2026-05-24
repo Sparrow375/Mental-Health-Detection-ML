@@ -1,0 +1,52 @@
+{
+  "profession_multipliers": {
+    "Student": {
+      "screenTimeHours": 0.85,
+      "socialAppRatio": 0.9,
+      "locationEntropy": 1.15,
+      "dailyStepCount": 1.1,
+      "activeMinutes": 1.1
+    },
+    "Employed": {
+      "locationEntropy": 0.9,
+      "homeTimeRatio": 1.1,
+      "screenTimeHours": 1.0,
+      "keystrokeSpeed": 0.95
+    },
+    "Self-employed": {
+      "locationEntropy": 1.0,
+      "homeTimeRatio": 1.0,
+      "screenTimeHours": 1.0
+    },
+    "Other": {
+      "screenTimeHours": 1.0,
+      "locationEntropy": 1.0
+    }
+  },
+  "age_multipliers": {
+    "young": {
+      "screenTimeHours": 0.85,
+      "socialAppRatio": 0.9,
+      "sleepDurationHours": 1.0,
+      "dailyStepCount": 1.1
+    },
+    "middle": {
+      "screenTimeHours": 1.0,
+      "socialAppRatio": 1.0,
+      "sleepDurationHours": 1.0
+    },
+    "elder": {
+      "dailyStepCount": 0.8,
+      "activeMinutes": 0.8,
+      "sleepDurationHours": 0.85,
+      "screenTimeHours": 1.15,
+      "keystrokeSpeed": 0.85
+    }
+  },
+  "gender_multipliers": {
+    "Male": {},
+    "Female": {},
+    "Non-binary": {},
+    "Prefer not to say": {}
+  }
+}

@@ -85,21 +85,21 @@ object JsonConverter {
         put("wakeTimeHour", e.wakeTimeHour)
         put("sleepTimeHour", e.sleepTimeHour)
         put("sleepDurationHours", e.sleepDurationHours)
-        put("darkDurationHours", e.darkDurationHours)
+        put("dailyStepCount", e.dailyStepCount)
+        put("activeMinutes", e.activeMinutes)
+        put("keystrokeSpeed", e.keystrokeSpeed)
+        put("backspaceRatio", e.backspaceRatio)
+        put("scrollVelocity", e.scrollVelocity)
+        put("daylightExposureMinutes", e.daylightExposureMinutes)
+        put("chargeRegularity", e.chargeRegularity)
         put("chargeDurationHours", e.chargeDurationHours)
-        put("memoryUsagePercent", e.memoryUsagePercent)
-        put("networkWifiMB", e.networkWifiMB)
-        put("networkMobileMB", e.networkMobileMB)
-        put("downloadsToday", e.downloadsToday)
-        put("storageUsedGB", e.storageUsedGB)
-        put("appUninstallsToday", e.appUninstallsToday)
         put("upiTransactionsToday", e.upiTransactionsToday)
-        put("totalAppsCount", e.totalAppsCount)
-        put("mediaCountToday", e.mediaCountToday)
+        put("appUninstallsToday", e.appUninstallsToday)
         put("appInstallsToday", e.appInstallsToday)
-        put("musicTimeMinutes", e.musicTimeMinutes)
         put("calendarEventsToday", e.calendarEventsToday)
-        put("dailySteps", e.dailySteps)
+        put("mediaCountToday", e.mediaCountToday)
+        put("downloadsToday", e.downloadsToday)
+        put("musicTimeMinutes", e.musicTimeMinutes)
         
         // Pass individual app usage dictionaries to python engine
         try {
@@ -142,22 +142,22 @@ object JsonConverter {
         wakeTimeHour = v.wakeTimeHour,
         sleepTimeHour = v.sleepTimeHour,
         sleepDurationHours = v.sleepDurationHours,
-        darkDurationHours = v.darkDurationHours,
+        dailyStepCount = v.dailyStepCount,
+        activeMinutes = v.activeMinutes,
+        keystrokeSpeed = v.keystrokeSpeed,
+        backspaceRatio = v.backspaceRatio,
+        scrollVelocity = v.scrollVelocity,
+        daylightExposureMinutes = v.daylightExposureMinutes,
+        chargeRegularity = v.chargeRegularity,
         chargeDurationHours = v.chargeDurationHours,
-        memoryUsagePercent = v.memoryUsagePercent,
-        networkWifiMB = v.networkWifiMB,
-        networkMobileMB = v.networkMobileMB,
-        downloadsToday = v.downloadsToday,
-        storageUsedGB = v.storageUsedGB,
-        appUninstallsToday = v.appUninstallsToday,
         upiTransactionsToday = v.upiTransactionsToday,
-        totalAppsCount = v.totalAppsCount,
-        musicTimeMinutes = v.musicTimeMinutes,
-        mediaCountToday = v.mediaCountToday,
+        appUninstallsToday = v.appUninstallsToday,
         appInstallsToday = v.appInstallsToday,
         calendarEventsToday = v.calendarEventsToday,
+        mediaCountToday = v.mediaCountToday,
+        downloadsToday = v.downloadsToday,
+        musicTimeMinutes = v.musicTimeMinutes,
         isSimulated = isSimulated,
-        dailySteps = v.dailySteps,
         appBreakdownJson = mapToJson(v.appBreakdown as Map<String, Number>),
         notificationBreakdownJson = mapToJson(v.notificationBreakdown as Map<String, Number>),
         appLaunchesBreakdownJson = mapToJson(v.appLaunchesBreakdown as Map<String, Number>),
@@ -182,21 +182,21 @@ object JsonConverter {
         wakeTimeHour = e.wakeTimeHour,
         sleepTimeHour = e.sleepTimeHour,
         sleepDurationHours = e.sleepDurationHours,
-        darkDurationHours = e.darkDurationHours,
+        dailyStepCount = e.dailyStepCount,
+        activeMinutes = e.activeMinutes,
+        keystrokeSpeed = e.keystrokeSpeed,
+        backspaceRatio = e.backspaceRatio,
+        scrollVelocity = e.scrollVelocity,
+        daylightExposureMinutes = e.daylightExposureMinutes,
+        chargeRegularity = e.chargeRegularity,
         chargeDurationHours = e.chargeDurationHours,
-        memoryUsagePercent = e.memoryUsagePercent,
-        networkWifiMB = e.networkWifiMB,
-        networkMobileMB = e.networkMobileMB,
-        downloadsToday = e.downloadsToday,
-        storageUsedGB = e.storageUsedGB,
-        appUninstallsToday = e.appUninstallsToday,
         upiTransactionsToday = e.upiTransactionsToday,
-        totalAppsCount = e.totalAppsCount,
-        musicTimeMinutes = e.musicTimeMinutes,
-        mediaCountToday = e.mediaCountToday,
+        appUninstallsToday = e.appUninstallsToday,
         appInstallsToday = e.appInstallsToday,
         calendarEventsToday = e.calendarEventsToday,
-        dailySteps = e.dailySteps,
+        mediaCountToday = e.mediaCountToday,
+        downloadsToday = e.downloadsToday,
+        musicTimeMinutes = e.musicTimeMinutes,
         appBreakdown = parseMapLong(e.appBreakdownJson),
         notificationBreakdown = parseMapInt(e.notificationBreakdownJson),
         appLaunchesBreakdown = parseMapInt(e.appLaunchesBreakdownJson),
@@ -225,6 +225,8 @@ object JsonConverter {
             cal.timeInMillis = s.open_timestamp
             val hour = cal.get(java.util.Calendar.HOUR_OF_DAY) + cal.get(java.util.Calendar.MINUTE) / 60f
             val durationMin = (s.close_timestamp - s.open_timestamp).coerceAtLeast(0) / 60_000f
+            val dayOfWeekJava = cal.get(java.util.Calendar.DAY_OF_WEEK)
+            val pythonDayOfWeek = (dayOfWeekJava + 5) % 7
 
             arr.put(JSONObject().apply {
                 put("app_package", s.app_package)
@@ -233,6 +235,7 @@ object JsonConverter {
                 put("close_timestamp", s.close_timestamp)
                 put("hour", hour.toDouble())
                 put("duration_minutes", durationMin.toDouble())
+                put("day_of_week", pythonDayOfWeek)
                 put("trigger", s.trigger)
                 put("interaction_count", s.interaction_count)
                 put("date", s.date)

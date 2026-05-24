@@ -45,27 +45,33 @@ data class PersonalityVector(
     val wakeTimeHour: Float = 0f,          // hour of first phone use today
     val sleepTimeHour: Float = 0f,         // hour of last phone use yesterday
     val sleepDurationHours: Float = 0f,    // estimated sleep (usage gap)
-    val darkDurationHours: Float = 0f,     // total time screen was off/idle
+
+    // ── PHYSICAL ACTIVITY ────────────────────────────────────────────────────
+    val dailyStepCount: Float = 0f,
+    val activeMinutes: Float = 0f,
+
+    // ── INTERACTION DYNAMICS ─────────────────────────────────────────────────
+    val keystrokeSpeed: Float = 0f,
+    val backspaceRatio: Float = 0f,
+    val scrollVelocity: Float = 0f,
+
+    // ── CIRCADIAN & ENVIRONMENT ──────────────────────────────────────────────
+    val daylightExposureMinutes: Float = 0f,
+    val chargeRegularity: Float = 0f,
 
     // ── SYSTEM ───────────────────────────────────────────────────────────────
     val chargeDurationHours: Float = 0f,
-    val memoryUsagePercent: Float = 0f,
-    val networkWifiMB: Float = 0f,
-    val networkMobileMB: Float = 0f,
-    val mediaCountToday: Float = 0f,
+
+    // ── BEHAVIOURAL SIGNALS ──────────────────────────────────────────────────
+    val upiTransactionsToday: Float = 0f,
+    val appUninstallsToday: Float = 0f,
     val appInstallsToday: Float = 0f,
+
+    // ── CALENDAR & ENGAGEMENT ────────────────────────────────────────────────
     val calendarEventsToday: Float = 0f,
-
-    // ── NEW EXPANDED FEATURES ─────────────────────────────────────────────────
-    val downloadsToday: Float = 0f,        // files downloaded today
-    val storageUsedGB: Float = 0f,         // internal storage currently used (GB)
-    val appUninstallsToday: Float = 0f,    // apps removed today
-    val upiTransactionsToday: Float = 0f,  // UPI/payment app launches today
-    val totalAppsCount: Float = 0f,        // total installed apps
-    val musicTimeMinutes: Float = 0f,  // intentional audio apps in background
-
-    // ── MISC / RECOVERED ──────────────────────────────────────────────────────
-    val dailySteps: Float = 0f,            // steps elapsed since morning baseline
+    val mediaCountToday: Float = 0f,
+    val downloadsToday: Float = 0f,
+    val musicTimeMinutes: Float = 0f,
 
     // ── OPTIONAL ─────────────────────────────────────────────────────────────
     val moodScore: Int? = null,
@@ -78,36 +84,35 @@ data class PersonalityVector(
     val bgAudioBreakdown: Map<String, Long> = emptyMap() // package → audio ms
 ) {
     fun toMap(): Map<String, Float> = mapOf(
-        "screenTimeHours"      to screenTimeHours,
-        "unlockCount"          to unlockCount,
-        "appLaunchCount"       to appLaunchCount,
-        "notificationsToday"   to notificationsToday,
-        "socialAppRatio"       to socialAppRatio,
-        "callsPerDay"          to callsPerDay,
-        "callDurationMinutes"  to callDurationMinutes,
-        "uniqueContacts"       to uniqueContacts,
+        "screenTimeHours" to screenTimeHours,
+        "unlockCount" to unlockCount,
+        "appLaunchCount" to appLaunchCount,
+        "notificationsToday" to notificationsToday,
+        "socialAppRatio" to socialAppRatio,
+        "callsPerDay" to callsPerDay,
+        "callDurationMinutes" to callDurationMinutes,
+        "uniqueContacts" to uniqueContacts,
         "conversationFrequency" to conversationFrequency,
-        "dailyDisplacementKm"  to dailyDisplacementKm,
-        "locationEntropy"      to locationEntropy,
-        "homeTimeRatio"        to homeTimeRatio,
-        "wakeTimeHour"         to wakeTimeHour,
-        "sleepTimeHour"        to sleepTimeHour,
-        "sleepDurationHours"   to sleepDurationHours,
-        "darkDurationHours"    to darkDurationHours,
-        "chargeDurationHours"  to chargeDurationHours,
-        "memoryUsagePercent"   to memoryUsagePercent,
-        "networkWifiMB"        to networkWifiMB,
-        "networkMobileMB"      to networkMobileMB,
-        "calendarEventsToday"  to calendarEventsToday,
-        "downloadsToday"       to downloadsToday,
-        "storageUsedGB"        to storageUsedGB,
-        "appUninstallsToday"   to appUninstallsToday,
+        "dailyDisplacementKm" to dailyDisplacementKm,
+        "locationEntropy" to locationEntropy,
+        "homeTimeRatio" to homeTimeRatio,
+        "wakeTimeHour" to wakeTimeHour,
+        "sleepTimeHour" to sleepTimeHour,
+        "sleepDurationHours" to sleepDurationHours,
+        "dailyStepCount" to dailyStepCount,
+        "activeMinutes" to activeMinutes,
+        "keystrokeSpeed" to keystrokeSpeed,
+        "backspaceRatio" to backspaceRatio,
+        "scrollVelocity" to scrollVelocity,
+        "daylightExposureMinutes" to daylightExposureMinutes,
+        "chargeRegularity" to chargeRegularity,
+        "chargeDurationHours" to chargeDurationHours,
         "upiTransactionsToday" to upiTransactionsToday,
-        "totalAppsCount"       to totalAppsCount,
-        // Previously missing — now included in model
-        "mediaCountToday"      to mediaCountToday,
-        "appInstallsToday"     to appInstallsToday,
-        "dailySteps"           to dailySteps,
+        "appUninstallsToday" to appUninstallsToday,
+        "appInstallsToday" to appInstallsToday,
+        "calendarEventsToday" to calendarEventsToday,
+        "mediaCountToday" to mediaCountToday,
+        "downloadsToday" to downloadsToday,
         "musicTimeMinutes" to musicTimeMinutes
     )
 }

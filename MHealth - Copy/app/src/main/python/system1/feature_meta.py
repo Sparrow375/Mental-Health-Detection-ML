@@ -55,26 +55,33 @@ FEATURE_META: Dict[str, Dict] = {
     "wakeTimeHour":          {"group": "sleep",         "weight": 1.4, "directionality": "grow_matters"},
     "sleepTimeHour":         {"group": "sleep",         "weight": 1.3, "directionality": "grow_matters"},
     "sleepDurationHours":    {"group": "sleep",         "weight": 1.6, "directionality": "u_shaped"},
-    "darkDurationHours":     {"group": "sleep",         "weight": 1.0, "directionality": "u_shaped"},
 
-    # ── Group E: System Usage ─────────────────────────────────────────────
+    # ── Group E: Physical Activity ────────────────────────────────────────
+    "dailyStepCount":        {"group": "activity",      "weight": 1.4, "directionality": "shrink_matters"},
+    "activeMinutes":         {"group": "activity",      "weight": 1.2, "directionality": "shrink_matters"},
+
+    # ── Group F: Interaction Dynamics ─────────────────────────────────────
+    "keystrokeSpeed":        {"group": "dynamics",      "weight": 1.3, "directionality": "shrink_matters"},
+    "backspaceRatio":        {"group": "dynamics",      "weight": 1.2, "directionality": "grow_matters"},
+    "scrollVelocity":        {"group": "dynamics",      "weight": 1.1, "directionality": "both"},
+
+    # ── Group G: Circadian & Environment ──────────────────────────────────
+    "daylightExposureMinutes":{"group": "circadian",     "weight": 1.1, "directionality": "shrink_matters"},
+    "chargeRegularity":      {"group": "circadian",     "weight": 1.2, "directionality": "shrink_matters"},
+
+    # ── Group H: System Usage ─────────────────────────────────────────────
     "chargeDurationHours":   {"group": "system",        "weight": 0.8, "directionality": "both"},
-    "memoryUsagePercent":    {"group": "system",        "weight": 0.5, "directionality": "both"},
-    "networkWifiMB":         {"group": "system",        "weight": 0.6, "directionality": "both"},
-    "networkMobileMB":       {"group": "system",        "weight": 0.6, "directionality": "both"},
-    "storageUsedGB":         {"group": "system",        "weight": 0.4, "directionality": "both"},
 
-    # ── Group F: Behavioural Signals ──────────────────────────────────────
-    "totalAppsCount":        {"group": "behaviour",     "weight": 0.8, "directionality": "shrink_matters"},
+    # ── Group I: Behavioural Signals ──────────────────────────────────────
     "upiTransactionsToday":  {"group": "behaviour",     "weight": 1.1, "directionality": "shrink_matters"},
     "appUninstallsToday":    {"group": "behaviour",     "weight": 0.9, "directionality": "shrink_matters"},
     "appInstallsToday":      {"group": "behaviour",     "weight": 0.8, "directionality": "shrink_matters"},
 
-    # ── Group G: Calendar & Engagement ────────────────────────────────────
+    # ── Group J: Calendar & Engagement ────────────────────────────────────
     "calendarEventsToday":   {"group": "engagement",    "weight": 0.9, "directionality": "shrink_matters"},
     "mediaCountToday":       {"group": "engagement",    "weight": 0.7, "directionality": "shrink_matters"},
     "downloadsToday":        {"group": "engagement",    "weight": 0.6, "directionality": "shrink_matters"},
-    "musicTimeMinutes":  {"group": "engagement",    "weight": 0.9, "directionality": "both"},
+    "musicTimeMinutes":      {"group": "engagement",    "weight": 0.9, "directionality": "both"},
 }
 
 # Ordered list of all feature names (camelCase, matching Android)
@@ -89,7 +96,7 @@ CRITICAL_FEATURES: List[str] = [
     "wakeTimeHour",
     "callsPerDay",
     "upiTransactionsToday",
-    "totalAppsCount",
+    "dailyStepCount",
 ]
 
 # Feature subset used for L1 DBSCAN context clustering
@@ -104,7 +111,8 @@ L1_CLUSTERING_FEATURES: List[str] = [
     "screenTimeHours",
     "unlockCount",
     "socialAppRatio",
-    "darkDurationHours",
+    "dailyStepCount",
+    "chargeRegularity",
 ]
 
 # ============================================================================

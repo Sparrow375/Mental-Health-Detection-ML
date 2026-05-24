@@ -276,6 +276,9 @@ def run_analysis(json_string: str) -> str:
                 daily_features_list=all_daily,
                 person_id=data.get("user_id", "user"),
                 existing_clusters=existing_clusters,  # Phase 3: incremental growth
+                user_profile=data.get("user_profile", None),
+                existing_profile=existing_profile,
+                cluster_just_promoted=cluster_promoted,
             )
             print(f"  [L1 Profile] Built: {l1_profile['days_of_data']} days, "
                   f"{len(l1_profile.get('anchor_clusters', []))} clusters")

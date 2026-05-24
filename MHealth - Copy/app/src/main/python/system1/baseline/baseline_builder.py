@@ -59,9 +59,61 @@ class BaselineBuilder:
 
         # Step 1.2 — AppDNA
         app_builder = AppDNABuilder()
-        sess = session_events[:baseline_days] if session_events else None
-        notif = notification_events[:baseline_days] if notification_events else None
-        profile.app_dna_dict = app_builder.build(sess, notif, baseline_days)
+        
+        # Robustly handle both flat list of session dicts and list-of-lists daily sessions
+        if session_events:
+            flat_sessions = []
+            if len(session_events) > 0:
+                if isinstance(session_events[0], list):
+                    for day_list in session_events:
+                        if day_list:
+                            flat_sessions.extend(day_list)
+                else:
+                    flat_sessions = session_events
+            
+            if flat_sessions:
+                sessions_by_date = {}
+                for s in flat_sessions:
+                    d = s.get("date", "")
+                    if d:
+                        sessions_by_date.setdefault(d, []).append(s)
+                baseline_dates = set(baseline_df["date"].tolist())
+                grouped_sess = []
+                for d in sorted(baseline_dates):
+                    grouped_sess.append(sessions_by_date.get(d, []))
+                sess = grouped_sess
+            else:
+                sess = []
+        else:
+            sess = None
+
+        if notification_events:
+            flat_notifs = []
+            if len(notification_events) > 0:
+                if isinstance(notification_events[0], list):
+                    for day_list in notification_events:
+                        if day_list:
+                            flat_notifs.extend(day_list)
+                else:
+                    flat_notifs = notification_events
+            
+            if flat_notifs:
+                notifs_by_date = {}
+                for n in flat_notifs:
+                    d = n.get("date", "")
+                    if d:
+                        notifs_by_date.setdefault(d, []).append(n)
+                baseline_dates = set(baseline_df["date"].tolist())
+                grouped_notif = []
+                for d in sorted(baseline_dates):
+                    grouped_notif.append(notifs_by_date.get(d, []))
+                notif = grouped_notif
+            else:
+                notif = []
+        else:
+            notif = None
+
+        profile.app_dna_dict = app_builder.build(sess, notif, len(baseline_df))
         print(f"  ✓ Step 1.2: AppDNA ({len(profile.app_dna_dict)} apps)")
 
         # Step 1.3 — PhoneDNA

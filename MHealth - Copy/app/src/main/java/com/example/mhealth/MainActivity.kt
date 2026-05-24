@@ -2645,7 +2645,7 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         sustainedDays = reportObj.optInt("sustainedDays", 0),
                         prototypeMatch = reportObj.optString("prototypeMatch", "Normal"),
                         matchMessage = reportObj.optString("matchMessage", ""),
-                        prototypeConfidence = ((reportObj.optDouble("prototypeConfidence", 0.0)) / 10.0).coerceIn(0.0, 1.0).toFloat(),
+                        prototypeConfidence = reportObj.optDouble("prototypeConfidence", 0.0).coerceIn(0.0, 1.0).toFloat(),
                         gateResults = reportObj.optJSONObject("gateResults")?.toString() ?: "{}"
                     )
                     db.analysisResultDao().insert(r)

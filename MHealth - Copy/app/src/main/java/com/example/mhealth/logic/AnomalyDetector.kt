@@ -12,17 +12,16 @@ import kotlin.math.sqrt
 /** Mirror of the same helper in MonitoringService — keeps sleep/wake on a midnight-safe scale. */
 private fun normalizeTimeToNoon(rawHour: Float): Float = (rawHour - 12f + 24f) % 24f
 private val FEATURE_META = mapOf(
-    "screenTimeHours"      to 1.4f, "unlockCount"          to 1.2f, "appLaunchCount"       to 0.9f,
-    "notificationsToday"   to 0.8f, "socialAppRatio"       to 1.3f, "callsPerDay"          to 1.3f,
-    "callDurationMinutes"  to 1.2f, "uniqueContacts"       to 1.1f, "conversationFrequency" to 0.9f,
-    "dailyDisplacementKm"  to 1.5f, "locationEntropy"      to 1.3f, "homeTimeRatio"        to 1.2f,
-    "wakeTimeHour"         to 1.4f, "sleepTimeHour"        to 1.3f,
-    "sleepDurationHours"   to 1.6f, "darkDurationHours"    to 1.0f, "chargeDurationHours"  to 0.8f,
-    "memoryUsagePercent"   to 0.5f, "networkWifiMB"        to 0.6f, "networkMobileMB"      to 0.6f,
-    "storageUsedGB"        to 0.4f, "totalAppsCount"       to 0.8f, "upiTransactionsToday" to 1.1f,
-    "appUninstallsToday"   to 0.9f, "appInstallsToday"     to 0.8f, "calendarEventsToday"  to 0.9f,
-    "mediaCountToday"      to 0.7f, "downloadsToday"       to 0.6f, "musicTimeMinutes" to 0.9f,
-    "dailySteps"           to 1.0f
+    "screenTimeHours"         to 1.4f, "unlockCount"             to 1.2f, "appLaunchCount"           to 0.9f,
+    "notificationsToday"      to 0.8f, "socialAppRatio"          to 1.3f, "callsPerDay"              to 1.3f,
+    "callDurationMinutes"     to 1.2f, "uniqueContacts"          to 1.1f, "conversationFrequency"    to 0.9f,
+    "dailyDisplacementKm"     to 1.5f, "locationEntropy"         to 1.3f, "homeTimeRatio"            to 1.2f,
+    "wakeTimeHour"            to 1.4f, "sleepTimeHour"           to 1.3f, "sleepDurationHours"       to 1.6f,
+    "dailyStepCount"          to 1.4f, "activeMinutes"           to 1.2f, "keystrokeSpeed"           to 1.3f,
+    "backspaceRatio"          to 1.2f, "scrollVelocity"          to 1.1f, "daylightExposureMinutes"  to 1.1f,
+    "chargeRegularity"        to 1.2f, "chargeDurationHours"     to 0.8f, "upiTransactionsToday"     to 1.1f,
+    "appUninstallsToday"      to 0.9f, "appInstallsToday"        to 0.8f, "calendarEventsToday"     to 0.9f,
+    "mediaCountToday"         to 0.7f, "downloadsToday"          to 0.6f, "musicTimeMinutes"        to 0.9f
 )
 
 class AnomalyDetector(
@@ -48,11 +47,11 @@ class AnomalyDetector(
             "socialAppRatio", "callsPerDay", "callDurationMinutes", "uniqueContacts",
             "conversationFrequency", "dailyDisplacementKm", "locationEntropy",
             "homeTimeRatio", "wakeTimeHour", "sleepTimeHour",
-            "sleepDurationHours", "darkDurationHours", "chargeDurationHours",
-            "memoryUsagePercent", "networkWifiMB", "networkMobileMB", "calendarEventsToday",
-            "downloadsToday", "storageUsedGB", "appUninstallsToday",
-            "upiTransactionsToday", "totalAppsCount", "mediaCountToday",
-            "appInstallsToday", "dailySteps", "musicTimeMinutes"
+            "sleepDurationHours", "dailyStepCount", "activeMinutes",
+            "keystrokeSpeed", "backspaceRatio", "scrollVelocity",
+            "daylightExposureMinutes", "chargeRegularity", "chargeDurationHours",
+            "upiTransactionsToday", "appUninstallsToday", "appInstallsToday",
+            "calendarEventsToday", "mediaCountToday", "downloadsToday", "musicTimeMinutes"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
 

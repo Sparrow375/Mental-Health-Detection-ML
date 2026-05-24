@@ -77,6 +77,9 @@ class DataCollector(private val context: Context) : SensorEventListener {
     // Cumulative steps since device boot — we take a daily delta
     private var rawStepsSinceBoot = 0f
 
+    private var lastLightReadingTimeMs = 0L
+    private var lastLuxValue = 0f
+
     // ── Adaptive GPS System ───────────────────────────────────────────────────
     // State machine that adjusts polling interval based on activity
     private val gpsStateManager = GpsStateManager(context)
@@ -98,6 +101,42 @@ class DataCollector(private val context: Context) : SensorEventListener {
     init {
         DataRepository.init(context)
         // Step counter now handled by GpsStateManager for adaptive tracking
+        registerSensors()
+    }
+
+    private fun registerSensors() {
+        try {
+            val stepSensor = sensorManager.getDefaultSensor(Sensor.TYPE_STEP_COUNTER)
+            if (stepSensor != null) {
+                sensorManager.registerListener(this, stepSensor, SensorManager.SENSOR_DELAY_NORMAL)
+                Log.i(TAG, "Step counter registered in DataCollector")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Step counter registration failed: ${e.message}")
+        }
+        try {
+            val lightSensor = sensorManager.getDefaultSensor(Sensor.TYPE_LIGHT)
+            if (lightSensor != null) {
+                sensorManager.registerListener(this, lightSensor, SensorManager.SENSOR_DELAY_NORMAL)
+                Log.i(TAG, "Light sensor registered in DataCollector")
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Light sensor registration failed: ${e.message}")
+        }
+    }
+
+    private fun getChargeRegularity(): Float {
+        val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        val currentListStr = prefs.getString("charge_start_hours", "") ?: ""
+        val currentList = currentListStr.split(",").filter { it.isNotBlank() }.map { it.toFloat() }
+        
+        if (currentList.size < 3) return 1.0f // default to regular if not enough data
+        
+        val noonOffsets = currentList.map { (it - 12f + 24f) % 24f }
+        val mean = noonOffsets.average().toFloat()
+        val sd = kotlin.math.sqrt(noonOffsets.map { (it - mean) * (it - mean) }.average()).toFloat()
+        
+        return (1.0f - (sd / 6.0f)).coerceIn(0.0f, 1.0f)
     }
 
     // =========================================================================
@@ -113,8 +152,6 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val startOfDay = overrideStartMs ?: getStartOfDayMs()
 
         // Step delta — register baseline once per day, then subtract
-        // Note: For historical snapshots, dailySteps might be less accurate as rawStepsSinceBoot is live,
-        // but we prioritize screen time and app usage for baseline.
         DataRepository.setStepBaseline(rawStepsSinceBoot)
         val dailySteps = (rawStepsSinceBoot - (DataRepository.stepBaseline.value ?: rawStepsSinceBoot))
             .coerceAtLeast(0f)
@@ -125,17 +162,13 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
         val locationData  = calculateLocationMetrics(locationSnapshots, startOfDay, now)
         val comms         = collectCommunicationStats(startOfDay)
-        val batteryInfo   = getBatteryInfo()
-        val systemInfo    = getSystemInfo(startOfDay, now)
         val calEvents     = countCalendarEvents(startOfDay, now)
         val mediaCount    = countMediaAdded(startOfDay, now)
         val appInstalls   = countAppInstalls(startOfDay, now)
-        val contacts      = countUniqueContactsToday(startOfDay)  // fix: was starred contacts
+        val contacts      = countUniqueContactsToday(startOfDay)
         val downloads     = countDownloads(startOfDay, now)
-        val storageGB     = getStorageUsedGB()
         val appUninstalls = countAppUninstalls()
         val upiLaunches   = countUpiLaunches(events.appLaunches)
-        val totalApps     = countTotalApps()
 
         // Notification count natively parsed from UsageEvents (Type 12)
         val notifCount = events.notificationCount.toFloat()
@@ -145,6 +178,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
         // Background audio: use AudioManager-based accumulation from MonitoringService ticks
         val musicMinutes = DataRepository.accumulatedBgAudioMs.value / 60_000f
+
+        // Retrieve accessibility metrics
+        val (accKeySpeed, accBackspaceRatio, accScrollVel) = com.example.mhealth.services.MHealthAccessibilityService.getDailyMetrics(context)
+
         return PersonalityVector(
             // Digital Wellbeing primary metrics
             screenTimeHours      = events.screenTimeMs / 3_600_000f,
@@ -157,7 +194,6 @@ class DataCollector(private val context: Context) : SensorEventListener {
             callsPerDay          = comms.callCount.toFloat(),
             callDurationMinutes  = comms.callDurationMinutes,
             uniqueContacts       = contacts.toFloat(),
-            // conversationFrequency = avg daily events per unique contact (not duplicate of callsPerDay)
             conversationFrequency= if (contacts > 0) comms.callCount.toFloat() / contacts else comms.callCount.toFloat(),
 
             // Location & movement
@@ -169,31 +205,37 @@ class DataCollector(private val context: Context) : SensorEventListener {
             wakeTimeHour         = sleepData.wakeTimeHour,
             sleepTimeHour        = sleepData.sleepTimeHour,
             sleepDurationHours   = sleepData.sleepDurationHours,
-            darkDurationHours    = estimateDark(events.screenOffMs),
 
-            // System
+            // Physical Activity
+            dailyStepCount       = dailySteps,
+            activeMinutes        = (dailySteps / 100f).coerceAtLeast(0f).coerceAtMost(300f),
+
+            // Interaction Dynamics (Accessibility-based)
+            keystrokeSpeed       = accKeySpeed,
+            backspaceRatio       = accBackspaceRatio,
+            scrollVelocity       = accScrollVel,
+
+            // Circadian & Environment
+            daylightExposureMinutes = DataRepository.accumulatedLightMinutes.value,
+            chargeRegularity     = getChargeRegularity(),
             chargeDurationHours  = DataRepository.accumulatedChargeHours.value,
-            memoryUsagePercent   = systemInfo.memoryPercent,
-            networkWifiMB        = systemInfo.wifiMB,
-            networkMobileMB      = systemInfo.mobileMB,
-            mediaCountToday      = mediaCount.toFloat(),
-            appInstallsToday     = appInstalls.toFloat(),
-            calendarEventsToday  = calEvents.toFloat(),
 
-            // New expanded features
-            downloadsToday       = downloads.toFloat(),
-            storageUsedGB        = storageGB,
-            appUninstallsToday   = appUninstalls.toFloat(),
+            // Behavioural Signals
             upiTransactionsToday = upiLaunches.toFloat(),
-            totalAppsCount       = totalApps.toFloat(),
-            musicTimeMinutes     = musicMinutes,
+            appUninstallsToday   = appUninstalls.toFloat(),
+            appInstallsToday     = appInstalls.toFloat(),
 
-            dailySteps           = dailySteps,
+            // Calendar & Engagement
+            calendarEventsToday  = calEvents.toFloat(),
+            mediaCountToday      = mediaCount.toFloat(),
+            downloadsToday       = downloads.toFloat(),
+            musicTimeMinutes     = musicMinutes,
 
             appBreakdown         = events.appMinutes,
             notificationBreakdown = events.notificationBreakdown,
             appLaunchesBreakdown = events.appLaunches
         )
+    }
     }
 
     /** Start passive continuous location tracking with adaptive intervals. */
@@ -1128,8 +1170,21 @@ class DataCollector(private val context: Context) : SensorEventListener {
     //  captured in DataRepository.setStepBaseline() to get today's delta.
     // =========================================================================
     override fun onSensorChanged(event: SensorEvent?) {
-        if (event?.sensor?.type == Sensor.TYPE_STEP_COUNTER) {
+        if (event == null) return
+        if (event.sensor.type == Sensor.TYPE_STEP_COUNTER) {
             rawStepsSinceBoot = event.values[0]
+        } else if (event.sensor.type == Sensor.TYPE_LIGHT) {
+            val lux = event.values[0]
+            val now = System.currentTimeMillis()
+            if (lastLightReadingTimeMs > 0L) {
+                val elapsedMs = now - lastLightReadingTimeMs
+                if (elapsedMs in 1..900_000L && lastLuxValue > 5.0f) {
+                    val elapsedMinutes = elapsedMs / 60_000f
+                    DataRepository.addLightMinutes(elapsedMinutes)
+                }
+            }
+            lastLightReadingTimeMs = now
+            lastLuxValue = lux
         }
     }
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) {}

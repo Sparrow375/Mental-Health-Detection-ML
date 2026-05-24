@@ -42,40 +42,46 @@ data class DailyFeaturesEntity(
     val dailyDisplacementKm: Float = 0f,
     val locationEntropy: Float = 0f,
     val homeTimeRatio: Float = 0f,
-    val placesVisited: Float = 0f,
 
     // Sleep Proxy
     val wakeTimeHour: Float = 0f,
     val sleepTimeHour: Float = 0f,
     val sleepDurationHours: Float = 0f,
-    val darkDurationHours: Float = 0f,
 
-    // System
+    // Physical Activity
+    val dailyStepCount: Float = 0f,
+    val activeMinutes: Float = 0f,
+
+    // Interaction Dynamics (Accessibility-based)
+    val keystrokeSpeed: Float = 0f,
+    val backspaceRatio: Float = 0f,
+    val scrollVelocity: Float = 0f,
+
+    // Circadian & Environment
+    val daylightExposureMinutes: Float = 0f,
+    val chargeRegularity: Float = 0f,
+
+    // System Usage (Simplified)
     val chargeDurationHours: Float = 0f,
-    val memoryUsagePercent: Float = 0f,
-    val networkWifiMB: Float = 0f,
-    val networkMobileMB: Float = 0f,
 
-    // New expanded features (v2)
-    val downloadsToday: Float = 0f,
-    val storageUsedGB: Float = 0f,
-    val appUninstallsToday: Float = 0f,
+    // Behavioural Signals
     val upiTransactionsToday: Float = 0f,
-    val totalAppsCount: Float = 0f,
-    @androidx.room.ColumnInfo(defaultValue = "0.0")
-    val musicTimeMinutes: Float = 0f,
-    val mediaCountToday: Float = 0f,
+    val appUninstallsToday: Float = 0f,
     val appInstallsToday: Float = 0f,
-    val calendarEventsToday: Float = 0f,
 
-    // Missed Sensory Data (Captured for Cloud Sync / Backup)
-    val dailySteps: Float = 0f,
+    // Calendar & Engagement
+    val calendarEventsToday: Float = 0f,
+    val mediaCountToday: Float = 0f,
+    val downloadsToday: Float = 0f,
+    val musicTimeMinutes: Float = 0f,
+
+    // Missed Sensory Data / Breakdowns (Captured for Cloud Sync / Backup)
     val appBreakdownJson: String = "{}",
     val notificationBreakdownJson: String = "{}",
     val appLaunchesBreakdownJson: String = "{}",
     val bgAudioBreakdownJson: String = "{}",
 
-    // Sync flag (for future Firebase cloud sync)
+    // Sync flag
     val syncedToCloud: Boolean = false,
 
     // Developer testing

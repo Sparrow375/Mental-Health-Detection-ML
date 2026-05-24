@@ -193,6 +193,9 @@ object DataRepository {
     private val _accumulatedChargeHours = MutableStateFlow(0f)
     val accumulatedChargeHours: StateFlow<Float> = _accumulatedChargeHours
 
+    private val _accumulatedLightMinutes = MutableStateFlow(0f)
+    val accumulatedLightMinutes: StateFlow<Float> = _accumulatedLightMinutes
+
     // Accumulated background audio ms — updated per tick by AudioManager.isMusicActive()
     private val _accumulatedBgAudioMs = MutableStateFlow(0L)
     val accumulatedBgAudioMs: StateFlow<Long> = _accumulatedBgAudioMs
@@ -308,6 +311,8 @@ object DataRepository {
 
         // Restore accumulated charge hours
         _accumulatedChargeHours.value = prefs?.getFloat("charge_hours_today", 0f) ?: 0f
+
+        _accumulatedLightMinutes.value = prefs?.getFloat("light_minutes_today", 0f) ?: 0f
 
         // Restore accumulated background audio ms
         _accumulatedBgAudioMs.value = prefs?.getLong("bg_audio_ms_today", 0L) ?: 0L
@@ -474,6 +479,25 @@ object DataRepository {
         prefs?.edit()?.putFloat("charge_hours_today", newTotal)?.apply()
     }
 
+    fun addLightMinutes(minutes: Float) {
+        val newTotal = _accumulatedLightMinutes.value + minutes
+        _accumulatedLightMinutes.value = newTotal
+        prefs?.edit()?.putFloat("light_minutes_today", newTotal)?.apply()
+    }
+
+    fun recordChargingStart(timestampMs: Long) {
+        val cal = Calendar.getInstance().apply { timeInMillis = timestampMs }
+        val hour = cal.get(Calendar.HOUR_OF_DAY) + cal.get(Calendar.MINUTE) / 60f
+        
+        val currentListStr = prefs?.getString("charge_start_hours", "") ?: ""
+        val currentList = currentListStr.split(",").filter { it.isNotBlank() }.map { it.toFloat() }.toMutableList()
+        currentList.add(hour)
+        if (currentList.size > 7) {
+            currentList.removeAt(0)
+        }
+        prefs?.edit()?.putString("charge_start_hours", currentList.joinToString(","))?.apply()
+    }
+
     fun addBgAudioTime(packageName: String?, ms: Long) {
         val newTotal = _accumulatedBgAudioMs.value + ms
         _accumulatedBgAudioMs.value = newTotal
@@ -555,6 +579,7 @@ object DataRepository {
         _stepBaseline.value = null
         _moodScore.value = null
         _accumulatedChargeHours.value = 0f
+        _accumulatedLightMinutes.value = 0f
         _accumulatedBgAudioMs.value = 0L
         _bgAudioBreakdown.value = emptyMap()
         _dndOnMs.value = -1L
@@ -564,6 +589,7 @@ object DataRepository {
             remove("step_baseline_today")
             remove("loc_snapshots_today")
             remove("charge_hours_today")
+            remove("light_minutes_today")
             remove("bg_audio_ms_today")
             remove("bg_audio_breakdown_today")
             remove("dnd_on_ts")

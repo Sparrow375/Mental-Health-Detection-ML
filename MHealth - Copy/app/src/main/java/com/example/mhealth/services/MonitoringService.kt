@@ -107,6 +107,7 @@ class MonitoringService : Service() {
                 Intent.ACTION_POWER_CONNECTED -> {
                     chargingStartMs = System.currentTimeMillis()
                     Log.i("MHealth.Service", "Charger connected at $chargingStartMs")
+                    DataRepository.recordChargingStart(chargingStartMs)
                 }
                 Intent.ACTION_POWER_DISCONNECTED -> {
                     if (chargingStartMs > 0L) {
@@ -779,14 +780,15 @@ class MonitoringService : Service() {
                     Log.e("MHealth.Service", "Failed to compute DNA snapshot for $yesterdayStr: ${e.message}", e)
                 }
 
-                // ── DNA: Purge raw sessions and notification events for the previous day ──
+                // ── DNA: Keep a rolling 60-day window of raw sessions and notifications; purge older than 60 days ──
                 try {
                     val db = MHealthDatabase.getInstance(this@MonitoringService)
-                    val sessionsDeleted = db.appSessionDao().deleteByDate(yesterdayStr)
-                    val notifsDeleted = db.notificationEventDao().deleteByDate(yesterdayStr)
-                    Log.i("MHealth.Service", "Purged $sessionsDeleted sessions and $notifsDeleted notification events for $yesterdayStr")
+                    val sixtyDaysAgoMs = System.currentTimeMillis() - 60L * 24L * 3600_000L
+                    val sessionsDeleted = db.appSessionDao().deleteOlderThan(sixtyDaysAgoMs)
+                    val notifsDeleted = db.notificationEventDao().deleteOlderThan(sixtyDaysAgoMs)
+                    Log.i("MHealth.Service", "Purged $sessionsDeleted old sessions and $notifsDeleted old notification events older than 60 days")
                 } catch (e: Exception) {
-                    Log.e("MHealth.Service", "Failed to purge DNA raw data for $yesterdayStr: ${e.message}", e)
+                    Log.e("MHealth.Service", "Failed to purge old DNA raw data: ${e.message}", e)
                 }
 
                 // Record this full day in history/baseline
@@ -800,6 +802,7 @@ class MonitoringService : Service() {
                 DataRepository.resetDailyState()
                 gpsStateManager.reset()  // Reset GPS state machine to STATIONARY
                 dataCollector.resetDisplacementGuard()  // Reset monotonic displacement for new day
+                com.example.mhealth.services.MHealthAccessibilityService.resetDailyMetrics(this@MonitoringService)
                 DataRepository.setLastProcessedDay(today)
                 Log.i("MHealth.Service", "Day transition logic for Day $savedDay complete.")
             } else {

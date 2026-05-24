@@ -686,8 +686,7 @@ private fun AnomalyScoreFlowCard(
                 Text(
                     "1.00",
                     fontSize = 9.sp,
-                    color = TextSecondary,
-                    modifier = Modifier.align(Alignment.End)
+                    color = TextSecondary
                 )
             }
 

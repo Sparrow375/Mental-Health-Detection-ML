@@ -2207,6 +2207,7 @@ fun SettingsScreen() {
                         valueRange = 1f..60f,
                         steps = 59,
                         colors = SliderDefaults.colors(thumbColor = ChartOrange, activeTrackColor = ChartOrange)
+                    )
 
                     Spacer(Modifier.height(16.dp))
                     Button(

@@ -2,6 +2,7 @@ package com.example.mhealth.services
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.text.InputType
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 
@@ -47,6 +48,7 @@ class MHealthAccessibilityService : AccessibilityService() {
         fun resetDailyMetrics(context: Context) {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             prefs.edit().clear().apply()
+            lastTypeTimeMs = 0L
         }
     }
 
@@ -60,13 +62,29 @@ class MHealthAccessibilityService : AccessibilityService() {
                 // Keystroke dynamics
                 // Security guardrail: skip passwords and sensitive inputs
                 if (event.isPassword) return
-                val sourceNode = event.source
-                if (sourceNode != null) {
-                    val inputType = sourceNode.inputType
-                    // PASSWORD inputs or similar sensitive fields
-                    if (inputType and 0x80 != 0 || inputType and 0x90 != 0) {
-                        return
+
+                // FIX: Properly check password inputType using Android's InputType constants.
+                // Previous bitmask logic was broken due to operator precedence — it evaluated
+                // `inputType and (0x80 != 0)` → `inputType and true` → always non-zero,
+                // causing EVERY text field to be treated as a password and rejected.
+                var sourceNode: AccessibilityNodeInfo? = null
+                try {
+                    sourceNode = event.source
+                    if (sourceNode != null) {
+                        val inputTypeMask = sourceNode.inputType
+                        val variation = inputTypeMask and InputType.TYPE_MASK_VARIATION
+                        // Skip password, visible-password, and web-password variations
+                        if (variation == InputType.TYPE_TEXT_VARIATION_PASSWORD ||
+                            variation == InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD ||
+                            variation == InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD ||
+                            variation == InputType.TYPE_NUMBER_VARIATION_PASSWORD) {
+                            return
+                        }
                     }
+                } finally {
+                    // FIX: Always recycle the AccessibilityNodeInfo to prevent resource leaks.
+                    // Leaked nodes cause the OS to stop delivering events after ~500 leaks.
+                    sourceNode?.recycle()
                 }
 
                 val beforeText = event.beforeText ?: ""
@@ -96,6 +114,17 @@ class MHealthAccessibilityService : AccessibilityService() {
                     val deletedCount = beforeLen - textLen
                     val totalBackspaces = prefs.getInt(KEY_BACKSPACES, 0) + deletedCount
                     editor.putInt(KEY_BACKSPACES, totalBackspaces)
+
+                    // FIX: Also accumulate typing duration for backspace events.
+                    // Previously, rapid type-delete cycles lost timing data because
+                    // only character additions accumulated duration.
+                    if (lastTypeTimeMs > 0) {
+                        val diff = now - lastTypeTimeMs
+                        if (diff in 50L..2500L) {
+                            val totalTime = prefs.getLong(KEY_TYPING_DURATION_MS, 0L) + diff
+                            editor.putLong(KEY_TYPING_DURATION_MS, totalTime)
+                        }
+                    }
                     lastTypeTimeMs = now
                 }
                 editor.apply()

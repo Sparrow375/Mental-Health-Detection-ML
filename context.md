@@ -268,6 +268,7 @@ The python intelligence engine resides in the Android app source directory:
     2. Fixed day-counting double count issues by replacing the `+1` heuristic with a precise `countDistinctDays()` Room query in `DailyFeaturesDao`, aligning UI monitors and JSON data exports.
     3. Guarded `recoverMissedDayIfNeeded()` from running on fresh accounts or empty databases, eliminating phantom yesterday rows.
     4. Revamped UI empty states and progress screens in `MainActivity.kt`, `MonitorScreen.kt`, and `DnaProfileScreen.kt` to show active tracking day statistics (e.g. Day 1 collected) and dynamic indeterminate loading bars rather than artificial progress bars with static gates.
+    5. Resolved the in-memory array and database mismatch: synced `collectedDailyVectors` from Room on every tick inside `MonitoringService.kt`, enabling instantaneous baseline finalization on the very first telemetry tick. Added live provisional scoring triggers immediately post-finalization to activate the UI anomaly gauges on Day 1 in real-time.
 
 ---
 

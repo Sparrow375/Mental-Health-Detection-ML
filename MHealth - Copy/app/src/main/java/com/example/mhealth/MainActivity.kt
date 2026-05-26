@@ -894,6 +894,24 @@ fun HomeScreen() {
     val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
     val analysisHistory by DataRepository.analysisHistory.collectAsState()
 
+    var isAccessibilityEnabled by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
+    }
+
+    // Dynamic updates when returning to the app
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isAccessibilityEnabled = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     LazyColumn(Modifier.fillMaxSize()) {
         item {
             // Gradient header banner
@@ -1008,10 +1026,42 @@ fun HomeScreen() {
             // Interaction Dynamics (Accessibility-based)
             item {
                 InfoCard("Interaction Dynamics", headerColor = MhealthAccentPurple) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("⌨️ Key Speed", "%.1f ch/s".format(v.keystrokeSpeed), MhealthAccentPurple)
-                        MetricPill("⌫ Backspace", "%.0f%%".format(v.backspaceRatio * 100), ChartRed)
-                        MetricPill("📜 Scroll", "%.0f px/s".format(v.scrollVelocity), OceanBlue)
+                    if (!isAccessibilityEnabled) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "Service Offline",
+                                fontWeight = FontWeight.Bold,
+                                color = AlertRed,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Passive typing speed, backspace ratio, and scroll velocity require Accessibility permission to detect psychomotor patterns locally and securely.",
+                                fontSize = 12.sp,
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
+                            Spacer(Modifier.height(14.dp))
+                            Button(
+                                onClick = {
+                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MhealthAccentPurple),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Enable Dynamics Service", color = Color.White, fontSize = 12.sp)
+                            }
+                        }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            MetricPill("⌨️ Key Speed", "%.1f ch/s".format(v.keystrokeSpeed), MhealthAccentPurple)
+                            MetricPill("⌫ Backspace", "%.0f%%".format(v.backspaceRatio * 100), ChartRed)
+                            MetricPill("📜 Scroll", "%.0f px/s".format(v.scrollVelocity), OceanBlue)
+                        }
                     }
                 }
             }

@@ -18,6 +18,24 @@ class MHealthAccessibilityService : AccessibilityService() {
 
         private var lastTypeTimeMs: Long = 0L
 
+        fun isServiceEnabled(context: Context): Boolean {
+            val expectedComponentName = android.content.ComponentName(context, MHealthAccessibilityService::class.java)
+            val enabledServicesSetting = android.provider.Settings.Secure.getString(
+                context.contentResolver,
+                android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+            ) ?: return false
+            val colonSplitter = android.text.TextUtils.SimpleStringSplitter(':')
+            colonSplitter.setString(enabledServicesSetting)
+            while (colonSplitter.hasNext()) {
+                val componentNameString = colonSplitter.next()
+                val enabledService = android.content.ComponentName.unflattenFromString(componentNameString)
+                if (enabledService != null && enabledService == expectedComponentName) {
+                    return true
+                }
+            }
+            return false
+        }
+
         fun getDailyMetrics(context: Context): Triple<Float, Float, Float> {
             val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             val chars = prefs.getInt(KEY_CHARS_TYPED, 0)

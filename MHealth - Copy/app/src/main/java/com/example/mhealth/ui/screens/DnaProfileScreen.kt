@@ -136,7 +136,6 @@ private val featureUnits = mapOf(
 fun DnaScreen() {
     var selectedTabIndex by remember { mutableStateOf(0) }
     val profileJson by DataRepository.s1ProfileJson.collectAsState()
-    val baselineDays by DataRepository.dnaBaselineDaysRequired.collectAsState()
     val currentProgress by DataRepository.dnaBaselineProgress.collectAsState()
     val latestVector by DataRepository.latestVector.collectAsState()
     
@@ -161,7 +160,7 @@ fun DnaScreen() {
         }
         
         if (selectedTabIndex == 0) {
-            DnaProfileSection(profileJson, baselineDays, currentProgress)
+            DnaProfileSection(profileJson, currentProgress)
         } else {
             TodayDnaMetricsSection(latestVector)
         }
@@ -169,7 +168,7 @@ fun DnaScreen() {
 }
 
 @Composable
-fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgress: Int = 0) {
+fun DnaProfileSection(profileJson: String?, currentProgress: Int = 0) {
     val profile = remember(profileJson) {
         if (profileJson.isNullOrBlank() || profileJson == "{}") null
         else try { JSONObject(profileJson) } catch (_: Exception) { null }
@@ -181,7 +180,7 @@ fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgr
             (profile.has("personality_vector") || profile.has("anchor_clusters"))
 
     if (!hasValidDna) {
-        DnaProfileEmptyState(baselineDays, currentProgress)
+        DnaProfileEmptyState(currentProgress)
         return
     }
 
@@ -214,7 +213,7 @@ fun DnaProfileSection(profileJson: String?, baselineDays: Int = 28, currentProgr
 // ── Empty state ──────────────────────────────────────────────────────────────
 
 @Composable
-private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 0) {
+private fun DnaProfileEmptyState(currentProgress: Int = 0) {
     val context = LocalContext.current
     val isAnalysing by DataRepository.isDnaAnalysing.collectAsState()
 
@@ -246,9 +245,8 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
                 fontSize = 18.sp
             )
             Spacer(Modifier.height(8.dp))
-            val displayProgress = currentProgress.coerceAtMost(baselineDays)
             Text(
-                "Collecting your unique behavioral patterns. Progress: Day $displayProgress/$baselineDays",
+                "Passively modeling your digital behaviors in real time.",
                 color = TextSecondary,
                 fontSize = 14.sp,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -257,18 +255,17 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
             Spacer(Modifier.height(24.dp))
             
             LinearProgressIndicator(
-                progress = (displayProgress.toFloat() / baselineDays.coerceAtLeast(1)).coerceIn(0f, 1f),
-                modifier = Modifier.fillMaxWidth().height(8.dp),
                 color = AccentBlue,
                 trackColor = BorderLight,
-                strokeCap = androidx.compose.ui.graphics.StrokeCap.Round
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(3.dp))
             )
             
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
-                "Day $displayProgress of $baselineDays collected",
+                "Day $currentProgress collected",
                 color = TextSecondary,
-                fontSize = 12.sp
+                fontSize = 13.sp,
+                fontWeight = FontWeight.Medium
             )
 
             // ── Dev & Finalize Controls ─────────────────────────────────────
@@ -297,16 +294,10 @@ private fun DnaProfileEmptyState(baselineDays: Int = 28, currentProgress: Int = 
                         Spacer(Modifier.width(8.dp))
                         Text("Building Profile...")
                     } else {
-                        val canFinalize = currentProgress >= 3
-                        Icon(if (canFinalize) Icons.Default.CheckCircle else Icons.Default.AutoFixHigh, contentDescription = null, modifier = Modifier.size(20.dp))
+                        val canFinalize = currentProgress >= 1
+                        Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(Modifier.width(8.dp))
-                        Text(
-                            when {
-                                currentProgress >= baselineDays -> "Finalize DNA Baseline"
-                                canFinalize -> "Finalize DNA (3-Day Min Met)"
-                                else -> "Building DNA (Day $currentProgress/28)"
-                            }
-                        )
+                        Text("Finalize DNA Baseline")
                     }
                 }
 

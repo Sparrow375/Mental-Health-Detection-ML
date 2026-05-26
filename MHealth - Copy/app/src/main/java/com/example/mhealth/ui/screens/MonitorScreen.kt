@@ -44,7 +44,6 @@ fun MonitorScreen() {
     val vector by DataRepository.latestVector.collectAsState()
     val baseline by DataRepository.baseline.collectAsState()
     val hourly by DataRepository.hourlySnapshots.collectAsState()
-    val baselineDaysReq by DataRepository.baselineDaysRequired.collectAsState()
     val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
     val latestResult by DataRepository.latestAnalysisResult.collectAsState()
     val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
@@ -69,7 +68,6 @@ fun MonitorScreen() {
         item {
             BaselineProgressCard(
                 progress = progress,
-                target = baselineDaysReq,
                 isBuilding = isBuilding,
                 latestResult = activeResult,
                 baselineVectors = baselineVectors
@@ -125,19 +123,12 @@ private fun HeaderSection(isBuilding: Boolean) {
 @Composable
 private fun BaselineProgressCard(
     progress: Int,
-    target: Int,
     isBuilding: Boolean,
     latestResult: com.example.mhealth.logic.db.AnalysisResultEntity?,
     baselineVectors: List<com.example.mhealth.models.PersonalityVector>
 ) {
     val isMonitoring = !isBuilding
-    val activeTrackingDay = if (isMonitoring) (progress - target + 1).coerceAtLeast(1) else 1
-    val displayProgress = remember(progress, target, isMonitoring, activeTrackingDay) {
-        if (isMonitoring) activeTrackingDay.toFloat() else progress.toFloat().coerceAtMost(target.toFloat())
-    }
-    val displayMax = remember(progress, target, isMonitoring, activeTrackingDay) {
-        if (isMonitoring) activeTrackingDay.toFloat() else target.toFloat()
-    }
+    val activeTrackingDay = progress.coerceAtLeast(1)
 
     InfoCard(
         if (isMonitoring) "Monitoring Active (P₀)" else "Baseline Progress (P₀)",
@@ -145,11 +136,11 @@ private fun BaselineProgressCard(
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             ArcProgressRing(
-                value = displayProgress,
-                maxValue = displayMax,
+                value = activeTrackingDay.toFloat(),
+                maxValue = activeTrackingDay.toFloat(),
                 color = if (isMonitoring) AlertGreen else SoftCyan,
                 label = if (isMonitoring) "Tracking" else "Days",
-                unit = if (isMonitoring) "Day" else "/ $target",
+                unit = "Day",
                 size = 90.dp
             )
             Spacer(Modifier.width(16.dp))
@@ -157,14 +148,13 @@ private fun BaselineProgressCard(
                 if (isMonitoring) {
                     val statusColor = latestResult?.let { alertColor(it.alertLevel) } ?: AlertGreen
                     Text("Continuous Tracking Active", fontWeight = FontWeight.Bold, color = statusColor)
-                    Text("Day $activeTrackingDay of active tracking. Comparison against your $target-day established baseline is live.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
+                    Text("Day $activeTrackingDay of active tracking. Real-time comparison against your established baseline is live.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                 } else {
-                    val frac = (progress / target.toFloat().coerceAtLeast(1f)).coerceIn(0f, 1f)
                     Text("Learning Your Unique Patterns", fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text("Day $progress of $target in establishing your P₀ baseline.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
+                    Text("Day $progress of establishing your P₀ baseline.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
                     Spacer(Modifier.height(8.dp))
                     LinearProgressIndicator(
-                        progress = { frac },
+                        progress = { 1f },
                         color = SoftCyan,
                         trackColor = SoftCyan.copy(0.15f),
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
@@ -195,8 +185,8 @@ private fun BaselineProgressCard(
             Text(if (isBuilding) "Multi-Sensor Formation Trend" else "Composite Behavioral Index", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
             Spacer(Modifier.height(12.dp))
 
-            val composite = remember(baselineVectors, target) {
-                baselineVectors.takeLast(target).map { v ->
+            val composite = remember(baselineVectors) {
+                baselineVectors.takeLast(14).map { v ->
                     (v.screenTimeHours / 12f).coerceIn(0f, 1f) * 40f +
                     (v.dailyDisplacementKm / 20f).coerceIn(0f, 1f) * 30f +
                     (v.callsPerDay / 10f).coerceIn(0f, 1f) * 30f
@@ -204,7 +194,7 @@ private fun BaselineProgressCard(
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                Text("Activity Index (Last $target Days)", fontSize = 11.sp, color = TextSecondary)
+                Text("Activity Index (Last 14 Days)", fontSize = 11.sp, color = TextSecondary)
                 if (composite.isNotEmpty()) {
                     Text("%.0f".format(composite.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SoftCyan)
                 }

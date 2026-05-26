@@ -263,6 +263,11 @@ The python intelligence engine resides in the Android app source directory:
 *   **2026-05-26**: Resolved the missing Interaction Dynamics issue by:
     1. Implementing an active check `isServiceEnabled(context)` inside `MHealthAccessibilityService.kt`'s companion object and adding a lifecycle-aware warning UI card on `HomeScreen` to prompt users to enable the service.
     2. Correcting a critical manifest registration bug in `AndroidManifest.xml` where the accessibility service `<intent-filter>` action was incorrectly declared as `android.view.accessibility.AccessibilityService`. Fixed it to the OS-native `android.accessibilityservice.AccessibilityService` action, allowing Android to recognize and list Cove in **Settings → Accessibility → Installed Apps**.
+*   **2026-05-27**: Resolved the baseline slider and day count inconsistencies:
+    1. Wiped out legacy `baselineDaysRequired` and `dnaBaselineDaysRequired` slider configurations and their influence. Decoupled sliding gates entirely from the machine learning and Digital DNA pipelines, making the baseline building process fully automatic and realtime.
+    2. Fixed day-counting double count issues by replacing the `+1` heuristic with a precise `countDistinctDays()` Room query in `DailyFeaturesDao`, aligning UI monitors and JSON data exports.
+    3. Guarded `recoverMissedDayIfNeeded()` from running on fresh accounts or empty databases, eliminating phantom yesterday rows.
+    4. Revamped UI empty states and progress screens in `MainActivity.kt`, `MonitorScreen.kt`, and `DnaProfileScreen.kt` to show active tracking day statistics (e.g. Day 1 collected) and dynamic indeterminate loading bars rather than artificial progress bars with static gates.
 
 ---
 

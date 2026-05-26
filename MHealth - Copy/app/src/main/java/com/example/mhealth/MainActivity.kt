@@ -1438,7 +1438,7 @@ fun AnalysisScreen() {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.size(32.dp), color = SoftCyan)
                         Spacer(Modifier.width(12.dp))
-                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after ${DataRepository.baselineDaysRequired.collectAsState().value} days.", color = TextSecondary, fontSize = 12.sp)
+                        Text("Calibrating — baseline auto-building in progress.", color = TextSecondary, fontSize = 12.sp)
                     }
                 }
             }
@@ -2091,12 +2091,7 @@ fun SettingsScreen() {
     var locationEnabled by remember { mutableStateOf(true) }
     var commsEnabled by remember { mutableStateOf(true) }
 
-    // Dev Setting States
-    val baselineDaysReqGlobal by DataRepository.baselineDaysRequired.collectAsState()
-    var baselineDaysReqLocal by remember(baselineDaysReqGlobal) { mutableIntStateOf(baselineDaysReqGlobal) }
 
-    val dnaBaselineDaysGlobal by DataRepository.dnaBaselineDaysRequired.collectAsState()
-    var dnaBaselineDaysLocal by remember(dnaBaselineDaysGlobal) { mutableIntStateOf(dnaBaselineDaysGlobal) }
 
     val intervalMinsGlobal by DataRepository.monitoringIntervalMinutes.collectAsState()
     var intervalLocal by remember(intervalMinsGlobal) { mutableLongStateOf(intervalMinsGlobal) }
@@ -2198,7 +2193,7 @@ fun SettingsScreen() {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text(if (isBuilding) "Building Baseline" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            Text("Day $progress / $baselineDaysReqLocal established", fontSize = 12.sp, color = TextSecondary)
+                            Text("Day $progress established", fontSize = 12.sp, color = TextSecondary)
                         }
                         // Dev-only soft reset (keeps real data, just clears simulated + baseline)
                         Button(
@@ -2241,17 +2236,7 @@ fun SettingsScreen() {
                          fontSize = 11.sp, color = TextMuted, lineHeight = 14.sp)
                     Spacer(Modifier.height(16.dp))
                     
-                    Text("Baseline Time Period: $baselineDaysReqLocal days", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
-                    Slider(
-                        value = baselineDaysReqLocal.toFloat(),
-                        onValueChange = { baselineDaysReqLocal = it.toInt() },
-                        onValueChangeFinished = { DataRepository.setBaselineDaysRequired(baselineDaysReqLocal) },
-                        valueRange = 1f..35f,
-                        steps = 34,
-                        colors = SliderDefaults.colors(thumbColor = ChartOrange, activeTrackColor = ChartOrange)
-                    )
-                    
-                    Spacer(Modifier.height(8.dp))
+
 
                     Text("Polling Interval: $intervalLocal mins", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Bold)
                     Slider(

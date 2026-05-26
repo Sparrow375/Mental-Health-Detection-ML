@@ -335,16 +335,16 @@ class MonitoringService : Service() {
             val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
             collectedDailyVectors.clear()
             collectedDailyVectors.addAll(pastVectors)
-            // Progress is count of saved days + 1 (today)
-            val currentProg = collectedDailyVectors.size + 1
+            // Progress = actual distinct days of data (today's live row is already in Room).
+            // No +1 needed — today is already counted in the Room query.
+            val currentProg = collectedDailyVectors.size.coerceAtLeast(1)
             DataRepository.updateBaselineProgress(currentProg)
             DataRepository.updateDnaBaselineProgress(currentProg)
             DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
             // Immediate check for baseline readiness on startup
             if (DataRepository.isBuildingBaseline.value) {
-                val target = DataRepository.baselineDaysRequired.value
-                checkAndFinalizeBaseline(target)
+                checkAndFinalizeBaseline()
             }
 
             // FIX: Re-anchor audio session if music was already playing when the service was
@@ -374,10 +374,6 @@ class MonitoringService : Service() {
                 Log.i("MHealth.Service", "Primed lastProcessedDay=$todayDoy on first service start")
                 isFirstServiceStart = true
             }
-
-            // Delete phantom May 23rd data to resolve the database inconsistency
-            db.dailyFeaturesDao().deleteByDate(userId, "2026-05-23")
-            db.analysisResultDao().deleteByDate(userId, "2026-05-23")
 
             // FIX 4: Recover missed yesterday snapshot if the service was killed before the
             // midnight transition had a chance to fire (e.g., Android Doze / battery optimiser).
@@ -434,48 +430,13 @@ class MonitoringService : Service() {
             }
         }
 
-        // ── Baseline days observer: build baseline immediately if requirement is met ──
-        serviceScope.launch {
-            DataRepository.baselineDaysRequired
-                .debounce(300)
-                .distinctUntilChanged()
-                .collect { target ->
-                    val collected = collectedDailyVectors.size
-                    if (collected >= target) {
-                        Log.d("MHealth.Service", "Baseline target updated ($target days) — finalizing now (have $collected)")
-                        DataRepository.setIsBuildingBaseline(true)
-                        checkAndFinalizeBaseline(target)
-                    } else {
-                        Log.d("MHealth.Service", "Baseline target updated ($target days) — need more data (have $collected)")
-                        DataRepository.setIsBuildingBaseline(true)
-                    }
-                }
+        // ── Baseline: auto-finalize is handled within runTick and handleBaselineBuilding ──
+        // No slider observer needed — baseline builds automatically from Day 1.
         }
 
-        // ── DNA baseline days observer: continue + rebuild when threshold changes ──
-        serviceScope.launch {
-            DataRepository.dnaBaselineDaysRequired
-                .debounce(300)
-                .distinctUntilChanged()
-                .collect { target ->
-                    try {
-                        val db = MHealthDatabase.getInstance(this@MonitoringService)
-                        val userId = DataRepository.userProfile.value?.email ?: "default_user"
-                        val dnaDays = db.dailyDnaSnapshotDao().countDistinctDays(userId)
-                        if (dnaDays < target) {
-                            db.userProfileDao().updateDnaReady(userId, false)
-                            DataRepository.setIsDnaBaselineReady(false)
-                            Log.i(TAG, "DNA threshold changed to $target (have $dnaDays) — resuming collection")
-                        } else if (dnaDays >= target) {
-                            db.userProfileDao().updateDnaReady(userId, true)
-                            DataRepository.setIsDnaBaselineReady(true)
-                            Log.i(TAG, "DNA threshold met: $dnaDays >= $target — profile will rebuild on next analysis")
-                        }
-                    } catch (e: Exception) {
-                        Log.e(TAG, "DNA threshold observer error: ${e.message}")
-                    }
-                }
-        }
+        // ── DNA: auto-build with no threshold gating ──────────────────────────
+        // DNA readiness is now set automatically when the nightly worker
+        // produces a valid profile. No slider observer needed.
 
         // dev force new-day trigger listener
         serviceScope.launch {
@@ -568,8 +529,7 @@ class MonitoringService : Service() {
                     val userId = DataRepository.userProfile.value?.email ?: "default_user"
                     val db = MHealthDatabase.getInstance(this@MonitoringService)
                     try {
-                        val targetBaselineDays = DataRepository.baselineDaysRequired.value
-                        Log.i("MHealth.Service", "Reset triggered: rebuilding baseline from $targetBaselineDays most recent real days")
+                        Log.i("MHealth.Service", "Reset triggered: rebuilding baseline from all real days")
 
                         // 1. Clear ONLY simulated features (non-destructive)
                         db.dailyFeaturesDao().clearSimulated(userId)
@@ -580,7 +540,7 @@ class MonitoringService : Service() {
                             UserProfileEntity(
                                 userId = userId,
                                 baselineReady = false,
-                                baselineDays = targetBaselineDays,
+                                baselineDays = 1,
                                 currentStatus = "Learning Baseline"
                             )
                         )
@@ -596,45 +556,31 @@ class MonitoringService : Service() {
                         collectedDailyVectors.clear()
                         collectedDailyVectors.addAll(allRealFeatures.map { JsonConverter.toPersonalityVector(it) })
                         
-                        // Update UI progress: Count of saved days + 1 (for the current day)
-                        val currentProg = collectedDailyVectors.size + 1
+                        // Update UI progress: actual saved days (no +1)
+                        val currentProg = collectedDailyVectors.size.coerceAtLeast(1)
                         DataRepository.updateBaselineProgress(currentProg)
                         DataRepository.updateDnaBaselineProgress(currentProg)
                         DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
-                        // 5. If we have enough real days left to build a new baseline instantly
-                        if (collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
+                        // 5. Auto-build baseline from ALL available real data
+                        if (collectedDailyVectors.isNotEmpty()) {
                             DataRepository.setIsBuildingBaseline(true)
                             
-                            // Rebuild Mathematical Baseline on FIRST targetBaselineDays
-                            val baselineVectorsToUse = collectedDailyVectors.take(targetBaselineDays)
-                            val baseline = buildBaseline(baselineVectorsToUse)
-                            persistBaselineToRoom(baseline, targetBaselineDays)
+                            // Rebuild Mathematical Baseline using ALL vectors
+                            val baseline = buildBaseline(collectedDailyVectors)
+                            val totalDays = collectedDailyVectors.size
+                            persistBaselineToRoom(baseline, totalDays)
                             DataRepository.setBaseline(baseline)
                             detector = AnomalyDetector(baseline)
 
-                            // Generate retroactive Anomaly Reports for the remaining (X - Y) days
-                            val remainingFeatures = allRealFeatures.drop(targetBaselineDays)
-                            val rebuiltReports = mutableListOf<com.example.mhealth.models.DailyReport>()
-                            remainingFeatures.forEachIndexed { idx, feature ->
-                                val vec = JsonConverter.toPersonalityVector(feature)
-                                val r = detector!!.analyze(vec, idx + 1)
-                                rebuiltReports.add(r)
-                                // NOTE: Do NOT persist Kotlin-replayed results to Room.
-                                // The Kotlin detector's sustained/evidence values compound
-                                // unreliably during replay. Let NightlyAnalysisWorker generate
-                                // proper Python-backed results with correct evidence tracking.
-                            }
-                            DataRepository.updateReports(rebuiltReports)
-
                             scheduleNightlyWorker()
-                            Log.i("MHealth.Service", "Reset built new baseline + generated ${rebuiltReports.size} remaining reports.")
+                            Log.i("MHealth.Service", "Reset built new baseline from ${totalDays} real days.")
                         } else {
-                            // If we don't have enough days, remain in Learning Mode
+                            // If we don't have any days, remain in Learning Mode
                             DataRepository.setIsBuildingBaseline(true)
                             DataRepository.clearBaseline()
                             detector = null
-                            Log.i("MHealth.Service", "Not enough data after wipe. Waiting for more real telemetry.")
+                            Log.i("MHealth.Service", "No data after wipe. Waiting for real telemetry.")
                         }
 
                         // 6. Refresh the "Live" UI snapshots immediately 
@@ -691,7 +637,7 @@ class MonitoringService : Service() {
                                 userId = userId,
                                 baselineReady = false,
                                 dnaReady = false,
-                                baselineDays = DataRepository.baselineDaysRequired.value,
+                                baselineDays = 1,
                                 currentStatus = "Learning Baseline"
                             )
                         )
@@ -887,14 +833,13 @@ class MonitoringService : Service() {
                 Log.i("MHealth.Service", "Day transition logic for Day $savedDay complete.")
             } else {
                 // Regular tick within the same day
-                val target = DataRepository.baselineDaysRequired.value
-                // Progress is saved days + 1 (current day)
-                val currentProg = collectedDailyVectors.size + 1
+                // Progress = actual collected vectors (today is already in Room)
+                val currentProg = collectedDailyVectors.size.coerceAtLeast(1)
                 DataRepository.updateBaselineProgress(currentProg)
                 DataRepository.updateDnaBaselineProgress(currentProg)
 
                 if (DataRepository.isBuildingBaseline.value) {
-                    checkAndFinalizeBaseline(target)
+                    checkAndFinalizeBaseline()
                 }
             }
         } catch (e: Exception) {
@@ -903,52 +848,49 @@ class MonitoringService : Service() {
     }
 
     private suspend fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
-        val targetBaselineDays = DataRepository.baselineDaysRequired.value
         if (today != savedDay && savedDay != -1) {
-            // Only add the vector if we still need more days for the baseline
-            if (collectedDailyVectors.size < targetBaselineDays) {
-                collectedDailyVectors.add(snapshot)
-                val prog = collectedDailyVectors.size
-                DataRepository.updateBaselineProgress(prog)
-                DataRepository.updateDnaBaselineProgress(prog)
-                DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+            // Always add the completed day's vector to history
+            collectedDailyVectors.add(snapshot)
+            val prog = collectedDailyVectors.size
+            DataRepository.updateBaselineProgress(prog)
+            DataRepository.updateDnaBaselineProgress(prog)
+            DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
 
-                // Persist end-of-day snapshot to Room
-                persistDailySnapshot(snapshot, savedDay, isSimulated)
-            }
-            // FIX 2: Always attempt finalization after a day transition — not just when the last
-            // vector was added. This handles the case where the user lowered baselineDaysRequired
-            // before the previous midnight cycle ran (size was already >= target at transition).
-            checkAndFinalizeBaseline(targetBaselineDays)
+            // Persist end-of-day snapshot to Room
+            persistDailySnapshot(snapshot, savedDay, isSimulated)
+
+            // Auto-finalize: no minimum day requirement
+            checkAndFinalizeBaseline()
         } else {
-            // Same-day tick: check if baseline is now ready (e.g. user lowered the setting mid-day)
-            checkAndFinalizeBaseline(targetBaselineDays)
+            // Same-day tick: check if baseline can be built
+            checkAndFinalizeBaseline()
         }
     }
 
     private var isPersistingBaseline = false
 
     /**
-     * Checks if we have enough collected days to lock in a baseline (P0).
-     * Now strictly calculates using only the FIRST `targetBaselineDays`.
+     * Auto-finalize baseline whenever we have >= 1 collected day vector.
+     * Uses ALL collected vectors (no slider-gated take(N)).
+     * The Python Bayesian warm-start system handles progressive refinement.
      */
-    private fun checkAndFinalizeBaseline(targetBaselineDays: Int) {
-        if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.size >= targetBaselineDays && targetBaselineDays > 0) {
+    private fun checkAndFinalizeBaseline() {
+        if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.isNotEmpty()) {
             if (isPersistingBaseline) return // Prevent duplicate Coroutine launches
             isPersistingBaseline = true
 
-            // Use only the FIRST 'targetBaselineDays' to build the model, ignoring subsequent days
-            val baselineVectorsToUse = collectedDailyVectors.take(targetBaselineDays)
-            val baseline = buildBaseline(baselineVectorsToUse)
+            // Use ALL collected vectors — no artificial cap
+            val baseline = buildBaseline(collectedDailyVectors)
+            val totalDays = collectedDailyVectors.size
 
             serviceScope.launch {
                 try {
-                    persistBaselineToRoom(baseline, targetBaselineDays)
+                    persistBaselineToRoom(baseline, totalDays)
                     // Only flip the live state AFTER Room is confirmed written
                     DataRepository.setBaseline(baseline)
                     detector = AnomalyDetector(baseline)
                     scheduleNightlyWorker()
-                    Log.i("MHealth.Service", "Baseline established and persisted to Room (${targetBaselineDays}d)")
+                    Log.i("MHealth.Service", "Baseline auto-established and persisted to Room (${totalDays}d)")
                 } catch (e: Exception) {
                     Log.e("MHealth.Service", "Failed to persist baseline to Room — will retry on next tick: ${e.message}", e)
                 } finally {
@@ -1508,6 +1450,15 @@ class MonitoringService : Service() {
     private suspend fun recoverMissedDayIfNeeded(userId: String, db: MHealthDatabase) {
         val lastDay = DataRepository.lastProcessedDay.value
         if (lastDay == -1) return // Fresh install — no prior day to recover.
+
+        // Guard: Don't fabricate data for a fresh/reset account with no prior data.
+        // Without this, a hard-reset user gets yesterday's UsageStats data
+        // injected as if it belonged to the new account.
+        val existingDayCount = db.dailyFeaturesDao().countDistinctDays(userId)
+        if (existingDayCount == 0) {
+            Log.i("MHealth.Service", "Missed-day recovery skipped: fresh account with no prior data")
+            return
+        }
 
         val yesterdayCal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }
         val yesterdayStr = dateFmt.format(yesterdayCal.time)

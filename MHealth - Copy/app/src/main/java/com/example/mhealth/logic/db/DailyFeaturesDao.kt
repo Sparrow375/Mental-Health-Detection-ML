@@ -34,6 +34,9 @@ interface DailyFeaturesDao {
     @Query("SELECT COUNT(*) FROM daily_features WHERE userId = :userId")
     suspend fun count(userId: String): Int
 
+    @Query("SELECT COUNT(DISTINCT date) FROM daily_features WHERE userId = :userId")
+    suspend fun countDistinctDays(userId: String): Int
+
     @Query("DELETE FROM daily_features WHERE userId = :userId")
     suspend fun clearAll(userId: String): Int
 

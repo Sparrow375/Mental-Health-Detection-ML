@@ -71,13 +71,11 @@ object DataRepository {
         }
         // Load baseline progress and history
         scope.launch {
-            val count = db.dailyFeaturesDao().count(userId)
-            _baselineProgress.value = count + 1
-
-            // DNA Progress: use daily_features count (L1) — same as baselineProgress.
-            // The old L2 daily_dna_snapshot count was almost always 0, keeping the
-            // Finalize button permanently disabled even after days of data collection.
-            _dnaBaselineProgress.value = count + 1
+            // Use distinct day count — today's live row is already in Room,
+            // so no +1 needed. This fixes the off-by-one day inflation.
+            val distinctDays = db.dailyFeaturesDao().countDistinctDays(userId)
+            _baselineProgress.value = distinctDays.coerceAtLeast(1)
+            _dnaBaselineProgress.value = distinctDays.coerceAtLeast(1)
 
             val entities = db.dailyFeaturesDao().getLatestN(userId, 7)
             _weeklyFeatureHistory.value = entities.map { it.toPersonalityVector() }.reversed()
@@ -240,12 +238,12 @@ object DataRepository {
     private val _firstLoginComplete = MutableStateFlow(false)
     val firstLoginComplete: StateFlow<Boolean> = _firstLoginComplete
 
-    // Dev Configuration
-    private val _baselineDaysRequired = MutableStateFlow(28)
+    // Dev Configuration — auto-build from Day 1 (no slider gating)
+    private val _baselineDaysRequired = MutableStateFlow(1)
     val baselineDaysRequired: StateFlow<Int> = _baselineDaysRequired
 
-    // DNA Baseline (Level 2) — separate from L1 baseline
-    private val _dnaBaselineDaysRequired = MutableStateFlow(3)
+    // DNA Baseline (Level 2) — auto-build from Day 1
+    private val _dnaBaselineDaysRequired = MutableStateFlow(1)
     val dnaBaselineDaysRequired: StateFlow<Int> = _dnaBaselineDaysRequired
 
     private val _monitoringIntervalMinutes = MutableStateFlow(15L)
@@ -275,9 +273,9 @@ object DataRepository {
         prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
 
         // Dev Settings
-        val baselineDays = prefs?.getInt("dev_baseline_days", 28) ?: 28
-        _baselineDaysRequired.value = baselineDays
-        _dnaBaselineDaysRequired.value = baselineDays
+        // Auto-build: force to 1 regardless of any stale SharedPrefs value
+        _baselineDaysRequired.value = 1
+        _dnaBaselineDaysRequired.value = 1
         _monitoringIntervalMinutes.value = prefs?.getLong("dev_monitoring_interval", 15L) ?: 15L
         
         // Restore Onboarding State
@@ -360,23 +358,11 @@ object DataRepository {
         _firstLoginComplete.value = true
     }
 
-    fun setBaselineDaysRequired(days: Int) {
-        _baselineDaysRequired.value = days
-        _dnaBaselineDaysRequired.value = days
-        prefs?.edit()?.apply {
-            putInt("dev_baseline_days", days)
-            putInt("dev_dna_baseline_days", days)
-        }?.apply()
-    }
+    // REMOVED: setBaselineDaysRequired() — baseline auto-builds from Day 1.
+    // The slider has been removed. Value is always 1.
 
-    fun setDnaBaselineDaysRequired(days: Int) {
-        _dnaBaselineDaysRequired.value = days
-        _baselineDaysRequired.value = days
-        prefs?.edit()?.apply {
-            putInt("dev_baseline_days", days)
-            putInt("dev_dna_baseline_days", days)
-        }?.apply()
-    }
+    // REMOVED: setDnaBaselineDaysRequired() — DNA auto-builds from Day 1.
+    // The slider has been removed. Value is always 1.
 
     fun setMonitoringIntervalMinutes(minutes: Long) {
         _monitoringIntervalMinutes.value = minutes
@@ -667,6 +653,10 @@ object DataRepository {
         _provisionalBaseline.value = null
         _reports.value = emptyList()
         _isDnaAnalysing.value = false
+        // FIX: Reset lastProcessedDay so recoverMissedDayIfNeeded() doesn't
+        // fabricate phantom data for a fresh/reset account.
+        _lastProcessedDay.value = -1
+        prefs?.edit()?.remove("last_processed_day")?.apply()
         // Daily intraday state
         resetDailyState()
     }

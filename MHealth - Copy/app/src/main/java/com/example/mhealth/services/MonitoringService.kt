@@ -432,7 +432,6 @@ class MonitoringService : Service() {
 
         // ── Baseline: auto-finalize is handled within runTick and handleBaselineBuilding ──
         // No slider observer needed — baseline builds automatically from Day 1.
-        }
 
         // ── DNA: auto-build with no threshold gating ──────────────────────────
         // DNA readiness is now set automatically when the nightly worker

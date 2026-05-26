@@ -285,7 +285,7 @@ private fun DnaProfileEmptyState(currentProgress: Int = 0) {
                     enabled = !isAnalysing && currentProgress > 0,
                     modifier = Modifier.fillMaxWidth().height(48.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (currentProgress >= baselineDays) AccentGreen else AccentBlue
+                        containerColor = if (currentProgress >= 1) AccentGreen else AccentBlue
                     ),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -313,21 +313,12 @@ private fun DnaProfileEmptyState(currentProgress: Int = 0) {
                     Text("Debug: Force Day Transition", color = AccentOrange)
                 }
 
-                if (currentProgress < baselineDays) {
-                    Text(
-                        "Analysis usually runs at midnight. Use 'Finalize' to build now.",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                } else {
-                    Text(
-                        "Threshold reached! Recommended to finalize now.",
-                        color = AccentGreen,
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+                Text(
+                    "Analysis usually runs at midnight. Use 'Finalize' to build now.",
+                    color = TextSecondary,
+                    fontSize = 11.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
             }
 
         }

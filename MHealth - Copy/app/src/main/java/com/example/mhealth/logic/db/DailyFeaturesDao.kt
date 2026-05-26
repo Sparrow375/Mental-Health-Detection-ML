@@ -39,4 +39,7 @@ interface DailyFeaturesDao {
 
     @Query("DELETE FROM daily_features WHERE userId = :userId AND isSimulated = 1")
     suspend fun clearSimulated(userId: String): Int
+
+    @Query("DELETE FROM daily_features WHERE userId = :userId AND date = :date")
+    suspend fun deleteByDate(userId: String, date: String): Int
 }

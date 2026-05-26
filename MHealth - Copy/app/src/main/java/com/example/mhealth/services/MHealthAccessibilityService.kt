@@ -69,19 +69,13 @@ class MHealthAccessibilityService : AccessibilityService() {
                     }
                 }
 
-                val beforeText = event.beforeText ?: ""
-                val text = event.text?.firstOrNull() ?: ""
-                val textLen = text.length
-                val beforeLen = beforeText.length
-
+                val added = event.addedCount
+                val removed = event.removedCount
                 val now = System.currentTimeMillis()
-                val isCharAdded = textLen > beforeLen
-                val isCharDeleted = beforeLen > textLen
 
                 val editor = prefs.edit()
-                if (isCharAdded) {
-                    val addedCount = textLen - beforeLen
-                    val totalChars = prefs.getInt(KEY_CHARS_TYPED, 0) + addedCount
+                if (added > 0) {
+                    val totalChars = prefs.getInt(KEY_CHARS_TYPED, 0) + added
                     editor.putInt(KEY_CHARS_TYPED, totalChars)
 
                     if (lastTypeTimeMs > 0) {
@@ -92,9 +86,9 @@ class MHealthAccessibilityService : AccessibilityService() {
                         }
                     }
                     lastTypeTimeMs = now
-                } else if (isCharDeleted) {
-                    val deletedCount = beforeLen - textLen
-                    val totalBackspaces = prefs.getInt(KEY_BACKSPACES, 0) + deletedCount
+                }
+                if (removed > 0) {
+                    val totalBackspaces = prefs.getInt(KEY_BACKSPACES, 0) + removed
                     editor.putInt(KEY_BACKSPACES, totalBackspaces)
                     lastTypeTimeMs = now
                 }
@@ -102,7 +96,10 @@ class MHealthAccessibilityService : AccessibilityService() {
             }
             AccessibilityEvent.TYPE_VIEW_SCROLLED -> {
                 // Scroll velocity dynamics
-                val dy = kotlin.math.abs(event.toIndex - event.fromIndex).toFloat() * 50f // proxy distance in px
+                var dy = kotlin.math.abs(event.toIndex - event.fromIndex).toFloat() * 50f // proxy distance in px
+                if (dy == 0f) {
+                    dy = 300f // robust fallback for minor scrolls or index-less containers (e.g. WebViews, single-item scrolls)
+                }
                 val editor = prefs.edit()
                 val currentDist = prefs.getFloat(KEY_SCROLL_DISTANCE_PX, 0f) + dy
                 editor.putFloat(KEY_SCROLL_DISTANCE_PX, currentDist)

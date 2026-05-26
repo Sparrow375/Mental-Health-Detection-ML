@@ -1397,7 +1397,7 @@ fun AnalysisScreen() {
             item {
                 // Prefer authoritative Python engine score from Room DB;
                 // fall back to Kotlin provisional only when no DB result exists yet
-                val score = activeResult?.anomalyScore ?: last?.anomalyScore ?: 0f
+                val score = activeResult?.effectiveScore ?: last?.anomalyScore ?: 0f
                 val isLive = provisional != null && !isTodayFinalized
 
                 InfoCard("Anomaly Score", headerColor = ChartRed) {
@@ -1801,7 +1801,7 @@ fun InsightsScreen() {
                             Box(Modifier.size(10.dp).clip(CircleShape).background(alertColor(result.alertLevel)))
                             Spacer(Modifier.width(10.dp))
                             Text(result.date, fontSize = 12.sp, color = TextPrimary, modifier = Modifier.weight(1f))
-                            Text("${"%.2f".format(result.anomalyScore)}", fontSize = 11.sp, color = TextSecondary)
+                            Text("${"%.2f".format(result.effectiveScore)}", fontSize = 11.sp, color = TextSecondary)
                             Spacer(Modifier.width(8.dp))
                             Text(result.alertLevel.uppercase(), fontSize = 11.sp, color = alertColor(result.alertLevel), fontWeight = FontWeight.Bold)
                         }
@@ -1855,7 +1855,7 @@ fun InsightsScreen() {
             if (history.isNotEmpty()) {
                 InfoCard("Anomaly Score History", headerColor = ChartBlue) {
                     // Sparkline — chronological order (oldest left → newest right)
-                    val scores = history.reversed().map { it.anomalyScore }
+                    val scores = history.reversed().map { it.effectiveScore }
                     SparklineChart(
                         values = scores,
                         color = ChartBlue,
@@ -1892,7 +1892,7 @@ fun InsightsScreen() {
                                 Text(result.date, fontSize = 11.sp, color = TextPrimary)
                             }
                             Text(
-                                "%.3f".format(result.anomalyScore),
+                                "%.3f".format(result.effectiveScore),
                                 fontSize = 11.sp, fontWeight = FontWeight.SemiBold,
                                 color = dotColor, modifier = Modifier.weight(1f)
                             )
@@ -1940,7 +1940,7 @@ fun InsightsScreen() {
                                 Text("Anomaly Score:", fontSize = 13.sp, color = TextSecondary, modifier = Modifier.weight(1f))
                                 Surface(color = alertColor(result.alertLevel).copy(0.12f), shape = RoundedCornerShape(8.dp)) {
                                     Text(
-                                        "%.3f  ${result.alertLevel.uppercase()}".format(result.anomalyScore),
+                                        "%.3f  ${result.alertLevel.uppercase()}".format(result.effectiveScore),
                                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                                         fontSize = 13.sp, fontWeight = FontWeight.Bold, color = alertColor(result.alertLevel)
                                     )
@@ -2369,7 +2369,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
 
             // C. Daily Behavioral History (The "Big Data" part)
             // Build a date → anomalyScore lookup so we can join the score into each day's record
-            val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.anomalyScore }
+            val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.effectiveScore }
 
             val historyArr = org.json.JSONArray()
             dailyHistory.forEach { day ->
@@ -2494,7 +2494,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                 reportsArr.put(org.json.JSONObject().apply {
                     put("date", report.date)
                     put("anomalyDetected", report.anomalyDetected)
-                    put("anomalyScore", report.anomalyScore)
+                    put("anomalyScore", report.effectiveScore)
                     put("anomalyMessage", report.anomalyMessage)
                     put("alertLevel", report.alertLevel)
                     put("sustainedDays", report.sustainedDays)

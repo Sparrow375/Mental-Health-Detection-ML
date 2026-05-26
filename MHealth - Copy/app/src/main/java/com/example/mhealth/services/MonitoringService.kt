@@ -367,15 +367,23 @@ class MonitoringService : Service() {
             // FIX 1: Prime lastProcessedDay on first run so midnight day-transitions fire correctly.
             // If the service is killed before the first midnight cycle completes, lastProcessedDay
             // stays -1 and the guard (savedDay != -1) permanently skips all future transitions.
+            var isFirstServiceStart = false
             if (DataRepository.lastProcessedDay.value == -1) {
                 val todayDoy = Calendar.getInstance().get(Calendar.DAY_OF_YEAR)
                 DataRepository.setLastProcessedDay(todayDoy)
                 Log.i("MHealth.Service", "Primed lastProcessedDay=$todayDoy on first service start")
+                isFirstServiceStart = true
             }
+
+            // Delete phantom May 23rd data to resolve the database inconsistency
+            db.dailyFeaturesDao().deleteByDate(userId, "2026-05-23")
+            db.analysisResultDao().deleteByDate(userId, "2026-05-23")
 
             // FIX 4: Recover missed yesterday snapshot if the service was killed before the
             // midnight transition had a chance to fire (e.g., Android Doze / battery optimiser).
-            recoverMissedDayIfNeeded(userId, db)
+            if (!isFirstServiceStart) {
+                recoverMissedDayIfNeeded(userId, db)
+            }
 
         } catch (e: Exception) {
             Log.e("MHealth.Service", "Error restoring state from Room", e)

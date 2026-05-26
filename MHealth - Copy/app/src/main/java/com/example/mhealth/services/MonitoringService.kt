@@ -344,7 +344,8 @@ class MonitoringService : Service() {
 
             // Immediate check for baseline readiness on startup
             if (DataRepository.isBuildingBaseline.value) {
-                checkAndFinalizeBaseline()
+                val liveSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
+                checkAndFinalizeBaseline(liveSnapshot)
             }
 
             // FIX: Re-anchor audio session if music was already playing when the service was
@@ -751,15 +752,23 @@ class MonitoringService : Service() {
                 }
             }
 
-            // Save/update today's features in daily_features DB on every tick.
-            // Uses REPLACE so the row is continuously updated until midnight finalizes it.
             try {
                 val userId = DataRepository.userProfile.value?.email ?: "default_user"
                 val todayStr = dateFmt.format(Date())
                 val entity = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, isSimulated = false)
-                MHealthDatabase.getInstance(this@MonitoringService).dailyFeaturesDao().insert(entity)
+                val db = MHealthDatabase.getInstance(this@MonitoringService)
+                db.dailyFeaturesDao().insert(entity)
+
+                // Sync collectedDailyVectors in memory with the DB rows to ensure today's live snapshot
+                // is immediately visible to baseline builders and UI progress indicators.
+                val pastFeatures = db.dailyFeaturesDao().getLatestN(userId, 60).reversed()
+                val pastVectors = pastFeatures.map { JsonConverter.toPersonalityVector(it) }
+                collectedDailyVectors.clear()
+                collectedDailyVectors.addAll(pastVectors)
+                
+                DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
             } catch (e: Exception) {
-                Log.d("MHealth.Service", "Live daily features save failed: ${e.message}")
+                Log.d("MHealth.Service", "Live daily features save/reload failed: ${e.message}")
             }
 
             // 2) Provisional Analysis (Authoritative Python Live Score)
@@ -838,7 +847,7 @@ class MonitoringService : Service() {
                 DataRepository.updateDnaBaselineProgress(currentProg)
 
                 if (DataRepository.isBuildingBaseline.value) {
-                    checkAndFinalizeBaseline()
+                    checkAndFinalizeBaseline(liveSnapshot)
                 }
             }
         } catch (e: Exception) {
@@ -859,10 +868,10 @@ class MonitoringService : Service() {
             persistDailySnapshot(snapshot, savedDay, isSimulated)
 
             // Auto-finalize: no minimum day requirement
-            checkAndFinalizeBaseline()
+            checkAndFinalizeBaseline(snapshot)
         } else {
             // Same-day tick: check if baseline can be built
-            checkAndFinalizeBaseline()
+            checkAndFinalizeBaseline(snapshot)
         }
     }
 
@@ -873,7 +882,7 @@ class MonitoringService : Service() {
      * Uses ALL collected vectors (no slider-gated take(N)).
      * The Python Bayesian warm-start system handles progressive refinement.
      */
-    private fun checkAndFinalizeBaseline() {
+    private fun checkAndFinalizeBaseline(liveSnapshot: PersonalityVector) {
         if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.isNotEmpty()) {
             if (isPersistingBaseline) return // Prevent duplicate Coroutine launches
             isPersistingBaseline = true
@@ -890,6 +899,9 @@ class MonitoringService : Service() {
                     detector = AnomalyDetector(baseline)
                     scheduleNightlyWorker()
                     Log.i("MHealth.Service", "Baseline auto-established and persisted to Room (${totalDays}d)")
+                    
+                    // Immediately trigger provisional analysis so UI gauge activates in real-time
+                    runProvisionalAnalysisAsync(liveSnapshot)
                 } catch (e: Exception) {
                     Log.e("MHealth.Service", "Failed to persist baseline to Room — will retry on next tick: ${e.message}", e)
                 } finally {

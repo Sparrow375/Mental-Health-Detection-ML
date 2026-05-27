@@ -32,3 +32,6 @@ dist-ssr
 # App build artifacts
 apks/
 public/*.zip
+
+# Images
+images/

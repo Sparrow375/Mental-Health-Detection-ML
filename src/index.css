@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  /* Clinical Gold Aesthetic */
+  --sys-primary: #1A1A1B;
+  --sys-primary-light: #2A2A2B;
+  --sys-primary-dark: #0A0A0B;
+  --sys-secondary: #D4AF37;
+  --sys-secondary-light: #E5C158;
+  --sys-bg-dark: #1A1A1B;
+  --sys-text-primary: #F4F4F4;
+  --sys-text-secondary: #A0A0A0;
+  --sys-glass: rgba(26, 26, 27, 0.7);
+  --sys-glass-border: rgba(212, 175, 55, 0.2);
+  --sys-gold-border: rgba(212, 175, 55, 0.3);
+}
+
+@theme {
+  --color-primary: var(--sys-primary);
+  --color-primary-light: var(--sys-primary-light);
+  --color-primary-dark: var(--sys-primary-dark);
+  --color-secondary: var(--sys-secondary);
+  --color-secondary-light: var(--sys-secondary-light);
+  --color-bg-dark: var(--sys-bg-dark);
+  --color-text-primary: var(--sys-text-primary);
+  --color-text-secondary: var(--sys-text-secondary);
+  --color-glass: var(--sys-glass);
+  --color-glass-border: var(--sys-glass-border);
+  --color-gold-border: var(--sys-gold-border);
+  --font-sans: 'Poppins', system-ui, -apple-system, sans-serif;
+  --font-heading: 'Fredoka', system-ui, -apple-system, sans-serif;
+  --radius: 1rem;
+}
+
+@layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    background: var(--color-primary);
+    color: var(--color-text-primary);
+  }
+
+  body {
+    font-family: var(--font-sans);
+    background: var(--color-primary);
+    color: var(--color-text-primary);
+    overflow-x: hidden;
+  }
+
+  ::selection {
+    background: var(--color-secondary);
+    color: var(--color-primary);
+  }
+}
+
+@layer utilities {
+  .gradient-text {
+    background: linear-gradient(135deg, var(--color-text-primary), var(--color-secondary));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .glass {
+    background: var(--color-primary);
+    border: 1px solid var(--color-gold-border);
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+}

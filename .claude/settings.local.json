@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -c ' *)",
+      "WebSearch",
+      "Bash(npm create *)",
+      "Bash(npx --yes create-vite@latest temp-vite --template react)",
+      "Bash(cp -r temp-vite/* .)",
+      "Bash(cp temp-vite/.gitignore .)",
+      "Bash(rm -rf temp-vite)",
+      "Bash(npm install *)",
+      "Bash(npm run *)"
+    ]
+  }
+}

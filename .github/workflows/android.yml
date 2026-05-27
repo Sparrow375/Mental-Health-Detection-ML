@@ -51,7 +51,7 @@ jobs:
         tag_name: "latest"
         name: "Lumen Android Dev Build Latest Release (${{ github.ref_name }})"
         body: |
-          This is the continuous, rolling pre-release build of the Lumen application.
+          This is the continuous, rolling dev build of the Lumen application.
           The APK file attached below is updated automatically on every push.
           
           * **Latest Commit**: `${{ github.sha }}`

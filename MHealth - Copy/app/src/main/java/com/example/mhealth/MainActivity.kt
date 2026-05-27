@@ -897,6 +897,9 @@ fun HomeScreen() {
     var isAccessibilityEnabled by remember {
         mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
     }
+    var isNotificationEnabled by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context))
+    }
 
     // Dynamic updates when returning to the app
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -904,6 +907,7 @@ fun HomeScreen() {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isAccessibilityEnabled = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
+                isNotificationEnabled = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -980,11 +984,49 @@ fun HomeScreen() {
             // Communication & Media
             item {
                 InfoCard("Communication & Media", headerColor = SoftCyan) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SoftCyan)
-                        MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", ChartRed)
-                        MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
-                        MetricPill("🎧 Music Time", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
+                    if (!isNotificationEnabled) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth().padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                                MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SoftCyan)
+                                MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", ChartRed)
+                                MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
+                            }
+                            Spacer(Modifier.height(12.dp))
+                            Text(
+                                "Notification Access Offline",
+                                fontWeight = FontWeight.Bold,
+                                color = AlertRed,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                "Background music tracking and notification reflexes require Notification Access permission to function securely.",
+                                fontSize = 12.sp,
+                                color = TextSecondary,
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
+                            Spacer(Modifier.height(12.dp))
+                            Button(
+                                onClick = {
+                                    context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = SoftCyan),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Enable Notification Access", color = Color.White, fontSize = 12.sp)
+                            }
+                        }
+                    } else {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                            MetricPill("📞 Calls", "${v.callsPerDay.toInt()}", SoftCyan)
+                            MetricPill("⏱ Talk Time", "${v.callDurationMinutes.toInt()}m", ChartRed)
+                            MetricPill("👤 Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
+                            MetricPill("🎧 Music Time", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
+                        }
                     }
                 }
             }

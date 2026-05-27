@@ -535,7 +535,6 @@ class MonitoringService : Service() {
                         db.dailyFeaturesDao().clearSimulated(userId)
                         // 2. Clear old state tables permanently to avoid merging conflicts
                         db.baselineDao().clearBaseline(userId)
-                        db.analysisResultDao().clearAll(userId)
                         db.userProfileDao().upsert(
                             UserProfileEntity(
                                 userId = userId,

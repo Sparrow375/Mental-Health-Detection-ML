@@ -269,6 +269,11 @@ The python intelligence engine resides in the Android app source directory:
     3. Guarded `recoverMissedDayIfNeeded()` from running on fresh accounts or empty databases, eliminating phantom yesterday rows.
     4. Revamped UI empty states and progress screens in `MainActivity.kt`, `MonitorScreen.kt`, and `DnaProfileScreen.kt` to show active tracking day statistics (e.g. Day 1 collected) and dynamic indeterminate loading bars rather than artificial progress bars with static gates.
     5. Resolved the in-memory array and database mismatch: synced `collectedDailyVectors` from Room on every tick inside `MonitoringService.kt`, enabling instantaneous baseline finalization on the very first telemetry tick. Added live provisional scoring triggers immediately post-finalization to activate the UI anomaly gauges on Day 1 in real-time.
+*   **2026-05-28**: Fixed calculations, sync issues, music tracking, and payment app accessibility bugs:
+    1. **Real-time & Soft Reset Baseline Sync**: Ensured soft reset persists the newly built mathematical baseline into Room table instantly. Removed `clearAll()` on historical analysis scores during soft reset, preserving Insights tab reports permanently across resets.
+    2. **Idiographic Bayesian Warm-Start**: Updated Python `AnomalyDetector` to feed the user's `personal_baseline` as the Bayesian conjugate prior in `BayesianBaseline`, completely bypassing population norms. Configured effective means/stds to derive from conjugate posterior `mu_n` and expected variance `beta_n / (alpha_n - 1.0)`, successfully activating real-time non-zero anomaly scoring from Day 1.
+    3. **Payment Apps Accessibility Workaround**: Set `canRetrieveWindowContent="false"` in `accessibility_service_config.xml` to mark Cove's accessibility service as a secure, event-only observer. This completely eliminates warning prompts when using banking/UPI apps.
+    4. **Music Tracking (Spotify showing 0)**: Added companion helper `isServiceEnabled` to `MHealthNotificationListenerService` and custom warning UI to `HomeScreen` in `MainActivity.kt` to prompt enabling Notification Access. Corrected `MonitoringService.kt` to reset `lastMusicPollMs = 0L` when music stops, preventing first-tick loss and large gap rejections when music restarts.
 
 ---
 

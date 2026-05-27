@@ -212,6 +212,7 @@ class BayesianBaseline:
     def __init__(
         self,
         feature_names: List[str],
+        personal_baseline: Optional[PersonalityVector] = None,
         population_norms: Optional[Dict[str, Dict[str, float]]] = None,
         kappa_0: float = 14.0,
         alpha_0: float = 2.0,
@@ -220,15 +221,44 @@ class BayesianBaseline:
         self.kappa_0 = kappa_0
         self.alpha_0 = alpha_0
         self.norms = population_norms or _get_population_norms()
+        self.personal_baseline = personal_baseline
 
         self._posteriors: Dict[str, FeaturePosterior] = {}
         self._state = BayesianState()
         self._initialize_posteriors()
 
     def _initialize_posteriors(self) -> None:
+        baseline_dict = self.personal_baseline.to_dict() if self.personal_baseline else None
+        variances = self.personal_baseline.variances if self.personal_baseline else None
+
         for feat in self.feature_names:
-            self._posteriors[feat] = _prior_for_feature(
-                feat, self.norms, self.kappa_0, self.alpha_0,
+            if baseline_dict is not None and feat in baseline_dict:
+                mu_0 = baseline_dict[feat]
+                var_val = variances.get(feat, 1.0) if variances else 1.0
+                std_0 = max(var_val, 0.05)
+            else:
+                snake_key = _CAMEL_TO_SNAKE.get(feat)
+                if snake_key and snake_key in self.norms:
+                    mu_0 = self.norms[snake_key]['mean']
+                    std_0 = self.norms[snake_key]['std']
+                elif feat in _FALLBACK_DEFAULTS:
+                    mu_0 = _FALLBACK_DEFAULTS[feat]
+                    std_0 = max(mu_0 * 0.20, 0.01)  # 20% CV, floored
+                else:
+                    mu_0 = 1.0
+                    std_0 = 1.0
+
+            beta_0 = std_0 ** 2 * self.alpha_0
+
+            self._posteriors[feat] = FeaturePosterior(
+                mu_0=mu_0,
+                kappa_0=self.kappa_0,
+                alpha_0=self.alpha_0,
+                beta_0=beta_0,
+                mu_n=mu_0,
+                kappa_n=self.kappa_0,
+                alpha_n=self.alpha_0,
+                beta_n=beta_0,
             )
 
     def update(self, day_data: Dict[str, float], day_number: int) -> BayesianState:
@@ -264,21 +294,16 @@ class BayesianBaseline:
         for feat in self.feature_names:
             p = self._posteriors[feat]
             
-            # --- PURELY IDIOGRAPHIC OVERRIDE WITH ROBUST VARIANCE FLOOR ---
-            n = p.n_observations
-            if n > 0:
-                x_bar = p.sum_observations / n
-                # personal empirical variance
-                sample_var = max(p.sum_sq_observations / n - x_bar ** 2, 0.0)
-                std_empirical = math.sqrt(sample_var)
-            else:
-                x_bar = p.mu_0
-                std_empirical = 0.0
-                
-            effective_means[feat] = x_bar
+            # --- PERSONAL BASELINE ANCHORED BAYESIAN MEANS & EXPECTED VARIANCE ---
+            effective_means[feat] = p.mu_n
+            
+            # expected variance = beta_n / (alpha_n - 1.0)
+            expected_variance = p.beta_n / (p.alpha_n - 1.0)
+            expected_std = math.sqrt(expected_variance)
+            
             floor = _FEATURE_STD_FLOORS.get(feat, 0.5)
-            effective_stds[feat] = max(std_empirical, floor)
-            # --------------------------------------------------------------
+            effective_stds[feat] = max(expected_std, floor)
+            # ---------------------------------------------------------------------
 
             var_mu_posterior = p.beta_n / (p.alpha_n * p.kappa_n)
             var_mu_prior = p.beta_0 / (p.alpha_0 * p.kappa_0)

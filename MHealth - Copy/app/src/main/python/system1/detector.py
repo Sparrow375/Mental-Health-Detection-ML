@@ -78,6 +78,7 @@ class AnomalyDetector:
         # Bayesian warm start
         self.bayesian_baseline = BayesianBaseline(
             feature_names=self.feature_names,
+            personal_baseline=self.baseline,
         )
         self.bayesian_state: Optional[BayesianState] = None
 

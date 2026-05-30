@@ -29,7 +29,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.example.mhealth"
+        val isRelease = project.gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
+        applicationId = if (isRelease) "com.lumen.mhealth" else "com.example.mhealth"
         minSdk = 26
         targetSdk = 35
         versionCode = 2
@@ -48,7 +49,6 @@ android {
             buildConfigField("boolean", "IS_DEV_BUILD", "true")
         }
         release {
-            applicationId = "com.lumen.mhealth"
             buildConfigField("boolean", "IS_DEV_BUILD", "false")
             isMinifyEnabled = true
             isShrinkResources = true

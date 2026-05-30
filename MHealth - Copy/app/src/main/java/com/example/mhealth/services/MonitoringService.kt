@@ -1302,17 +1302,6 @@ class MonitoringService : Service() {
         )
     }
 
-                    }
-                }
-            } catch (e: Exception) {
-                Log.w(TAG, "App sessions sync failed: ${e.message}")
-            }
-
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-
     // ── Missed-day recovery ───────────────────────────────────────────────────
 
     /**

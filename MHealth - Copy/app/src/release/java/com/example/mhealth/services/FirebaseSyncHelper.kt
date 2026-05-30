@@ -9,7 +9,7 @@ import com.example.mhealth.models.PersonalityVector
  * all cloud sync operations are completely compiled out and disabled.
  */
 object FirebaseSyncHelper {
-    suspend fun syncBaseline(context: Context, baseline: PersonalityVector, today: Int) {
+    suspend fun syncBaseline(context: Context, baseline: PersonalityVector, today: String) {
         // Offline release stub — no-op
     }
 

@@ -11,7 +11,7 @@ import kotlinx.coroutines.tasks.await
 object FirebaseSyncHelper {
     private const val TAG = "MHealth.FirebaseSync"
 
-    suspend fun syncBaseline(context: Context, baseline: PersonalityVector, today: Int) {
+    suspend fun syncBaseline(context: Context, baseline: PersonalityVector, today: String) {
         val uid = FirebaseAuth.getInstance().currentUser?.uid
         if (uid != null) {
             try {

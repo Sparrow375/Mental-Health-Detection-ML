@@ -54,17 +54,18 @@ private val DarkColorScheme = darkColorScheme(
 
 @Composable
 fun CoveTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false, // Force false to satisfy light calming sea theme requirement
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    // Force LightColorScheme for calming light OceanBlue and SoftCyan (seafoam sea) theme
+    val colorScheme = LightColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = (if (darkTheme) LumenBgDark else BackgroundWhite).toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+            window.statusBarColor = BackgroundWhite.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
         }
     }
 

@@ -18,6 +18,14 @@ android {
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        create("releaseConfig") {
+            val keystoreFile = System.getenv("RELEASE_STORE_FILE")?.let { file(it) }
+                ?: if (file("release.keystore").exists()) file("release.keystore") else file("debug.keystore")
+            storeFile = keystoreFile
+            storePassword = System.getenv("RELEASE_STORE_PASSWORD") ?: "lumen123"
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS") ?: "lumen_key"
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD") ?: "lumen123"
+        }
     }
 
     defaultConfig {
@@ -37,10 +45,14 @@ android {
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("sharedDebug")
+            buildConfigField("boolean", "IS_DEV_BUILD", "true")
         }
         release {
-            isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("sharedDebug")
+            applicationId = "com.lumen.mhealth"
+            buildConfigField("boolean", "IS_DEV_BUILD", "false")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("releaseConfig")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -56,6 +68,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -105,7 +118,13 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.firestore)
+    debugImplementation(platform(libs.firebase.bom))
+    debugImplementation(libs.firebase.auth)
+    debugImplementation(libs.firebase.firestore)
+
+    // Lottie for animations
+    implementation("com.airbnb.android:lottie-compose:6.4.0")
+
+    // OpenPDF for medical reports
+    implementation("com.github.librepdf:openpdf:2.0.3")
 }

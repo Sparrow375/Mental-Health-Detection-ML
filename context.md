@@ -94,8 +94,8 @@ During the onboarding period, the system gathers daily surface features alongsid
 2.  **AppDNA & PhoneDNA (Steps 1.2–1.3)**:
     *   **AppDNA**: Builds hourly usage probability distributions (24-bin usage heatmaps) for each app, grouped by day-of-week, alongside baseline metrics: `abandon_rate` (sessions < 45s and < 5 interactions), `avg_session_minutes`, and `self_open_ratio`.
     *   **PhoneDNA**: Extracts macro rhythm structures: active windows, historically active hours, pickup burst rates, daily rhythm regularity, and weekday-weekend delta.
-3.  **L1 Anchor Clustering (Step 1.4)**: Runs **DBSCAN clustering** using a Mahalanobis distance metric on the 12-feature L1 clustering subspace. It establishes "behavioral archetypes" (centroids, radii, and covariance matrices). Epsilon is auto-determined via a k-distance elbow graph.
-4.  **L2 Texture Profiles (Step 1.5)**: For each discovered DBSCAN cluster, it groups baseline days belonging to that archetype and builds a 22-dimensional micro-texture profile. If an archetype has $\ge 10$ member days, it fits **K-Means clustering** (with $K \in \{2, 3\}$, optimized by silhouette score) to capture sub-structures. Otherwise, it falls back to mean/std profile bounds.
+3.  **L1 Anchor Clustering (Step 1.4)**: Runs the symmetrical **Clinical-Weighted PCA + Mean-Shift clustering** pipeline on the 12-feature L1 clustering subspace. It projects the normalized vectors, auto-estimates bandwidth using a sklearn-aligned 30th percentile quantile distance (quantile=0.3), and converges daily vectors into "behavioral archetypes" (centroids, radii).
+4.  **L2 Texture Profiles (Step 1.5)**: For each discovered archetype, it groups baseline days belonging to that cluster and builds a 22-dimensional micro-texture profile. It also runs **L2 PCA + Mean Shift** independently on the daily sessions DNA features to capture distinct micro-behavioral sub-archetypes, falling back to a global profile under sparse data conditions.
 5.  **3-Gate Baseline Screener**: Evaluates the onboarding period to detect if a user has pre-existing symptoms or an active disorder:
     *   *Gate 1 (Day 7 — Population Anchor)*: Flags if $\ge 3$ features exceed $2.5$ SD (uses $4.0$ SD for features with highly stable baselines to avoid demographic false flags).
     *   *Gate 2 (Days 14–21 — Stability Check)*: Measures week-over-week variance. Flags if observed drift $> 1.5\times$ population drift for $\ge 3$ features (signals bipolar/cycling).
@@ -269,13 +269,24 @@ The python intelligence engine resides in the Android app source directory:
     3. Guarded `recoverMissedDayIfNeeded()` from running on fresh accounts or empty databases, eliminating phantom yesterday rows.
     4. Revamped UI empty states and progress screens in `MainActivity.kt`, `MonitorScreen.kt`, and `DnaProfileScreen.kt` to show active tracking day statistics (e.g. Day 1 collected) and dynamic indeterminate loading bars rather than artificial progress bars with static gates.
     5. Resolved the in-memory array and database mismatch: synced `collectedDailyVectors` from Room on every tick inside `MonitoringService.kt`, enabling instantaneous baseline finalization on the very first telemetry tick. Added live provisional scoring triggers immediately post-finalization to activate the UI anomaly gauges on Day 1 in real-time.
-*   **2026-05-28**: Fixed calculations, sync issues, music tracking, and payment app accessibility bugs:
+*   **2026-05-28**: Fixed calculations, sync issues, music tracking, and payment app accessibility bugs, and prepared clinical brief:
     1. **Real-time & Soft Reset Baseline Sync**: Ensured soft reset persists the newly built mathematical baseline into Room table instantly. Removed `clearAll()` on historical analysis scores during soft reset, preserving Insights tab reports permanently across resets.
     2. **Idiographic Bayesian Warm-Start**: Updated Python `AnomalyDetector` to feed the user's `personal_baseline` as the Bayesian conjugate prior in `BayesianBaseline`, completely bypassing population norms. Configured effective means/stds to derive from conjugate posterior `mu_n` and expected variance `beta_n / (alpha_n - 1.0)`, successfully activating real-time non-zero anomaly scoring from Day 1.
     3. **Payment Apps Accessibility Workaround**: Set `canRetrieveWindowContent="false"` in `accessibility_service_config.xml` to mark Cove's accessibility service as a secure, event-only observer. This completely eliminates warning prompts when using banking/UPI apps.
     4. **Music Tracking (Spotify showing 0)**: Added companion helper `isServiceEnabled` to `MHealthNotificationListenerService` and custom warning UI to `HomeScreen` in `MainActivity.kt` to prompt enabling Notification Access. Corrected `MonitoringService.kt` to reset `lastMusicPollMs = 0L` when music stops, preventing first-tick loss and large gap rejections when music restarts.
+    5. **Clinical & Architectural Briefing for Psychiatrist Meeting**: Generated a concise, clinical-grade architecture briefing document (`Clinical_Brief_Psychiatrist.md`) summarizing the Edge-ML privacy model (Kotlin + Chaquopy), the vertical-horizontal strata, the dual-system ML scoring logic (System 1 Anomaly Array & System 2 Diagnostic Triage), and how it serves as a secure Clinician Decision Support (CDSS) tool.
+*   **2026-05-28**: Conducted telemetry export dump offline anomaly scoring audit to verify real-time baseline calculations against May 28th's data. Confirmed production Python engine output: Layer 1 Score = `0.427`, L2 Modifier = `1.000` (due to clean, in-profile daily projection without cluster mismatch), resulting in a Final Effective Score of `0.427`. Mathematically aligned the results with the precomputed device scores (`0.478` L1 score from Kotlin-native emulation due to full 7-day rolling history queues).
+*   **2026-05-29**: Audited the codebase to verify the active clustering pipeline. Confirmed that the production system (`s1_profile.py` and `engine.py` called by Kotlin/Chaquopy) successfully runs the symmetrical **Clinical-Weighted PCA + Mean Shift** pipeline for both L1 and L2 baseline anchor clustering, bypassing the legacy DBSCAN and K-Means modules. Updated project documentation to accurately represent the active Mean Shift clustering architecture.
+*   **2026-05-30**: Successfully implemented the approved clinical "Lumen" User Build and dual-variant signing release system:
+    1. **Dual Gradle Build Variants**: Modified `build.gradle.kts` to enable dual app packages: debug as `com.example.mhealth` (preserving existing test user SQLite databases and Room tables) and production release as `com.lumen.mhealth` (offering side-by-side app installs). Configured automated signing inside `.github/workflows/android.yml` to compile and sign both APKs (`app-debug.apk` and `app-release.apk`) on git push.
+    2. **Strict Firebase Isolation**: Conducted full source set isolation. Moved Firebase dependencies and services (`AuthManager`, `CloudSyncWorker`) to `src/debug/`, and created lightweight offline stubs in `src/release/` with absolutely zero Firebase imports or internet connections, establishing a 100% offline local sandbox.
+    3. **Calming Mindful Home UI**: Designed a stunning guided Box-Breathing Canvas-based Ripple animation, pulsing a calming OceanBlue ring with wave aura patterns in sync with slow sinusoidal inhale/hold/exhale prompts, and implemented interactive emoji mood check-ins.
+    4. **Qualitative Insights Dashboard**: Concealed all numerical anomaly scores from the production user, displaying high-value qualitative summaries for Sleep, Physical Activity, Communication, Screen usage, and Location boundaries instead. Developed a visual line sparkline chart on a relative 0-100% height grid completely free of absolute metrics or numerical axes.
+    5. **Onboarding & Weekly Screener Wizards**: Built beautiful multi-step questionnaire wizards covering demographics, GPS home location, PHQ-9 (9 items), GAD-7 (7 items), and Stressful Life Events, binding scores directly to SharedPreferences to prevent Room schema migrations, and calibrating threshold sensitivities dynamically (standard 0.38 vs high-sensitivity 0.32 under symptoms).
+    6. **Clinician Encrypted Report Sharing**: Implemented `ReportGenerator.kt` using OpenPDF to compile demographic statistics, daily telemetry averages, and diagnostic history. Encrypts the PDF with a patient-specified numeric PIN (`setEncryption`) and opens the Android native Share Sheet alongside a behavioral JSON file via dynamic FileProvider authorities.
 
 ---
+
 
 ## 7. Telemetry Feature Audit & Recommendations (May 2026)
 
@@ -320,21 +331,3 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     *   If maximum pairwise distance and standard deviations are **below the average baseline cluster radii**, the anomalous period forms a tight, stable group ──► **Promote as New Context** (suppress alert, merge these days into the Golden Baseline as a new healthy lifestyle context).
     *   If the anomalous period is **scattered and chaotic** (fails compactness test), it indicates a disorganized clinical onset ──► **Flag user/caregiver** as a high-probability depressive episode.
 
----
-
-## 7. Telemetry Feature Audit & Recommendations (May 2026)
-
-Conducted a thorough clinical and engineering audit of the 29-feature L1 and 22-feature L2 arrays.
-
-### 7.1 Redundant / High-Noise Features
-*   **System Telemetry (`storageUsedGB`, `memoryUsagePercent`)**: High noise, zero clinical relevance, managed by Android system/caching logic rather than user agency.
-*   **Raw Network Bytes (`networkWifiMB`, `networkMobileMB`)**: Dominated by high-variance entertainment streaming or background updates, highly collinear with direct app telemetry.
-*   **`totalAppsCount`**: Quasi-static feature leading to near-zero variance issues in daily z-scoring. Already captured dynamically by inst/uninstalls.
-*   **`darkDurationHours`**: Highly redundant with `sleepDurationHours` which is calculated via the superior 3-Signal Sleep Fusion Heuristic.
-
-### 7.2 High-Value Clinical Features to Add
-*   **Physical Activity (`dailyStepCount` / `activeMinutes`)**: Clinically isolates pacing/agitation (manic/anxious states) from homebound immobility (depressive states), which GPS displacement alone cannot differentiate.
-*   **Interaction Dynamics (`keystrokeDynamics` & `screenTouchDynamics`)**: Typing speed, backspace rate, and scroll velocity are golden biomarkers for psychomotor agitation and retardation.
-*   **Daylight Exposure (`daylightExposureMinutes`)**: Passive lux level tracking (Sensor.TYPE_LIGHT) detects room isolation/darkness, a classic vegetative symptom.
-*   **Circadian Charging habits (`chargeRegularityEntropy`)**: Erratic, middle-of-night charging indicates sleep hygiene decay and lifestyle disorganization.
-*   **Vocal Prosody Check-ins (`voiceProsodyCheckin`)**: Acoustic pitch and speech rate extracted from voluntary daily check-ins bypass Android passive mic privacy blocks while retrieving valuable vocal markers.

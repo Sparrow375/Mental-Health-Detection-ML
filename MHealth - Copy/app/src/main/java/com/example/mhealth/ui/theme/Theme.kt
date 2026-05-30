@@ -9,6 +9,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.darkColorScheme
+
 private val LightColorScheme = lightColorScheme(
     primary = OceanBlue,
     onPrimary = CardWhite,
@@ -29,16 +32,39 @@ private val LightColorScheme = lightColorScheme(
     outline = TextMuted
 )
 
+private val DarkColorScheme = darkColorScheme(
+    primary = LumenIndigo,
+    onPrimary = LumenBgDark,
+    primaryContainer = LumenSurfaceDark,
+    onPrimaryContainer = LumenTextPrimaryDark,
+    secondary = LumenLavender,
+    onSecondary = LumenBgDark,
+    secondaryContainer = LumenCardDark,
+    onSecondaryContainer = LumenTextPrimaryDark,
+    tertiary = LumenTeal,
+    onTertiary = LumenBgDark,
+    background = LumenBgDark,
+    onBackground = LumenTextPrimaryDark,
+    surface = LumenSurfaceDark,
+    onSurface = LumenTextPrimaryDark,
+    surfaceVariant = LumenCardDark,
+    onSurfaceVariant = LumenTextSecondaryDark,
+    outline = LumenTextMutedDark
+)
+
 @Composable
-fun CoveTheme(content: @Composable () -> Unit) {
-    val colorScheme = LightColorScheme
+fun CoveTheme(
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     val view = LocalView.current
 
     if (!view.isInEditMode) {
         SideEffect {
             val window = (view.context as Activity).window
-            window.statusBarColor = BackgroundWhite.toArgb()
-            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = true
+            window.statusBarColor = (if (darkTheme) LumenBgDark else BackgroundWhite).toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
         }
     }
 

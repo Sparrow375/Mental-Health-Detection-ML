@@ -95,9 +95,17 @@ class AnomalyDetector:
         self.WATCH_EVIDENCE_THRESHOLD = self.thresholds['WATCH_EVIDENCE_THRESHOLD']
 
     def set_user_profile(self, user_profile) -> None:
-        """Apply lifestyle-adjusted weights from self-report data."""
+        """Apply lifestyle-adjusted weights and clinical screen thresholds."""
         self.user_profile = user_profile
         self.l1_scorer.apply_lifestyle_weights(user_profile)
+
+        # Clinical Screener threshold adjustment: if self-report shows clinical symptoms (PHQ-9 or GAD-7 >= 10),
+        # lower the score threshold to 0.32 (normally 0.38) to increase sensitivity
+        if user_profile is not None and user_profile.is_baseline_contaminated:
+            self.thresholds["ANOMALY_SCORE_THRESHOLD"] = 0.32
+            self.ANOMALY_SCORE_THRESHOLD = 0.32
+            if self.evidence_engine is not None:
+                self.evidence_engine.ANOMALY_SCORE_THRESHOLD = 0.32
 
     # ------------------------------------------------------------------
     # Baseline building

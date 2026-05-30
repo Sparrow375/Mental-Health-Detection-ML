@@ -79,8 +79,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             Log.d(TAG, "Device ID validated successfully")
 
             // 2. Sync Daily Features
-            // IMPORTANT: Room stores all data keyed by email, not Firebase UID.
-            // Using `uid` here would return 0 rows and silently skip all syncing.
             val email = user.email ?: run {
                 Log.e(TAG, "No email found for user, skipping sync")
                 return Result.failure()
@@ -89,7 +87,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             val unsyncedFeatures = db.dailyFeaturesDao().getUnsynced(email)
             Log.d(TAG, "Found ${unsyncedFeatures.size} unsynced daily features")
 
-            // FIXED: Write to 'daily_features' (was incorrectly 'daily_data')
             val dailyFeaturesRef = firestore.collection("users").document(uid).collection("daily_features")
 
             var syncedFeaturesCount = 0
@@ -131,7 +128,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "mediaCountToday" to feature.mediaCountToday,
                         "downloadsToday" to feature.downloadsToday,
                         "musicTimeMinutes" to feature.musicTimeMinutes,
-                        // FIXED: Store breakdowns as JSON strings (matching MonitoringService format)
                         "appBreakdownJson" to truncate(feature.appBreakdownJson),
                         "notificationBreakdownJson" to truncate(feature.notificationBreakdownJson),
                         "appLaunchesBreakdownJson" to truncate(feature.appLaunchesBreakdownJson),
@@ -148,7 +144,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
             }
             Log.d(TAG, "Successfully synced $syncedFeaturesCount/${unsyncedFeatures.size} daily features")
 
-            // 3. Sync Analysis Results (only genuinely unsynced ones)
+            // 3. Sync Analysis Results
             val unsyncedResults = db.analysisResultDao().getUnsynced(email)
             Log.d(TAG, "Found ${unsyncedResults.size} unsynced analysis results")
 
@@ -168,7 +164,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "match_message" to result.matchMessage,
                         "prototype_confidence" to result.prototypeConfidence,
                         "gate_results" to result.gateResults,
-                        // L2 Digital DNA fields
                         "l2_modifier" to result.l2Modifier,
                         "coherence" to result.coherence,
                         "rhythm_dissolution" to result.rhythmDissolution,
@@ -182,35 +177,30 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                     resultsRef.document(result.date).set(resultMap).await()
                     db.analysisResultDao().markSynced(result.id)
                     syncedResultsCount++
-                    Log.d(TAG, "✓ Synced result: ${result.date} | score=${result.anomalyScore} | alert=${result.alertLevel} | prototype=${result.prototypeMatch} | confidence=${result.prototypeConfidence}")
+                    Log.d(TAG, "✓ Synced result: ${result.date}")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to sync result for ${result.date}: ${e.message}", e)
                 }
             }
             Log.d(TAG, "Successfully synced $syncedResultsCount/${unsyncedResults.size} analysis results")
 
-            // 4. Update total recorded days (baseline progress)
-            // FIXED: Never decrease baseline_progress — protects against Room destructive
-            // migration wiping local data and overwriting the Firestore count with 0.
+            // 4. Update total recorded days
             val localProgress = db.dailyFeaturesDao().count(email)
             val firestoreProgress = profileDoc.getLong("baseline_progress")?.toInt() ?: 0
             val progressToSet = maxOf(localProgress, firestoreProgress)
-            Log.d(TAG, "baseline_progress: local=$localProgress, firestore=$firestoreProgress, writing=$progressToSet")
             firestore.collection("users").document(uid)
                 .set(mapOf("baseline_progress" to progressToSet), com.google.firebase.firestore.SetOptions.merge()).await()
 
-            // 5. Sync App Sessions (Level 2 Digital DNA) — limited to 7 days
+            // 5. Sync App Sessions
             try {
                 val sessionsRef = firestore.collection("users").document(uid).collection("app_sessions")
                 val sevenDaysAgoMs = System.currentTimeMillis() - 7L * 24 * 3600_000
                 val recentSessions = db.appSessionDao().getSessionsSince(sevenDaysAgoMs)
                 
-                // Group sessions by date for batch upload, cap at 100 per batch
                 val sessionsByDate = recentSessions.groupBy { it.date }
                 var syncedSessions = 0
                 for ((date, sessions) in sessionsByDate) {
                     try {
-                        // Firestore batch limit is 500, cap at 100 for memory safety
                         for (chunk in sessions.chunked(100)) {
                             val batch = firestore.batch()
                             for (session in chunk) {
@@ -237,7 +227,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 Log.e(TAG, "Session sync failed: ${e.message}")
             }
 
-            // 6. Sync Notification Events (Level 2 Digital DNA) — limited to 7 days
+            // 6. Sync Notification Events
             try {
                 val notifEventsRef = firestore.collection("users").document(uid).collection("notification_events")
                 val sevenDaysAgoMs2 = System.currentTimeMillis() - 7L * 24 * 3600_000
@@ -273,7 +263,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                 Log.e(TAG, "Notification events sync failed: ${e.message}")
             }
 
-            // 7. Sync PersonDNA (Level 2 Behavioral DNA) — persistence for the whole persona
+            // 7. Sync PersonDNA
             try {
                 val dna = db.personDnaDao().getByUserId(email)
                 if (dna != null) {
@@ -284,7 +274,7 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "created_at" to dna.created_at
                     )
                     dnaRef.set(dnaMap).await()
-                    Log.d(TAG, "Synced PersonDNA profile (updated: ${dna.last_updated})")
+                    Log.d(TAG, "Synced PersonDNA profile")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "PersonDNA sync failed: ${e.message}")
@@ -299,10 +289,8 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
         }
     }
 
-    /** Truncates a string to prevent Firestore document size limits and data bloat. */
     private fun truncate(json: String, limit: Int = 100_000): String {
         return if (json.length > limit) {
-            Log.w(TAG, "Truncating large JSON breakdown (${json.length} chars)")
             json.take(limit) + "...[TRUNCATED]"
         } else json
     }

@@ -6,6 +6,7 @@ import numpy as np
 
 from system2.pipeline import System2Pipeline
 from system1 import ImprovedAnomalyDetector, PersonalityVector
+from system1.user_profile import UserProfile
 from system2.s1_s2_adapter import build_s1_input
 from dna import build_person_dna, build_daily_vector, PersonDNA
 from dna_engine import (
@@ -54,6 +55,17 @@ def run_analysis(json_string: str) -> str:
         day_number   = data.get("day_number", 0)
         historical_scores = data.get("historical_anomaly_scores", [])
         is_provisional = data.get("is_provisional", False)
+
+        # Onboarding self-report calibration metrics
+        phq9_score = data.get("phq9_score", 0)
+        gad7_score = data.get("gad7_score", 0)
+        recent_life_events_count = data.get("recent_life_events_count", 0)
+
+        py_user_profile = UserProfile(
+            phq9_score=phq9_score,
+            gad7_score=gad7_score,
+            recent_life_event=(recent_life_events_count > 0)
+        )
 
         # Level 2 Behavioral DNA inputs
         sessions_28day  = data.get("sessions", [])
@@ -178,6 +190,7 @@ def run_analysis(json_string: str) -> str:
 
         # ── System 1 setup ─────────────────────────────────────────────────────
         s1 = ImprovedAnomalyDetector(baseline=s1_baseline)
+        s1.set_user_profile(py_user_profile)
 
         if historical_scores:
             s1.full_anomaly_history = list(historical_scores)
@@ -234,7 +247,7 @@ def run_analysis(json_string: str) -> str:
             s1_report=s1_report,
             timeseries_days=60,
         )
-        s2_output = pipeline.classify(s1_input)
+        s2_output = pipeline.classify(s1_input, user_profile=py_user_profile)
 
         if contaminated and not s2_output.baseline_contaminated:
             s2_output.baseline_contaminated = True

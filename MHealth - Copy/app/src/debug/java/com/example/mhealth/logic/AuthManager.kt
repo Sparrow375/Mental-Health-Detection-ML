@@ -147,7 +147,6 @@ class AuthManager(private val context: Context) {
         val status            = profileDoc.getString("status") ?: "Monitoring"
         val onboardingDateMs  = profileDoc.getLong("onboarding_date") ?: System.currentTimeMillis()
         val isReady           = profileDoc.getBoolean("baseline_ready") ?: false
-        val baselineProgress  = profileDoc.getLong("baseline_progress")?.toInt() ?: 0
 
         db.userProfileDao().upsert(
             UserProfileEntity(
@@ -179,7 +178,6 @@ class AuthManager(private val context: Context) {
         if (baselineEntities.isNotEmpty()) db.baselineDao().insertAll(baselineEntities)
 
         // 3. Restore ALL daily features from the cloud
-        // Note: CloudSyncWorker writes to 'daily_features'. We fetch from there.
         val featuresSnapshot = firestore.collection("users").document(uid).collection("daily_features").get().await()
         val featureEntities = mutableListOf<DailyFeaturesEntity>()
         for (doc in featuresSnapshot.documents) {
@@ -218,7 +216,6 @@ class AuthManager(private val context: Context) {
                         mediaCountToday = doc.getDouble("mediaCountToday")?.toFloat() ?: 0f,
                         downloadsToday = doc.getDouble("downloadsToday")?.toFloat() ?: 0f,
                         musicTimeMinutes = doc.getDouble("musicTimeMinutes")?.toFloat() ?: 0f,
-                        // JSON BREAKDOWNS (Essential for Digital DNA and L2 Analysis)
                         appBreakdownJson = doc.getString("appBreakdownJson") ?: "{}",
                         notificationBreakdownJson = doc.getString("notificationBreakdownJson") ?: "{}",
                         appLaunchesBreakdownJson = doc.getString("appLaunchesBreakdownJson") ?: "{}",
@@ -252,7 +249,6 @@ class AuthManager(private val context: Context) {
                 prototypeConfidence = (doc.getDouble("prototype_confidence") ?: 0.0).coerceIn(0.0, 1.0).toFloat(),
                 gateResults      = doc.getString("gate_results")      ?: "{}",
                 syncedToCloud    = true,
-                // L2 Digital DNA fields
                 l2Modifier       = doc.getDouble("l2_modifier")?.toFloat() ?: 1.0f,
                 coherence        = doc.getDouble("coherence")?.toFloat()   ?: 0f,
                 rhythmDissolution = doc.getDouble("rhythm_dissolution")?.toFloat() ?: 0f,

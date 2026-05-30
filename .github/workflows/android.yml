@@ -33,15 +33,30 @@ jobs:
       run: chmod +x gradlew
       working-directory: MHealth - Copy
 
-    - name: Build with Gradle (assembleDebug)
+    - name: Build Debug APK
       run: ./gradlew assembleDebug --no-daemon
       working-directory: MHealth - Copy
+
+    - name: Build Release APK
+      run: ./gradlew assembleRelease --no-daemon
+      working-directory: MHealth - Copy
+      env:
+        RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || 'lumen123' }}
+        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'lumen_key' }}
+        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Upload Debug APK Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: mhealth-debug-apk
+        name: lumen-debug-apk
         path: MHealth - Copy/app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: error
+
+    - name: Upload Release APK Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumen-release-apk
+        path: MHealth - Copy/app/build/outputs/apk/release/app-release.apk
         if-no-files-found: error
 
     - name: Create GitHub Release
@@ -49,16 +64,20 @@ jobs:
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "latest"
-        name: "Lumen Android Dev Build Latest Release (${{ github.ref_name }})"
+        name: "Lumen Android App Latest Release (${{ github.ref_name }})"
         body: |
-          This is the continuous, rolling dev build of the Lumen application.
-          The APK file attached below is updated automatically on every push.
+          This is the continuous, rolling build of the Lumen application.
+          
+          * **Lumen Dev Build**: Developer diagnostics, manual controls, and Firebase synchronization active (`app-debug.apk`).
+          * **Lumen Production User Build**: Calming theme, mindfulness features, offline privacy sandbox, and doctor report generation active (`app-release.apk`).
           
           * **Latest Commit**: `${{ github.sha }}`
           * **Last Triggered By**: `${{ github.actor }}`
         draft: false
         prerelease: true
         make_latest: true
-        files: MHealth - Copy/app/build/outputs/apk/debug/app-debug.apk
+        files: |
+          MHealth - Copy/app/build/outputs/apk/debug/app-debug.apk
+          MHealth - Copy/app/build/outputs/apk/release/app-release.apk
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -65,6 +65,11 @@ object JsonConverter {
         // ── contamination flag ────────────────────────────────────────────────
         root.put("baseline_contaminated", contaminated)
 
+        // ── onboarding screener scores ────────────────────────────────────────
+        root.put("phq9_score", DataRepository.phq9Score.value)
+        root.put("gad7_score", DataRepository.gad7Score.value)
+        root.put("recent_life_events_count", DataRepository.recentLifeEventsCount.value)
+
         return root.toString()
     }
 

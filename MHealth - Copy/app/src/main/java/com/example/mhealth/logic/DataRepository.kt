@@ -238,6 +238,19 @@ object DataRepository {
     private val _firstLoginComplete = MutableStateFlow(false)
     val firstLoginComplete: StateFlow<Boolean> = _firstLoginComplete
 
+    // Onboarding screener and calibration values stored in SharedPreferences
+    private val _phq9Score = MutableStateFlow(0)
+    val phq9Score: StateFlow<Int> = _phq9Score
+
+    private val _gad7Score = MutableStateFlow(0)
+    val gad7Score: StateFlow<Int> = _gad7Score
+
+    private val _recentLifeEventsCount = MutableStateFlow(0)
+    val recentLifeEventsCount: StateFlow<Int> = _recentLifeEventsCount
+
+    private val _checkinNotificationsEnabled = MutableStateFlow(true)
+    val checkinNotificationsEnabled: StateFlow<Boolean> = _checkinNotificationsEnabled
+
     // Dev Configuration — auto-build from Day 1 (no slider gating)
     private val _baselineDaysRequired = MutableStateFlow(1)
     val baselineDaysRequired: StateFlow<Int> = _baselineDaysRequired
@@ -280,6 +293,11 @@ object DataRepository {
         
         // Restore Onboarding State
         _firstLoginComplete.value = prefs?.getBoolean("first_login_complete", false) ?: false
+        _phq9Score.value = prefs?.getInt("screener_phq9", 0) ?: 0
+        _gad7Score.value = prefs?.getInt("screener_gad7", 0) ?: 0
+        _recentLifeEventsCount.value = prefs?.getInt("screener_life_events", 0) ?: 0
+        _checkinNotificationsEnabled.value = prefs?.getBoolean("checkin_notifications_enabled", true) ?: true
+        
         val savedEmail = prefs?.getString("user_email", "") ?: ""
         if (savedEmail.isNotEmpty()) {
             _userProfile.value = com.example.mhealth.models.UserProfile(
@@ -356,6 +374,22 @@ object DataRepository {
             putBoolean("first_login_complete", true)
         }?.apply()
         _firstLoginComplete.value = true
+    }
+
+    fun saveScreenerScores(phq9: Int, gad7: Int, lifeEvents: Int) {
+        _phq9Score.value = phq9
+        _gad7Score.value = gad7
+        _recentLifeEventsCount.value = lifeEvents
+        prefs?.edit()?.apply {
+            putInt("screener_phq9", phq9)
+            putInt("screener_gad7", gad7)
+            putInt("screener_life_events", lifeEvents)
+        }?.apply()
+    }
+
+    fun setCheckinNotificationsEnabled(enabled: Boolean) {
+        _checkinNotificationsEnabled.value = enabled
+        prefs?.edit()?.putBoolean("checkin_notifications_enabled", enabled)?.apply()
     }
 
     // REMOVED: setBaselineDaysRequired() — baseline auto-builds from Day 1.

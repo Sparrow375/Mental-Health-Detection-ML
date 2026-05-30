@@ -128,10 +128,14 @@ class LifeEventFilter:
         if report.co_deviating_count <= self.params["max_co_deviating_features"] and max_dev_val <= 3.0:
             return FilterDecision.DISMISS
 
-        # Rule 2: Self-resolved quickly
+        # Rule 2: Self-resolved quickly (increased to 14 days under high stress/recent life events)
+        self_resolve_days = self.params["self_resolve_days"]
+        if user_profile is not None and user_profile.recent_life_event:
+            self_resolve_days = 14
+
         if (
             report.resolved
-            and report.days_since_onset <= self.params["self_resolve_days"]
+            and report.days_since_onset <= self_resolve_days
         ):
             return FilterDecision.DISMISS
 

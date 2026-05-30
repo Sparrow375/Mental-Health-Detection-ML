@@ -53,3 +53,16 @@ val AccentOrange = Color(0xFFD97706)
 val AccentRed   = Color(0xFFDC2626)
 val AccentPurple = Color(0xFF7C3AED)
 val AccentCyan  = Color(0xFF0891B2)
+
+// ── Lumen Calming Premium Theme Colors (Light & Dark Support) ────────────────
+val LumenBgDark       = Color(0xFF090A10) // Deep calming midnight navy
+val LumenSurfaceDark  = Color(0xFF131522) // Elevated dark slate-navy card
+val LumenCardDark     = Color(0xFF1A1D2F) // Slightly brighter dark surface
+val LumenIndigo       = Color(0xFF7C83FD) // Soft premium indigo
+val LumenLavender     = Color(0xFFB8BBFF) // Calming lavender accent
+val LumenTeal         = Color(0xFF4ECDC4) // Calming seafoam teal for healthy status
+val LumenAmber        = Color(0xFFFCD34D) // Calming warm amber for watch state
+val LumenRose         = Color(0xFFEF6C6C) // Desaturated alert rose for warning state
+val LumenTextPrimaryDark = Color(0xFFF1F5F9) // Slated white
+val LumenTextSecondaryDark = Color(0xFF94A3B8) // Slated gray
+val LumenTextMutedDark = Color(0xFF64748B) // Slate-muted

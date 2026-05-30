@@ -41,6 +41,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -2503,6 +2504,7 @@ fun FeatureTableCard(
 // =============================================================================
 
 private fun exportDataToUri(context: Context, uri: android.net.Uri) {
+    if (context !is ComponentActivity) return
     context.lifecycleScope.launch(Dispatchers.IO) {
         try {
             val db = MHealthDatabase.getInstance(context)
@@ -2878,4 +2880,12 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
         )
     }
     return mode == AppOpsManager.MODE_ALLOWED
+}
+
+private fun alertColorForLevel(level: String): Color = when (level.lowercase()) {
+    "green" -> AlertGreen
+    "yellow" -> AlertYellow
+    "orange" -> AlertOrange
+    "red" -> AlertRed
+    else -> AlertGreen
 }

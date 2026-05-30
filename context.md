@@ -300,6 +300,10 @@ The python intelligence engine resides in the Android app source directory:
     1. **Branding Rework**: Aligned all UI text headers, welcome screens, and buttons to reference the "Lumen." identity in a beautiful titlecase format with the distinct trailing dot.
     2. **Premium Typography Integration**: Loaded the Google Font "Fredoka" via `R.font.fredoka` globally as the default font family for all headers, branding elements, and primary buttons.
     3. **Theme Harmonization**: Bypassed legacy purple thematic overrides, permanently anchoring the layout in Swasthiti's light OceanBlue, SoftCyan (seafoam sea), and BackgroundWhite palette.
+*   **2026-05-30**: Resolved release compilation failures (`:app:compileReleaseKotlin`) from CI/CD pipeline:
+    1. **`alertColorForLevel` Fix**: Re-introduced the helper function mapping alert strings ("green", "yellow", "orange", "red") to custom theme Colors inside release `MainActivity.kt`.
+    2. **`PathEffect` Fix**: Added the missing `import androidx.compose.ui.graphics.PathEffect` to resolve dashed Canvas layout rendering.
+    3. **`lifecycleScope` Fix**: Ensured the target Context is cast to `ComponentActivity` inside `exportDataToUri()` before fetching lifecycle scopes.
 
 ---
 

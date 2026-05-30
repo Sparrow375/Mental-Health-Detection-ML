@@ -284,6 +284,7 @@ The python intelligence engine resides in the Android app source directory:
     4. **Qualitative Insights Dashboard**: Concealed all numerical anomaly scores from the production user, displaying high-value qualitative summaries for Sleep, Physical Activity, Communication, Screen usage, and Location boundaries instead. Developed a visual line sparkline chart on a relative 0-100% height grid completely free of absolute metrics or numerical axes.
     5. **Onboarding & Weekly Screener Wizards**: Built beautiful multi-step questionnaire wizards covering demographics, GPS home location, PHQ-9 (9 items), GAD-7 (7 items), and Stressful Life Events, binding scores directly to SharedPreferences to prevent Room schema migrations, and calibrating threshold sensitivities dynamically (standard 0.38 vs high-sensitivity 0.32 under symptoms).
     6. **Clinician Encrypted Report Sharing**: Implemented `ReportGenerator.kt` using OpenPDF to compile demographic statistics, daily telemetry averages, and diagnostic history. Encrypts the PDF with a patient-specified numeric PIN (`setEncryption`) and opens the Android native Share Sheet alongside a behavioral JSON file via dynamic FileProvider authorities.
+*   **2026-05-30**: Resolved a Kotlin compiler "Unresolved reference 'Context'" compilation error in `MHealthNotificationListenerService.kt` during `:app:compileDebugKotlin` by using the fully-qualified `android.content.Context` type in the `isServiceEnabled` companion method signature.
 
 ---
 

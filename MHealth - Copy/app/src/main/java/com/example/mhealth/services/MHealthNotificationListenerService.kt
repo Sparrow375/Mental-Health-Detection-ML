@@ -38,7 +38,7 @@ class MHealthNotificationListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "MHealth.NLS"
 
-        fun isServiceEnabled(context: Context): Boolean {
+        fun isServiceEnabled(context: android.content.Context): Boolean {
             val pkgName = context.packageName
             val flat = android.provider.Settings.Secure.getString(
                 context.contentResolver,

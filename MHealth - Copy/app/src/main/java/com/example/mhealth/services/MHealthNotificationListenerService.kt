@@ -1,6 +1,5 @@
 package com.example.mhealth.services
 
-import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -38,10 +37,10 @@ class MHealthNotificationListenerService : NotificationListenerService() {
     companion object {
         private const val TAG = "MHealth.NLS"
 
-        fun isServiceEnabled(context: android.content.Context): Boolean {
-            val pkgName = context.packageName
+        fun isServiceEnabled(ctx: android.content.Context): Boolean {
+            val pkgName = ctx.packageName
             val flat = android.provider.Settings.Secure.getString(
-                context.contentResolver,
+                ctx.contentResolver,
                 "enabled_notification_listeners"
             )
             if (!flat.isNullOrEmpty()) {

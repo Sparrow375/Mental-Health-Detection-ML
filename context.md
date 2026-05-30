@@ -286,6 +286,7 @@ The python intelligence engine resides in the Android app source directory:
     6. **Clinician Encrypted Report Sharing**: Implemented `ReportGenerator.kt` using OpenPDF to compile demographic statistics, daily telemetry averages, and diagnostic history. Encrypts the PDF with a patient-specified numeric PIN (`setEncryption`) and opens the Android native Share Sheet alongside a behavioral JSON file via dynamic FileProvider authorities.
 *   **2026-05-30**: Resolved a Kotlin compiler "Unresolved reference 'Context'" compilation error in `MHealthNotificationListenerService.kt` during `:app:compileDebugKotlin` by using the fully-qualified `android.content.Context` type in the `isServiceEnabled` companion method signature.
 *   **2026-05-30**: Resolved multiple Kotlin compiler "Unresolved reference 'Color'" compilation errors in `ReportGenerator.kt` during `:app:compileDebugKotlin` by replacing the stripped/unsupported standard JDK `java.awt.Color` import with OpenPDF's custom Android-supported `com.lowagie.text.Color` import.
+*   **2026-05-30**: Removed the redundant `android.content.Context` import and renamed the `context` parameter to `ctx: android.content.Context` inside `MHealthNotificationListenerService.kt`'s companion method `isServiceEnabled` to completely bypass Kotlin's name resolution shadowing and unresolved reference issues in the build environment.
 
 ---
 

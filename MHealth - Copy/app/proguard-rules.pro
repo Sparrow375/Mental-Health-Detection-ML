@@ -19,3 +19,13 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# ── OpenPDF Android Compatibility ProGuard Rules ─────────────────────────────
+# Ignore AWT platform classes (strips missing class warnings for Font, Geom, etc.)
+-dontwarn java.awt.**
+
+# Ignore Apache FOP classes used for advanced desktop layout and font rendering
+-dontwarn org.apache.fop.**
+
+# Ignore BouncyCastle encryption libraries not present in standard Android classpath
+-dontwarn org.bouncycastle.**

@@ -295,6 +295,7 @@ The python intelligence engine resides in the Android app source directory:
 *   **2026-05-30**: Restored standard, clean `import android.content.Context` and reverted the companion `isServiceEnabled` parameter back to `context: Context` in `MHealthNotificationListenerService.kt` to permanently fix unresolved reference compilation failures across all build variants once and for all.
 *   **2026-05-30**: Removed dangling, orphan braces and try-catch remnants of deleted Firebase sync logic from `MonitoringService.kt` to resolve Kotlin parser syntax and top-level function errors.
 *   **2026-05-30**: Corrected the `today` parameter type in `FirebaseSyncHelper.syncBaseline` signature from `Int` to `String` in both debug and release variants to match `BaselineEntity`'s String format ("yyyy-MM-dd") and resolve argument type mismatch compilation errors.
+*   **2026-05-30**: Configured ProGuard/R8 rules in `proguard-rules.pro` to ignore missing AWT, FOP, and BouncyCastle classes referenced by the OpenPDF library, successfully resolving compilation errors during task `:app:minifyReleaseWithR8` in release builds.
 
 ---
 

@@ -17,6 +17,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
+import java.awt.Color
 
 object ReportGenerator {
 
@@ -109,14 +110,14 @@ object ReportGenerator {
                             put("effectiveScore", a.effectiveScore)
                             put("alertLevel", a.alertLevel)
                             put("evidenceAccumulated", a.evidenceAccumulated)
-                            put("daysSustained", a.daysSustained)
-                            put("primaryClassification", a.primaryClassification)
-                            put("matchConfidence", a.matchConfidence)
-                            put("l2Coherence", a.l2Coherence)
-                            put("l2RhythmDissolution", a.l2RhythmDissolution)
-                            put("l2SessionIncoherence", a.l2SessionIncoherence)
-                            put("lifeEventPreFilterPassed", a.lifeEventPreFilterPassed)
-                            put("narrativeSummary", a.narrativeSummary)
+                            put("daysSustained", a.sustainedDays)
+                            put("primaryClassification", a.prototypeMatch)
+                            put("matchConfidence", a.prototypeConfidence)
+                            put("l2Coherence", a.coherence)
+                            put("l2RhythmDissolution", a.rhythmDissolution)
+                            put("l2SessionIncoherence", a.sessionIncoherence)
+                            put("gateResults", JSONObject(a.gateResults))
+                            put("narrativeSummary", a.anomalyMessage)
                         })
                     }
                     put("analysisResults", analysisArray)
@@ -156,8 +157,8 @@ object ReportGenerator {
                 // Configure Header/Footer
                 val headerText = Phrase("LUMEN BEHAVIOR DIAGNOSTICS REPORT — STICKY ON-DEVICE PRIVACY", bodyMuted)
                 val footerText = Phrase("Lumen decision support insights. Prepared for clinical consultation.", bodyMuted)
-                document.header = HeaderFooter(headerText, false)
-                document.footer = HeaderFooter(footerText, true)
+                document.setHeader(HeaderFooter(headerText, false))
+                document.setFooter(HeaderFooter(footerText, true))
 
                 document.open()
 
@@ -191,7 +192,7 @@ object ReportGenerator {
 
                 // Section 1: Demographics Card
                 val sectionDemographics = Paragraph("1. Patient Profile Details", sectionHeaderFont).apply {
-                    spacingAfter = 8f
+                    setSpacingAfter(8f)
                 }
                 document.add(sectionDemographics)
 
@@ -201,10 +202,10 @@ object ReportGenerator {
                 }
 
                 fun addDemoRow(table: PdfPTable, label1: String, val1: String, label2: String, val2: String) {
-                    table.addCell(PdfPCell(Phrase(label1, subHeaderFont)).apply { grayFill = 0.95f; padding = 6f })
-                    table.addCell(PdfPCell(Phrase(val1, bodyFont)).apply { padding = 6f })
-                    table.addCell(PdfPCell(Phrase(label2, subHeaderFont)).apply { grayFill = 0.95f; padding = 6f })
-                    table.addCell(PdfPCell(Phrase(val2, bodyFont)).apply { padding = 6f })
+                    table.addCell(PdfPCell(Phrase(label1, subHeaderFont)).apply { setGrayFill(0.95f); setPadding(6f) })
+                    table.addCell(PdfPCell(Phrase(val1, bodyFont)).apply { setPadding(6f) })
+                    table.addCell(PdfPCell(Phrase(label2, subHeaderFont)).apply { setGrayFill(0.95f); setPadding(6f) })
+                    table.addCell(PdfPCell(Phrase(val2, bodyFont)).apply { setPadding(6f) })
                 }
 
                 val patientName = profile?.userId?.substringBefore("@")?.replaceFirstChar { it.uppercase() } ?: "Lumen Patient"
@@ -221,7 +222,7 @@ object ReportGenerator {
 
                 // Section 2: Clinical Calibration & Extended Screener
                 val sectionScreener = Paragraph("2. Clinical Baseline Calibration", sectionHeaderFont).apply {
-                    spacingAfter = 8f
+                    setSpacingAfter(8f)
                 }
                 document.add(sectionScreener)
 
@@ -250,21 +251,21 @@ object ReportGenerator {
                 val lifeEvents = DataRepository.recentLifeEventsCount.value
 
                 screenerTable.addCell(PdfPCell().apply {
-                    padding = 8f
+                    setPadding(8f)
                     addElement(Paragraph("PHQ-9 Screener Score", subHeaderFont))
                     addElement(Paragraph("$phqScore / 27", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16f, Color(0, 92, 138))))
                     addElement(Paragraph(phqSeverity, bodyFont))
                 })
                 
                 screenerTable.addCell(PdfPCell().apply {
-                    padding = 8f
+                    setPadding(8f)
                     addElement(Paragraph("GAD-7 Screener Score", subHeaderFont))
                     addElement(Paragraph("$gadScore / 21", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16f, Color(0, 92, 138))))
                     addElement(Paragraph(gadSeverity, bodyFont))
                 })
 
                 screenerTable.addCell(PdfPCell().apply {
-                    padding = 8f
+                    setPadding(8f)
                     addElement(Paragraph("Recent Stressful Events", subHeaderFont))
                     addElement(Paragraph("$lifeEvents Events", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16f, Color(0, 92, 138))))
                     addElement(Paragraph("Last 14-day window", bodyFont))
@@ -277,14 +278,14 @@ object ReportGenerator {
                     "Clinical Threshold Calibration Note: Self-reports showing moderate-to-severe symptoms (Scores >= 10) trigger an automatic safety recalibration of on-device engines. Specifically: (1) System 1 Anomaly Threshold is lowered from 0.38 to 0.32 to enhance passive detection sensitivity, and (2) System 2 Life Event filter window is lengthened to 14 days (from 10) to guard against high-stress transient distortions.",
                     FontFactory.getFont(FontFactory.HELVETICA_OBLIQUE, 8.5f, Color(100, 116, 139))
                 ).apply {
-                    spacingBefore = 6f
+                    setSpacingBefore(6f)
                 }
                 document.add(calibrationNote)
                 document.add(Paragraph(" "))
 
                 // Section 3: Diagnostic Analysis (System 2 Classifications)
                 val sectionDiagnostics = Paragraph("3. On-Device Diagnostic Characterization History", sectionHeaderFont).apply {
-                    spacingAfter = 8f
+                    setSpacingAfter(8f)
                 }
                 document.add(sectionDiagnostics)
 
@@ -298,9 +299,9 @@ object ReportGenerator {
                     val headers = listOf("Date", "Alert Level", "Primary Match", "Match Conf.", "S1 Score", "S2 Status")
                     headers.forEach { h ->
                         table.addCell(PdfPCell(Phrase(h, subHeaderFont)).apply {
-                            grayFill = 0.90f
-                            padding = 6f
-                            horizontalAlignment = Element.ALIGN_CENTER
+                            setGrayFill(0.90f)
+                            setPadding(6f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER)
                         })
                     }
                 }
@@ -309,30 +310,50 @@ object ReportGenerator {
                 val displayList = analysisList.take(15) // Keep it focused on the latest 15 reports
                 if (displayList.isEmpty()) {
                     val emptyCell = PdfPCell(Phrase("No diagnostic reports have been generated yet. (App is still establishing the user's baseline.)", bodyFont)).apply {
-                        colspan = 6
-                        padding = 12f
-                        horizontalAlignment = Element.ALIGN_CENTER
+                        setColspan(6)
+                        setPadding(12f)
+                        setHorizontalAlignment(Element.ALIGN_CENTER)
                     }
                     diagTable.addCell(emptyCell)
                 } else {
                     displayList.forEach { r ->
-                        diagTable.addCell(PdfPCell(Phrase(r.date, bodyFont)).apply { padding = 5f; horizontalAlignment = Element.ALIGN_CENTER })
-                        diagTable.addCell(PdfPCell(Phrase(r.alertLevel.uppercase(), boldBodyFont)).apply { 
-                            padding = 5f
-                            horizontalAlignment = Element.ALIGN_CENTER
-                            val alertColor = when (r.alertLevel.lowercase()) {
-                                "green", "stable" -> Color(45, 212, 191)
-                                "yellow" -> Color(251, 191, 36)
-                                "orange" -> Color(249, 115, 22)
-                                "red" -> Color(251, 113, 133)
-                                else -> Color(15, 23, 42)
-                            }
-                            font = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, alertColor)
+                        diagTable.addCell(PdfPCell(Phrase(r.date, bodyFont)).apply { 
+                            setPadding(5f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER) 
                         })
-                        diagTable.addCell(PdfPCell(Phrase(r.primaryClassification, bodyFont)).apply { padding = 5f })
-                        diagTable.addCell(PdfPCell(Phrase("%.1f%%".format(r.matchConfidence * 100), bodyFont)).apply { padding = 5f; horizontalAlignment = Element.ALIGN_CENTER })
-                        diagTable.addCell(PdfPCell(Phrase("%.3f".format(r.effectiveScore), bodyFont)).apply { padding = 5f; horizontalAlignment = Element.ALIGN_CENTER })
-                        diagTable.addCell(PdfPCell(Phrase(if (r.lifeEventPreFilterPassed) "Matched" else "LE Filtered", bodyFont)).apply { padding = 5f; horizontalAlignment = Element.ALIGN_CENTER })
+                        
+                        val alertColor = when (r.alertLevel.lowercase()) {
+                            "green", "stable" -> Color(45, 212, 191)
+                            "yellow" -> Color(251, 191, 36)
+                            "orange" -> Color(249, 115, 22)
+                            "red" -> Color(251, 113, 133)
+                            else -> Color(15, 23, 42)
+                        }
+                        val alertFont = FontFactory.getFont(FontFactory.HELVETICA_BOLD, 9f, alertColor)
+                        diagTable.addCell(PdfPCell(Phrase(r.alertLevel.uppercase(), alertFont)).apply { 
+                            setPadding(5f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER)
+                        })
+                        
+                        diagTable.addCell(PdfPCell(Phrase(r.prototypeMatch, bodyFont)).apply { 
+                            setPadding(5f) 
+                        })
+                        
+                        diagTable.addCell(PdfPCell(Phrase("%.1f%%".format(r.prototypeConfidence * 100), bodyFont)).apply { 
+                            setPadding(5f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER) 
+                        })
+                        
+                        diagTable.addCell(PdfPCell(Phrase("%.3f".format(r.effectiveScore), bodyFont)).apply { 
+                            setPadding(5f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER) 
+                        })
+                        
+                        val statusLabel = if (r.alertLevel.lowercase() == "green") "Stable" else "Alerted"
+                        diagTable.addCell(PdfPCell(Phrase(statusLabel, bodyFont)).apply { 
+                            setPadding(5f)
+                            setHorizontalAlignment(Element.ALIGN_CENTER) 
+                        })
                     }
                 }
 
@@ -342,13 +363,13 @@ object ReportGenerator {
                 // Section 4: Trend Summaries
                 if (displayList.isNotEmpty()) {
                     val latest = displayList.first()
-                    if (latest.narrativeSummary.isNotEmpty()) {
+                    if (latest.anomalyMessage.isNotEmpty()) {
                         val sectionNarrative = Paragraph("4. Latest Behavior Insights Narrative", sectionHeaderFont).apply {
-                            spacingAfter = 6f
+                            setSpacingAfter(6f)
                         }
                         document.add(sectionNarrative)
-                        val narrativeText = Paragraph(latest.narrativeSummary, bodyFont).apply {
-                            spacingAfter = 14f
+                        val narrativeText = Paragraph(latest.anomalyMessage, bodyFont).apply {
+                            setSpacingAfter(14f)
                         }
                         document.add(narrativeText)
                     }
@@ -356,7 +377,7 @@ object ReportGenerator {
 
                 // Section 5: Telemetry Summary Statistics
                 val sectionStats = Paragraph("5. Behavioral Telemetry Averages (Last 15 Days)", sectionHeaderFont).apply {
-                    spacingAfter = 8f
+                    setSpacingAfter(8f)
                 }
                 document.add(sectionStats)
 
@@ -376,8 +397,8 @@ object ReportGenerator {
                 val avgHome = recentFeatures.map { it.homeTimeRatio }.average().toFloat() * 100
 
                 fun addStatCell(table: PdfPTable, metric: String, value: String) {
-                    table.addCell(PdfPCell(Phrase(metric, bodyFont)).apply { padding = 6f; grayFill = 0.98f })
-                    table.addCell(PdfPCell(Phrase(value, boldBodyFont)).apply { padding = 6f; horizontalAlignment = Element.ALIGN_CENTER })
+                    table.addCell(PdfPCell(Phrase(metric, bodyFont)).apply { setPadding(6f); setGrayFill(0.98f) })
+                    table.addCell(PdfPCell(Phrase(value, boldBodyFont)).apply { setPadding(6f); setHorizontalAlignment(Element.ALIGN_CENTER) })
                 }
 
                 addStatCell(statsTable, "Daily Steps (Avg):", "%,.0f steps".format(avgSteps))
@@ -394,7 +415,7 @@ object ReportGenerator {
 
                 // Section 6: Clinician Disclaimer
                 val disclaimerHeader = Paragraph("Clinical Decision Support Disclaimer", sectionHeaderFont).apply {
-                    spacingAfter = 6f
+                    setSpacingAfter(6f)
                 }
                 document.add(disclaimerHeader)
                 

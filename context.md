@@ -289,6 +289,9 @@ The python intelligence engine resides in the Android app source directory:
 *   **2026-05-30**: Removed the redundant `android.content.Context` import and renamed the `context` parameter to `ctx: android.content.Context` inside `MHealthNotificationListenerService.kt`'s companion method `isServiceEnabled` to completely bypass Kotlin's name resolution shadowing and unresolved reference issues in the build environment.
 *   **2026-05-30**: Created a minimal compatibility stub class `java.awt.Color` in `MHealth - Copy/app/src/main/java/java/awt/Color.java` and reverted the import in `ReportGenerator.kt` back to `java.awt.Color` to resolve OpenPDF library's AWT compilation and runtime dependencies on Android without causing unresolved reference errors.
 *   **2026-05-30**: Created a release-specific `google-services.json` file inside `MHealth - Copy/app/src/release/` configured for the `com.lumen.mhealth` package name to resolve the Google Services Gradle plugin variant package name mismatch and fix the `:app:processReleaseGoogleServices` build task failure.
+*   **2026-05-30**: Moved developer-only diagnostic screen source files `MonitorScreen.kt` and `DnaProfileScreen.kt` from shared `src/main/` to variant-specific `src/debug/`, as they are not used or referenced in the production release variant, resolving multiple release compile unresolved reference errors.
+*   **2026-05-30**: Created a decoupled `FirebaseSyncHelper` class (implemented in `src/debug/` and stubbed out in `src/release/`) and refactored `MonitoringService.kt` to delegate all Firebase sync calls to it, completely isolating Firebase API calls from the main source set and allowing successful release compiles with zero Firebase libraries.
+*   **2026-05-30**: Added the missing `SnapshotStateList` import in the release `MainActivity.kt` to resolve type inference and unresolved reference errors under task `:app:compileReleaseKotlin`.
 
 ---
 

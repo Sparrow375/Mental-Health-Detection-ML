@@ -17,7 +17,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import java.awt.Color
+import com.lowagie.text.Color
 
 object ReportGenerator {
 

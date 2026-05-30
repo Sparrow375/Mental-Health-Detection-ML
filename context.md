@@ -285,6 +285,7 @@ The python intelligence engine resides in the Android app source directory:
     5. **Onboarding & Weekly Screener Wizards**: Built beautiful multi-step questionnaire wizards covering demographics, GPS home location, PHQ-9 (9 items), GAD-7 (7 items), and Stressful Life Events, binding scores directly to SharedPreferences to prevent Room schema migrations, and calibrating threshold sensitivities dynamically (standard 0.38 vs high-sensitivity 0.32 under symptoms).
     6. **Clinician Encrypted Report Sharing**: Implemented `ReportGenerator.kt` using OpenPDF to compile demographic statistics, daily telemetry averages, and diagnostic history. Encrypts the PDF with a patient-specified numeric PIN (`setEncryption`) and opens the Android native Share Sheet alongside a behavioral JSON file via dynamic FileProvider authorities.
 *   **2026-05-30**: Resolved a Kotlin compiler "Unresolved reference 'Context'" compilation error in `MHealthNotificationListenerService.kt` during `:app:compileDebugKotlin` by using the fully-qualified `android.content.Context` type in the `isServiceEnabled` companion method signature.
+*   **2026-05-30**: Resolved multiple Kotlin compiler "Unresolved reference 'Color'" compilation errors in `ReportGenerator.kt` during `:app:compileDebugKotlin` by replacing the stripped/unsupported standard JDK `java.awt.Color` import with OpenPDF's custom Android-supported `com.lowagie.text.Color` import.
 
 ---
 

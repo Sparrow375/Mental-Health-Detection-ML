@@ -142,6 +142,7 @@ def meanshift_clustering(data: np.ndarray, bandwidth: float = None) -> List[Tupl
     
     if bandwidth is None:
         n_neighbors = int(n * 0.3)
+        n_neighbors = max(n_neighbors, min(n - 1, 4))
         if n_neighbors < 1:
             n_neighbors = 1
         

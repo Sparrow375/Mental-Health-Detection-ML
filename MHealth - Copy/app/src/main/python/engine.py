@@ -54,6 +54,7 @@ def run_analysis(json_string: str) -> str:
         contaminated = data.get("baseline_contaminated", False)
         day_number   = data.get("day_number", 0)
         historical_scores = data.get("historical_anomaly_scores", [])
+        historical_l2_modifiers = data.get("historical_l2_modifiers", [])
         is_provisional = data.get("is_provisional", False)
 
         # Onboarding self-report calibration metrics
@@ -219,10 +220,14 @@ def run_analysis(json_string: str) -> str:
               f"replaying {len(monitoring_history)} days (skipping "
               f"{len(history) - len(monitoring_history)} baseline days)")
         for idx, h in enumerate(monitoring_history):
+            hist_l2 = None
+            if idx < len(historical_l2_modifiers):
+                hist_l2 = float(historical_l2_modifiers[idx])
             s1_report_h, _ = s1.analyze(
                 h,
                 deviations_history=list(deviations_history),
                 day_number=history_start_day + idx,
+                l2_modifier=hist_l2,
             )
             deviations_history.append(s1_report_h.feature_deviations)
 

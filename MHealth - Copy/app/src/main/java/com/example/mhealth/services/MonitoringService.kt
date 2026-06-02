@@ -923,10 +923,10 @@ class MonitoringService : Service() {
                     .filter { it.date != todayStr }
                     .sortedBy { it.date }
                 
-                // 3. Load historical anomaly scores
-                val historicalScores = db.analysisResultDao().getLatestN(userId, 14)
-                    .reversed()
-                    .map { it.anomalyScore }
+                // 3. Load historical anomaly scores and L2 modifiers
+                val historicalResults = db.analysisResultDao().getLatestN(userId, 14).reversed()
+                val historicalScores = historicalResults.map { it.effectiveScore }
+                val historicalL2Modifiers = historicalResults.map { it.l2Modifier }
                 
                 // 4. Calculate day number
                 val priorAnalysisCount = db.analysisResultDao().count(userId)
@@ -957,6 +957,12 @@ class MonitoringService : Service() {
                     val scoresArray = org.json.JSONArray()
                     historicalScores.forEach { scoresArray.put(it.toDouble()) }
                     root.put("historical_anomaly_scores", scoresArray)
+                }
+                
+                if (historicalL2Modifiers.isNotEmpty()) {
+                    val l2ModifiersArray = org.json.JSONArray()
+                    historicalL2Modifiers.forEach { l2ModifiersArray.put(it.toDouble()) }
+                    root.put("historical_l2_modifiers", l2ModifiersArray)
                 }
                 
                 // 7. Inject sessions

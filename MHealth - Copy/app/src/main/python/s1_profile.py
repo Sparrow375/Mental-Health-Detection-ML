@@ -101,6 +101,7 @@ def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
     # Bandwidth estimation using quantile=0.3
     if bandwidth is None:
         n_neighbors = int(n * 0.3)  # quantile 0.3 matching successful branch
+        n_neighbors = max(n_neighbors, min(n - 1, 4))
         if n_neighbors < 1:
             n_neighbors = 1
         
@@ -108,7 +109,7 @@ def _meanshift(data: np.ndarray, bandwidth: float = None) -> list:
         sorted_dists = np.sort(pairwise, axis=1)
         kth_dists = sorted_dists[:, n_neighbors - 1]
         bandwidth = float(np.median(kth_dists))
-        print(f"  [MeanShift] Auto bandwidth={bandwidth:.4f} (sklearn-aligned, quantile=0.3)")
+        print(f"  [MeanShift] Auto bandwidth={bandwidth:.4f} (sklearn-aligned, quantile=0.3, neighbors={n_neighbors})")
     if bandwidth <= 0:
         bandwidth = 1.0
 

@@ -304,6 +304,7 @@ The python intelligence engine resides in the Android app source directory:
     1. **`alertColorForLevel` Fix**: Re-introduced the helper function mapping alert strings ("green", "yellow", "orange", "red") to custom theme Colors inside release `MainActivity.kt`.
     2. **`PathEffect` Fix**: Added the missing `import androidx.compose.ui.graphics.PathEffect` to resolve dashed Canvas layout rendering.
     3. **`lifecycleScope` Fix**: Ensured the target Context is cast to `ComponentActivity` inside `exportDataToUri()` before fetching lifecycle scopes.
+*   **2026-06-02**: Resolved Mean-Shift bandwidth over-segmentation on small datasets by applying a neighborhood floor `max(n_neighbors, min(n - 1, 4))` in both `s1_profile.py` and `validation/simulation_engine.py`. Fixed the historical L2 modifiers replay false alarm bug by loading and passing historical L2 modifiers and effective scores from Room in `MonitoringService.kt` and `NightlyAnalysisWorker.kt` into the Python engine replay loop in `engine.py`.
 
 ---
 

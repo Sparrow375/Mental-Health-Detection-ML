@@ -167,10 +167,10 @@ class NightlyAnalysisWorker(
                 .filter { it.date != targetDate }   // exclude the analysis day from history
                 .sortedBy { it.date }           // oldest first
 
-            // ── 3b. Fetch historical anomaly scores (for pattern detection) ─────
-            val historicalScores = db.analysisResultDao().getLatestN(userId, 14)
-                .reversed()  // oldest first
-                .map { it.anomalyScore }
+            // ── 3b. Fetch historical anomaly scores and L2 modifiers (for pattern detection and correct replay) ─────
+            val historicalResults = db.analysisResultDao().getLatestN(userId, 14).reversed()
+            val historicalScores = historicalResults.map { it.effectiveScore }
+            val historicalL2Modifiers = historicalResults.map { it.l2Modifier }
 
             // ── 4. Build JSON input ────────────────────────────────────────────
             // dayNumber = count of existing analysis results + 1 (monitoring days only,
@@ -191,7 +191,8 @@ class NightlyAnalysisWorker(
                 dayNumber = dayNumber,
                 contaminated = profileEntity?.baselineContaminated ?: false,
                 gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}",
-                historicalScores = historicalScores
+                historicalScores = historicalScores,
+                historicalL2Modifiers = historicalL2Modifiers
             )
 
             // ── 4b. Inject session data, existing profile, and identifiers ──────
@@ -402,13 +403,14 @@ class NightlyAnalysisWorker(
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Injects day_number, gate_state, baseline_contaminated, and historical anomaly scores into JSON. */
+    /** Injects day_number, gate_state, baseline_contaminated, historical anomaly scores, and L2 modifiers into JSON. */
     private fun injectMetadata(
         inputJson: String,
         dayNumber: Int,
         contaminated: Boolean,
         gateResultsJson: String,
-        historicalScores: List<Float> = emptyList()
+        historicalScores: List<Float> = emptyList(),
+        historicalL2Modifiers: List<Float> = emptyList()
     ): String {
         return try {
             val obj = org.json.JSONObject(inputJson)
@@ -427,6 +429,13 @@ class NightlyAnalysisWorker(
                 val scoresArray = org.json.JSONArray()
                 historicalScores.forEach { scoresArray.put(it.toDouble()) }
                 obj.put("historical_anomaly_scores", scoresArray)
+            }
+
+            // Add historical L2 modifiers for correct fast-forward replay
+            if (historicalL2Modifiers.isNotEmpty()) {
+                val l2ModifiersArray = org.json.JSONArray()
+                historicalL2Modifiers.forEach { l2ModifiersArray.put(it.toDouble()) }
+                obj.put("historical_l2_modifiers", l2ModifiersArray)
             }
 
             obj.toString()

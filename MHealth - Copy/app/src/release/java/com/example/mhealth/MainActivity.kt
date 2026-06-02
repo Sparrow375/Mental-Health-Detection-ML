@@ -2650,7 +2650,7 @@ fun ToggleRow(title: String, subtitle: String, checked: Boolean, color: Color, o
 @Composable
 fun InfoCard(
     title: String,
-    headerColor: Color = OceanBlue,
+    headerColor: Color = TealAccent,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {

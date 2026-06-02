@@ -1,0 +1,68 @@
+MHEALTH: TECHNICAL & CLINICAL ARCHITECTURE BRIEFING
+A Privacy-First, Edge-ML Early Warning System for Psychiatric Care
+===================================================================
+
+1. ARCHITECTURAL PHILOSOPHY: EDGE-ML & PRIVACY-BY-DESIGN
+--------------------------------------------------------
+MHealth is designed from the ground up as a 100% on-device, passive decision-support tool. To establish absolute patient trust and bypass surveillance concerns, the architecture follows a strict Edge-ML paradigm:
+
+- On-Device Processing: Raw behavioral logs (GPS transitions, call frequencies, and typing mechanics) are processed locally inside the Android app using an embedded Python engine (Chaquopy).
+- Zero Raw Cloud Storage: No raw sensor data or message content ever leaves the phone.
+- Privacy-Stripped Clinician Sync: Only aggregated daily anomaly indicators and high-level clinical prototype classifications are securely synced to the Clinician Dashboard (Firestore).
+
+
+2. THE VERTICAL-HORIZONTAL SYSTEM ARCHITECTURE
+-----------------------------------------------
+The MHealth system operates via a vertical-horizontal matrix layout structured as follows:
+
+   [ 1. PASSIVE EDGE SENSING ]
+   Silently collects 31 low-level behavioral telemetry features (Android Kotlin)
+                 │
+                 ▼
+   [ 2. ON-DEVICE ENGINE (Chaquopy) ]
+   Runs local mathematical models entirely in volatile RAM (embedded Python)
+                 │
+                 ▼
+      ┌──────────┴──────────┐
+      ▼                     ▼
+  [ SYSTEM 1: DETECTOR ]  [ SYSTEM 2: DIAGNOSTIC TRIAGE ]
+  - Learns "Personal DNA"  - Filters situational stress
+  - Tracks deviations      - Matches geometric prototypes
+  - Accumulates evidence   - Overrides clinical guardrails
+      └──────────┬──────────┘
+                 │ (Aggregation & Privacy Stripping)
+                 ▼
+    [ 3. CDSS CLINICIAN DASHBOARD ]
+    Visualizes timelines, radar charts, and trend insights safely
+
+Horizontal Strata (The Platform Layers):
+- Passive Edge Sensing (Kotlin Android): Silently gathers 31 daily telemetry features (social apps ratio, spatial entropy, sleep duration, touch dynamics) debounced to protect battery life.
+- Edge Execution Middleware (Chaquopy Python): Automatically triggers nightly analysis via background workers, passing telemetry to the local machine-learning models.
+- Encrypted Datastore (Android Room DB): Caches behavior signatures, personal baselines, and historical daily scores securely on-device.
+
+
+3. THE DUAL-SYSTEM ANALYTICS ARCHITECTURE
+-----------------------------------------
+The core ML pipeline is divided into two distinct logical systems:
+
+System 1: The Daily Anomaly Detector (Answering "Is there a change?")
+To prevent alert fatigue and account for highly unique lifestyles, System 1 builds a personalized baseline:
+- "Digital DNA" Baseline (Days 1-28): Builds a profile of the patient's standard behavioral routine (e.g., separating "Standard Workdays" from "Lazy Weekends") using localized dimensionality reduction and clustering models.
+- Surface Scorer (Layer 1): Monitors standard deviations (Z-scores) in daily activity, sleep, and social interactions, applying Asymmetric Directional Dampening (meaning positive routine improvements are ignored, while deterioration is fully measured).
+- Context Scorer (Layer 2): Suppresses alerts on familiar routine variations, while dynamically adapting to permanent healthy lifestyle changes (e.g., a new job) via a 7-Day Candidate Window.
+- Sustained Evidence Accumulator: Pauses alerts on transient "off days," compounding scores exponentially only when a deviation is sustained over 3+ consecutive days.
+
+System 2: Clinical Characterization Pipeline (Answering "What does it look like?")
+Triggered only when System 1 detects a sustained anomaly, System 2 routes the deviation through a 4-phase triage:
+- Life Event Filter: Screens out and dismisses temporary, acute stressors (e.g., travel or exams).
+- Geometric Prototype Matcher: Compares the active deviation shape against validated clinical prototypes of Major Depression, Bipolar (Manic/Depressive), Psychosis, and Severe Anxiety using directional vector similarity.
+- Clinical Guardrails: Hard-coded clinical rules overwrite the models in high-risk scenarios (e.g., forcing a Severe Depression match if acute social withdrawal and spatial immobility co-occur).
+- Temporal Shape Validator: Examines the 60-day trend line of anomalies to validate the clinical pattern (e.g., monotonic drift signals Depression; oscillating frequencies confirm Bipolar cycling; chaotic fluctuations confirm Psychotic prodrome).
+
+
+4. CLINICIAN DECISION SUPPORT (CDSS)
+------------------------------------
+The final architectural layer syncs privacy-stripped daily aggregates to a secure clinician dashboard, mapping the long-term passive telemetry into:
+- Longitudinal Timelines: Replaces unreliable retrospective patient recall with objective, daily behavioral tracking.
+- Feature Deviation Radar Charts: Instantly visualizes which RDoC domains (social, circadian, motor, cognitive) are driving the active episode.
+- Proactive Treatment Auditing: Tracks objectively if starting a new medication or therapeutic protocol is successfully pulling the patient's behavioral indicators back to their healthy "Personal DNA" baseline.

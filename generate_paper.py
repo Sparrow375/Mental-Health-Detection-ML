@@ -675,12 +675,13 @@ def build_document(image_path):
     add_body(doc,
         "A 12-feature subset of the PersonalityVector — selected for clinical sensitivity to "
         "behavioral state change — is used to discover the user's distinct behavioral archetypes "
-        "via DBSCAN with Mahalanobis distance. The epsilon radius is auto-determined per user "
-        "using the k-distance elbow method rather than a fixed global value. Most users exhibit "
-        "two to four archetypes: a weekday routine, a weekend routine, and occasionally a "
-        "recognizably different state such as exam-period behavior or vacation patterns. Each "
-        "discovered archetype is represented by its centroid, covariance matrix, and membership "
-        "radius — the data structures used for context coherence scoring during monitoring.",
+        "via a symmetrical Clinical-Weighted PCA + Mean-Shift clustering pipeline. The density "
+        "bandwidth is auto-estimated using a 30th percentile quantile distance (quantile=0.3) of the "
+        "pairwise distances in the PCA-projected subspace. Most users exhibit two to four "
+        "archetypes: a weekday routine, a weekend routine, and occasionally a recognizably different "
+        "state such as exam-period behavior or vacation patterns. Each discovered archetype is "
+        "represented by its centroid and membership radius — the data structures used for context "
+        "coherence scoring during monitoring.",
         indent=0.3
     )
 
@@ -693,12 +694,12 @@ def build_document(image_path):
 
     add_body(doc, "L2 Texture Profiles.")
     add_body(doc,
-        "For each discovered DBSCAN archetype, a 22-dimensional micro-behavioral texture profile "
-        "is constructed from session and notification events. If an archetype has ten or more "
-        "member days, K-means sub-clustering (K ∈ {2, 3}, selected by silhouette score) is "
-        "applied to reveal internal structure. Smaller archetypes fall back to mean and standard "
-        "deviation bounds. These texture profiles define what healthy phone engagement looks like "
-        "within each behavioral context.",
+        "For each discovered archetype, a 22-dimensional micro-behavioral texture profile is "
+        "constructed from session and notification events. The system also runs L2 PCA + Mean-Shift "
+        "clustering independently on the daily sessions DNA features to discover distinct micro-behavioral "
+        "sub-archetypes, falling back to a global profile under sparse data conditions. These "
+        "texture profiles define what healthy phone engagement looks like within each behavioral "
+        "context.",
         indent=0.3
     )
 
@@ -1120,7 +1121,7 @@ def build_document(image_path):
     )
     add_body(doc,
         "These results represent a major engineering and clinical milestone. By leveraging personalized "
-        "z-scoring and context-gated DBSCAN clusters, the system successfully filters daily lifestyle noise "
+        "z-scoring and context-gated Mean-Shift clusters, the system successfully filters daily lifestyle noise "
         "and isolates genuine longitudinal behavioral changes. A high specificity of 80.7% is particularly vital "
         "for mobile health apps, as it directly mitigates the risk of alert fatigue. We emphasize that this "
         "empirical validation, while highly encouraging, highlights the deep validation gap in the digital phenotyping "
@@ -1346,8 +1347,8 @@ def build_document(image_path):
         "  1.  pv         ←  compute_mean_std(daily_features, 30 features)          [freeze μ, σ per feature]",
         "  2.  app_dna    ←  build_app_dna(session_events)                           [per-app 7×24 heatmap + stats]",
         "  3.  phone_dna  ←  build_phone_dna(session_events)                         [device-level rhythm]",
-        "  4.  clusters   ←  DBSCAN(12-feature subset, Mahalanobis, auto-ε)          [archetype discovery]",
-        "  5.  texture    ←  KMeans_per_archetype(L2 vectors, K ∈ {2,3})             [sub-cluster texture]",
+        "  4.  clusters   ←  MeanShift(L1-PCA subset, auto-bandwidth)                [L1 archetype discovery]",
+        "  5.  texture    ←  MeanShift(L2-PCA sessions, auto-bandwidth)              [L2 micro archetype discovery]",
         "  6.  thresholds ←  calibrate_detector(baseline_noise, mean_score)          [adaptive ceiling]",
         "  RETURN (pv, app_dna, phone_dna, clusters, texture, thresholds)",
     ])

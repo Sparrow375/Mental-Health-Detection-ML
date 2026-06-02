@@ -3106,7 +3106,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .padding(vertical = 8.dp)
                         ) {
                             Column(Modifier.weight(1f)) {
-                                text = "Weekly Screening Reminders"
                                 Text("Weekly Screening Reminders", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 Text("Remind me to complete weekly checks.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.6f))
                             }

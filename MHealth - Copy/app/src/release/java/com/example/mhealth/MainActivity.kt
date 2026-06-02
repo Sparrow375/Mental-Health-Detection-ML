@@ -5,7 +5,9 @@ import android.app.Activity
 import android.app.AppOpsManager
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -26,7 +28,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -46,6 +47,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -55,6 +57,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.lifecycleScope
 import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.AnalysisResultEntity
@@ -64,19 +67,18 @@ import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.services.MHealthAccessibilityService
 import com.example.mhealth.services.MHealthNotificationListenerService
-import com.example.mhealth.ui.charts.*
-import com.example.mhealth.ui.theme.*
+import com.example.mhealth.ui.theme.Typography
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.*
-import kotlin.math.PI
-import kotlin.math.cos
-import kotlin.math.sin
+import kotlin.math.roundToInt
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -87,15 +89,13 @@ class MainActivity : ComponentActivity() {
         DataRepository.init(applicationContext)
         
         setContent {
-            CoveTheme {
-                LumenAppShell()
-            }
+            LumenAppShell()
         }
     }
 }
 
 // =============================================================================
-// Fredoka Premium Rounded Typography
+// Premium Typography & Color Palettes
 // =============================================================================
 val Fredoka = FontFamily(
     Font(R.font.fredoka, FontWeight.Normal),
@@ -104,14 +104,89 @@ val Fredoka = FontFamily(
     Font(R.font.fredoka, FontWeight.SemiBold)
 )
 
+// Calming Premium Theme colors
+val NavyBackground = Color(0xFF0D1117)
+val NavySurface = Color(0xFF161B22)
+val NavyCard = Color(0xFF21262D)
+val TealAccent = Color(0xFF2DD4BF)
+val TealDark = Color(0xFF14B8A6)
+val GrayTextPrimary = Color(0xFFE8EDF2)
+val GrayTextSecondary = Color(0xFF8B9BB4)
+val AlertWarning = Color(0xFFF59E0B)
+val AlertRose = Color(0xFFF43F5E)
+
+@Composable
+fun LumenTheme(
+    themeMode: String = "dark",
+    content: @Composable () -> Unit
+) {
+    val darkTheme = when (themeMode) {
+        "light" -> false
+        "dark" -> true
+        else -> isSystemInDarkTheme()
+    }
+    
+    val colorScheme = if (darkTheme) {
+        darkColorScheme(
+            primary = TealAccent,
+            onPrimary = Color.Black,
+            primaryContainer = NavySurface,
+            onPrimaryContainer = GrayTextPrimary,
+            secondary = TealDark,
+            onSecondary = Color.White,
+            background = NavyBackground,
+            onBackground = GrayTextPrimary,
+            surface = NavySurface,
+            onSurface = GrayTextPrimary,
+            surfaceVariant = NavyCard,
+            onSurfaceVariant = GrayTextSecondary,
+            outline = Color(0xFF30363D),
+            error = AlertRose,
+            onError = Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = Color(0xFF0D9488),
+            onPrimary = Color.White,
+            primaryContainer = Color(0xFFCCFBF1),
+            onPrimaryContainer = Color(0xFF0F172A),
+            secondary = Color(0xFF14B8A6),
+            onSecondary = Color.White,
+            background = Color(0xFFF6FAF9),
+            onBackground = Color(0xFF0F172A),
+            surface = Color.White,
+            onSurface = Color(0xFF0F172A),
+            surfaceVariant = Color(0xFFE2E8F0),
+            onSurfaceVariant = Color(0xFF64748B),
+            outline = Color(0xFFCBD5E1),
+            error = Color(0xFFE11D48),
+            onError = Color.White
+        )
+    }
+
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.background.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
+    }
+
+    MaterialTheme(
+        colorScheme = colorScheme,
+        typography = Typography,
+        content = content
+    )
+}
+
 // =============================================================================
-// App Navigation & Layout
+// App Shell & Navigation skeleton
 // =============================================================================
 enum class LumenDest(val label: String, val icon: ImageVector) {
-    HOME("Sensors", Icons.Default.Sensors),
-    MONITOR("Monitor", Icons.AutoMirrored.Filled.ShowChart),
-    ANALYSIS("Analysis", Icons.Default.Analytics),
-    INSIGHTS("Insights", Icons.Default.Lightbulb),
+    HOME("Home", Icons.Default.Home),
+    INSIGHTS("Insights", Icons.Default.Timeline),
+    CHECKIN("Check In", Icons.Default.Favorite),
     SETTINGS("Settings", Icons.Default.Settings)
 }
 
@@ -122,24 +197,1677 @@ enum class LumenNavState {
 
 @Composable
 fun LumenAppShell() {
+    val ctx = LocalContext.current
     val firstLoginComplete by DataRepository.firstLoginComplete.collectAsState()
     
+    val prefs = remember(ctx) { ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    var themeMode by remember { mutableStateOf(prefs.getString("app_theme_mode", "dark") ?: "dark") }
+    
+    // Reactive Theme preferences listener
+    val listener = remember {
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "app_theme_mode") {
+                themeMode = prefs.getString("app_theme_mode", "dark") ?: "dark"
+            }
+        }
+    }
+    
+    DisposableEffect(prefs) {
+        prefs.registerOnSharedPreferenceChangeListener(listener)
+        onDispose { prefs.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
     var appState by remember {
         mutableStateOf(
             if (DataRepository.firstLoginComplete.value) LumenNavState.DASHBOARD else LumenNavState.ONBOARDING
         )
     }
 
-    when (appState) {
-        LumenNavState.ONBOARDING -> OnboardingWizard(onComplete = {
-            appState = LumenNavState.DASHBOARD
-        })
-        LumenNavState.DASHBOARD -> MainLumenDashboard()
+    LaunchedEffect(firstLoginComplete) {
+        appState = if (firstLoginComplete) LumenNavState.DASHBOARD else LumenNavState.ONBOARDING
+    }
+
+    LumenTheme(themeMode = themeMode) {
+        when (appState) {
+            LumenNavState.ONBOARDING -> OnboardingWizard(onComplete = {
+                appState = LumenNavState.DASHBOARD
+            })
+            LumenNavState.DASHBOARD -> MainLumenDashboard()
+        }
+    }
+}
+
+@Composable
+fun MainLumenDashboard() {
+    var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
+    val context = LocalContext.current
+    
+    val perms = buildList {
+        addAll(listOf(
+            Manifest.permission.READ_CALL_LOG,
+            Manifest.permission.READ_CONTACTS, 
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION, 
+            Manifest.permission.READ_CALENDAR
+        ))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            add(Manifest.permission.POST_NOTIFICATIONS)
+            add(Manifest.permission.READ_MEDIA_IMAGES)
+            add(Manifest.permission.READ_MEDIA_VIDEO)
+        } else {
+            add(Manifest.permission.READ_EXTERNAL_STORAGE)
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            add(Manifest.permission.ACTIVITY_RECOGNITION)
+        }
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        startMonitoringService(context)
+    }
+
+    LaunchedEffect(Unit) {
+        DataRepository.initWithDb(context.applicationContext, "patient@lumen.health")
+        launcher.launch(perms.toTypedArray())
+    }
+
+    Scaffold(
+        bottomBar = {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+                LumenDest.entries.forEach { dest ->
+                    val isSelected = selectedTab == dest
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = { selectedTab = dest },
+                        icon = { Icon(dest.icon, contentDescription = dest.label) },
+                        label = { Text(dest.label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, fontFamily = Fredoka) },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = MaterialTheme.colorScheme.primary,
+                            selectedTextColor = MaterialTheme.colorScheme.primary,
+                            unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                        )
+                    )
+                }
+            }
+        }
+    ) { innerPadding ->
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            AnimatedContent(
+                targetState = selectedTab,
+                transitionSpec = {
+                    if (targetState.ordinal > initialState.ordinal) {
+                        (slideInHorizontally { width -> width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> -width } + fadeOut()
+                        )
+                    } else {
+                        (slideInHorizontally { width -> -width } + fadeIn()).togetherWith(
+                            slideOutHorizontally { width -> width } + fadeOut()
+                        )
+                    }
+                },
+                label = "TabTransition"
+            ) { targetTab ->
+                when (targetTab) {
+                    LumenDest.HOME -> HomeScreen(onNavigateToCheckIn = { selectedTab = LumenDest.CHECKIN })
+                    LumenDest.INSIGHTS -> InsightsScreen()
+                    LumenDest.CHECKIN -> CheckInScreen()
+                    LumenDest.SETTINGS -> SettingsScreen()
+                }
+            }
+        }
     }
 }
 
 // =============================================================================
-// Onboarding Wizard (Profile + GPS + Screeners + Calibration)
+// Home Screen Composable
+// =============================================================================
+@Composable
+fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
+    val context = LocalContext.current
+    val userProfile by DataRepository.userProfile.collectAsState()
+    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
+    val provisional by DataRepository.provisionalAnalysis.collectAsState()
+    val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
+    
+    val activeResult = provisional ?: latestResult
+    val score = activeResult?.effectiveScore ?: -1f
+    
+    val name = userProfile?.name ?: ""
+    val greeting = getGreeting()
+    
+    val statusText = when {
+        isBuilding -> "Getting to know your rhythms..."
+        score < 0f -> "Getting to know your rhythms..."
+        score < 0.25f -> "Your routines feel steady this week."
+        score < 0.38f -> "Your rhythms look mostly balanced."
+        score < 0.50f -> "A few patterns feel slightly off this week."
+        else -> "Some changes detected. A check-in might help."
+    }
+    
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    val activeStreak = remember(prefs) { getActiveStreak(prefs) }
+    
+    val animatedStreak by animateIntAsState(
+        targetValue = activeStreak,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "StreakAnimation"
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        item {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = if (name.isNotBlank()) "$greeting, $name." else "$greeting.",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = SimpleDateFormat("EEEE, MMMM d", Locale.getDefault()).format(Date()),
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+        
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CalmLotusPulse()
+            }
+        }
+        
+        item {
+            Text(
+                text = statusText,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Medium,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+        
+        item {
+            StaggeredFadeIn(index = 1) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("🔥", fontSize = 24.sp)
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = if (animatedStreak > 0) "$animatedStreak-Day Check-in Streak" else "Start a New Streak",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = if (animatedStreak > 0) "You're building healthy habits." else "Complete a daily check-in to start.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        item {
+            StaggeredFadeIn(index = 2) {
+                Card(
+                    onClick = onNavigateToCheckIn,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(0.15f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Favorite,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "How are you feeling today?",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Take 30 seconds to log your current state.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun CalmLotusPulse(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "LotusPulse")
+    
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.96f,
+        targetValue = 1.04f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "LotusScale"
+    )
+    
+    val rippleRadius1 by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Ripple1"
+    )
+    val rippleAlpha1 by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "RippleAlpha1"
+    )
+
+    val rippleRadius2 by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 1.6f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, delayMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "Ripple2"
+    )
+    val rippleAlpha2 by infiniteTransition.animateFloat(
+        initialValue = 0.4f,
+        targetValue = 0.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 3000, delayMillis = 1500, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "RippleAlpha2"
+    )
+
+    val primaryColor = MaterialTheme.colorScheme.primary
+
+    Box(
+        modifier = modifier.size(200.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val center = Offset(size.width / 2, size.height / 2)
+            val baseRadius = 80.dp.toPx()
+            
+            drawCircle(
+                color = primaryColor,
+                radius = baseRadius * rippleRadius1,
+                center = center,
+                alpha = rippleAlpha1,
+                style = Stroke(width = 2.dp.toPx())
+            )
+            
+            drawCircle(
+                color = primaryColor,
+                radius = baseRadius * rippleRadius2,
+                center = center,
+                alpha = rippleAlpha2,
+                style = Stroke(width = 2.dp.toPx())
+            )
+        }
+        
+        Box(
+            modifier = Modifier
+                .size(110.dp)
+                .scale(scale)
+                .clip(CircleShape)
+                .background(
+                    Brush.radialGradient(
+                        colors = listOf(
+                            primaryColor.copy(alpha = 0.25f),
+                            primaryColor.copy(alpha = 0.05f)
+                        )
+                    )
+                )
+                .border(2.dp, primaryColor.copy(alpha = 0.6f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Default.Spa,
+                contentDescription = null,
+                tint = primaryColor,
+                modifier = Modifier.size(48.dp)
+            )
+        }
+    }
+}
+
+// =============================================================================
+// Insights Screen Composable
+// =============================================================================
+@Composable
+fun InsightsScreen() {
+    val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
+    val baseline by DataRepository.baseline.collectAsState()
+    val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
+    val context = LocalContext.current
+    
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    val showInsights = isDnaReady && weeklyFeatures.isNotEmpty() && baseline != null
+    
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Your Rhythms",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "A gentle look at how your week has been flowing",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+        
+        if (!showInsights) {
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 48.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
+                        Text(
+                            text = "Lumen is still learning your patterns. Check back after a few days.",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                    }
+                }
+            }
+        } else {
+            val latest = weeklyFeatures.lastOrNull()
+            val base = baseline
+            
+            if (latest != null && base != null) {
+                // 1. Mood Trend Card
+                val avgMood = getWeeklyCheckinAverageMood(prefs)
+                if (avgMood > 0f) {
+                    item {
+                        StaggeredFadeIn(index = 0) {
+                            val moodMsg = when {
+                                avgMood >= 4.0f -> "Your mood has been consistently positive this week."
+                                avgMood >= 3.0f -> "Your mood has been mostly stable this week."
+                                else -> "Your mood has been on the lower side this week. Remember to take things slow."
+                            }
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.05f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.1f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🌟", fontSize = 24.sp)
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
+                                        Text(
+                                            text = "Weekly Mood: %.1f / 5".format(avgMood),
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = moodMsg,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 2. Sparkline Trend Chart
+                item {
+                    StaggeredFadeIn(index = 1) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Text(
+                                    text = "Rhythm Consistency",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "A rolling depiction of routine adherence. A stable, flat trend highlights healthy routine consistency.",
+                                    fontSize = 11.5.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
+                                )
+                                
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(100.dp)
+                                ) {
+                                    QualitativeTrendChart(weeklyFeatures)
+                                }
+                                
+                                Spacer(Modifier.height(8.dp))
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("Previous 7 Days", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("Today", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // 3. 4 Qualitative Insight Cards
+                
+                // Sleep Card
+                item {
+                    val sleepDiff = latest.sleepDurationHours - base.sleepDurationHours
+                    val badgeText = when {
+                        sleepDiff > 1.5f -> "Elongated"
+                        sleepDiff < -1.5f -> "Contracted"
+                        else -> "Balanced"
+                    }
+                    val badgeColor = when {
+                        Math.abs(sleepDiff) > 1.5f -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        sleepDiff > 1.5f -> "Your sleep duration is significantly longer than your typical baseline. This might represent vegetative hypersomnia or a withdrawal state."
+                        sleepDiff < -1.5f -> "Your sleep cycle is compressed. Restricting rest or waking too early can decay cognitive resilience."
+                        else -> "Sleep durations and DND silent gaps are stable, demonstrating strong circular time consistency."
+                    }
+                    
+                    StaggeredFadeIn(index = 2) {
+                        QualitativeInsightCard(
+                            title = "Sleep & Circadian Alignment",
+                            icon = Icons.Default.NightsStay,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc
+                        )
+                    }
+                }
+                
+                // Movement Card
+                item {
+                    val stepRatio = if (base.dailyStepCount > 0) latest.dailyStepCount / base.dailyStepCount else 1.0f
+                    val dispRatio = if (base.dailyDisplacementKm > 0) latest.dailyDisplacementKm / base.dailyDisplacementKm else 1.0f
+                    val activeRatio = if (base.dailyStepCount > 0) stepRatio else dispRatio
+                    
+                    val badgeText = when {
+                        activeRatio < 0.6f -> "Reduced"
+                        activeRatio > 1.4f -> "Elevated"
+                        else -> "Stable"
+                    }
+                    val badgeColor = when {
+                        activeRatio < 0.6f -> MaterialTheme.colorScheme.error
+                        activeRatio > 1.4f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        activeRatio < 0.6f -> "Physical activity is notably lower than your locked routine. Consider introducing small active windows to promote circulation."
+                        activeRatio > 1.4f -> "Physical activity is highly elevated. Active pacing or energetic exercise has been registered."
+                        else -> "Mobility levels and physical tracking features match your standard behavior metrics."
+                    }
+                    
+                    StaggeredFadeIn(index = 3) {
+                        QualitativeInsightCard(
+                            title = "Physical Mobility",
+                            icon = Icons.Default.DirectionsRun,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc
+                        )
+                    }
+                }
+                
+                // Social Card
+                item {
+                    val callDiff = latest.callsPerDay - base.callsPerDay
+                    val badgeText = when {
+                        callDiff < -2.0f -> "Low Engagement"
+                        else -> "Stable Outbound"
+                    }
+                    val badgeColor = when {
+                        callDiff < -2.0f -> MaterialTheme.colorScheme.error
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        callDiff < -2.0f -> "We observed a significant retraction in calls and contact frequencies. Maintaining active connection guards against emotional withdrawal."
+                        else -> "Call logs, unique contacts, and conversation frequency variables remain steady."
+                    }
+                    
+                    StaggeredFadeIn(index = 4) {
+                        QualitativeInsightCard(
+                            title = "Relational Frequency",
+                            icon = Icons.Default.Call,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc
+                        )
+                    }
+                }
+                
+                // Screen Card
+                item {
+                    val screenDiff = latest.screenTimeHours - base.screenTimeHours
+                    val badgeText = when {
+                        screenDiff > 2.0f -> "Increased Screen"
+                        screenDiff < -2.0f -> "Reduced Screen"
+                        else -> "Within Norms"
+                    }
+                    val badgeColor = when {
+                        Math.abs(screenDiff) > 2.0f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        screenDiff > 2.0f -> "Digital interaction is elevated. Extended evening engagement or quick unlock pickup bursts can indicate restlessness."
+                        screenDiff < -2.0f -> "Screen interactions have contracted. This highlights lower digital dependence or reduced social apps ratio."
+                        else -> "Daily screen time hours, lock counts, and app session metrics are steady."
+                    }
+                    
+                    StaggeredFadeIn(index = 5) {
+                        QualitativeInsightCard(
+                            title = "Digital Interaction Dynamics",
+                            icon = Icons.Default.Smartphone,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QualitativeInsightCard(
+    title: String,
+    icon: ImageVector,
+    badgeText: String,
+    badgeColor: Color,
+    description: String
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(10.dp))
+                    Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                }
+                
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(badgeText, fontSize = 10.sp, color = badgeColor, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                }
+            }
+
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
+            )
+        }
+    }
+}
+
+@Composable
+fun QualitativeTrendChart(features: List<PersonalityVector>) {
+    val primary = MaterialTheme.colorScheme.primary
+    val lineBrush = Brush.horizontalGradient(listOf(primary.copy(0.5f), primary))
+    val reversed = features.take(7).reversed()
+
+    Canvas(Modifier.fillMaxSize()) {
+        if (reversed.size < 2) return@Canvas
+
+        val maxVal = reversed.map { it.screenTimeHours }.maxOrNull() ?: 1f
+        val minVal = reversed.map { it.screenTimeHours }.minOrNull() ?: 0f
+        val range = if (maxVal - minVal > 0f) maxVal - minVal else 1f
+
+        val path = Path()
+        val spacing = size.width / (reversed.size - 1)
+
+        reversed.forEachIndexed { idx, item ->
+            val relativeY = (item.screenTimeHours - minVal) / range
+            val x = idx * spacing
+            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
+
+            if (idx == 0) {
+                path.moveTo(x, y)
+            } else {
+                path.lineTo(x, y)
+            }
+        }
+
+        drawPath(
+            path = path,
+            brush = lineBrush,
+            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        reversed.forEachIndexed { idx, item ->
+            val relativeY = (item.screenTimeHours - minVal) / range
+            val x = idx * spacing
+            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
+            
+            drawCircle(
+                color = primary,
+                radius = 4.dp.toPx(),
+                center = Offset(x, y)
+            )
+        }
+    }
+}
+
+// =============================================================================
+// Check In Screen Composable
+// =============================================================================
+@Composable
+fun CheckInScreen() {
+    val context = LocalContext.current
+    var subTab by remember { mutableStateOf(0) }
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        TabRow(
+            selectedTabIndex = subTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[subTab]),
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        ) {
+            Tab(
+                selected = subTab == 0,
+                onClick = { subTab = 0 },
+                text = { Text("Daily Check-in", fontWeight = FontWeight.Bold, fontFamily = Fredoka) }
+            )
+            Tab(
+                selected = subTab == 1,
+                onClick = { subTab = 1 },
+                text = { Text("Monthly Check-in", fontWeight = FontWeight.Bold, fontFamily = Fredoka) }
+            )
+        }
+        
+        Box(modifier = Modifier.weight(1f)) {
+            when (subTab) {
+                0 -> DailyCheckinTab(prefs)
+                1 -> MonthlyCheckinTab(prefs)
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyCheckinTab(prefs: SharedPreferences) {
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    var lastCheckinDate by remember { mutableStateOf(prefs.getString("daily_checkin_date_last", "") ?: "") }
+    
+    val alreadyCheckedIn = lastCheckinDate == todayStr
+    
+    if (alreadyCheckedIn) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "You've checked in today!",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Thank you for taking time to log your routines. See you tomorrow!",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
+    } else {
+        var mood by remember { mutableIntStateOf(3) }
+        var energy by remember { mutableIntStateOf(3) }
+        var sleep by remember { mutableIntStateOf(3) }
+        var anxiety by remember { mutableIntStateOf(3) }
+        
+        val scrollState = rememberScrollState()
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Daily Reflection",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Tune in to your body and mind. How are you feeling right now?",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            PremiumCheckinSlider(
+                question = "How has your mood been lately?",
+                value = mood,
+                labels = listOf("Very Low", "Low", "Neutral", "Good", "Great"),
+                onValueChange = { mood = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How is your energy level?",
+                value = energy,
+                labels = listOf("Exhausted", "Low", "Neutral", "Active", "Energized"),
+                onValueChange = { energy = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How well did you sleep last night?",
+                value = sleep,
+                labels = listOf("Terrible", "Poor", "Neutral", "Good", "Excellent"),
+                onValueChange = { sleep = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How anxious have you been feeling?",
+                value = anxiety,
+                labels = listOf("Tense", "Anxious", "Neutral", "Calm", "Very Peaceful"),
+                onValueChange = { anxiety = it }
+            )
+            
+            Spacer(Modifier.height(16.dp))
+            
+            Button(
+                onClick = {
+                    recordDailyCheckin(prefs, mood, energy, sleep, anxiety)
+                    saveCheckinToHistory(prefs, mood, energy, sleep, anxiety)
+                    lastCheckinDate = todayStr
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Save Check-in",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PremiumCheckinSlider(
+    question: String,
+    value: Int,
+    labels: List<String>,
+    onValueChange: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = question,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontFamily = Fredoka
+            )
+            Spacer(Modifier.height(16.dp))
+            
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.roundToInt()) },
+                valueRange = 1f..5f,
+                steps = 3,
+                colors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(0.2f),
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                )
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                labels.forEachIndexed { index, label ->
+                    val isSelected = index + 1 == value
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(0.4f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MonthlyCheckinTab(prefs: SharedPreferences) {
+    val cooldownDays = remember { getMonthlyCooldownDays(prefs) }
+    var activeWizard by remember { mutableStateOf(false) }
+    
+    val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
+    val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }
+    
+    val phq9Questions = listOf(
+        "Little interest or pleasure in doing things.",
+        "Feeling down, depressed, or hopeless.",
+        "Trouble falling or staying asleep, or sleeping too much.",
+        "Feeling tired or having little energy.",
+        "Poor appetite or overeating.",
+        "Feeling bad about yourself — or that you are a failure or have let yourself or your family down.",
+        "Trouble concentrating on things, such as reading the newspaper or watching television.",
+        "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual.",
+        "Thoughts that you would be better off dead or of hurting yourself in some way."
+    )
+
+    val gad7Questions = listOf(
+        "Feeling nervous, anxious, or on edge.",
+        "Not being able to stop or control worrying.",
+        "Worrying too much about different things.",
+        "Trouble relaxing.",
+        "Being so restless that it is hard to sit still.",
+        "Becoming easily annoyed or irritable.",
+        "Feeling afraid as if something awful might happen."
+    )
+    val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
+    
+    var wizardStep by remember { mutableIntStateOf(1) }
+    
+    if (activeWizard) {
+        if (wizardStep == 1) {
+            ScreenerWizard(
+                questions = phq9Questions,
+                answers = phq9Answers,
+                options = optionsList,
+                onCompleted = { wizardStep = 2 }
+            )
+        } else {
+            ScreenerWizard(
+                questions = gad7Questions,
+                answers = gad7Answers,
+                options = optionsList,
+                onCompleted = {
+                    val totalPhq = phq9Answers.sum()
+                    val totalGad = gad7Answers.sum()
+                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                    
+                    DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
+                    prefs.edit().putString("monthly_checkin_last_date", todayStr).apply()
+                    
+                    activeWizard = false
+                    wizardStep = 1
+                }
+            )
+        }
+    } else {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            if (cooldownDays > 0) {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("⏳", fontSize = 40.sp)
+                }
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = "Assessment Cooldown",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "Lumen only requires a deep clinical check-in every 30 days.\nYour next check-in will be available in $cooldownDays days.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    lineHeight = 18.sp
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("📋", fontSize = 40.sp)
+                }
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = "Monthly Health Check-in",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "A deeper, clinical assessment to help Lumen recalibrate its threshold sensitivities and align with your baseline trends.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                    lineHeight = 18.sp
+                )
+                Spacer(Modifier.height(32.dp))
+                Button(
+                    onClick = { activeWizard = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        text = "Start Assessment",
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        fontSize = 15.sp
+                    )
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Settings Screen Composable
+// =============================================================================
+@Composable
+fun SettingsScreen() {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    
+    val profile by DataRepository.userProfile.collectAsState()
+    val homeLocation by DataRepository.homeLocation.collectAsState()
+    var homeCapturing by remember { mutableStateOf(false) }
+
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    
+    var themeMode by remember { mutableStateOf(prefs.getString("app_theme_mode", "dark") ?: "dark") }
+    var showThemeDialog by remember { mutableStateOf(false) }
+    
+    var masterTracking by remember { mutableStateOf(prefs.getBoolean("master_tracking_enabled", true)) }
+    var locationTracking by remember { mutableStateOf(prefs.getBoolean("location_tracking_enabled", true)) }
+    var communicationLogs by remember { mutableStateOf(prefs.getBoolean("communication_logs_enabled", true)) }
+    
+    var dailyReminders by remember { mutableStateOf(prefs.getBoolean("daily_reminders_enabled", true)) }
+    var monthlyReminders by remember { mutableStateOf(prefs.getBoolean("monthly_reminders_enabled", true)) }
+
+    var showPrivacyDialog by remember { mutableStateOf(false) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json"),
+        onResult = { uri ->
+            if (uri != null) {
+                exportDataToUri(context, uri)
+            }
+        }
+    )
+
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+        onResult = { uri ->
+            if (uri != null) {
+                importBackupDataFromJson(context, uri)
+            }
+        }
+    )
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp)
+    ) {
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Profile & Settings",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Manage your localized settings and reports securely",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "Patient Identity Metadata",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Patient Name:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(profile?.name ?: "Lumen User", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Age / Profession:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("${profile?.age ?: 0} / ${profile?.profession ?: "N/A"}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Registered Country:", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(profile?.country ?: "N/A", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showThemeDialog = true }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column {
+                        Text("Theme Appearance", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                        Text("Active: ${themeMode.uppercase()}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        item {
+            InfoCard("Data Collection Toggles", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow(
+                        title = "Master Tracking",
+                        subtitle = "Enable all sensor logs passively in the background",
+                        checked = masterTracking,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            masterTracking = it
+                            prefs.edit().putBoolean("master_tracking_enabled", it).apply()
+                            Toast.makeText(context, if (it) "Background tracking resumed" else "Background tracking paused", Toast.LENGTH_SHORT).show()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Location GPS Tracking",
+                        subtitle = "Saves spatial displacement and location variety entropy",
+                        checked = locationTracking,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            locationTracking = it
+                            prefs.edit().putBoolean("location_tracking_enabled", it).apply()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Communication Logs",
+                        subtitle = "Passively log outbound call length and contact counts",
+                        checked = communicationLogs,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            communicationLogs = it
+                            prefs.edit().putBoolean("communication_logs_enabled", it).apply()
+                        }
+                    )
+                }
+            }
+        }
+
+        item {
+            InfoCard("Home Location GPS Anchor", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    if (homeLocation != null) {
+                        val (lat, lon) = checkNotNull(homeLocation)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Home, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "✓ Home GPS set: %.4f, %.4f".format(lat, lon),
+                                fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
+                            )
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.LocationOff, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Home coordinate anchor is not set yet.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            homeCapturing = true
+                            com.example.mhealth.logic.DataCollector(context).captureHomeLocation { success ->
+                                homeCapturing = false
+                                if (success) {
+                                    Toast.makeText(context, "🏠 Home location coordinate saved!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    Toast.makeText(context, "❌ Location Timeout. Check GPS settings.", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        enabled = !homeCapturing,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        if (homeCapturing) {
+                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.Black, strokeWidth = 2.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text("Data Management", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                    Text(
+                        "Lumen runs 100% on-device. Export your reports locally or share with your doctor, import existing backups, or clear your history.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        lineHeight = 17.sp
+                    )
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(
+                            onClick = {
+                                val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
+                                exportLauncher.launch("Lumen_backup_$dateStr.json")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Download, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Export", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = Fredoka)
+                        }
+
+                        Button(
+                            onClick = {
+                                importLauncher.launch(arrayOf("application/json"))
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(48.dp),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Icon(Icons.Default.Upload, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Import", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = Fredoka)
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            InfoCard("Notifications", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ToggleRow(
+                        title = "Daily Check-in Reminders",
+                        subtitle = "Gentle alerts when daily logs are pending",
+                        checked = dailyReminders,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            dailyReminders = it
+                            prefs.edit().putBoolean("daily_reminders_enabled", it).apply()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Monthly Screener Reminders",
+                        subtitle = "Notifications for deep clinical assessments",
+                        checked = monthlyReminders,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            monthlyReminders = it
+                            prefs.edit().putBoolean("monthly_reminders_enabled", it).apply()
+                        }
+                    )
+                }
+            }
+        }
+
+        val countryName = profile?.country ?: "N/A"
+        val helplines = getHelplinesByCountry(countryName)
+        
+        item {
+            InfoCard("Support & Crisis Resources", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Resources for ${if (countryName != "N/A") countryName else "Worldwide"}:",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    helplines.forEach { helpline ->
+                        Card(
+                            onClick = {
+                                try {
+                                    val intent = if (helpline.type == HelplineType.PHONE) {
+                                        Intent(Intent.ACTION_DIAL, Uri.parse("tel:${helpline.number}"))
+                                    } else {
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(helpline.number))
+                                    }
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Could not open action", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.3f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(helpline.name, fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = Fredoka)
+                                    Text(helpline.availability, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Icon(
+                                    imageVector = if (helpline.type == HelplineType.PHONE) Icons.Default.Call else Icons.Default.OpenInNew,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showPrivacyDialog = true }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Security, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Text("Privacy Policy & Terms", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+
+        item {
+            Button(
+                onClick = {
+                    scope.launch(Dispatchers.IO) {
+                        val db = MHealthDatabase.getInstance(context)
+                        db.clearAllTables()
+                        val localPrefWipe = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+                        localPrefWipe.edit().clear().apply()
+                        
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Local DB Wiped. Please restart app to re-onboard.", Toast.LENGTH_LONG).show()
+                            (context as Activity).finishAffinity()
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(0.12f), contentColor = MaterialTheme.colorScheme.error),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(0.3f)),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(10.dp)
+            ) {
+                Text("Wipe & Reset Local Databases", fontWeight = FontWeight.SemiBold, fontFamily = Fredoka)
+            }
+        }
+    }
+
+    if (showThemeDialog) {
+        Dialog(onDismissRequest = { showThemeDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text("Select Theme Appearance", fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Fredoka)
+                    
+                    listOf("dark" to "Dark Mode", "light" to "Light Mode", "system" to "System Default").forEach { (key, label) ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    themeMode = key
+                                    prefs.edit().putString("app_theme_mode", key).apply()
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = themeMode == key,
+                                onClick = {
+                                    themeMode = key
+                                    prefs.edit().putString("app_theme_mode", key).apply()
+                                    showThemeDialog = false
+                                }
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(label, fontSize = 14.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showPrivacyDialog) {
+        Dialog(onDismissRequest = { showPrivacyDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                modifier = Modifier.heightIn(max = 400.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text("Privacy Policy & Terms", fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Fredoka)
+                    
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(
+                            text = "Lumen is designed to prioritize patient privacy. All passive sensor telemetry is processed entirely locally on this physical device. Your screen usage, GPS locations, communication records, and check-in history are never uploaded to any remote servers.\n\nYou have absolute ownership of your data. You can export your encrypted baseline backup files at any time to share with a physician, or permanently delete all local databases via the Safety Reset option.",
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 18.sp
+                        )
+                    }
+                    
+                    Button(
+                        onClick = { showPrivacyDialog = false },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Close", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Onboarding Wizard Composable
 // =============================================================================
 @Composable
 fun OnboardingWizard(onComplete: () -> Unit) {
@@ -148,7 +1876,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     
     var step by remember { mutableIntStateOf(1) } // 1: Splash, 2: Demographics, 3: Home GPS, 4: PHQ-9, 5: GAD-7, 6: Stressors, 7: Finalize
     
-    // Step 2 State
     var name by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
@@ -156,11 +1883,9 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var country by remember { mutableStateOf("") }
     var showErrors by remember { mutableStateOf(false) }
 
-    // Step 3 State
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.homeLocation.value != null) }
 
-    // Step 4: PHQ-9 Screener Answers (0-3 for each of the 9 items)
     val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
     val phq9Questions = listOf(
         "Little interest or pleasure in doing things.",
@@ -174,7 +1899,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         "Thoughts that you would be better off dead or of hurting yourself in some way."
     )
 
-    // Step 5: GAD-7 Screener Answers (0-3 for each of the 7 items)
     val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }
     val gad7Questions = listOf(
         "Feeling nervous, anxious, or on edge.",
@@ -186,7 +1910,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         "Feeling afraid as if something awful might happen."
     )
 
-    // Step 6: Life Events Checkbox counts
     val stressors = listOf(
         "Major health change or severe illness of family member/friend",
         "Loss of a close relative, family member, or friend",
@@ -204,15 +1927,14 @@ fun OnboardingWizard(onComplete: () -> Unit) {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Calming Header
         Box(
             Modifier
                 .fillMaxWidth()
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary,
-                            MaterialTheme.colorScheme.primary.copy(0.6f)
+                            MaterialTheme.colorScheme.surface,
+                            MaterialTheme.colorScheme.surface.copy(0.6f)
                         )
                     )
                 )
@@ -223,39 +1945,38 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                 Text(
                     text = when (step) {
                         1 -> "Welcome to Lumen."
-                        2 -> "Personalize Your Profile"
-                        3 -> "Set Your Home Anchor"
+                        2 -> "Tell us a bit about yourself"
+                        3 -> "Set your home"
                         4 -> "Personal Health Questionnaire (PHQ-9)"
                         5 -> "Generalized Anxiety Screener (GAD-7)"
-                        6 -> "Stressful Life Events"
+                        6 -> "Have you been through anything big lately?"
                         else -> "Calibration Completed"
                     },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
-                    color = Color.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
                     text = when (step) {
-                        1 -> "Passively mapping behavioral metrics to support wellness"
-                        2 -> "These demographics remain entirely private on this device"
+                        1 -> "A quiet companion for your mental wellness"
+                        2 -> "These details remain entirely private on this device"
                         3 -> "Used locally to evaluate daily time spent at home"
                         4 -> "Answer honestly to establish your clinical baseline priors"
                         5 -> "Helps Lumen calibrate threshold sensitivities to keep you safe"
                         6 -> "Identifies transient life events that might mimic indicators"
-                        else -> "Your idiographic, local baseline calibration is active!"
+                        else -> "Lumen will quietly monitor in the background."
                     },
                     fontSize = 12.sp,
-                    color = Color.White.copy(0.85f)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
                 )
             }
         }
 
-        // Content Frame
         Box(Modifier.weight(1f)) {
             when (step) {
                 1 -> {
-                    // Splash Introduction
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -279,7 +2000,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         }
                         Spacer(Modifier.height(24.dp))
                         Text(
-                            "Guided Calming Biomarkers",
+                            "Calming Reflection & Biomarkers",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = Fredoka,
@@ -287,9 +2008,9 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "Lumen operates 100% locally and offline. It gathers passive behavioral telemetry—such as sleep patterns, physical movement, typing speeds, and social frequency—to construct a personalized Digital DNA and assist your assessment.",
+                            "Lumen operates 100% locally and offline. It gathers passive behavioral telemetry—such as sleep patterns, physical movement, typing speeds, and social frequency—to construct a personalized Digital DNA and assist your wellness journey.",
                             fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
                             lineHeight = 19.sp
                         )
@@ -302,12 +2023,11 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Begin Configuration", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            Text("Get Started", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                         }
                     }
                 }
                 2 -> {
-                    // Profile Demographics
                     LazyColumn(
                         Modifier
                             .fillMaxSize()
@@ -390,13 +2110,47 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             }
                         }
                         item {
-                            OutlinedTextField(
-                                value = country, onValueChange = { country = it },
-                                label = { Text("Country") },
-                                isError = showErrors && country.isBlank(),
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(10.dp)
+                            var expandedCountry by remember { mutableStateOf(false) }
+                            var countrySearch by remember { mutableStateOf("") }
+                            val allCountries = listOf(
+                                "United States", "United Kingdom", "Canada", "Australia", 
+                                "India", "Germany", "France", "Spain", "Italy", 
+                                "Japan", "Brazil", "Mexico", "South Africa", "Other"
                             )
+                            val filteredCountries = allCountries.filter { it.contains(countrySearch, ignoreCase = true) }
+                            
+                            Box(Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = countrySearch, 
+                                    onValueChange = { 
+                                        countrySearch = it
+                                        expandedCountry = true
+                                        country = allCountries.find { c -> c.equals(it, ignoreCase=true) } ?: ""
+                                    },
+                                    label = { Text("Country") },
+                                    isError = showErrors && country.isBlank(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .onFocusChanged { if (it.isFocused) expandedCountry = true },
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                DropdownMenu(
+                                    expanded = expandedCountry && filteredCountries.isNotEmpty(),
+                                    onDismissRequest = { expandedCountry = false },
+                                    modifier = Modifier.heightIn(max = 240.dp)
+                                ) {
+                                    filteredCountries.forEach { c ->
+                                        DropdownMenuItem(
+                                            text = { Text(c) },
+                                            onClick = { 
+                                                countrySearch = c
+                                                country = c
+                                                expandedCountry = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
                         }
                         item {
                             Button(
@@ -423,13 +2177,12 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                     .padding(top = 8.dp),
                                 shape = RoundedCornerShape(12.dp)
                             ) {
-                                Text("Continue Setup", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                                Text("Continue Setup", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                             }
                         }
                     }
                 }
                 3 -> {
-                    // Home Location Capture
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -461,16 +2214,16 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             val loc = DataRepository.homeLocation.value
                             Card(
                                 shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = LumenTeal.copy(0.12f))
+                                colors = CardDefaults.cardColors(containerColor = TealAccent.copy(0.12f))
                             ) {
                                 Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, null, tint = LumenTeal, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.CheckCircle, null, tint = TealAccent, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text(
                                         "Coordinates Anchored: %.4f, %.4f".format(loc?.first ?: 0.0, loc?.second ?: 0.0),
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.SemiBold,
-                                        color = LumenTeal
+                                        color = TealAccent
                                     )
                                 }
                             }
@@ -511,34 +2264,27 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text(if (homeSet) "Next: Clinical Screeners" else "Skip Home Location for Now", color = Color.White, fontFamily = Fredoka)
+                            Text(if (homeSet) "Next: Clinical Screeners" else "Skip Home Location for Now", color = Color.Black, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
                 4 -> {
-                    // PHQ-9 Screener questions
                     ScreenerWizard(
                         questions = phq9Questions,
                         answers = phq9Answers,
                         options = optionsList,
-                        onCompleted = {
-                            step = 5
-                        }
+                        onCompleted = { step = 5 }
                     )
                 }
                 5 -> {
-                    // GAD-7 Screener questions
                     ScreenerWizard(
                         questions = gad7Questions,
                         answers = gad7Answers,
                         options = optionsList,
-                        onCompleted = {
-                            step = 6
-                        }
+                        onCompleted = { step = 6 }
                     )
                 }
                 6 -> {
-                    // Life Events & Stressors Count
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -600,14 +2346,12 @@ fun OnboardingWizard(onComplete: () -> Unit) {
 
                         Button(
                             onClick = {
-                                // Calculate Calibration Scores
                                 val totalPhq = phq9Answers.sum()
                                 val totalGad = gad7Answers.sum()
                                 val totalEvents = selectedStressors.filter { it.value && it.key < stressors.size - 1 }.size
 
                                 DataRepository.saveScreenerScores(totalPhq, totalGad, totalEvents)
                                 
-                                // Perform threshold recalculation locally
                                 val localPref = ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
                                 localPref.edit().apply {
                                     putInt("screener_phq9", totalPhq)
@@ -623,19 +2367,12 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Calibrate Thresholds", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            Text("Calibrate Thresholds", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                         }
                     }
                 }
                 7 -> {
-                    // Final onboarding display & Notification permissions
                     val checkinEnabled by DataRepository.checkinNotificationsEnabled.collectAsState()
-                    val pScore = DataRepository.phq9Score.collectAsState()
-                    val gScore = DataRepository.gad7Score.collectAsState()
-                    val events = DataRepository.recentLifeEventsCount.collectAsState()
-
-                    val isSensitive = pScore.value >= 10 || gScore.value >= 10
-
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -647,48 +2384,34 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             Modifier
                                 .size(80.dp)
                                 .clip(CircleShape)
-                                .background(LumenTeal.copy(0.12f)),
+                                .background(TealAccent.copy(0.12f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Default.Check, null, tint = LumenTeal, modifier = Modifier.size(40.dp))
+                            Icon(Icons.Default.Check, null, tint = TealAccent, modifier = Modifier.size(40.dp))
                         }
                         
                         Text(
-                            "Thresholds Calibrated Successfully!",
+                            "Lumen is Ready",
                             fontWeight = FontWeight.Bold,
-                            fontSize = 18.sp,
+                            fontSize = 20.sp,
                             fontFamily = Fredoka,
                             textAlign = TextAlign.Center
                         )
 
                         Card(
                             Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.3f))
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                Text("Calibration Summary", fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = Fredoka)
-                                HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.2f))
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Initial PHQ-9 Status:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${pScore.value} (Moderate/Severe: ${pScore.value >= 10})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Initial GAD-7 Status:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("${gScore.value} (Moderate/Severe: ${gScore.value >= 10})", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("Life Events Filter Window:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(if (isSensitive) "14 Days (Extended)" else "10 Days (Standard)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                    Text("S1 Anomaly Trigger floor:", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text(if (isSensitive) "0.32 (High Sensitivity)" else "0.38 (Standard)", fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                }
-                            }
+                            Text(
+                                text = "Your baseline preferences have been established. Lumen is now ready to begin local, private tracking to assist your wellness journey. We will check in periodically to help you stay in tune with your routines.",
+                                fontSize = 13.sp,
+                                modifier = Modifier.padding(16.dp),
+                                lineHeight = 18.sp,
+                                color = MaterialTheme.colorScheme.onBackground.copy(0.8f)
+                            )
                         }
 
-                        // Notification Permissions & Toggle
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             modifier = Modifier
@@ -702,7 +2425,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             Switch(
                                 checked = checkinEnabled,
                                 onCheckedChange = { DataRepository.setCheckinNotificationsEnabled(it) },
-                                colors = SwitchDefaults.colors(checkedThumbColor = MaterialTheme.colorScheme.primary)
+                                colors = SwitchDefaults.colors(checkedThumbColor = Color.Black)
                             )
                         }
 
@@ -710,7 +2433,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
 
                         Button(
                             onClick = {
-                                // Finalize first login status
                                 val localPref = ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
                                 localPref.edit().putBoolean("first_login_complete", true).apply()
                                 scope.launch(Dispatchers.IO) {
@@ -723,7 +2445,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                             currentStatus = "Collecting"
                                         )
                                     )
-                                    // Warm-start data repo
                                     withContext(Dispatchers.Main) {
                                         DataRepository.initWithDb(ctx, "patient@lumen.health")
                                         onComplete()
@@ -736,7 +2457,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .height(50.dp),
                             shape = RoundedCornerShape(12.dp)
                         ) {
-                            Text("Launch Lumen Dashboard", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            Text("Start My Journey", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                         }
                     }
                 }
@@ -756,14 +2477,21 @@ fun ScreenerWizard(
     val currentAnswer = answers[qIndex]
 
     Column(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
             .padding(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // Progress Indicator
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("Question ${qIndex + 1} of ${questions.size}", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.6f))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Question ${qIndex + 1} of ${questions.size}",
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
             LinearProgressIndicator(
                 progress = { (qIndex + 1).toFloat() / questions.size },
                 modifier = Modifier
@@ -777,31 +2505,30 @@ fun ScreenerWizard(
 
         Spacer(Modifier.height(8.dp))
 
-        // Question text card
         Card(
-            Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.1f)),
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.1f))
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)),
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.1f))
         ) {
             Text(
                 text = questions[qIndex],
-                fontSize = 15.sp,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = Fredoka,
-                modifier = Modifier.padding(18.dp),
-                lineHeight = 22.sp
+                modifier = Modifier.padding(20.dp),
+                lineHeight = 22.sp,
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
         Text(
-            "Over the last 2 weeks, how often have you been bothered by this problem?",
+            text = "Over the last 2 weeks, how often have you been bothered by this?",
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onBackground.copy(0.5f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(bottom = 8.dp)
         )
 
-        // Answers options vertical list - Scrollable column to fix the bugged cut-off layout
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -818,10 +2545,10 @@ fun ScreenerWizard(
                         .border(
                             1.dp,
                             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(0.2f),
-                            RoundedCornerShape(10.dp)
+                            RoundedCornerShape(12.dp)
                         )
                         .background(if (selected) MaterialTheme.colorScheme.primary.copy(0.05f) else Color.Transparent)
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     RadioButton(
                         selected = selected,
@@ -829,17 +2556,26 @@ fun ScreenerWizard(
                         colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                     )
                     Spacer(Modifier.width(8.dp))
-                    Text(text, fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.85f))
+                    Text(
+                        text = text,
+                        fontSize = 13.5.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(0.85f)
+                    )
                 }
             }
         }
 
-        // Navigation row
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             Button(
                 onClick = { if (qIndex > 0) qIndex-- },
                 enabled = qIndex > 0,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.outline.copy(0.1f), contentColor = MaterialTheme.colorScheme.onBackground),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.outline.copy(0.1f),
+                    contentColor = MaterialTheme.colorScheme.onBackground
+                ),
                 shape = RoundedCornerShape(10.dp),
                 modifier = Modifier.height(48.dp)
             ) {
@@ -861,1316 +2597,52 @@ fun ScreenerWizard(
                     .width(120.dp)
                     .height(48.dp)
             ) {
-                Text(if (qIndex == questions.size - 1) "Complete" else "Next", fontFamily = Fredoka)
+                Text(
+                    text = if (qIndex == questions.size - 1) "Complete" else "Next",
+                    fontFamily = Fredoka,
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }
 }
 
 // =============================================================================
-// Main Lumen Dashboard (5 Tabs: Home, Monitor, Analysis, Insights, Settings)
+// Helper Methods & Logic Layer
 // =============================================================================
 @Composable
-fun MainLumenDashboard() {
-    var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
-    var checkInActive by remember { mutableStateOf(false) }
-    val context = LocalContext.current
-    
-    // Auto-request basic sensor permissions dynamically for background collection
-    val perms = buildList {
-        addAll(listOf(
-            Manifest.permission.READ_CALL_LOG,
-            Manifest.permission.READ_CONTACTS, 
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION, 
-            Manifest.permission.READ_CALENDAR
-        ))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
-            add(Manifest.permission.READ_MEDIA_IMAGES)
-            add(Manifest.permission.READ_MEDIA_VIDEO)
-        } else {
-            add(Manifest.permission.READ_EXTERNAL_STORAGE)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            add(Manifest.permission.ACTIVITY_RECOGNITION)
-        }
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        startMonitoringService(context)
-    }
-
-    LaunchedEffect(Unit) {
-        DataRepository.initWithDb(context.applicationContext, "patient@lumen.health")
-        launcher.launch(perms.toTypedArray())
-    }
-
-    if (checkInActive) {
-        // Full screen Check-In wizard
-        Column(
-            Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(MaterialTheme.colorScheme.primary)
-                    .padding(vertical = 12.dp, horizontal = 24.dp)
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { checkInActive = false }) {
-                        Icon(Icons.Default.ArrowBack, null, tint = Color.White)
-                    }
-                    Text("Weekly Clinical Screening", color = Color.White, fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 16.sp)
-                }
-            }
-            Box(Modifier.weight(1f)) {
-                CheckInScreen(onCompleted = { checkInActive = false })
-            }
-        }
-    } else {
-        Scaffold(
-            bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
-                    LumenDest.entries.forEach { dest ->
-                        val isSelected = selectedTab == dest
-                        NavigationBarItem(
-                            selected = isSelected,
-                            onClick = { selectedTab = dest },
-                            icon = { Icon(dest.icon, contentDescription = dest.label) },
-                            label = { Text(dest.label, fontSize = 11.sp, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal, fontFamily = Fredoka) },
-                            colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = MaterialTheme.colorScheme.primary,
-                                selectedTextColor = MaterialTheme.colorScheme.primary,
-                                unselectedIconColor = MaterialTheme.colorScheme.outline,
-                                unselectedTextColor = MaterialTheme.colorScheme.outline,
-                                indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                            )
-                        )
-                    }
-                }
-            }
-        ) { innerPadding ->
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            ) {
-                when (selectedTab) {
-                    LumenDest.HOME -> HomeScreen()
-                    LumenDest.MONITOR -> MonitorScreen()
-                    LumenDest.ANALYSIS -> AnalysisScreen()
-                    LumenDest.INSIGHTS -> InsightsScreen(onLaunchCheckIn = { checkInActive = true })
-                    LumenDest.SETTINGS -> SettingsScreen()
-                }
-            }
-        }
-    }
-}
-
-// =============================================================================
-// HomeScreen Tab (Clinical Multi-Sensor Progressive Dashboard)
-// =============================================================================
-@Composable
-fun HomeScreen() {
-    val vector by DataRepository.latestVector.collectAsState()
-    val context = LocalContext.current
-
-    // Reactive Service Checks
-    val isAccessibilityEnabled = remember { MHealthAccessibilityService.isServiceEnabled(context) }
-    val isNotificationEnabled = remember { MHealthNotificationListenerService.isServiceEnabled(context) }
-
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Calming Header
-        item {
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(OceanBlue, SoftCyan)))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(Color.White.copy(0.9f)))
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            "PASSIVE DIGITAL PHENOTYPING",
-                            fontSize = 10.sp,
-                            color = Color.White.copy(0.9f),
-                            fontWeight = FontWeight.SemiBold,
-                            letterSpacing = 1.sp,
-                            fontFamily = Fredoka
-                        )
-                    }
-                    Text("Lumen.", fontSize = 26.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = Color.White)
-                    Text("Passive Clinical Sensor Telemetry Dashboard", fontSize = 12.sp, color = Color.White.copy(0.8f))
-                }
-            }
-        }
-
-        // Section: Permission Warning Cards
-        if (!isAccessibilityEnabled || !isNotificationEnabled) {
-            item {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (!isAccessibilityEnabled) {
-                        Card(
-                            onClick = {
-                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = AlertYellow.copy(0.08f)),
-                            border = BorderStroke(1.dp, AlertYellow.copy(0.2f))
-                        ) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Warning, null, tint = AlertYellow, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text("Accessibility Service Disabled", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = TextPrimary)
-                                    Text("Typing metrics and scroll dynamics require accessibility permission to compute psychomotor speeds. Click here to enable.", fontSize = 11.sp, color = TextSecondary)
-                                }
-                            }
-                        }
-                    }
-
-                    if (!isNotificationEnabled) {
-                        Card(
-                            onClick = {
-                                context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS))
-                            },
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = AlertYellow.copy(0.08f)),
-                            border = BorderStroke(1.dp, AlertYellow.copy(0.2f))
-                        ) {
-                            Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Warning, null, tint = AlertYellow, modifier = Modifier.size(20.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Column(Modifier.weight(1f)) {
-                                    Text("Notification Access Disabled", fontWeight = FontWeight.Bold, fontSize = 12.5.sp, color = TextPrimary)
-                                    Text("Passive audio tracking and system music exposure require listener permission. Click here to enable.", fontSize = 11.sp, color = TextSecondary)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (vector == null) {
-            item {
-                Box(Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        CircularProgressIndicator(color = OceanBlue)
-                        Spacer(Modifier.height(12.dp))
-                        Text("Gathering passive digital phenotyping data...", color = TextSecondary, fontSize = 13.sp)
-                    }
-                }
-            }
-        } else {
-            val v = checkNotNull(vector) { "Live telemetry missing" }
-
-            // 1. Digital Wellbeing Card
-            item {
-                InfoCard("Digital Wellbeing Metrics", headerColor = OceanBlue) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        ArcProgressRing(v.screenTimeHours, 12f, OceanBlue, "Screen Time", "hrs")
-                        ArcProgressRing(v.unlockCount, 100f, SoftCyan, "Unlocks", "")
-                        ArcProgressRing(v.appLaunchCount, 200f, ChartRed, "App Opens", "")
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        ArcProgressRing(v.notificationsToday, 200f, AlertOrange, "Notifs", "")
-                        ArcProgressRing(v.socialAppRatio * 100f, 100f, ChartGreen, "Social", "%")
-                        ArcProgressRing(v.upiTransactionsToday, 10f, ChartPurple, "UPI Opens", "")
-                    }
-                }
-            }
-
-            // 2. Movement & Location Card
-            item {
-                InfoCard("Movement & Location", headerColor = SoftCyan) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        ArcProgressRing(v.dailyDisplacementKm, 20f, ChartRed, "Distance", "km")
-                        ArcProgressRing(v.locationEntropy, 3f, AlertOrange, "Loc. Entropy", "")
-                        ArcProgressRing(v.homeTimeRatio * 100f, 100f, OceanBlue, "Home Stay", "%")
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("🔀 Entropy Score", "%.2f".format(v.locationEntropy), AlertOrange)
-                        MetricPill("📍 Visited Places", "${v.mediaCountToday.toInt()} items", ChartPurple) // placeholder/metric binding
-                    }
-                }
-            }
-
-            // 3. Communication & Media Card
-            item {
-                InfoCard("Communication & Relational", headerColor = SoftCyan) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                        MetricPill("📞 Call Count", "${v.callsPerDay.toInt()} calls", SoftCyan)
-                        MetricPill("⏱ Talk Duration", "${v.callDurationMinutes.toInt()}m", ChartRed)
-                        MetricPill("👥 Unique Contacts", "${v.uniqueContacts.toInt()}", ChartPurple)
-                        MetricPill("🎵 Music Time", "${v.musicTimeMinutes.toInt()}m", ChartGreen)
-                    }
-                }
-            }
-
-            // 4. Sleep Proxy Card
-            item {
-                InfoCard("Circadian Sleep Proxy", headerColor = ChartPurple) {
-                    Column {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            ArcProgressRing(v.sleepDurationHours, 10f, ChartPurple, "Est. Sleep", "hrs")
-                            ArcProgressRing(v.chargeDurationHours, 8f, AlertOrange, "Charging", "hrs")
-                            ArcProgressRing(v.chargeRegularity * 100f, 100f, SoftCyan, "Regularity", "%")
-                        }
-                        Spacer(Modifier.height(16.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Sleep Onset", fontSize = 11.sp, color = TextSecondary)
-                                Text("%.0f:00".format(v.sleepTimeHour), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                            }
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("Wake Up Time", fontSize = 11.sp, color = TextSecondary)
-                                Text("%.0f:00".format(v.wakeTimeHour), fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChartPurple)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // 5. Per-app usage breakdown
-            if (v.appBreakdown.isNotEmpty() || v.appLaunchesBreakdown.isNotEmpty() || v.notificationBreakdown.isNotEmpty()) {
-                item {
-                    PerAppBreakdownCard(vector = v)
-                }
-            }
-
-            if (v.bgAudioBreakdown.isNotEmpty()) {
-                item {
-                    BgAudioBreakdownCard(vector = v)
-                }
-            }
-
-            // 6. Advanced Interaction Biomarkers
-            item {
-                InfoCard("Interaction Biomarkers", headerColor = AlertOrange) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Keystroke Speed", fontSize = 12.sp, color = TextSecondary)
-                            Text("%.1f char/sec".format(v.keystrokeSpeed), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Backspace Correction Ratio", fontSize = 12.sp, color = TextSecondary)
-                            Text("%.1f%%".format(v.backspaceRatio * 100), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Scroll Velocity", fontSize = 12.sp, color = TextSecondary)
-                            Text("%.0f pixels/sec".format(v.scrollVelocity), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                            Text("Passive Lux Daylight Exposure", fontSize = 12.sp, color = TextSecondary)
-                            Text("%.0f mins".format(v.daylightExposureMinutes), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
-                        }
-                    }
-                }
-            }
-        }
-        item { Spacer(Modifier.height(16.dp)) }
-    }
-}
-
-// =============================================================================
-// MonitorScreen Tab (Rhythm Stability & Longitudinal Trends)
-// =============================================================================
-@Composable
-fun MonitorScreen() {
-    val progress by DataRepository.baselineProgress.collectAsState()
-    val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-    val vector by DataRepository.latestVector.collectAsState()
-    val baseline by DataRepository.baseline.collectAsState()
-    val hourly by DataRepository.hourlySnapshots.collectAsState()
-    val baselineVectors by DataRepository.collectedBaselineVectors.collectAsState()
-    val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
-    val analysisHistory by DataRepository.analysisHistory.collectAsState()
-
-    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        item {
-            Box(
-                Modifier.fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(SoftCyan, ChartPurple)))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Text("Baseline & Monitoring", fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = Color.White)
-                    Text("Layers 2 & 3 — ${if (isBuilding) "Building Personal Normal" else "Continuous Tracking"}", fontSize = 13.sp, color = Color.White.copy(0.85f))
-                }
-            }
-        }
-
-        // 1. Progress Indicator
-        item {
-            InfoCard("Baseline Progress (P₀)", headerColor = SoftCyan) {
-                if (isBuilding) {
-                    val target = 28f
-                    val frac = (progress.toFloat() / target).coerceIn(0f, 1f)
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        ArcProgressRing(progress.toFloat(), target, SoftCyan, "Days", "/ 28", size = 90.dp)
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text("Learning Your Unique Patterns", fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                            Text("Day $progress of 28 in mathematically establishing your scientific P₀ baseline. Collecting multidimensional behavioral data continuously for accuracy.", fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
-                            Spacer(Modifier.height(6.dp))
-                            LinearProgressIndicator(
-                                progress = { frac },
-                                color = SoftCyan,
-                                trackColor = SoftCyan.copy(0.15f),
-                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
-                            )
-                        }
-                    }
-                } else {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        val statusText = if (analysisResult != null) {
-                            "Baseline Locked - ${analysisResult?.alertLevel?.uppercase()} Status"
-                        } else {
-                            "Scientific Baseline Established"
-                        }
-                        val statusColor = analysisResult?.let { alertColorForLevel(it.alertLevel) } ?: AlertGreen
-                        val isHighRisk = analysisResult?.alertLevel?.lowercase() in listOf("orange", "red")
-                        val icon = if (isHighRisk) Icons.Default.Warning else Icons.Default.CheckCircle
-                        
-                        Icon(icon, null, tint = statusColor, modifier = Modifier.size(40.dp))
-                        Spacer(Modifier.width(12.dp))
-                        Column {
-                            Text(statusText, fontWeight = FontWeight.SemiBold, color = statusColor)
-                            
-                            val descriptionText = if (analysisResult != null) {
-                                "Your current behavioral vector is being compared against your locked P₀ baseline. " + 
-                                when(analysisResult?.alertLevel?.lowercase()) {
-                                    "green" -> "Data indicates high alignment with your normal routines."
-                                    "yellow" -> "Slight deviations from your baseline detected. Tracking for potential shifts."
-                                    "orange" -> "Moderate departure from baseline established. Behavioral patterns show significant variance."
-                                    "red" -> "Critical deviation from your established P₀. Immediate attention recommended."
-                                    else -> "Continuous monitoring active."
-                                }
-                            } else {
-                                "P₀ baseline vector is locked. Real-time multidimensional tracking is active."
-                            }
-                            Text(descriptionText, fontSize = 12.sp, color = TextSecondary, lineHeight = 16.sp)
-                        }
-                    }
-                }
-                
-                if (baselineVectors.isNotEmpty()) {
-                    Spacer(Modifier.height(20.dp))
-                    Text(if (isBuilding) "Multi-Sensor Formation Trend" else "Composite Behavioral Index", fontSize = 13.sp, color = TextPrimary, fontWeight = FontWeight.Medium)
-                    Spacer(Modifier.height(12.dp))
-                    
-                    val composite = baselineVectors.takeLast(28).map { v ->
-                        val screen = (v.screenTimeHours / 12f).coerceIn(0f, 1f) * 40f
-                        val move = (v.dailyDisplacementKm / 20f).coerceIn(0f, 1f) * 30f
-                        val comms = (v.callsPerDay / 10f).coerceIn(0f, 1f) * 30f
-                        screen + move + comms
-                    }
-                    
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Bottom) {
-                        Text("Activity Index (Last ${composite.size} Days)", fontSize = 11.sp, color = TextSecondary)
-                        if (composite.isNotEmpty()) {
-                            Text("%.0f".format(composite.last()), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = SoftCyan)
-                        }
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    SparklineChart(composite, SoftCyan, Modifier.fillMaxWidth().height(80.dp), showDots = true)
-                }
-            }
-        }
-
-        // 2. Intraday sparklines
-        item {
-            InfoCard("Today's Intraday Trends", headerColor = ChartPurple) {
-                if (hourly.size < 2) {
-                    Text("Collecting hourly snapshots…", color = TextSecondary, fontSize = 12.sp)
-                } else {
-                    val screenTimes = hourly.map { it.screenTimeHours }
-                    val distances = hourly.map { it.dailyDisplacementKm }
-                    SparklineLabel("Screen Time (hrs)", screenTimes, OceanBlue)
-                    Spacer(Modifier.height(12.dp))
-                    SparklineLabel("Distance (km)", distances, ChartRed)
-                }
-            }
-        }
-
-        // 3. Complete Baseline Table
-        if (baseline != null && vector != null) {
-            item {
-                FeatureTableCard(baseline = checkNotNull(baseline), current = checkNotNull(vector))
-            }
-        }
-        item { Spacer(Modifier.height(16.dp)) }
-    }
-}
-
-// =============================================================================
-// AnalysisScreen Tab (Composite Anomaly score & Radar Classifier)
-// =============================================================================
-@Composable
-fun AnalysisScreen() {
-    val latestResult by DataRepository.latestAnalysisResult.collectAsState()
-    val provisional by DataRepository.provisionalAnalysis.collectAsState()
-    val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-    val baseline by DataRepository.baseline.collectAsState()
-    val vector by DataRepository.latestVector.collectAsState()
-    val analysisHistory by DataRepository.analysisHistory.collectAsState()
-    
-    val activeResult = provisional ?: latestResult
-
-    LazyColumn(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        item {
-            Box(
-                Modifier.fillMaxWidth()
-                    .background(Brush.horizontalGradient(listOf(ChartRed, AlertOrange)))
-                    .padding(20.dp)
-            ) {
-                Column {
-                    Text("Anomaly Engine", fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = Color.White)
-                    Text("System 1 & 2 — Deviation detection & pattern classification", fontSize = 12.sp, color = Color.White.copy(0.85f))
-                }
-            }
-        }
-
-        if (isBuilding) {
-            item {
-                InfoCard("Status", headerColor = SoftCyan) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.size(32.dp), color = SoftCyan)
-                        Spacer(Modifier.width(12.dp))
-                        Text("Calibrating — baseline not yet ready.\nAnomaly detection begins after 28 days.", color = TextSecondary, fontSize = 12.sp)
-                    }
-                }
-            }
-        } else {
-            // Anomaly Score Gauge
-            item {
-                val score = activeResult?.anomalyScore ?: 0f
-                val isLive = provisional != null
-
-                InfoCard("Anomaly Score", headerColor = ChartRed) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (isLive) {
-                                Surface(
-                                    color = AlertRed.copy(0.1f),
-                                    shape = RoundedCornerShape(4.dp)
-                                ) {
-                                    Text(
-                                        " LIVE UPDATE ",
-                                        fontSize = 9.sp, fontWeight = FontWeight.Black,
-                                        color = AlertRed, modifier = Modifier.padding(2.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(8.dp))
-                            }
-                            Text(
-                                if (isLive) "Current Day (Provisional)" else "Last Daily Report",
-                                fontSize = 11.sp, color = TextSecondary
-                            )
-                        }
-                        Spacer(Modifier.height(8.dp))
-                        AnomalyScoreGauge(score, Modifier.fillMaxWidth().height(130.dp))
-                        Spacer(Modifier.height(4.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
-                            Text("STABLE", fontSize = 10.sp, color = AlertGreen, fontWeight = FontWeight.Bold)
-                            Text("MILD", fontSize = 10.sp, color = AlertYellow, fontWeight = FontWeight.Bold)
-                            Text("MOD.", fontSize = 10.sp, color = AlertOrange, fontWeight = FontWeight.Bold)
-                            Text("SEVERE", fontSize = 10.sp, color = AlertRed, fontWeight = FontWeight.Bold)
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        Text(
-                            "Score: ${"%.3f".format(score)}",
-                            fontSize = 18.sp, fontWeight = FontWeight.Bold, color = ChartRed, fontFamily = Fredoka
-                        )
-                        Text(
-                            "Pattern: ${(activeResult?.patternType ?: "stable").replace("_", " ").uppercase()}",
-                            fontSize = 12.sp, color = TextSecondary
-                        )
-                    }
-                }
-            }
-
-            // Radar chart — with optional disorder prototype overlay
-            if (baseline != null && vector != null) {
-                item {
-                    val PROTO_RADAR_ZSCORES: Map<String, List<Float>> = mapOf(
-                        "depression_type_1"    to listOf(-0.60f, -0.03f,  0.04f, -0.43f, -0.87f, -0.81f),
-                        "depression_type_2"    to listOf( 5.00f,  0.69f,  3.50f,  0.00f,  0.22f,  2.50f),
-                        "depression_type_3"    to listOf( 5.00f,  2.20f,  1.04f,  5.00f,  0.80f,  1.84f),
-                        "schizophrenia_type_1" to listOf(-0.08f, -0.16f,  1.04f,  0.04f,  0.35f,  0.18f),
-                        "schizophrenia_type_2" to listOf( 4.01f,  3.24f,  2.68f,  1.67f,  3.11f,  3.25f),
-                        "schizophrenia_type_3" to listOf( 5.00f,  1.14f,  1.17f,  0.99f, -2.92f,  1.46f)
-                    )
-
-                    fun zToRadar(z: Float): Float = ((z / 5f) * 0.5f + 0.5f).coerceIn(0f, 1f)
-
-                    val matchedDisorder = latestResult?.prototypeMatch?.lowercase()?.trim()
-                    val isRealMatch = matchedDisorder != null &&
-                        matchedDisorder != "normal" &&
-                        matchedDisorder != "situational" &&
-                        !matchedDisorder.startsWith("healthy")
-
-                    val protoVals: List<Float>? = if (isRealMatch) {
-                        PROTO_RADAR_ZSCORES[matchedDisorder]?.map { zToRadar(it) }
-                    } else null
-
-                    InfoCard("Feature Deviation Radar", headerColor = ChartPurple) {
-                        val b = checkNotNull(baseline); val v = checkNotNull(vector)
-                        val radarLabels = listOf("Screen\nTime", "Social", "Places", "Location", "Sleep", "Comms")
-                        val normalizeDev: (Float, Float) -> Float = { cur, base ->
-                            if (base <= 0.01f) {
-                                if (cur <= 0.01f) 0.5f else 1.0f
-                            } else {
-                                ((cur / base) * 0.5f).coerceIn(0f, 1f)
-                            }
-                        }
-                        val curVals = listOf(
-                            normalizeDev(v.screenTimeHours, b.screenTimeHours),
-                            normalizeDev(v.socialAppRatio, b.socialAppRatio),
-                            normalizeDev(v.mediaCountToday, b.mediaCountToday), // places proxy in this context
-                            normalizeDev(v.dailyDisplacementKm, b.dailyDisplacementKm),
-                            normalizeDev(v.sleepDurationHours, b.sleepDurationHours),
-                            normalizeDev(v.conversationFrequency, b.conversationFrequency)
-                        )
-                        val baseVals = listOf(0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f)
-
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                            RadarChart(
-                                labels          = radarLabels,
-                                values          = curVals,
-                                baseline        = baseVals,
-                                color           = ChartPurple,
-                                modifier        = Modifier.fillMaxWidth(0.9f).aspectRatio(1f).padding(vertical = 16.dp),
-                                prototypeValues = protoVals
-                            )
-                        }
-
-                        Spacer(Modifier.height(8.dp))
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.Center,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(Modifier.size(12.dp).background(ChartPurple.copy(0.7f), CircleShape))
-                            Text(" Current   ", fontSize = 11.sp, color = TextSecondary)
-                            Box(Modifier.size(12.dp).background(SoftCyan.copy(0.5f), CircleShape))
-                            Text(" Baseline", fontSize = 11.sp, color = TextSecondary)
-                            if (protoVals != null) {
-                                Spacer(Modifier.width(10.dp))
-                                Canvas(Modifier.width(20.dp).height(12.dp)) {
-                                    val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f), 0f)
-                                    drawLine(
-                                        color = Color(0xFFEF5350),
-                                        start = Offset(0f, size.height / 2f),
-                                        end   = Offset(size.width, size.height / 2f),
-                                        strokeWidth = 2.5f,
-                                        pathEffect = dashEffect
-                                    )
-                                }
-                                Text(
-                                    " ${latestResult?.prototypeMatch?.replace("_", " ")?.replaceFirstChar { it.uppercase() }}",
-                                    fontSize = 11.sp,
-                                    color = Color(0xFFEF5350)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Top deviations & Flagged Features
-            if (activeResult != null) {
-                item {
-                    val flaggedList = remember(activeResult.flaggedFeatures) {
-                        try {
-                            val arr = org.json.JSONArray(activeResult.flaggedFeatures)
-                            List(arr.length()) { idx -> arr.getString(idx) }
-                        } catch (e: Exception) {
-                            emptyList<String>()
-                        }
-                    }
-
-                    InfoCard("Top Deviations (SD units)", headerColor = AlertOrange) {
-                        if (flaggedList.isEmpty()) {
-                            Text("No significant behavioral deviations flagged today.", color = TextSecondary, fontSize = 12.sp)
-                        } else {
-                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                flaggedList.take(5).forEach { feat ->
-                                    val parts = feat.split(" ")
-                                    val valPart = parts.lastOrNull()?.replace("(", "")?.replace(")", "")?.toFloatOrNull() ?: 0f
-                                    val namePart = feat.substringBefore(" (")
-                                    DeviationRow(namePart.replace(Regex("([a-z])([A-Z])"), "$1 $2"), valPart)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    InfoCard("Temporal Pattern Info", headerColor = SoftCyan) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Timeline, null, tint = SoftCyan)
-                            Spacer(Modifier.width(8.dp))
-                            Column {
-                                Text(activeResult.patternType.replace("_", " ").replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.SemiBold, color = TextPrimary)
-                                Text("Sustained deviation days: ${activeResult.sustainedDays}", fontSize = 12.sp, color = TextSecondary)
-                                Text("Evidence accumulated: ${"%.2f".format(activeResult.evidenceAccumulated)}", fontSize = 12.sp, color = TextSecondary)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        item { Spacer(Modifier.height(16.dp)) }
-    }
-}
-
-// =============================================================================
-// InsightsScreen Tab (100% Qualitative summaries, crisis resources, check-in card)
-// =============================================================================
-@Composable
-fun InsightsScreen(onLaunchCheckIn: () -> Unit) {
-    val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
-    val baseline by DataRepository.baseline.collectAsState()
-    val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
-
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Column {
-                Text("Insights Dashboard", fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                Text("Demographics-anchored qualitative summaries", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
-            }
-        }
-
-        // Action: Self-Report Screener Card
-        item {
-            Card(
-                onClick = onLaunchCheckIn,
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.12f)),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f))
-            ) {
-                Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Favorite, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(24.dp))
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("Weekly Mental Check-in", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
-                        Text("Complete a quick PHQ-9 and GAD-7 assessment to update your calibration baseline score.", fontSize = 11.5.sp, color = TextSecondary)
-                    }
-                    Icon(Icons.Default.ArrowForward, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                }
-            }
-        }
-
-        if (!isDnaReady || weeklyFeatures.isEmpty() || baseline == null) {
-            item {
-                Card(
-                    Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                ) {
-                    Column(
-                        Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary, strokeWidth = 3.dp)
-                        Text(
-                            "Establishing Behavioral Anchors...",
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp,
-                            fontFamily = Fredoka
-                        )
-                        Text(
-                            "Please continue using your device normally. Insights requires baseline aggregates to compute standard deviations and identify qualitative variations safely.",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.outline,
-                            textAlign = TextAlign.Center,
-                            lineHeight = 17.sp
-                        )
-                    }
-                }
-            }
-        } else {
-            val latest = weeklyFeatures.firstOrNull()
-            val base = baseline
-
-            if (latest != null && base != null) {
-                // 1. Line Chart representation (Relative bounds 0-100%, NO NUMBERS)
-                item {
-                    Card(
-                        Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ) {
-                        Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text("Longitudinal Rhythm Stability", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
-                            Text("A rolling depiction of lifestyle rhythm consistency. A stable, flat trend highlights healthy routine adherence.", fontSize = 11.5.sp, color = MaterialTheme.colorScheme.outline)
-                            
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(130.dp)
-                                    .padding(vertical = 8.dp)
-                            ) {
-                                QualitativeTrendChart(weeklyFeatures)
-                            }
-                            
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text("Previous 7 Days", fontSize = 10.sp, color = MaterialTheme.colorScheme.outline)
-                                Text("Today", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-
-                // 2. Qualitative Clinical Trend Summaries
-                item {
-                    Text("Behavioral Strata Analysis", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, modifier = Modifier.padding(top = 8.dp, bottom = 4.dp))
-                }
-
-                // Sleep Card
-                item {
-                    val sleepDiff = latest.sleepDurationHours - base.sleepDurationHours
-                    QualitativeInsightCard(
-                        title = "Sleep & Circadian Alignment",
-                        icon = Icons.Default.NightsStay,
-                        badgeText = when {
-                            sleepDiff > 1.5f -> "Elongated"
-                            sleepDiff < -1.5f -> "Contracted"
-                            else -> "Balanced"
-                        },
-                        badgeColor = when {
-                            Math.abs(sleepDiff) > 1.5f -> LumenAmber
-                            else -> LumenTeal
-                        },
-                        description = when {
-                            sleepDiff > 1.5f -> "Your sleep duration is significantly longer than your locked baseline. This might represent vegetative hypersomnia or withdrawal state."
-                            sleepDiff < -1.5f -> "Your sleep cycle is compressed. Restricting rest or waking too early can decay cognitive resilience."
-                            else -> "Sleep durations and DND silent gaps are stable, demonstrating strong circular time consistency."
-                        }
-                    )
-                }
-
-                // Steps Card
-                item {
-                    val stepRatio = if (base.dailyStepCount > 0) latest.dailyStepCount / base.dailyStepCount else 1.0f
-                    QualitativeInsightCard(
-                        title = "Physical Mobility",
-                        icon = Icons.Default.DirectionsRun,
-                        badgeText = when {
-                            stepRatio < 0.6f -> "Reduced"
-                            stepRatio > 1.4f -> "Elevated"
-                            else -> "Stable"
-                        },
-                        badgeColor = when {
-                            stepRatio < 0.6f -> LumenRose
-                            stepRatio > 1.4f -> LumenAmber
-                            else -> LumenTeal
-                        },
-                        description = when {
-                            stepRatio < 0.6f -> "Physical steps are notably lower than your locked routine. Consider introducing small active windows to promote circulation."
-                            stepRatio > 1.4f -> "Physical step count is highly elevated. Active pacing or energetic exercise has been registered."
-                            else -> "Mobility levels and physical tracking features match your standard behavior metrics."
-                        }
-                    )
-                }
-
-                // Communication Card
-                item {
-                    val callDiff = latest.callsPerDay - base.callsPerDay
-                    QualitativeInsightCard(
-                        title = "Relational Frequency",
-                        icon = Icons.Default.Call,
-                        badgeText = when {
-                            callDiff < -2.0f -> "Low Engagement"
-                            else -> "Stable Outbound"
-                        },
-                        badgeColor = when {
-                            callDiff < -2.0f -> LumenRose
-                            else -> LumenTeal
-                        },
-                        description = when {
-                            callDiff < -2.0f -> "We observed a significant retraction in calls and contact frequencies. Maintaining active connection guards against emotional withdrawal."
-                            else -> "Call logs, unique contacts, and conversation frequency variables remain steady."
-                        }
-                    )
-                }
-
-                // Screen Card
-                item {
-                    val screenDiff = latest.screenTimeHours - base.screenTimeHours
-                    QualitativeInsightCard(
-                        title = "Digital Interaction Dynamics",
-                        icon = Icons.Default.Smartphone,
-                        badgeText = when {
-                            screenDiff > 2.0f -> "Increased Screen"
-                            screenDiff < -2.0f -> "Reduced Screen"
-                            else -> "Within Norms"
-                        },
-                        badgeColor = when {
-                            Math.abs(screenDiff) > 2.0f -> LumenAmber
-                            else -> LumenTeal
-                        },
-                        description = when {
-                            screenDiff > 2.0f -> "Digital interaction is elevated. Extended evening engagement or quick unlock pickup bursts can indicate restlessness."
-                            screenDiff < -2.0f -> "Screen interactions have contracted. This highlights lower digital dependence or reduced social apps ratio."
-                            else -> "Daily screen time hours, lock counts, and app session metrics are steady."
-                        }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun QualitativeInsightCard(
-    title: String,
-    icon: ImageVector,
-    badgeText: String,
-    badgeColor: Color,
-    description: String
+fun StaggeredFadeIn(
+    index: Int,
+    content: @Composable () -> Unit
 ) {
-    Card(
-        Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
+    var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        delay((index * 100).toLong())
+        visible = true
+    }
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn(animationSpec = tween(600)) + slideInVertically(
+            initialOffsetY = { 40 },
+            animationSpec = tween(600, easing = EaseOut)
+        ),
+        exit = fadeOut()
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary.copy(0.08f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
-                    }
-                    Spacer(Modifier.width(10.dp))
-                    Text(title, fontWeight = FontWeight.Bold, fontSize = 13.5.sp)
-                }
-                
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(badgeColor.copy(0.12f))
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(badgeText, fontSize = 10.sp, color = badgeColor, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Text(
-                description,
-                fontSize = 12.sp,
-                lineHeight = 17.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
-            )
-        }
+        content()
     }
 }
-
-@Composable
-fun QualitativeTrendChart(features: List<PersonalityVector>) {
-    val primary = MaterialTheme.colorScheme.primary
-    val lineBrush = Brush.horizontalGradient(listOf(primary.copy(0.5f), primary))
-    val reversed = features.take(7).reversed()
-
-    Canvas(Modifier.fillMaxSize()) {
-        if (reversed.size < 2) return@Canvas
-
-        val maxVal = reversed.map { it.screenTimeHours }.maxOrNull() ?: 1f
-        val minVal = reversed.map { it.screenTimeHours }.minOrNull() ?: 0f
-        val range = if (maxVal - minVal > 0f) maxVal - minVal else 1f
-
-        val path = Path()
-        val spacing = size.width / (reversed.size - 1)
-
-        reversed.forEachIndexed { idx, item ->
-            val relativeY = (item.screenTimeHours - minVal) / range
-            val x = idx * spacing
-            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
-
-            if (idx == 0) {
-                path.moveTo(x, y)
-            } else {
-                path.lineTo(x, y)
-            }
-        }
-
-        drawPath(
-            path = path,
-            brush = lineBrush,
-            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        reversed.forEachIndexed { idx, item ->
-            val relativeY = (item.screenTimeHours - minVal) / range
-            val x = idx * spacing
-            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
-            
-            drawCircle(
-                color = primary,
-                radius = 4.dp.toPx(),
-                center = Offset(x, y)
-            )
-        }
-    }
-}
-
-// =============================================================================
-// CheckInScreen Tab (Manual weekly self-report screening wizard)
-// =============================================================================
-@Composable
-fun CheckInScreen(onCompleted: () -> Unit) {
-    val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
-    val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }
-    val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
-
-    val phq9Questions = listOf(
-        "Little interest or pleasure in doing things.",
-        "Feeling down, depressed, or hopeless.",
-        "Trouble falling or staying asleep, or sleeping too much.",
-        "Feeling tired or having little energy.",
-        "Poor appetite or overeating.",
-        "Feeling bad about yourself — or that you are a failure or have let yourself or your family down.",
-        "Trouble concentrating on things, such as reading the newspaper or watching television.",
-        "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual.",
-        "Thoughts that you would be better off dead or of hurting yourself in some way."
-    )
-
-    val gad7Questions = listOf(
-        "Feeling nervous, anxious, or on edge.",
-        "Not being able to stop or control worrying.",
-        "Worrying too much about different things.",
-        "Trouble relaxing.",
-        "Being so restless that it is hard to sit still.",
-        "Becoming easily annoyed or irritable.",
-        "Feeling afraid as if something awful might happen."
-    )
-
-    var screenerStep by remember { mutableIntStateOf(1) } // 1: PHQ, 2: GAD
-
-    if (screenerStep == 1) {
-        ScreenerWizard(
-            questions = phq9Questions,
-            answers = phq9Answers,
-            options = optionsList,
-            onCompleted = { screenerStep = 2 }
-        )
-    } else {
-        ScreenerWizard(
-            questions = gad7Questions,
-            answers = gad7Answers,
-            options = optionsList,
-            onCompleted = {
-                val totalPhq = phq9Answers.sum()
-                val totalGad = gad7Answers.sum()
-                
-                // Save updated scores to trigger recalibration
-                DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
-                
-                onCompleted()
-            }
-        )
-    }
-}
-
-// =============================================================================
-// SettingsScreen Tab (Demographics + JSON Backup Export/Import + Switches)
-// =============================================================================
-@Composable
-fun SettingsScreen() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    
-    val profile by DataRepository.userProfile.collectAsState()
-    val checkinEnabled by DataRepository.checkinNotificationsEnabled.collectAsState()
-    val homeLocation by DataRepository.homeLocation.collectAsState()
-    var homeCapturing by remember { mutableStateOf(false) }
-
-    // Persistent collection toggles state inside local SharedPreferences
-    val localPref = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
-    var masterTracking by remember { mutableStateOf(localPref.getBoolean("master_tracking_enabled", true)) }
-    var locationTracking by remember { mutableStateOf(localPref.getBoolean("location_tracking_enabled", true)) }
-    var communicationLogs by remember { mutableStateOf(localPref.getBoolean("communication_logs_enabled", true)) }
-
-    // Document pickers for export and import
-    val exportLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/json"),
-        onResult = { uri ->
-            if (uri != null) {
-                exportDataToUri(context, uri)
-            }
-        }
-    )
-
-    val importLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-        onResult = { uri ->
-            if (uri != null) {
-                importBackupDataFromJson(context, uri)
-            }
-        }
-    )
-
-    LazyColumn(
-        Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(20.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        item {
-            Column {
-                Text("Profile & Settings", fontSize = 22.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                Text("Manage your localized settings and reports securely", fontSize = 12.sp, color = MaterialTheme.colorScheme.outline)
-            }
-        }
-
-        // Section 1: Demographics info card
-        item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Patient Identity Metadata", fontWeight = FontWeight.Bold, fontSize = 13.5.sp, fontFamily = Fredoka)
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Patient Name:", fontSize = 12.5.sp, color = MaterialTheme.colorScheme.outline)
-                        Text(profile?.name ?: "Lumen User", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Age / Profession:", fontSize = 12.5.sp, color = MaterialTheme.colorScheme.outline)
-                        Text("${profile?.age ?: 0} / ${profile?.profession ?: "N/A"}", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Registered Country:", fontSize = 12.5.sp, color = MaterialTheme.colorScheme.outline)
-                        Text(profile?.country ?: "N/A", fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold)
-                    }
-                }
-            }
-        }
-
-        // Section 2: Restored Data Collection Controls & Toggles
-        item {
-            InfoCard("Data Collection Toggles", headerColor = TextSecondary) {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    ToggleRow(
-                        title = "Master Tracking",
-                        subtitle = "Enable all sensor logs passively in the background",
-                        checked = masterTracking,
-                        color = OceanBlue,
-                        onToggle = {
-                            masterTracking = it
-                            localPref.edit().putBoolean("master_tracking_enabled", it).apply()
-                            Toast.makeText(context, if (it) "Background tracking resumed" else "Background tracking paused", Toast.LENGTH_SHORT).show()
-                        }
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ToggleRow(
-                        title = "Location GPS Tracking",
-                        subtitle = "Saves spatial displacement and location variety entropy",
-                        checked = locationTracking,
-                        color = SoftCyan,
-                        onToggle = {
-                            locationTracking = it
-                            localPref.edit().putBoolean("location_tracking_enabled", it).apply()
-                        }
-                    )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ToggleRow(
-                        title = "Communication Logs",
-                        subtitle = "Passively log outbound call length and contact counts",
-                        checked = communicationLogs,
-                        color = AlertOrange,
-                        onToggle = {
-                            communicationLogs = it
-                            localPref.edit().putBoolean("communication_logs_enabled", it).apply()
-                        }
-                    )
-                }
-            }
-        }
-
-        // Section 3: Home Location capture card
-        item {
-            InfoCard("Home Location GPS Anchor", headerColor = SoftCyan) {
-                Column(Modifier.fillMaxWidth()) {
-                    if (homeLocation != null) {
-                        val (lat, lon) = checkNotNull(homeLocation)
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Home, null, tint = OceanBlue, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                text = "✓ Home GPS set: %.4f, %.4f".format(lat, lon),
-                                fontSize = 13.sp, color = OceanBlue, fontWeight = FontWeight.Medium
-                            )
-                        }
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocationOff, null, tint = AlertRed, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Home coordinate anchor is not set yet.", fontSize = 13.sp, color = TextSecondary)
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Button(
-                        onClick = {
-                            homeCapturing = true
-                            com.example.mhealth.logic.DataCollector(context).captureHomeLocation { success ->
-                                homeCapturing = false
-                                if (success) {
-                                    Toast.makeText(context, "🏠 Home location coordinate saved!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "❌ Location Timeout. Check GPS settings.", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        },
-                        enabled = !homeCapturing,
-                        colors = ButtonDefaults.buttonColors(containerColor = SoftCyan),
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        if (homeCapturing) {
-                            CircularProgressIndicator(Modifier.size(18.dp), color = Color.White, strokeWidth = 2.dp)
-                            Spacer(Modifier.width(8.dp))
-                        }
-                        Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.White, fontSize = 13.sp, fontFamily = Fredoka)
-                    }
-                }
-            }
-        }
-
-        // Section 4: JSON Backup & Import Sharing Portal
-        item {
-            Card(
-                Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer.copy(0.1f)),
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
-            ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("Clinician Encrypted Sharing Portal", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
-                    Text(
-                        "Lumen runs 100% on-device. No cloud servers host your reports. Export a clean, structured JSON file locally to backup your historical baseline data or share it directly with your healthcare provider.",
-                        fontSize = 12.sp,
-                        lineHeight = 17.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(0.8f)
-                    )
-
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
-                            onClick = {
-                                val dateStr = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.getDefault()).format(Date())
-                                exportLauncher.launch("Lumen_backup_$dateStr.json")
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.Download, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Export Backup", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = Fredoka)
-                        }
-
-                        Button(
-                            onClick = {
-                                importLauncher.launch(arrayOf("application/json"))
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(48.dp),
-                            shape = RoundedCornerShape(10.dp)
-                        ) {
-                            Icon(Icons.Default.Upload, null, tint = Color.White, modifier = Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Import Backup", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 12.sp, fontFamily = Fredoka)
-                        }
-                    }
-                }
-            }
-        }
-
-        // Section 5: Safety Reset
-        item {
-            Button(
-                onClick = {
-                    scope.launch(Dispatchers.IO) {
-                        val db = MHealthDatabase.getInstance(context)
-                        db.clearAllTables()
-                        val localPrefWipe = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
-                        localPrefWipe.edit().clear().apply()
-                        
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Local DB Wiped. Please restart app to re-onboard.", Toast.LENGTH_LONG).show()
-                            (context as Activity).finishAffinity()
-                        }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = LumenRose.copy(0.12f), contentColor = LumenRose),
-                border = BorderStroke(1.dp, LumenRose.copy(0.3f)),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(48.dp),
-                shape = RoundedCornerShape(10.dp)
-            ) {
-                Text("Wipe & Reset Local Databases", fontWeight = FontWeight.SemiBold, fontFamily = Fredoka)
-            }
-        }
-    }
-}
-
-// =============================================================================
-// Helper Components & Compatibility Variables
-// =============================================================================
 
 @Composable
 fun ToggleRow(title: String, subtitle: String, checked: Boolean, color: Color, onToggle: (Boolean) -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = TextPrimary)
-            Text(subtitle, fontSize = 11.sp, color = TextSecondary)
+            Text(title, fontSize = 13.5.sp, fontWeight = FontWeight.Medium, color = MaterialTheme.colorScheme.onBackground)
+            Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(
             checked = checked, onCheckedChange = onToggle,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = color, uncheckedTrackColor = TextMuted.copy(0.3f))
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black, checkedTrackColor = color)
         )
     }
 }
@@ -2183,12 +2655,10 @@ fun InfoCard(
     content: @Composable ColumnScope.() -> Unit
 ) {
     Card(
-        modifier = modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+        modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = CardWhite),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(
@@ -2206,7 +2676,7 @@ fun InfoCard(
                     title,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
+                    color = MaterialTheme.colorScheme.onBackground,
                     fontFamily = Fredoka
                 )
             }
@@ -2215,293 +2685,189 @@ fun InfoCard(
     }
 }
 
-@Composable
-fun MetricPill(
-    label: String,
-    value: String,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.padding(4.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .clip(RoundedCornerShape(12.dp))
-                .background(color.copy(alpha = 0.1f))
-                .padding(horizontal = 12.dp, vertical = 6.dp)
-        ) {
-            Text(
-                value,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = color
-            )
+fun getGreeting(): String {
+    val hour = Calendar.getInstance().get(Calendar.HOUR_OF_DAY)
+    return when (hour) {
+        in 5..11 -> "Good Morning"
+        in 12..16 -> "Good Afternoon"
+        in 17..21 -> "Good Evening"
+        else -> "Good Night"
+    }
+}
+
+fun getActiveStreak(prefs: SharedPreferences): Int {
+    val currentStreak = prefs.getInt("checkin_streak_current", 0)
+    val lastDateStr = prefs.getString("checkin_streak_last_date", "") ?: ""
+    if (lastDateStr.isEmpty()) return 0
+    
+    try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val lastDate = sdf.parse(lastDateStr) ?: return 0
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+        
+        val diffMs = today.time - lastDate.time
+        val diffDays = diffMs / (1000 * 60 * 60 * 24)
+        
+        return if (diffDays <= 1) currentStreak else 0
+    } catch (e: Exception) {
+        return 0
+    }
+}
+
+fun recordDailyCheckin(prefs: SharedPreferences, mood: Int, energy: Int, sleep: Int, anxiety: Int) {
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val lastDateStr = prefs.getString("checkin_streak_last_date", "") ?: ""
+    
+    val currentStreak = prefs.getInt("checkin_streak_current", 0)
+    val yesterdayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
+        Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -1) }.time
+    )
+    
+    val newStreak = when (lastDateStr) {
+        todayStr -> currentStreak
+        yesterdayStr -> currentStreak + 1
+        else -> 1
+    }
+    
+    prefs.edit().apply {
+        putString("daily_checkin_date_last", todayStr)
+        putInt("daily_checkin_mood", mood)
+        putInt("daily_checkin_energy", energy)
+        putInt("daily_checkin_sleep", sleep)
+        putInt("daily_checkin_anxiety", anxiety)
+        putInt("checkin_streak_current", newStreak)
+        putString("checkin_streak_last_date", todayStr)
+    }.apply()
+}
+
+fun saveCheckinToHistory(prefs: SharedPreferences, mood: Int, energy: Int, sleep: Int, anxiety: Int) {
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val historyStr = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+    
+    try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        var foundToday = false
+        
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            if (obj.getString("date") == todayStr) {
+                obj.put("mood", mood)
+                obj.put("energy", energy)
+                obj.put("sleep", sleep)
+                obj.put("anxiety", anxiety)
+                foundToday = true
+            }
+            list.add(obj)
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            label,
-            fontSize = 10.sp,
-            color = TextSecondary,
-            fontWeight = FontWeight.Medium
+        
+        if (!foundToday) {
+            val newObj = org.json.JSONObject().apply {
+                put("date", todayStr)
+                put("mood", mood)
+                put("energy", energy)
+                put("sleep", sleep)
+                put("anxiety", anxiety)
+            }
+            list.add(newObj)
+        }
+        
+        val trimmedList = if (list.size > 7) list.takeLast(7) else list
+        val newArray = org.json.JSONArray()
+        trimmedList.forEach { newArray.put(it) }
+        
+        prefs.edit().putString("daily_checkin_history", newArray.toString()).apply()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+fun getWeeklyCheckinAverageMood(prefs: SharedPreferences): Float {
+    val historyStr = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+    try {
+        val array = org.json.JSONArray(historyStr)
+        if (array.length() == 0) return 0f
+        var total = 0
+        for (i in 0 until array.length()) {
+            total += array.getJSONObject(i).getInt("mood")
+        }
+        return total.toFloat() / array.length()
+    } catch (e: Exception) {
+        return 0f
+    }
+}
+
+fun getMonthlyCooldownDays(prefs: SharedPreferences): Int {
+    val lastDateStr = prefs.getString("monthly_checkin_last_date", "") ?: ""
+    if (lastDateStr.isEmpty()) return 0
+    
+    try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+        val lastDate = sdf.parse(lastDateStr) ?: return 0
+        val today = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.time
+        
+        val diffMs = today.time - lastDate.time
+        val diffDays = diffMs / (1000 * 60 * 60 * 24)
+        
+        return (30 - diffDays).toInt().coerceAtLeast(0)
+    } catch (e: Exception) {
+        return 0
+    }
+}
+
+data class Helpline(
+    val name: String,
+    val number: String,
+    val availability: String,
+    val type: HelplineType
+)
+
+enum class HelplineType { PHONE, WEB }
+
+fun getHelplinesByCountry(country: String): List<Helpline> {
+    val cleanCountry = country.trim().lowercase(Locale.ROOT)
+    return when {
+        cleanCountry.contains("india") -> listOf(
+            Helpline("iCall India", "9152987821", "Mon-Sat: 10 AM - 8 PM", HelplineType.PHONE),
+            Helpline("Vandrevala Foundation", "1860-2662-345", "24/7 Availability", HelplineType.PHONE),
+            Helpline("NIMHANS Helpline", "080-46110007", "24/7 Availability", HelplineType.PHONE)
+        )
+        cleanCountry.contains("united states") || cleanCountry.contains("us") || cleanCountry.contains("u.s.") || cleanCountry.contains("america") -> listOf(
+            Helpline("Suicide & Crisis Lifeline", "988", "24/7 Availability", HelplineType.PHONE),
+            Helpline("NAMI HelpLine", "1-800-950-6264", "Mon-Fri: 10 AM - 10 PM EST", HelplineType.PHONE),
+            Helpline("Crisis Text Line", "Text HOME to 741741", "24/7 SMS Support", HelplineType.PHONE)
+        )
+        cleanCountry.contains("united kingdom") || cleanCountry.contains("uk") || cleanCountry.contains("u.k.") || cleanCountry.contains("britain") || cleanCountry.contains("england") -> listOf(
+            Helpline("Samaritans UK", "116 123", "24/7 Availability", HelplineType.PHONE),
+            Helpline("Mind Helpline", "0300 123 3393", "Mon-Fri: 9 AM - 6 PM", HelplineType.PHONE),
+            Helpline("NHS Mental Health", "111", "24/7 Availability", HelplineType.PHONE)
+        )
+        cleanCountry.contains("canada") -> listOf(
+            Helpline("Suicide Crisis Helpline", "988", "24/7 Availability", HelplineType.PHONE),
+            Helpline("Talk Suicide Canada", "1-833-456-4566", "24/7 Availability", HelplineType.PHONE),
+            Helpline("Kids Help Phone", "1-800-668-6868", "24/7 Youth Support", HelplineType.PHONE)
+        )
+        cleanCountry.contains("australia") -> listOf(
+            Helpline("Lifeline Australia", "13 11 14", "24/7 Availability", HelplineType.PHONE),
+            Helpline("Beyond Blue", "1300 22 4636", "24/7 Availability", HelplineType.PHONE),
+            Helpline("Kids Helpline", "1800 55 1800", "24/7 Youth Support", HelplineType.PHONE)
+        )
+        else -> listOf(
+            Helpline("IASP Crisis Centres", "https://www.iasp.info/resources/Crisis_Centres/", "Find local help worldwide", HelplineType.WEB),
+            Helpline("Befrienders Worldwide", "https://www.befrienders.org/", "Find crisis support in your country", HelplineType.WEB)
         )
     }
 }
-
-@Composable
-fun SparklineLabel(
-    label: String,
-    history: List<Float>,
-    color: Color,
-    modifier: Modifier = Modifier
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(label, fontSize = 12.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
-            Spacer(Modifier.height(6.dp))
-            SparklineChart(history, color, Modifier.fillMaxWidth().height(45.dp), showDots = false)
-        }
-    }
-}
-
-@Composable
-fun PerAppBreakdownCard(vector: PersonalityVector) {
-    val pm = LocalContext.current.packageManager
-    val topApps = remember(vector) {
-        vector.appBreakdown
-            .filterKeys { it.isNotBlank() }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(7)
-    }
-
-    if (topApps.isEmpty() && vector.bgAudioBreakdown.isEmpty()) return
-
-    if (topApps.isNotEmpty()) {
-        InfoCard("Per-App Screen Breakdown", headerColor = ChartPurple) {
-            Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-                Text("App",      fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
-                Text("Screen",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
-                Text("Launches", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                Text("Notifs",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
-            }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
-            Spacer(Modifier.height(4.dp))
-
-            topApps.forEach { (pkg, minutes) ->
-                val appName = try {
-                    pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-                } catch (e: Exception) { pkg.substringAfterLast(".") }
-                val launches = vector.appLaunchesBreakdown[pkg] ?: 0
-                val notifs   = vector.notificationBreakdown[pkg] ?: 0
-                val hrs  = minutes / 60L
-                val mins = minutes % 60L
-                val timeStr = if (hrs > 0) "${hrs}h ${mins}m" else "${mins}m"
-
-                Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(appName,   fontSize = 11.sp, color = TextPrimary,   modifier = Modifier.weight(2.5f),
-                        maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                    Text(timeStr,   fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.5f))
-                    Text("$launches", fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1.3f))
-                    Text("$notifs",   fontSize = 11.sp,
-                        color = if (notifs > 30) AlertOrange else TextSecondary,
-                        fontWeight = if (notifs > 30) FontWeight.Bold else FontWeight.Normal,
-                        modifier = Modifier.weight(1.2f))
-                }
-                HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
-            }
-        }
-    }
-}
-
-@Composable
-fun BgAudioBreakdownCard(vector: PersonalityVector) {
-    val pm = LocalContext.current.packageManager
-    val audioApps = remember(vector) {
-        vector.bgAudioBreakdown
-            .filterKeys { it.isNotBlank() }
-            .toList()
-            .sortedByDescending { it.second }
-            .take(5)
-    }
-
-    if (audioApps.isEmpty()) return
-
-    InfoCard("Background Audio Breakdown", headerColor = OceanBlue) {
-        Row(Modifier.fillMaxWidth().padding(bottom = 6.dp)) {
-            Text("Music App", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(3f))
-            Text("Duration", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1f))
-        }
-        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
-        Spacer(Modifier.height(4.dp))
-
-        audioApps.forEach { (pkg, ms) ->
-            val appName = try {
-                if (pkg == "unknown_music_app") "Other Audio"
-                else pm.getApplicationLabel(pm.getApplicationInfo(pkg, 0)).toString()
-            } catch (e: Exception) { pkg.substringAfterLast(".") }
-            
-            val totalSec = ms / 1000
-            val minutes = totalSec / 60
-            val seconds = totalSec % 60
-            val timeStr = if (minutes > 0) "${minutes}m ${seconds}s" else "${seconds}s"
-
-            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(appName, fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(3f),
-                    maxLines = 1, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
-                Text(timeStr, fontSize = 11.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-            }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
-        }
-    }
-}
-
-@Composable
-fun DeviationRow(feature: String, sd: Float) {
-    val color = when {
-        kotlin.math.abs(sd) > 3f -> AlertRed
-        kotlin.math.abs(sd) > 2f -> AlertOrange
-        else                     -> AlertYellow
-    }
-    Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(feature, fontSize = 12.sp, color = TextSecondary, modifier = Modifier.weight(1f))
-        Box(
-            Modifier.clip(RoundedCornerShape(12.dp)).background(color.copy(0.12f)).padding(horizontal = 8.dp, vertical = 2.dp)
-        ) {
-            Text("${"%.2f".format(sd)} SD", fontSize = 11.sp, color = color, fontWeight = FontWeight.Bold)
-        }
-    }
-}
-
-private data class FeatureRow(
-    val label: String,
-    val unit: String,
-    val mean: Float,
-    val std: Float,
-    val current: Float
-)
-
-private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
-    "screenTimeHours"      to Pair("Screen Time",         "hrs"),
-    "unlockCount"          to Pair("Phone Unlocks",        ""),
-    "appLaunchCount"       to Pair("App Launches",         ""),
-    "notificationsToday"   to Pair("Notifications",        ""),
-    "socialAppRatio"       to Pair("Social App Ratio",     "%"),
-    "callsPerDay"          to Pair("Calls / Day",          ""),
-    "callDurationMinutes"  to Pair("Call Duration",        "min"),
-    "uniqueContacts"       to Pair("Unique Contacts",      ""),
-    "conversationFrequency" to Pair("Conversation Freq.", ""),
-    "dailyDisplacementKm" to Pair("Displacement",          "km"),
-    "locationEntropy"      to Pair("Location Entropy",     ""),
-    "homeTimeRatio"        to Pair("Home Time Ratio",      "%"),
-    "wakeTimeHour"         to Pair("Wake Time",            "hr"),
-    "sleepTimeHour"        to Pair("Sleep Time",           "hr"),
-    "sleepDurationHours"   to Pair("Sleep Duration",       "hrs"),
-    "dailyStepCount"       to Pair("Step Count",           "steps"),
-    "activeMinutes"        to Pair("Active Minutes",       "min"),
-    "keystrokeSpeed"       to Pair("Keystroke Speed",      "char/s"),
-    "backspaceRatio"       to Pair("Backspace Ratio",      "%"),
-    "scrollVelocity"       to Pair("Scroll Velocity",      "px/s"),
-    "daylightExposureMinutes" to Pair("Daylight Exposure", "min"),
-    "chargeRegularity"     to Pair("Charge Regularity",    "%"),
-    "chargeDurationHours"  to Pair("Charging Time",        "hrs"),
-    "upiTransactionsToday" to Pair("UPI / Payments",        ""),
-    "appUninstallsToday"   to Pair("App Uninstalls",         ""),
-    "appInstallsToday"     to Pair("App Installs",          ""),
-    "calendarEventsToday"  to Pair("Calendar Events",        ""),
-    "mediaCountToday"      to Pair("Media Files",           ""),
-    "downloadsToday"       to Pair("Downloads Today",       ""),
-    "musicTimeMinutes"     to Pair("Music Time",           "min")
-)
-
-@Composable
-fun FeatureTableCard(
-    baseline: PersonalityVector,
-    current: PersonalityVector
-) {
-    val rows = remember(baseline, current) {
-        val baselineMap = baseline.toMap()
-        val currentMap = current.toMap()
-        val RATIO_FEATURES = setOf("socialAppRatio", "homeTimeRatio")
-
-        featureLabels.mapNotNull { (key, labelUnit) ->
-            val meanRaw = baselineMap[key] ?: return@mapNotNull null
-            val stdRaw = baseline.variances[key] ?: 0f
-            val curRaw = currentMap[key] ?: 0f
-            val scale = if (key in RATIO_FEATURES) 100f else 1f
-            FeatureRow(labelUnit.first, labelUnit.second, meanRaw * scale, stdRaw * scale, curRaw * scale)
-        }
-    }
-
-    InfoCard("Full Baseline Reference", headerColor = SoftCyan) {
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = 6.dp),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Feature",            fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2f))
-            Text("Baseline (μ ± σ)",   fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(2.5f))
-            Text("Now",                fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.2f))
-            Text("Flag",               fontSize = 11.sp, fontWeight = FontWeight.Bold, color = TextSecondary, modifier = Modifier.weight(1.5f))
-        }
-        HorizontalDivider(color = TextSecondary.copy(alpha = 0.15f), thickness = 0.5.dp)
-        Spacer(Modifier.height(4.dp))
-
-        rows.forEach { row ->
-            val std = row.std.takeIf { it > 0f } ?: (row.mean * 0.15f).coerceAtLeast(0.01f)
-            val zScore = (row.current - row.mean) / std
-            val (flagText, flagColor, flagIcon) = when {
-                kotlin.math.abs(zScore) < 1.0f  -> Triple("Normal",    AlertGreen,  Icons.Default.Check)
-                zScore > 0f                     -> Triple("Elevated",  AlertOrange, Icons.Default.ArrowUpward)
-                else                            -> Triple("Decreased", SoftCyan,     Icons.Default.ArrowDownward)
-            }
-            val unitSuffix = if (row.unit.isNotEmpty()) " ${row.unit}" else ""
-            val fmtMean    = if (row.mean < 100f) "%.1f" else "%.0f"
-            val fmtStd     = if (row.std  < 100f) "%.1f" else "%.0f"
-            val fmtCur     = if (row.current < 100f) "%.1f" else "%.0f"
-
-            Row(
-                Modifier.fillMaxWidth().padding(vertical = 5.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(row.label,          fontSize = 11.sp, color = TextPrimary, modifier = Modifier.weight(2f))
-                Text(
-                    "${fmtMean.format(row.mean)} ± ${fmtStd.format(row.std)}$unitSuffix",
-                    fontSize = 11.sp, color = TextSecondary,
-                    modifier = Modifier.weight(2.5f)
-                )
-                Text(
-                    "${fmtCur.format(row.current)}$unitSuffix",
-                    fontSize = 11.sp, fontWeight = FontWeight.SemiBold, color = TextPrimary,
-                    modifier = Modifier.weight(1.2f)
-                )
-                Surface(
-                    color = flagColor.copy(alpha = 0.12f),
-                    shape = RoundedCornerShape(10.dp),
-                    modifier = Modifier.weight(1.5f)
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(horizontal = 5.dp, vertical = 3.dp)
-                    ) {
-                        Icon(flagIcon, null, tint = flagColor, modifier = Modifier.size(11.dp))
-                        Spacer(Modifier.width(3.dp))
-                        Text(flagText, fontSize = 9.sp, color = flagColor, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            HorizontalDivider(color = TextSecondary.copy(alpha = 0.08f), thickness = 0.5.dp)
-        }
-    }
-}
-
-// =============================================================================
-// JSON Data Export & Import Systems (Woven into Settings Screen)
-// =============================================================================
 
 private fun exportDataToUri(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
@@ -2510,16 +2876,13 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
             val db = MHealthDatabase.getInstance(context)
             val userId = DataRepository.userProfile.value?.email ?: "local_patient@lumen.health"
             
-            // 1. Fetch All Historical Data
             val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
             val baselineRows = db.baselineDao().getBaseline(userId)
             val analysisReports = db.analysisResultDao().getAll(userId)
             val profile = db.userProfileDao().getProfile(userId)
             
-            // 2. Construct Master JSON
             val masterJson = org.json.JSONObject()
             
-            // A. Identity & Profile
             masterJson.put("profile", org.json.JSONObject().apply {
                 put("userId", userId)
                 put("baselineReady", profile?.baselineReady ?: false)
@@ -2527,7 +2890,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                 put("currentStatus", profile?.currentStatus ?: "Collecting")
             })
 
-            // B. Baseline (P₀)
             val baselineArr = org.json.JSONArray()
             baselineRows.forEach { row ->
                 baselineArr.put(org.json.JSONObject().apply {
@@ -2541,7 +2903,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
             }
             masterJson.put("baseline", baselineArr)
 
-            // C. Daily Behavioral History
             val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.effectiveScore }
 
             val historyArr = org.json.JSONArray()
@@ -2595,7 +2956,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
             }
             masterJson.put("daily_history", historyArr)
 
-            // D. Today's LIVE snapshot
             val liveVector = DataRepository.latestVector.value
             if (liveVector != null) {
                 val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
@@ -2643,7 +3003,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                 masterJson.put("today_live", todayObj)
             }
 
-            // E. Analysis History (Anomaly detections)
             val reportsArr = org.json.JSONArray()
             analysisReports.forEach { report ->
                 reportsArr.put(org.json.JSONObject().apply {
@@ -2667,7 +3026,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
             }
             masterJson.put("analysis_reports", reportsArr)
 
-            // 3. Write directly to Uri selected by User via CreateDocument
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 outputStream.write(masterJson.toString(4).toByteArray())
             }
@@ -2686,7 +3044,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
 
 private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
-    
     Toast.makeText(context, "Importing backup...", Toast.LENGTH_SHORT).show()
 
     context.lifecycleScope.launch(Dispatchers.IO) {
@@ -2698,7 +3055,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
             
             val db = MHealthDatabase.getInstance(context)
             
-            // Parse Profile
             if (masterJson.has("profile")) {
                 val profileObj = masterJson.getJSONObject("profile")
                 val userId = profileObj.optString("userId", "patient@lumen.health")
@@ -2716,7 +3072,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
             
             val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
             
-            // Parse Baseline
             if (masterJson.has("baseline")) {
                 val baselineArr = masterJson.getJSONArray("baseline")
                 val entities = mutableListOf<com.example.mhealth.logic.db.BaselineEntity>()
@@ -2737,7 +3092,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                 }
             }
             
-            // Parse Daily History
             if (masterJson.has("daily_history")) {
                 val historyArr = masterJson.getJSONArray("daily_history")
                 for (i in 0 until historyArr.length()) {
@@ -2791,7 +3145,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                 }
             }
             
-            // Rehydrate Live Accumulators
             if (masterJson.has("today_live")) {
                 val liveObj = masterJson.getJSONObject("today_live")
                 val locStr = liveObj.optString("location_snapshots", "")
@@ -2814,7 +3167,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                 DataRepository.restoreTodayState(locs, chargeHrs, bgAudio, stepBase)
             }
             
-            // Parse Analysis Reports
             if (masterJson.has("analysis_reports")) {
                 val reportsArr = masterJson.getJSONArray("analysis_reports")
                 for (i in 0 until reportsArr.length()) {
@@ -2880,12 +3232,4 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
         )
     }
     return mode == AppOpsManager.MODE_ALLOWED
-}
-
-private fun alertColorForLevel(level: String): Color = when (level.lowercase()) {
-    "green" -> AlertGreen
-    "yellow" -> AlertYellow
-    "orange" -> AlertOrange
-    "red" -> AlertRed
-    else -> AlertGreen
 }

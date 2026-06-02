@@ -305,6 +305,7 @@ The python intelligence engine resides in the Android app source directory:
     2. **`PathEffect` Fix**: Added the missing `import androidx.compose.ui.graphics.PathEffect` to resolve dashed Canvas layout rendering.
     3. **`lifecycleScope` Fix**: Ensured the target Context is cast to `ComponentActivity` inside `exportDataToUri()` before fetching lifecycle scopes.
 *   **2026-06-02**: Resolved Mean-Shift bandwidth over-segmentation on small datasets by applying a neighborhood floor `max(n_neighbors, min(n - 1, 4))` in both `s1_profile.py` and `validation/simulation_engine.py`. Fixed the historical L2 modifiers replay false alarm bug by loading and passing historical L2 modifiers and effective scores from Room in `MonitoringService.kt` and `NightlyAnalysisWorker.kt` into the Python engine replay loop in `engine.py`.
+*   **2026-06-02**: Fully rewrote release `MainActivity.kt` for the user build of Lumen. Established a clean, offline-first 4-tab dashboard layout (Home, Insights, Check In, Settings). Added pulsing lotus canvas wave ripples, a qualitative weekly reflection trend graph, rolling JSON-based daily check-in histories in SharedPreferences, and dynamic support helpline numbers based on the user's home country.
 
 ---
 

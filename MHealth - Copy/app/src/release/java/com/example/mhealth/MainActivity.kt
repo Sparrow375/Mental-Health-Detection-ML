@@ -2871,7 +2871,8 @@ fun getHelplinesByCountry(country: String): List<Helpline> {
 
 private fun exportDataToUri(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
-    context.lifecycleScope.launch(Dispatchers.IO) {
+    val activity = context as ComponentActivity
+    activity.lifecycleScope.launch(Dispatchers.IO) {
         try {
             val db = MHealthDatabase.getInstance(context)
             val userId = DataRepository.userProfile.value?.email ?: "local_patient@lumen.health"
@@ -3044,9 +3045,10 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
 
 private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
+    val activity = context as ComponentActivity
     Toast.makeText(context, "Importing backup...", Toast.LENGTH_SHORT).show()
 
-    context.lifecycleScope.launch(Dispatchers.IO) {
+    activity.lifecycleScope.launch(Dispatchers.IO) {
         try {
             val contentResolver = context.contentResolver
             val inputStream = contentResolver.openInputStream(uri) ?: throw Exception("Cannot open file")

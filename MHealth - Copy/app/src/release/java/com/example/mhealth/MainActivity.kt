@@ -46,6 +46,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -341,7 +342,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     val activeResult = provisional ?: latestResult
     val score = activeResult?.effectiveScore ?: -1f
     
-    val name = userProfile?.name ?: ""
+    val name = (userProfile?.name ?: "").trim()
     val greeting = getGreeting()
     
     val statusText = when {
@@ -379,7 +380,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = if (name.isNotBlank()) "$greeting, $name." else "$greeting.",
+                    text = if (name.isNotBlank()) "$greeting,\n$name." else "$greeting.",
                     fontSize = 28.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
@@ -927,7 +928,10 @@ fun QualitativeInsightCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -947,7 +951,14 @@ fun QualitativeInsightCard(
                         .background(badgeColor.copy(alpha = 0.12f))
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text(badgeText, fontSize = 10.sp, color = badgeColor, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text(
+                        text = badgeText,
+                        fontSize = 10.sp,
+                        color = badgeColor,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        maxLines = 1
+                    )
                 }
             }
 
@@ -2622,13 +2633,23 @@ fun StaggeredFadeIn(
         delay((index * 100).toLong())
         visible = true
     }
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn(animationSpec = tween(600)) + slideInVertically(
-            initialOffsetY = { 40 },
-            animationSpec = tween(600, easing = EaseOut)
-        ),
-        exit = fadeOut()
+    
+    val alpha by animateFloatAsState(
+        targetValue = if (visible) 1f else 0f,
+        animationSpec = tween(durationMillis = 600),
+        label = "FadeAlpha"
+    )
+    val translationY by animateFloatAsState(
+        targetValue = if (visible) 0f else 40f,
+        animationSpec = tween(durationMillis = 600, easing = EaseOut),
+        label = "FadeTranslationY"
+    )
+    
+    Box(
+        modifier = Modifier.graphicsLayer {
+            this.alpha = alpha
+            this.translationY = translationY
+        }
     ) {
         content()
     }
@@ -2691,8 +2712,7 @@ fun getGreeting(): String {
     return when (hour) {
         in 5..11 -> "Good Morning"
         in 12..16 -> "Good Afternoon"
-        in 17..21 -> "Good Evening"
-        else -> "Good Night"
+        else -> "Good Evening"
     }
 }
 

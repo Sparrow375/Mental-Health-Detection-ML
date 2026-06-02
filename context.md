@@ -309,6 +309,11 @@ The python intelligence engine resides in the Android app source directory:
 *   **2026-06-02**: Fixed `lifecycleScope` receiver type mismatch compilation failure in release `MainActivity.kt`. After the `if (context !is ComponentActivity) return` guard, Kotlin's smart cast does not propagate for extension properties like `lifecycleScope`. Fixed by explicitly casting to a local `val activity = context as ComponentActivity` in both `exportDataToUri()` and `importBackupDataFromJson()` before invoking `activity.lifecycleScope.launch()`.
 *   **2026-06-02**: Fixed `Unresolved reference 'OceanBlue'` compilation error in release `MainActivity.kt`. `OceanBlue` is defined in the main source set's `Color.kt` and is inaccessible to the release source set. Replaced the `InfoCard` default `headerColor` parameter with `TealAccent` (the equivalent Lumen release accent colour defined locally at the top of the same file).
 *   **2026-06-02**: Fixed `Unresolved reference 'tabIndicatorOffset'` compilation error in release `MainActivity.kt` by explicitly importing `androidx.compose.material3.TabRowDefaults.tabIndicatorOffset`.
+*   **2026-06-02**: Resolved multiple UI and scroll performance issues in release `MainActivity.kt`:
+    1. Greeting name wrapping: Changed home screen greeting to place the trimmed username on a new line (e.g. `Good Evening,\nAvaneesh Verma.`) to prevent awkward formatting.
+    2. Nighttime greeting: Updated greeting logic to return "Good Evening" instead of "Good Night" for evening/night hours for a warmer feel.
+    3. Badge text squeezing: Added `weight(1f)` to title section in `QualitativeInsightCard` and `maxLines = 1` on the status badge to prevent the badge text from getting squeezed and wrapped.
+    4. Scroll delay: Refactored `StaggeredFadeIn` to use `graphicsLayer` opacity/translation animation instead of dynamically injecting views, allowing the scroll height of the list to be computed correctly from the start.
 
 ---
 

@@ -934,7 +934,7 @@ class MonitoringService : Service() {
                 
                 // 5. Construct JSON input via JsonConverter
                 val todayFeatures = JsonConverter.fromPersonalityVector(userId, todayStr, liveSnapshot, isSimulated = false)
-                val inputJsonStr = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
+                val inputJsonStr = JsonConverter.toEngineJson(this@MonitoringService, todayFeatures, baselineEntities, history)
                 
                 // 6. Build meta JSON
                 val root = org.json.JSONObject(inputJsonStr)

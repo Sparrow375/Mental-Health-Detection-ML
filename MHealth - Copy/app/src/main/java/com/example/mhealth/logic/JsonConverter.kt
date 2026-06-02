@@ -23,17 +23,21 @@ import org.json.JSONObject
  *   "baseline_contaminated": <bool>
  * }
  */
+import android.content.Context
+
 object JsonConverter {
 
     /**
      * Builds the Python engine input JSON from persisted Room data.
      *
+     * @param context      Android Context to retrieve user preferences
      * @param current      Today's feature row
      * @param baseline     List of BaselineEntity rows (one per feature)
      * @param history      Last N daily feature rows (oldest first, max 14)
      * @return             JSON string ready to pass to engine.run_analysis()
      */
     fun toEngineJson(
+        context: Context,
         current: DailyFeaturesEntity,
         baseline: List<BaselineEntity>,
         history: List<DailyFeaturesEntity>
@@ -69,6 +73,30 @@ object JsonConverter {
         root.put("phq9_score", DataRepository.phq9Score.value)
         root.put("gad7_score", DataRepository.gad7Score.value)
         root.put("recent_life_events_count", DataRepository.recentLifeEventsCount.value)
+
+        // ── Detailed User Profile details from SharedPreferences ───────────────
+        val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        root.put("age", prefs.getInt("user_age", 25))
+        root.put("gender", prefs.getString("user_gender", "prefer_not_to_say"))
+        root.put("living_situation", prefs.getString("user_living_situation", "with_family"))
+        root.put("employment", prefs.getString("user_profession", "student"))
+
+        root.put("typical_wake", prefs.getFloat("user_typical_wake", 7.0f).toDouble())
+        root.put("typical_sleep", prefs.getFloat("user_typical_sleep", 23.0f).toDouble())
+        root.put("commute_minutes", prefs.getInt("user_commute_minutes", 30))
+        root.put("routine_consistency", prefs.getString("user_routine_consistency", "flexible"))
+
+        root.put("lifestyle_screen", prefs.getInt("user_lifestyle_screen", 3))
+        root.put("lifestyle_communication", prefs.getInt("user_lifestyle_communication", 3))
+        root.put("lifestyle_movement", prefs.getInt("user_lifestyle_movement", 3))
+        root.put("lifestyle_sleep", prefs.getInt("user_lifestyle_sleep", 3))
+        root.put("lifestyle_behavioral", prefs.getInt("user_lifestyle_behavioral", 3))
+        root.put("lifestyle_engagement", prefs.getInt("user_lifestyle_engagement", 3))
+
+        root.put("is_student", prefs.getBoolean("user_is_student", false))
+        root.put("has_chronic_condition", prefs.getBoolean("user_has_chronic_condition", false))
+        root.put("in_therapy", prefs.getBoolean("user_in_therapy", false))
+        root.put("physical_health_rating", prefs.getInt("user_physical_health_rating", 7))
 
         return root.toString()
     }

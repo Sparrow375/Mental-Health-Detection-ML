@@ -366,6 +366,49 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         label = "StreakAnimation"
     )
 
+    // Reactive Permission Checks
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context))
+    }
+    var isAccessibilityGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
+    }
+    var isLocationPermissionGranted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+    val homeLocationState by DataRepository.homeLocation.collectAsState()
+    val isHomeSet = homeLocationState != null
+
+    var isReminderDismissed by remember {
+        mutableStateOf(prefs.getBoolean("home_permissions_reminder_dismissed", false))
+    }
+
+    var homeCapturing by remember { mutableStateOf(false) }
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
+                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
+                isLocationPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val locPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    }
+
+    val hasMissingPermissions = !isNotificationAccessGranted || !isAccessibilityGranted || !isLocationPermissionGranted || !isHomeSet
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -392,6 +435,119 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+            }
+        }
+
+        if (!isReminderDismissed && hasMissingPermissions) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.3f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Warning,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    text = "Complete Setup",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                            IconButton(
+                                onClick = {
+                                    prefs.edit().putBoolean("home_permissions_reminder_dismissed", true).apply()
+                                    isReminderDismissed = true
+                                },
+                                modifier = Modifier.size(24.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Dismiss",
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+
+                        Text(
+                            text = "Lumen needs a few system permissions to passively monitor your wellness telemetry.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            lineHeight = 17.sp
+                        )
+
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            if (!isLocationPermissionGranted) {
+                                PermissionReminderRow(
+                                    name = "GPS Location Permission",
+                                    buttonText = "Grant",
+                                    onClick = {
+                                        locPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                            if (isLocationPermissionGranted && !isHomeSet) {
+                                PermissionReminderRow(
+                                    name = "Home Location Anchor",
+                                    buttonText = if (homeCapturing) "Acquiring..." else "Set Home",
+                                    enabled = !homeCapturing,
+                                    onClick = {
+                                        homeCapturing = true
+                                        com.example.mhealth.logic.DataCollector(context).captureHomeLocation { success ->
+                                            homeCapturing = false
+                                            if (success) {
+                                                Toast.makeText(context, "🏠 Home location coordinates saved!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(context, "❌ Location Timeout. Check GPS settings.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    }
+                                )
+                            }
+                            if (!isNotificationAccessGranted) {
+                                PermissionReminderRow(
+                                    name = "Notification Access",
+                                    buttonText = "Enable",
+                                    onClick = {
+                                        context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                                    }
+                                )
+                            }
+                            if (!isAccessibilityGranted) {
+                                PermissionReminderRow(
+                                    name = "Accessibility Service",
+                                    buttonText = "Enable",
+                                    onClick = {
+                                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
         
@@ -519,6 +675,47 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun PermissionReminderRow(
+    name: String,
+    buttonText: String,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(10.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.5f))
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = name,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Button(
+            onClick = onClick,
+            enabled = enabled,
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+            modifier = Modifier.height(32.dp),
+            shape = RoundedCornerShape(6.dp)
+        ) {
+            Text(
+                text = buttonText,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = Color.Black
+            )
         }
     }
 }
@@ -1423,6 +1620,39 @@ fun SettingsScreen() {
 
     var showPrivacyDialog by remember { mutableStateOf(false) }
 
+    // Reactive Permission States
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context))
+    }
+    var isAccessibilityGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
+    }
+    var isLocationPermissionGranted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+    val isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
+
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
+                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
+                isLocationPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val locPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    }
+
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json"),
         onResult = { uri ->
@@ -1524,6 +1754,51 @@ fun SettingsScreen() {
         }
 
         item {
+            InfoCard("System Permissions", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    PermissionSettingRow(
+                        title = "GPS Location Permission",
+                        subtitle = "Required to track daily movement",
+                        isGranted = isLocationPermissionGranted,
+                        isReminderDismissed = isReminderDismissed,
+                        onClick = {
+                            if (!isLocationPermissionGranted) {
+                                locPermissionLauncher.launch(
+                                    arrayOf(
+                                        Manifest.permission.ACCESS_FINE_LOCATION,
+                                        Manifest.permission.ACCESS_COARSE_LOCATION
+                                    )
+                                )
+                            } else {
+                                Toast.makeText(context, "Location permission is enabled.", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    PermissionSettingRow(
+                        title = "Notification Listener Access",
+                        subtitle = "Required for notification rates & music",
+                        isGranted = isNotificationAccessGranted,
+                        isReminderDismissed = isReminderDismissed,
+                        onClick = {
+                            context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    PermissionSettingRow(
+                        title = "Accessibility Dynamics Service",
+                        subtitle = "Required for typing speed & scroll velocity",
+                        isGranted = isAccessibilityGranted,
+                        isReminderDismissed = isReminderDismissed,
+                        onClick = {
+                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                        }
+                    )
+                }
+            }
+        }
+
+        item {
             InfoCard("Data Collection Toggles", headerColor = MaterialTheme.colorScheme.primary) {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     ToggleRow(
@@ -1577,10 +1852,33 @@ fun SettingsScreen() {
                             )
                         }
                     } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.LocationOff, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Default.LocationOff, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(18.dp))
+                                Spacer(Modifier.width(8.dp))
+                                Text("Home coordinate anchor is not set yet.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                             Spacer(Modifier.width(8.dp))
-                            Text("Home coordinate anchor is not set yet.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            val badgeColor = if (isReminderDismissed) AlertRose else AlertWarning
+                            val badgeText = if (isReminderDismissed) "Action Required - Not Set" else "Not Set"
+                            Surface(
+                                shape = RoundedCornerShape(6.dp),
+                                color = badgeColor.copy(alpha = 0.12f),
+                                border = BorderStroke(1.dp, badgeColor)
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = badgeColor,
+                                    fontFamily = Fredoka,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                                )
+                            }
                         }
                     }
                     Spacer(Modifier.height(12.dp))
@@ -1878,6 +2176,56 @@ fun SettingsScreen() {
     }
 }
 
+@Composable
+fun PermissionSettingRow(
+    title: String,
+    subtitle: String,
+    isGranted: Boolean,
+    isReminderDismissed: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 13.5.sp, fontFamily = Fredoka)
+            Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.width(8.dp))
+        
+        val badgeText = when {
+            isGranted -> "Enabled"
+            isReminderDismissed -> "Action Required - Disabled"
+            else -> "Disabled"
+        }
+        val badgeColor = when {
+            isGranted -> TealAccent
+            isReminderDismissed -> AlertRose
+            else -> AlertWarning
+        }
+        
+        Surface(
+            shape = RoundedCornerShape(6.dp),
+            color = badgeColor.copy(alpha = 0.12f),
+            border = BorderStroke(1.dp, badgeColor)
+        ) {
+            Text(
+                text = badgeText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = badgeColor,
+                fontFamily = Fredoka,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
 // =============================================================================
 // Onboarding Wizard Composable
 // =============================================================================
@@ -1886,17 +2234,74 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
     
-    var step by remember { mutableIntStateOf(1) } // 1: Splash, 2: Demographics, 3: Home GPS, 4: PHQ-9, 5: GAD-7, 6: Stressors, 7: Finalize
+    var step by remember { mutableIntStateOf(1) } // 1: Splash, 2: Demographics, 3: Routines, 4: Lifestyle, 5: Clinical, 6: Home GPS, 7: Permissions, 8: PHQ-9, 9: GAD-7, 10: Stressors, 11: Finalize
     
+    // Step 2 State (Demographics)
     var name by remember { mutableStateOf("") }
     var gender by remember { mutableStateOf("") }
     var age by remember { mutableStateOf("") }
     var profession by remember { mutableStateOf("") }
     var country by remember { mutableStateOf("") }
+    var livingSituation by remember { mutableStateOf("") }
+    var isStudent by remember { mutableStateOf(false) }
     var showErrors by remember { mutableStateOf(false) }
 
+    // Step 3 State (Routines)
+    var typicalWake by remember { mutableFloatStateOf(7.0f) }
+    var typicalSleep by remember { mutableFloatStateOf(23.0f) }
+    var commuteMinutes by remember { mutableFloatStateOf(30.0f) }
+    var routineConsistency by remember { mutableStateOf("") }
+
+    // Step 4 State (Lifestyle Sliders, 1-5 scale)
+    var screenReliance by remember { mutableFloatStateOf(3.0f) }
+    var communicationActivity by remember { mutableFloatStateOf(3.0f) }
+    var physicalMovement by remember { mutableFloatStateOf(3.0f) }
+    var sleepHygiene by remember { mutableFloatStateOf(3.0f) }
+    var moodReflection by remember { mutableFloatStateOf(3.0f) }
+    var checkinLikelihood by remember { mutableFloatStateOf(3.0f) }
+
+    // Step 5 State (Clinical Status)
+    var hasChronicCondition by remember { mutableStateOf(false) }
+    var inTherapy by remember { mutableStateOf(false) }
+    var physicalHealthRating by remember { mutableFloatStateOf(7.0f) }
+
+    // Step 6 State (Home Location Capture)
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.homeLocation.value != null) }
+
+    // Step 7 State (System Permissions)
+    var isNotificationAccessGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(ctx))
+    }
+    var isAccessibilityGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx))
+    }
+    var isLocationPermissionGranted by remember {
+        mutableStateOf(ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
+    }
+
+    // Refresh permission statuses when returning from OS settings
+    val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(ctx)
+                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx)
+                isLocationPermissionGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                homeSet = DataRepository.homeLocation.value != null
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    val locPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+    }
 
     val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
     val phq9Questions = listOf(
@@ -1934,6 +2339,13 @@ fun OnboardingWizard(onComplete: () -> Unit) {
 
     val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
 
+    fun formatTimeFloat(valFloat: Float): String {
+        val totalMinutes = (valFloat * 60).roundToInt()
+        val hours = totalMinutes / 60
+        val minutes = totalMinutes % 60
+        return "%02d:%02d".format(hours, minutes)
+    }
+
     Column(
         Modifier
             .fillMaxSize()
@@ -1958,10 +2370,14 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     text = when (step) {
                         1 -> "Welcome to Lumen."
                         2 -> "Tell us a bit about yourself"
-                        3 -> "Set your home"
-                        4 -> "Personal Health Questionnaire (PHQ-9)"
-                        5 -> "Generalized Anxiety Screener (GAD-7)"
-                        6 -> "Have you been through anything big lately?"
+                        3 -> "Your Daily Rhythms"
+                        4 -> "Lifestyle Calibration"
+                        5 -> "Health Context"
+                        6 -> "Set your home"
+                        7 -> "System Permissions"
+                        8 -> "Personal Health Questionnaire (PHQ-9)"
+                        9 -> "Generalized Anxiety Screener (GAD-7)"
+                        10 -> "Have you been through anything big lately?"
                         else -> "Calibration Completed"
                     },
                     fontSize = 24.sp,
@@ -1973,10 +2389,14 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     text = when (step) {
                         1 -> "A quiet companion for your mental wellness"
                         2 -> "These details remain entirely private on this device"
-                        3 -> "Used locally to evaluate daily time spent at home"
-                        4 -> "Answer honestly to establish your clinical baseline priors"
-                        5 -> "Helps Lumen calibrate threshold sensitivities to keep you safe"
-                        6 -> "Identifies transient life events that might mimic indicators"
+                        3 -> "Helps Lumen understand your target routines"
+                        4 -> "Calibrate telemetry weights to match your personal baseline profile"
+                        5 -> "Provides clinical baseline context to adapt overrides"
+                        6 -> "Used locally to evaluate daily time spent at home"
+                        7 -> "Lumen runs passively offline and requires permissions to collect telemetry"
+                        8 -> "Answer honestly to establish your clinical baseline priors"
+                        9 -> "Helps Lumen calibrate threshold sensitivities to keep you safe"
+                        10 -> "Identifies transient life events that might mimic indicators"
                         else -> "Lumen will quietly monitor in the background."
                     },
                     fontSize = 12.sp,
@@ -2122,6 +2542,48 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             }
                         }
                         item {
+                            var expandedLiving by remember { mutableStateOf(false) }
+                            Box(Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = livingSituation, onValueChange = {},
+                                    label = { Text("Living Situation") },
+                                    readOnly = true,
+                                    isError = showErrors && livingSituation.isBlank(),
+                                    trailingIcon = { IconButton(onClick = { expandedLiving = !expandedLiving }) { Icon(Icons.Default.ArrowDropDown, null) } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { expandedLiving = !expandedLiving })
+                                DropdownMenu(expanded = expandedLiving, onDismissRequest = { expandedLiving = false }) {
+                                    listOf("Alone", "With Family", "Roommates", "Hostel").forEach { opt ->
+                                        DropdownMenuItem(
+                                            text = { Text(opt) },
+                                            onClick = { livingSituation = opt; expandedLiving = false }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        item {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Checkbox(
+                                    checked = isStudent,
+                                    onCheckedChange = { isStudent = it },
+                                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("I am currently a student", fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onBackground)
+                            }
+                        }
+                        item {
                             var expandedCountry by remember { mutableStateOf(false) }
                             var countrySearch by remember { mutableStateOf("") }
                             val allCountries = listOf(
@@ -2164,37 +2626,231 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 }
                             }
                         }
+                    }
+                }
+                3 -> {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
                         item {
-                            Button(
-                                onClick = {
-                                    if (name.isBlank() || gender.isBlank() || age.isBlank() || profession.isBlank() || country.isBlank()) {
-                                        showErrors = true
-                                    } else {
-                                        val p = com.example.mhealth.models.UserProfile(
-                                            email = "patient@lumen.health",
-                                            name = name,
-                                            gender = gender,
-                                            age = age.toIntOrNull() ?: 0,
-                                            profession = profession,
-                                            country = country
-                                        )
-                                        DataRepository.saveUserProfile(p)
-                                        step = 3
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp)
-                                    .padding(top = 8.dp),
-                                shape = RoundedCornerShape(12.dp)
+                            Text("Routines help Lumen construct a reference circadian rhythm context.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                             ) {
-                                Text("Continue Setup", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("Typical Wake Time: ${formatTimeFloat(typicalWake)}", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                                    Slider(
+                                        value = typicalWake,
+                                        onValueChange = { typicalWake = it },
+                                        valueRange = 0f..24f,
+                                        steps = 47,
+                                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("Typical Sleep Time: ${formatTimeFloat(typicalSleep)}", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                                    Slider(
+                                        value = typicalSleep,
+                                        onValueChange = { typicalSleep = it },
+                                        valueRange = 0f..24f,
+                                        steps = 47,
+                                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("Typical Daily Commute: ${commuteMinutes.toInt()} minutes", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                                    Slider(
+                                        value = commuteMinutes,
+                                        onValueChange = { commuteMinutes = it },
+                                        valueRange = 0f..120f,
+                                        steps = 23,
+                                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            var expandedConsistency by remember { mutableStateOf(false) }
+                            Box(Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = routineConsistency, onValueChange = {},
+                                    label = { Text("Routine Consistency") },
+                                    readOnly = true,
+                                    isError = showErrors && routineConsistency.isBlank(),
+                                    trailingIcon = { IconButton(onClick = { expandedConsistency = !expandedConsistency }) { Icon(Icons.Default.ArrowDropDown, null) } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable { expandedConsistency = !expandedConsistency })
+                                DropdownMenu(expanded = expandedConsistency, onDismissRequest = { expandedConsistency = false }) {
+                                    listOf("Rigid", "Flexible", "Variable").forEach { opt ->
+                                        DropdownMenuItem(
+                                            text = { Text(opt) },
+                                            onClick = { routineConsistency = opt; expandedConsistency = false }
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
-                3 -> {
+                4 -> {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Text("Rate your typical phone usage and activities from 1 to 5 to calibrate anomaly model weights.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Screen Reliance",
+                                description = "How reliant are you on your phone screen daily?",
+                                value = screenReliance,
+                                onValueChange = { screenReliance = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Communication Activity",
+                                description = "How active are you in daily calls and messages?",
+                                value = communicationActivity,
+                                onValueChange = { communicationActivity = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Physical Movement",
+                                description = "How active is your daily physical movement?",
+                                value = physicalMovement,
+                                onValueChange = { physicalMovement = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Sleep Hygiene",
+                                description = "How consistent is your sleep routine?",
+                                value = sleepHygiene,
+                                onValueChange = { sleepHygiene = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Digital-Mood Reflection",
+                                description = "How strongly does your mood reflect your screen use?",
+                                value = moodReflection,
+                                onValueChange = { moodReflection = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Wellness Check-in Likelihood",
+                                description = "How likely are you to complete daily check-ins?",
+                                value = checkinLikelihood,
+                                onValueChange = { checkinLikelihood = it }
+                            )
+                        }
+                    }
+                }
+                5 -> {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                    ) {
+                        item {
+                            Text("Provide health context to customize clinical overrides.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    OnboardingSwitchRow(
+                                        title = "Diagnosed Condition",
+                                        subtitle = "I have a diagnosed/chronic mental health condition",
+                                        checked = hasChronicCondition,
+                                        onCheckedChange = { hasChronicCondition = it }
+                                    )
+                                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f), modifier = Modifier.padding(vertical = 8.dp))
+                                    OnboardingSwitchRow(
+                                        title = "In Therapy",
+                                        subtitle = "I am currently in professional therapy",
+                                        checked = inTherapy,
+                                        onCheckedChange = { inTherapy = it }
+                                    )
+                                }
+                            }
+                        }
+
+                        item {
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                            ) {
+                                Column(Modifier.padding(16.dp)) {
+                                    Text("General Physical Health: ${physicalHealthRating.toInt()}/10", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                                    Slider(
+                                        value = physicalHealthRating,
+                                        onValueChange = { physicalHealthRating = it },
+                                        valueRange = 1f..10f,
+                                        steps = 8,
+                                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                6 -> {
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -2222,81 +2878,126 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             }
                         }
 
-                        if (homeSet) {
-                            val loc = DataRepository.homeLocation.value
-                            Card(
-                                shape = RoundedCornerShape(8.dp),
-                                colors = CardDefaults.cardColors(containerColor = TealAccent.copy(0.12f))
-                            ) {
-                                Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.CheckCircle, null, tint = TealAccent, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text(
-                                        "Coordinates Anchored: %.4f, %.4f".format(loc?.first ?: 0.0, loc?.second ?: 0.0),
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = TealAccent
+                        if (!isLocationPermissionGranted) {
+                            Button(
+                                onClick = {
+                                    locPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
                                     )
-                                }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text("Grant GPS Location Permission", color = Color.White, fontFamily = Fredoka)
                             }
-                        }
-
-                        Button(
-                            onClick = {
-                                homeCapturing = true
-                                com.example.mhealth.logic.DataCollector(ctx).captureHomeLocation { success ->
-                                    homeCapturing = false
-                                    homeSet = success
-                                    if (!success) {
-                                        Toast.makeText(ctx, "GPS Timeout. Please make sure location access is enabled.", Toast.LENGTH_LONG).show()
+                        } else {
+                            if (homeSet) {
+                                val loc = DataRepository.homeLocation.value
+                                Card(
+                                    shape = RoundedCornerShape(8.dp),
+                                    colors = CardDefaults.cardColors(containerColor = TealAccent.copy(0.12f))
+                                ) {
+                                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, null, tint = TealAccent, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text(
+                                            "Coordinates Anchored: %.4f, %.4f".format(loc?.first ?: 0.0, loc?.second ?: 0.0),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = TealAccent
+                                        )
                                     }
                                 }
-                            },
-                            enabled = !homeCapturing,
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            if (homeCapturing) {
-                                CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
-                                Spacer(Modifier.width(8.dp))
                             }
-                            Text(if (homeCapturing) "Acquiring GPS Signal..." else "📌 Capture Current GPS as Home", color = Color.White, fontFamily = Fredoka)
-                        }
 
-                        Spacer(Modifier.weight(1f))
-
-                        Button(
-                            onClick = { step = 4 },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text(if (homeSet) "Next: Clinical Screeners" else "Skip Home Location for Now", color = Color.Black, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                            Button(
+                                onClick = {
+                                    homeCapturing = true
+                                    com.example.mhealth.logic.DataCollector(ctx).captureHomeLocation { success ->
+                                        homeCapturing = false
+                                        homeSet = success
+                                        if (!success) {
+                                            Toast.makeText(ctx, "GPS Timeout. Please make sure location access is enabled.", Toast.LENGTH_LONG).show()
+                                        }
+                                    }
+                                },
+                                enabled = !homeCapturing,
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                if (homeCapturing) {
+                                    CircularProgressIndicator(Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                                    Spacer(Modifier.width(8.dp))
+                                }
+                                Text(if (homeCapturing) "Acquiring GPS Signal..." else "📌 Capture Current GPS as Home", color = Color.White, fontFamily = Fredoka)
+                            }
                         }
                     }
                 }
-                4 -> {
+                7 -> {
+                    LazyColumn(
+                        Modifier
+                            .fillMaxSize()
+                            .padding(24.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        item {
+                            Text(
+                                text = "Lumen needs access to notifications and accessibility to passively capture app usage dynamics. These are processed 100% locally.",
+                                fontSize = 13.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        item {
+                            PermissionStatusCard(
+                                title = "Notification Listener Access",
+                                description = "Required to track notification rates and music playtimes.",
+                                isGranted = isNotificationAccessGranted,
+                                onClick = {
+                                    ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                                }
+                            )
+                        }
+
+                        item {
+                            PermissionStatusCard(
+                                title = "Accessibility Dynamics Service",
+                                description = "Required to analyze keystroke dynamics and scroll speeds locally.",
+                                isGranted = isAccessibilityGranted,
+                                onClick = {
+                                    ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                }
+                            )
+                        }
+                    }
+                }
+                8 -> {
                     ScreenerWizard(
                         questions = phq9Questions,
                         answers = phq9Answers,
                         options = optionsList,
-                        onCompleted = { step = 5 }
+                        onCompleted = { step = 9 }
                     )
                 }
-                5 -> {
+                9 -> {
                     ScreenerWizard(
                         questions = gad7Questions,
                         answers = gad7Answers,
                         options = optionsList,
-                        onCompleted = { step = 6 }
+                        onCompleted = { step = 10 }
                     )
                 }
-                6 -> {
+                10 -> {
                     Column(
                         Modifier
                             .fillMaxSize()
@@ -2355,35 +3056,9 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 }
                             }
                         }
-
-                        Button(
-                            onClick = {
-                                val totalPhq = phq9Answers.sum()
-                                val totalGad = gad7Answers.sum()
-                                val totalEvents = selectedStressors.filter { it.value && it.key < stressors.size - 1 }.size
-
-                                DataRepository.saveScreenerScores(totalPhq, totalGad, totalEvents)
-                                
-                                val localPref = ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
-                                localPref.edit().apply {
-                                    putInt("screener_phq9", totalPhq)
-                                    putInt("screener_gad7", totalGad)
-                                    putInt("screener_life_events", totalEvents)
-                                }.apply()
-
-                                step = 7
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(50.dp),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Calibrate Thresholds", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                        }
                     }
                 }
-                7 -> {
+                11 -> {
                     val checkinEnabled by DataRepository.checkinNotificationsEnabled.collectAsState()
                     Column(
                         Modifier
@@ -2431,6 +3106,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 .padding(vertical = 8.dp)
                         ) {
                             Column(Modifier.weight(1f)) {
+                                text = "Weekly Screening Reminders"
                                 Text("Weekly Screening Reminders", fontWeight = FontWeight.Bold, fontSize = 14.sp)
                                 Text("Remind me to complete weekly checks.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.6f))
                             }
@@ -2446,7 +3122,38 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         Button(
                             onClick = {
                                 val localPref = ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
-                                localPref.edit().putBoolean("first_login_complete", true).apply()
+                                localPref.edit().apply {
+                                    putBoolean("first_login_complete", true)
+                                    
+                                    // Save demographics
+                                    putString("user_name", name)
+                                    putString("user_gender", gender)
+                                    putInt("user_age", age.toIntOrNull() ?: 25)
+                                    putString("user_profession", profession)
+                                    putString("user_country", country)
+                                    putString("user_living_situation", livingSituation)
+                                    putBoolean("user_is_student", isStudent)
+                                    
+                                    // Save routines
+                                    putFloat("user_typical_wake", typicalWake)
+                                    putFloat("user_typical_sleep", typicalSleep)
+                                    putInt("user_commute_minutes", commuteMinutes.toInt())
+                                    putString("user_routine_consistency", routineConsistency.lowercase())
+                                    
+                                    // Save lifestyle sliders
+                                    putInt("user_lifestyle_screen", screenReliance.toInt())
+                                    putInt("user_lifestyle_communication", communicationActivity.toInt())
+                                    putInt("user_lifestyle_movement", physicalMovement.toInt())
+                                    putInt("user_lifestyle_sleep", sleepHygiene.toInt())
+                                    putInt("user_lifestyle_behavioral", moodReflection.toInt())
+                                    putInt("user_lifestyle_engagement", checkinLikelihood.toInt())
+                                    
+                                    // Save clinical status
+                                    putBoolean("user_has_chronic_condition", hasChronicCondition)
+                                    putBoolean("user_in_therapy", inTherapy)
+                                    putInt("user_physical_health_rating", physicalHealthRating.toInt())
+                                }.apply()
+
                                 scope.launch(Dispatchers.IO) {
                                     val db = MHealthDatabase.getInstance(ctx)
                                     db.userProfileDao().upsert(
@@ -2473,6 +3180,194 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         }
                     }
                 }
+            }
+        }
+
+        // Navigation row at bottom of content (if not splash, screener or finalize)
+        if (step in 2..7 || step == 10) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(24.dp),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Button(
+                    onClick = { if (step > 1) step-- },
+                    enabled = step > 1,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.outline.copy(0.1f),
+                        contentColor = MaterialTheme.colorScheme.onBackground
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("Back", fontFamily = Fredoka)
+                }
+
+                Button(
+                    onClick = {
+                        when (step) {
+                            2 -> {
+                                if (name.isBlank() || gender.isBlank() || age.isBlank() || profession.isBlank() || country.isBlank() || livingSituation.isBlank()) {
+                                    showErrors = true
+                                } else {
+                                    val p = com.example.mhealth.models.UserProfile(
+                                        email = "patient@lumen.health",
+                                        name = name,
+                                        gender = gender,
+                                        age = age.toIntOrNull() ?: 0,
+                                        profession = profession,
+                                        country = country
+                                    )
+                                    DataRepository.saveUserProfile(p)
+                                    step = 3
+                                }
+                            }
+                            3 -> {
+                                if (routineConsistency.isBlank()) {
+                                    showErrors = true
+                                    Toast.makeText(ctx, "Please select routine consistency", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    step = 4
+                                }
+                            }
+                            4 -> step = 5
+                            5 -> step = 6
+                            6 -> step = 7
+                            7 -> step = 8
+                            10 -> {
+                                // Calculate Calibration Scores
+                                val totalPhq = phq9Answers.sum()
+                                val totalGad = gad7Answers.sum()
+                                val totalEvents = selectedStressors.filter { it.value && it.key < stressors.size - 1 }.size
+
+                                DataRepository.saveScreenerScores(totalPhq, totalGad, totalEvents)
+                                
+                                val localPref = ctx.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+                                localPref.edit().apply {
+                                    putInt("screener_phq9", totalPhq)
+                                    putInt("screener_gad7", totalGad)
+                                    putInt("screener_life_events", totalEvents)
+                                }.apply()
+
+                                step = 11
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier
+                        .width(140.dp)
+                        .height(48.dp)
+                ) {
+                    Text(
+                        text = if (step == 10) "Calibrate" else "Next",
+                        fontFamily = Fredoka,
+                        color = Color.Black,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LifestyleSlider(
+    title: String,
+    description: String,
+    value: Float,
+    onValueChange: (Float) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(Modifier.padding(16.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+            Text(description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Slider(
+                    value = value,
+                    onValueChange = onValueChange,
+                    valueRange = 1f..5f,
+                    steps = 3,
+                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary),
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(Modifier.width(12.dp))
+                Text("${value.toInt()}/5", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+fun OnboardingSwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+            Text(subtitle, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedThumbColor = Color.Black)
+        )
+    }
+}
+
+@Composable
+fun PermissionStatusCard(
+    title: String,
+    description: String,
+    isGranted: Boolean,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                Text(description, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Spacer(Modifier.width(12.dp))
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isGranted) TealAccent.copy(0.12f) else AlertRose.copy(0.12f),
+                border = BorderStroke(1.dp, if (isGranted) TealAccent else AlertRose)
+            ) {
+                Text(
+                    text = if (isGranted) "Granted" else "Tap to Enable",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = if (isGranted) TealAccent else AlertRose,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+                )
             }
         }
     }

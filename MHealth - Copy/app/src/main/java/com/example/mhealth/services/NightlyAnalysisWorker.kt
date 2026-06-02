@@ -183,7 +183,7 @@ class NightlyAnalysisWorker(
             } else {
                 priorAnalysisCount + 1
             }
-            val inputJson = JsonConverter.toEngineJson(todayFeatures, baselineEntities, history)
+            val inputJson = JsonConverter.toEngineJson(applicationContext, todayFeatures, baselineEntities, history)
 
             // Inject day_number, gate_state, historical anomaly scores, and session data
             val jsonWithMeta = injectMetadata(

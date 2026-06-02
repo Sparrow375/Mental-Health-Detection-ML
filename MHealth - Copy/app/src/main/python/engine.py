@@ -65,7 +65,25 @@ def run_analysis(json_string: str) -> str:
         py_user_profile = UserProfile(
             phq9_score=phq9_score,
             gad7_score=gad7_score,
-            recent_life_event=(recent_life_events_count > 0)
+            recent_life_event=(recent_life_events_count > 0),
+            age=int(data.get("age", 25)),
+            gender=str(data.get("gender", "prefer_not_to_say")),
+            living_situation=str(data.get("living_situation", "with_family")),
+            employment=str(data.get("employment", "student")),
+            typical_wake=float(data.get("typical_wake", 7.0)),
+            typical_sleep=float(data.get("typical_sleep", 23.0)),
+            commute_minutes=int(data.get("commute_minutes", 30)),
+            routine_consistency=str(data.get("routine_consistency", "flexible")),
+            lifestyle_screen=int(data.get("lifestyle_screen", 3)),
+            lifestyle_communication=int(data.get("lifestyle_communication", 3)),
+            lifestyle_movement=int(data.get("lifestyle_movement", 3)),
+            lifestyle_sleep=int(data.get("lifestyle_sleep", 3)),
+            lifestyle_behavioral=int(data.get("lifestyle_behavioral", 3)),
+            lifestyle_engagement=int(data.get("lifestyle_engagement", 3)),
+            is_student=bool(data.get("is_student", False)),
+            has_chronic_condition=bool(data.get("has_chronic_condition", False)),
+            in_therapy=bool(data.get("in_therapy", False)),
+            physical_health_rating=int(data.get("physical_health_rating", 7))
         )
 
         # Level 2 Behavioral DNA inputs

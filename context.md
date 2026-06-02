@@ -314,6 +314,7 @@ The python intelligence engine resides in the Android app source directory:
     2. Nighttime greeting: Updated greeting logic to return "Good Evening" instead of "Good Night" for evening/night hours for a warmer feel.
     3. Badge text squeezing: Added `weight(1f)` to title section in `QualitativeInsightCard` and `maxLines = 1` on the status badge to prevent the badge text from getting squeezed and wrapped.
     4. Scroll delay: Refactored `StaggeredFadeIn` to use `graphicsLayer` opacity/translation animation instead of dynamically injecting views, allowing the scroll height of the list to be computed correctly from the start.
+*   **2026-06-02**: Restored the onboarding questionnaire wizard (living situation, wake/sleep/commute routines, lifestyle sliders, clinical context) and added checks and UI reminders for critical permissions (Notification Listener, Accessibility Service, Location and Home GPS coordinates) in the release `MainActivity.kt` user build of Lumen. Added a dismissible setup reminder card to the Home dashboard and a persistent "System Permissions" card with warning badges in Settings.
 
 ---
 

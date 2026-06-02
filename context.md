@@ -315,6 +315,7 @@ The python intelligence engine resides in the Android app source directory:
     3. Badge text squeezing: Added `weight(1f)` to title section in `QualitativeInsightCard` and `maxLines = 1` on the status badge to prevent the badge text from getting squeezed and wrapped.
     4. Scroll delay: Refactored `StaggeredFadeIn` to use `graphicsLayer` opacity/translation animation instead of dynamically injecting views, allowing the scroll height of the list to be computed correctly from the start.
 *   **2026-06-02**: Restored the onboarding questionnaire wizard (living situation, wake/sleep/commute routines, lifestyle sliders, clinical context) and added checks and UI reminders for critical permissions (Notification Listener, Accessibility Service, Location and Home GPS coordinates) in the release `MainActivity.kt` user build of Lumen. Added a dismissible setup reminder card to the Home dashboard and a persistent "System Permissions" card with warning badges in Settings.
+*   **2026-06-02**: Fixed a compilation blocker in the release variant `MainActivity.kt` by removing a loose string assignment (`text = ...`) on the final onboarding setup screen.
 
 ---
 

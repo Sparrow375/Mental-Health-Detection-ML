@@ -246,7 +246,6 @@ fun MainLumenDashboard() {
     
     val perms = buildList {
         addAll(listOf(
-            Manifest.permission.READ_CALL_LOG,
             Manifest.permission.READ_CONTACTS, 
             Manifest.permission.ACCESS_FINE_LOCATION,
             Manifest.permission.ACCESS_COARSE_LOCATION, 
@@ -370,13 +369,19 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     var isNotificationAccessGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context))
     }
-    var isAccessibilityGranted by remember {
-        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
-    }
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
-    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
+    var isBackgroundLocationGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        )
+    }
+    var showLocationDisclosure by remember { mutableStateOf(false) }
     val homeLocationState by DataRepository.homeLocation.collectAsState()
     val isHomeSet = homeLocationState != null
 
@@ -391,8 +396,12 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
-                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
                 isLocationPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                isBackgroundLocationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
                 isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
             }
         }
@@ -402,13 +411,26 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         }
     }
 
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isBackgroundLocationGranted = granted
+    }
+
     val locPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val fineGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        isLocationPermissionGranted = fineGranted || coarseGranted
+        if (isLocationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            isBackgroundLocationGranted = true
+        }
     }
 
-    val hasMissingPermissions = !isNotificationAccessGranted || !isAccessibilityGranted || !isLocationPermissionGranted || !isHomeSet
+    val hasMissingPermissions = !isNotificationAccessGranted || !isLocationPermissionGranted || !isBackgroundLocationGranted || !isHomeSet
 
     LazyColumn(
         modifier = Modifier
@@ -496,17 +518,12 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                         )
 
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            if (!isLocationPermissionGranted) {
+                            if (!isLocationPermissionGranted || !isBackgroundLocationGranted) {
                                 PermissionReminderRow(
                                     name = "GPS Location Permission",
                                     buttonText = "Grant",
                                     onClick = {
-                                        locPermissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                                Manifest.permission.ACCESS_COARSE_LOCATION
-                                            )
-                                        )
+                                        showLocationDisclosure = true
                                     }
                                 )
                             }
@@ -537,22 +554,18 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                                     }
                                 )
                             }
-                            if (!isAccessibilityGranted) {
-                                PermissionReminderRow(
-                                    name = "Accessibility Service",
-                                    buttonText = "Enable",
-                                    onClick = {
-                                        showAccessibilityDisclosure = true
-                                    }
-                                )
-                            }
                         }
-                        if (showAccessibilityDisclosure) {
-                            AccessibilityDisclosureDialog(
-                                onDismiss = { showAccessibilityDisclosure = false },
+                        if (showLocationDisclosure) {
+                            LocationDisclosureDialog(
+                                onDismiss = { showLocationDisclosure = false },
                                 onConfirm = {
-                                    showAccessibilityDisclosure = false
-                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    showLocationDisclosure = false
+                                    locPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
+                                        )
+                                    )
                                 }
                             )
                         }
@@ -1549,7 +1562,7 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Lumen only requires a deep clinical check-in every 30 days.\nYour next check-in will be available in $cooldownDays days.",
+                    text = "Lumen only requests a detailed wellness check-in every 30 days.\nYour next check-in will be available in $cooldownDays days.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -1567,7 +1580,7 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
                 }
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Monthly Health Check-in",
+                    text = "Monthly Reflection Check-in",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
@@ -1575,7 +1588,7 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "A deeper, clinical assessment to help Lumen recalibrate its threshold sensitivities and align with your baseline trends.",
+                    text = "A detailed wellness assessment to help Lumen recalibrate its tracking sensitivity and align with your baseline trends.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
@@ -1634,13 +1647,19 @@ fun SettingsScreen() {
     var isNotificationAccessGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context))
     }
-    var isAccessibilityGranted by remember {
-        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
-    }
-    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
+    var isBackgroundLocationGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        )
+    }
+    var showLocationDisclosure by remember { mutableStateOf(false) }
     val isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -1648,8 +1667,12 @@ fun SettingsScreen() {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
-                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
                 isLocationPermissionGranted = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                isBackgroundLocationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1658,10 +1681,23 @@ fun SettingsScreen() {
         }
     }
 
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isBackgroundLocationGranted = granted
+    }
+
     val locPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val fineGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        isLocationPermissionGranted = fineGranted || coarseGranted
+        if (isLocationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            isBackgroundLocationGranted = true
+        }
     }
 
     val exportLauncher = rememberLauncherForActivityResult(
@@ -1795,25 +1831,7 @@ fun SettingsScreen() {
                             context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
                         }
                     )
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
-                    PermissionSettingRow(
-                        title = "Accessibility Dynamics Service",
-                        subtitle = "Required for typing speed & scroll velocity",
-                        isGranted = isAccessibilityGranted,
-                        isReminderDismissed = isReminderDismissed,
-                        onClick = {
-                            showAccessibilityDisclosure = true
-                        }
-                    )
-                    if (showAccessibilityDisclosure) {
-                        AccessibilityDisclosureDialog(
-                            onDismiss = { showAccessibilityDisclosure = false },
-                            onConfirm = {
-                                showAccessibilityDisclosure = false
-                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                            }
-                        )
-                    }
+
                 }
             }
         }
@@ -1997,7 +2015,7 @@ fun SettingsScreen() {
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
                     ToggleRow(
                         title = "Monthly Screener Reminders",
-                        subtitle = "Notifications for deep clinical assessments",
+                        subtitle = "Notifications for detailed wellness assessments",
                         checked = monthlyReminders,
                         color = MaterialTheme.colorScheme.primary,
                         onToggle = {
@@ -2293,13 +2311,26 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var isNotificationAccessGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(ctx))
     }
-    var isAccessibilityGranted by remember {
-        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx))
-    }
-    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
+    var isBackgroundLocationGranted by remember {
+        mutableStateOf(
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+            } else {
+                true
+            }
+        )
+    }
+    var isTelemetryGranted by remember {
+        mutableStateOf(
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED &&
+            ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+        )
+    }
+    var showLocationDisclosure by remember { mutableStateOf(false) }
+    var showTelemetryDisclosure by remember { mutableStateOf(false) }
 
     // Refresh permission statuses when returning from OS settings
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -2307,8 +2338,14 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 isNotificationAccessGranted = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(ctx)
-                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx)
                 isLocationPermissionGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                isBackgroundLocationGranted = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED
+                } else {
+                    true
+                }
+                isTelemetryGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED &&
+                                     ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
                 homeSet = DataRepository.homeLocation.value != null
             }
         }
@@ -2318,10 +2355,30 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         }
     }
 
+    val telemetryLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { results ->
+        isTelemetryGranted = results[Manifest.permission.READ_CONTACTS] == true &&
+                             results[Manifest.permission.READ_CALENDAR] == true
+    }
+
+    val bgLocationLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        isBackgroundLocationGranted = granted
+    }
+
     val locPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { results ->
-        isLocationPermissionGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val fineGranted = results[Manifest.permission.ACCESS_FINE_LOCATION] == true
+        val coarseGranted = results[Manifest.permission.ACCESS_COARSE_LOCATION] == true
+        isLocationPermissionGranted = fineGranted || coarseGranted
+        if (isLocationPermissionGranted && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            bgLocationLauncher.launch(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+        } else {
+            isBackgroundLocationGranted = true
+        }
     }
 
     val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
@@ -2396,8 +2453,8 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         5 -> "Health Context"
                         6 -> "Set your home"
                         7 -> "System Permissions"
-                        8 -> "Personal Health Questionnaire (PHQ-9)"
-                        9 -> "Generalized Anxiety Screener (GAD-7)"
+                        8 -> "Personal Well-being Survey"
+                        9 -> "Daily Calmness & Reflection Checklist"
                         10 -> "Have you been through anything big lately?"
                         else -> "Calibration Completed"
                     },
@@ -2408,15 +2465,15 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                 )
                 Text(
                     text = when (step) {
-                        1 -> "A quiet companion for your mental wellness"
+                        1 -> "A quiet companion for your wellness"
                         2 -> "These details remain entirely private on this device"
                         3 -> "Helps Lumen understand your target routines"
                         4 -> "Calibrate telemetry weights to match your personal baseline profile"
-                        5 -> "Provides clinical baseline context to adapt overrides"
+                        5 -> "Provides lifestyle baseline context to customize thresholds"
                         6 -> "Used locally to evaluate daily time spent at home"
                         7 -> "Lumen runs passively offline and requires permissions to collect telemetry"
-                        8 -> "Answer honestly to establish your clinical baseline priors"
-                        9 -> "Helps Lumen calibrate threshold sensitivities to keep you safe"
+                        8 -> "Answer honestly to help establish your personal well-being baseline"
+                        9 -> "Helps Lumen calibrate tracking sensitivities to keep you safe"
                         10 -> "Identifies transient life events that might mimic indicators"
                         else -> "Lumen will quietly monitor in the background."
                     },
@@ -2822,7 +2879,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(20.dp)
                     ) {
                         item {
-                            Text("Provide health context to customize clinical overrides.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Provide wellness context to customize tracking thresholds.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         item {
@@ -2973,7 +3030,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     ) {
                         item {
                             Text(
-                                text = "Lumen needs access to notifications and accessibility to passively capture app usage dynamics. These are processed 100% locally.",
+                                text = "Lumen needs access to system permissions to passively monitor telemetry. All data is processed 100% locally.",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -2992,21 +3049,56 @@ fun OnboardingWizard(onComplete: () -> Unit) {
 
                         item {
                             PermissionStatusCard(
-                                title = "Accessibility Dynamics Service",
-                                description = "Required to analyze keystroke dynamics and scroll speeds locally.",
-                                isGranted = isAccessibilityGranted,
+                                title = "GPS Location & Background Tracking",
+                                description = "Required to analyze spatial entropy, home ratio, and daily displacement.",
+                                isGranted = isLocationPermissionGranted && isBackgroundLocationGranted,
                                 onClick = {
-                                    showAccessibilityDisclosure = true
+                                    showLocationDisclosure = true
                                 }
                             )
                         }
-                        if (showAccessibilityDisclosure) {
+
+                        item {
+                            PermissionStatusCard(
+                                title = "Behavioral Rhythms Telemetry",
+                                description = "Required to analyze contact interactions, calendar events, and physical steps.",
+                                isGranted = isTelemetryGranted,
+                                onClick = {
+                                    showTelemetryDisclosure = true
+                                }
+                            )
+                        }
+
+                        if (showLocationDisclosure) {
                             item {
-                                AccessibilityDisclosureDialog(
-                                    onDismiss = { showAccessibilityDisclosure = false },
+                                LocationDisclosureDialog(
+                                    onDismiss = { showLocationDisclosure = false },
                                     onConfirm = {
-                                        showAccessibilityDisclosure = false
-                                        ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                        showLocationDisclosure = false
+                                        locPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                )
+                            }
+                        }
+
+                        if (showTelemetryDisclosure) {
+                            item {
+                                TelemetryDisclosureDialog(
+                                    onDismiss = { showTelemetryDisclosure = false },
+                                    onConfirm = {
+                                        showTelemetryDisclosure = false
+                                        telemetryLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.READ_CONTACTS,
+                                                Manifest.permission.READ_CALENDAR,
+                                                Manifest.permission.ACTIVITY_RECOGNITION
+                                            )
+                                        )
                                     }
                                 )
                             }
@@ -4283,3 +4375,219 @@ fun AccessibilityDisclosureDialog(
         containerColor = MaterialTheme.colorScheme.surface
     )
 }
+
+@Composable
+fun LocationDisclosureDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = TealAccent,
+                modifier = Modifier.size(36.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Consent for Location Tracking",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Lumen requires access to location services, including background location, to monitor your movement behaviors and establish spatial stability baselines.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "How we use location:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• Displacement Distance: To calculate how far you travel daily to differentiate active vs. homebound states.\n" +
+                           "• Location Entropy: To measure the variety of places you visit to detect behavioral changes.\n" +
+                           "• Home Time Ratio: To calculate the portion of the day spent at home, which is a major indicator of behavioral routines.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Why Background Access is Needed:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• Telemetry must be collected continuously in the background to compute daily metrics accurately.\n" +
+                           "• Disrupted background tracking results in incomplete data, compromising the accuracy of routine anomaly assessments.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Privacy Assurances:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• 100% Offline: GPS coordinates are processed entirely on-device and mapped to a general ~110m grid. Your actual coordinates are never uploaded to any server or shared with third parties.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Consent Action:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "To consent, click 'Agree'. You will first grant foreground location, and then be directed to system settings. Under Location permissions, select 'Allow all the time' to enable background tracking.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Agree", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Decline", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium, fontFamily = Fredoka)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
+@Composable
+fun TelemetryDisclosureDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Favorite,
+                contentDescription = null,
+                tint = TealAccent,
+                modifier = Modifier.size(36.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Consent for Digital Rhythms Telemetry",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Lumen analyzes aggregated daily activity patterns to calibrate your behavioral wellness baseline.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "What we analyze:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• Communication Dynamics (Contacts): Monitors daily contact interactions to measure social connectivity.\n" +
+                           "• Calendar Engagement: Checks the count of meetings/events to monitor lifestyle structure.\n" +
+                           "• Physical Activity (Activity Recognition): Tracks steps and active time to detect psychomotor agitation.\n" +
+                           "• Creative Expression (Media files count): Counts gallery changes as an indicator of engagement.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Privacy Assurances:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• We do NOT read, store, or transmit call audio, message text, contact names, phone numbers, or calendar contents.\n" +
+                           "• Only daily aggregated counts (integers/durations) are calculated.\n" +
+                           "• 100% Offline: No personal data ever leaves your phone.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Consent Action:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "Click 'Agree' to proceed to the system permission requests for Call Logs, Contacts, Calendar, Activity, and Storage.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Agree", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Decline", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium, fontFamily = Fredoka)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+

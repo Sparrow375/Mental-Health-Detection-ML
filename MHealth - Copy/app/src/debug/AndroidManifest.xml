@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.example.mhealth">
+
+    <!-- Permissions that are ONLY needed for local developer debugging/testing -->
+    <uses-permission android:name="android.permission.READ_CALL_LOG" />
+    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+
+    <application>
+        <!-- In debug mode, we still declare the specialUse type for MonitoringService -->
+        <service
+            android:name="com.example.mhealth.services.MonitoringService"
+            android:foregroundServiceType="location|specialUse"
+            tools:replace="android:foregroundServiceType"
+            tools:node="merge">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="Mental health pattern monitoring" />
+        </service>
+
+        <!-- Debug-only Accessibility service registration -->
+        <service
+            android:name="com.example.mhealth.services.MHealthAccessibilityService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:exported="true"
+            android:label="Cove Interaction Dynamics Service"
+            tools:node="merge">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/accessibility_service_config" />
+        </service>
+    </application>
+</manifest>

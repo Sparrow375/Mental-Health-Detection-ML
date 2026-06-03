@@ -4435,9 +4435,12 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
 
             if (masterJson.has("dna_profile")) {
                 val dnaObj = masterJson.getJSONObject("dna_profile")
-                db.personDnaDao().upsert(com.example.mhealth.logic.db.PersonDnaEntity(
-                    userId = userId,
-                    dna_json = dnaObj.toString()
+                val now = System.currentTimeMillis()
+                db.personDnaDao().insert(com.example.mhealth.logic.db.PersonDnaEntity(
+                    person_id = userId,
+                    dna_json = dnaObj.toString(),
+                    created_at = now,
+                    last_updated = now
                 ))
             }
 

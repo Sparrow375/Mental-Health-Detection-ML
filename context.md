@@ -381,4 +381,5 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     6. Relaxed the Insights gate to show provisional rhythm charts from Day 2 onwards using a progressive average baseline.
     7. Refactored JSON backup export/import to append and restore `dna_profile` and `onboarding_calibration` configurations.
     8. Removed the redundant `isStudent` toggle in demographics (Step 2) in favor of the profession dropdown, and expanded Step 4 with 4 new sliders.
+    9. Fixed a compilation error in release `MainActivity.kt`'s backup import logic where `PersonDnaEntity` instantiation had incorrect constructor fields and targeted a non-existent `upsert()` DAO method (changed to `insert()`).
 

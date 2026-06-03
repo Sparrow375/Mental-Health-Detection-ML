@@ -34,7 +34,7 @@ android {
         minSdk = 26
         targetSdk = 35
 
-        val baseVersionCode = 3
+        val baseVersionCode = 100
         val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
         versionCode = baseVersionCode + runNumber
         versionName = "1.1.$versionCode"

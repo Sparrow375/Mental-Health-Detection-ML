@@ -57,7 +57,7 @@ jobs:
       working-directory: MHealth - Copy
 
     - name: Build Debug APK
-      if: steps.changes.outputs.debug == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
+      if: false
       run: ./gradlew assembleDebug --no-daemon
       working-directory: MHealth - Copy
 
@@ -80,7 +80,7 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Upload Debug APK Artifact
-      if: steps.changes.outputs.debug == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
+      if: false
       uses: actions/upload-artifact@v4
       with:
         name: lumen-debug-apk

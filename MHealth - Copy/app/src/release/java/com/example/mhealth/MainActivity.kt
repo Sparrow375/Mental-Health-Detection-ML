@@ -376,6 +376,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
+    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     val homeLocationState by DataRepository.homeLocation.collectAsState()
     val isHomeSet = homeLocationState != null
 
@@ -541,10 +542,19 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                                     name = "Accessibility Service",
                                     buttonText = "Enable",
                                     onClick = {
-                                        context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                        showAccessibilityDisclosure = true
                                     }
                                 )
                             }
+                        }
+                        if (showAccessibilityDisclosure) {
+                            AccessibilityDisclosureDialog(
+                                onDismiss = { showAccessibilityDisclosure = false },
+                                onConfirm = {
+                                    showAccessibilityDisclosure = false
+                                    context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                }
+                            )
                         }
                     }
                 }
@@ -1627,6 +1637,7 @@ fun SettingsScreen() {
     var isAccessibilityGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
     }
+    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
@@ -1791,9 +1802,18 @@ fun SettingsScreen() {
                         isGranted = isAccessibilityGranted,
                         isReminderDismissed = isReminderDismissed,
                         onClick = {
-                            context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            showAccessibilityDisclosure = true
                         }
                     )
+                    if (showAccessibilityDisclosure) {
+                        AccessibilityDisclosureDialog(
+                            onDismiss = { showAccessibilityDisclosure = false },
+                            onConfirm = {
+                                showAccessibilityDisclosure = false
+                                context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            }
+                        )
+                    }
                 }
             }
         }
@@ -2276,6 +2296,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var isAccessibilityGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx))
     }
+    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     var isLocationPermissionGranted by remember {
         mutableStateOf(ContextCompat.checkSelfPermission(ctx, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
     }
@@ -2975,9 +2996,20 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 description = "Required to analyze keystroke dynamics and scroll speeds locally.",
                                 isGranted = isAccessibilityGranted,
                                 onClick = {
-                                    ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    showAccessibilityDisclosure = true
                                 }
                             )
+                        }
+                        if (showAccessibilityDisclosure) {
+                            item {
+                                AccessibilityDisclosureDialog(
+                                    onDismiss = { showAccessibilityDisclosure = false },
+                                    onConfirm = {
+                                        showAccessibilityDisclosure = false
+                                        ctx.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                                    }
+                                )
+                            }
                         }
                     }
                 }
@@ -4149,4 +4181,105 @@ private fun hasUsageStatsPermission(context: Context): Boolean {
         )
     }
     return mode == AppOpsManager.MODE_ALLOWED
+}
+
+@Composable
+fun AccessibilityDisclosureDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.Info,
+                contentDescription = null,
+                tint = TealAccent,
+                modifier = Modifier.size(36.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Consent for Accessibility Service",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Lumen utilizes Android's Accessibility Services API to monitor digital psychomotor dynamics in the background. This service acts as a secure, event-only observer.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "What we monitor and why:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• Keystroke speed (characters per second) — to analyze cognitive speed and motor changes.\n" +
+                           "• Backspace ratio (frequency of corrections) — to detect motor planning variation.\n" +
+                           "• Scroll dynamics (velocity and direction) — to evaluate psychomotor agitation or retardation.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Privacy Assurances:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "• Lumen does NOT read, capture, or store text inputs, passwords, message content, or sensitive personal data.\n" +
+                           "• We set canRetrieveWindowContent = false to programmatically guarantee privacy.\n" +
+                           "• 100% Offline: All metrics are computed locally on this device. No telemetry data is transmitted to the cloud or third parties.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Consent Action:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontFamily = Fredoka
+                )
+                Text(
+                    text = "To consent, click 'Agree'. You will be redirected to the Android system settings. Go to Installed Apps, tap 'Cove/Lumen', and toggle the switch to enable it. You can disable this service at any time.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Agree", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Decline", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium, fontFamily = Fredoka)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }

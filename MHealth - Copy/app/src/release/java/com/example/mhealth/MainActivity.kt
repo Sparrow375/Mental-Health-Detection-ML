@@ -103,7 +103,9 @@ val Fredoka = FontFamily(
     Font(R.font.fredoka, FontWeight.Normal),
     Font(R.font.fredoka, FontWeight.Bold),
     Font(R.font.fredoka, FontWeight.Medium),
-    Font(R.font.fredoka, FontWeight.SemiBold)
+    Font(R.font.fredoka, FontWeight.SemiBold),
+    Font(R.font.fredoka, FontWeight.ExtraBold),
+    Font(R.font.fredoka, FontWeight.Black)
 )
 
 // Calming Premium Theme colors
@@ -448,7 +450,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 Text(
                     text = if (name.isNotBlank()) "$greeting,\n$name." else "$greeting.",
                     fontSize = 28.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -859,7 +861,7 @@ fun InsightsScreen() {
     val context = LocalContext.current
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
-    val showInsights = isDnaReady && weeklyFeatures.isNotEmpty() && baseline != null
+    val showInsights = weeklyFeatures.size >= 2
     
     LazyColumn(
         modifier = Modifier
@@ -873,7 +875,7 @@ fun InsightsScreen() {
                 Text(
                     text = "Your Rhythms",
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -913,9 +915,72 @@ fun InsightsScreen() {
             }
         } else {
             val latest = weeklyFeatures.lastOrNull()
-            val base = baseline
+            val base = if (isDnaReady && baseline != null) {
+                baseline
+            } else {
+                val count = weeklyFeatures.size
+                if (count > 0) {
+                    PersonalityVector(
+                        screenTimeHours = weeklyFeatures.map { it.screenTimeHours }.sum() / count,
+                        unlockCount = weeklyFeatures.map { it.unlockCount }.sum() / count,
+                        appLaunchCount = weeklyFeatures.map { it.appLaunchCount }.sum() / count,
+                        notificationsToday = weeklyFeatures.map { it.notificationsToday }.sum() / count,
+                        socialAppRatio = weeklyFeatures.map { it.socialAppRatio }.sum() / count,
+                        callsPerDay = weeklyFeatures.map { it.callsPerDay }.sum() / count,
+                        callDurationMinutes = weeklyFeatures.map { it.callDurationMinutes }.sum() / count,
+                        uniqueContacts = weeklyFeatures.map { it.uniqueContacts }.sum() / count,
+                        conversationFrequency = weeklyFeatures.map { it.conversationFrequency }.sum() / count,
+                        dailyDisplacementKm = weeklyFeatures.map { it.dailyDisplacementKm }.sum() / count,
+                        locationEntropy = weeklyFeatures.map { it.locationEntropy }.sum() / count,
+                        homeTimeRatio = weeklyFeatures.map { it.homeTimeRatio }.sum() / count,
+                        wakeTimeHour = weeklyFeatures.map { it.wakeTimeHour }.sum() / count,
+                        sleepTimeHour = weeklyFeatures.map { it.sleepTimeHour }.sum() / count,
+                        sleepDurationHours = weeklyFeatures.map { it.sleepDurationHours }.sum() / count,
+                        dailyStepCount = weeklyFeatures.map { it.dailyStepCount }.sum() / count,
+                        activeMinutes = weeklyFeatures.map { it.activeMinutes }.sum() / count,
+                        keystrokeSpeed = weeklyFeatures.map { it.keystrokeSpeed }.sum() / count,
+                        backspaceRatio = weeklyFeatures.map { it.backspaceRatio }.sum() / count,
+                        scrollVelocity = weeklyFeatures.map { it.scrollVelocity }.sum() / count,
+                        daylightExposureMinutes = weeklyFeatures.map { it.daylightExposureMinutes }.sum() / count,
+                        chargeRegularity = weeklyFeatures.map { it.chargeRegularity }.sum() / count,
+                        chargeDurationHours = weeklyFeatures.map { it.chargeDurationHours }.sum() / count,
+                        upiTransactionsToday = weeklyFeatures.map { it.upiTransactionsToday }.sum() / count,
+                        appUninstallsToday = weeklyFeatures.map { it.appUninstallsToday }.sum() / count,
+                        appInstallsToday = weeklyFeatures.map { it.appInstallsToday }.sum() / count,
+                        calendarEventsToday = weeklyFeatures.map { it.calendarEventsToday }.sum() / count,
+                        mediaCountToday = weeklyFeatures.map { it.mediaCountToday }.sum() / count,
+                        downloadsToday = weeklyFeatures.map { it.downloadsToday }.sum() / count,
+                        musicTimeMinutes = weeklyFeatures.map { it.musicTimeMinutes }.sum() / count
+                    )
+                } else null
+            }
             
             if (latest != null && base != null) {
+                if (!isDnaReady) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(0.15f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("🔬", fontSize = 24.sp)
+                                Spacer(Modifier.width(16.dp))
+                                Text(
+                                    text = "Lumen is in early stages of learning your rhythms — insights may be less accurate during this calibration period. Allow a few more days for precision.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    lineHeight = 17.sp,
+                                    fontFamily = Fredoka
+                                )
+                            }
+                        }
+                    }
+                }
                 // 1. Mood Trend Card
                 val avgMood = getWeeklyCheckinAverageMood(prefs)
                 if (avgMood > 0f) {
@@ -1268,12 +1333,12 @@ fun CheckInScreen() {
             Tab(
                 selected = subTab == 0,
                 onClick = { subTab = 0 },
-                text = { Text("Daily Check-in", fontWeight = FontWeight.Bold, fontFamily = Fredoka) }
+                text = { Text("Daily Check-in", fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka) }
             )
             Tab(
                 selected = subTab == 1,
                 onClick = { subTab = 1 },
-                text = { Text("Monthly Check-in", fontWeight = FontWeight.Bold, fontFamily = Fredoka) }
+                text = { Text("Monthly Check-in", fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka) }
             )
         }
         
@@ -1659,7 +1724,11 @@ fun SettingsScreen() {
             }
         )
     }
+    var isAccessibilityGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context))
+    }
     var showLocationDisclosure by remember { mutableStateOf(false) }
+    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
     val isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
 
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -1673,6 +1742,7 @@ fun SettingsScreen() {
                 } else {
                     true
                 }
+                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -1730,7 +1800,7 @@ fun SettingsScreen() {
                 Text(
                     text = "Profile & Settings",
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -1829,6 +1899,16 @@ fun SettingsScreen() {
                         isReminderDismissed = isReminderDismissed,
                         onClick = {
                             context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    PermissionSettingRow(
+                        title = "Digital Psychomotor Dynamics",
+                        subtitle = "Required for typing speed & scroll velocity",
+                        isGranted = isAccessibilityGranted,
+                        isReminderDismissed = isReminderDismissed,
+                        onClick = {
+                            showAccessibilityDisclosure = true
                         }
                     )
 
@@ -2212,6 +2292,17 @@ fun SettingsScreen() {
             }
         }
     }
+
+    if (showAccessibilityDisclosure) {
+        AccessibilityDisclosureDialog(
+            onDismiss = { showAccessibilityDisclosure = false },
+            onConfirm = {
+                showAccessibilityDisclosure = false
+                val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                context.startActivity(intent)
+            }
+        )
+    }
 }
 
 @Composable
@@ -2297,6 +2388,10 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var sleepHygiene by remember { mutableFloatStateOf(3.0f) }
     var moodReflection by remember { mutableFloatStateOf(3.0f) }
     var checkinLikelihood by remember { mutableFloatStateOf(3.0f) }
+    var travelRegularity by remember { mutableFloatStateOf(3.0f) }
+    var socialEngagement by remember { mutableFloatStateOf(3.0f) }
+    var chargingConsistency by remember { mutableFloatStateOf(3.0f) }
+    var appUsagePredictability by remember { mutableFloatStateOf(3.0f) }
 
     // Step 5 State (Clinical Status)
     var hasChronicCondition by remember { mutableStateOf(false) }
@@ -2329,8 +2424,12 @@ fun OnboardingWizard(onComplete: () -> Unit) {
             ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
         )
     }
+    var isAccessibilityGranted by remember {
+        mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx))
+    }
     var showLocationDisclosure by remember { mutableStateOf(false) }
     var showTelemetryDisclosure by remember { mutableStateOf(false) }
+    var showAccessibilityDisclosure by remember { mutableStateOf(false) }
 
     // Refresh permission statuses when returning from OS settings
     val lifecycleOwner = androidx.compose.ui.platform.LocalLifecycleOwner.current
@@ -2346,6 +2445,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                 }
                 isTelemetryGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED &&
                                      ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx)
                 homeSet = DataRepository.homeLocation.value != null
             }
         }
@@ -2459,7 +2559,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         else -> "Calibration Completed"
                     },
                     fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
+                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
@@ -2613,7 +2713,11 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                     listOf("Student", "Employed", "Self-employed", "Other").forEach { opt ->
                                         DropdownMenuItem(
                                             text = { Text(opt) },
-                                            onClick = { profession = opt; expanded = false }
+                                            onClick = {
+                                                profession = opt
+                                                isStudent = (opt == "Student")
+                                                expanded = false
+                                            }
                                         )
                                     }
                                 }
@@ -2643,22 +2747,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                         )
                                     }
                                 }
-                            }
-                        }
-                        item {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isStudent,
-                                    onCheckedChange = { isStudent = it },
-                                    colors = CheckboxDefaults.colors(checkedColor = MaterialTheme.colorScheme.primary)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("I am currently a student", fontSize = 13.5.sp, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                         item {
@@ -2869,6 +2957,42 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 onValueChange = { checkinLikelihood = it }
                             )
                         }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Location/Travel Regularity",
+                                description = "How predictable is your daily travel routine?",
+                                value = travelRegularity,
+                                onValueChange = { travelRegularity = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Social Engagement",
+                                description = "How regular are your social interactions?",
+                                value = socialEngagement,
+                                onValueChange = { socialEngagement = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "Charging Habits",
+                                description = "How consistent is your phone charging routine?",
+                                value = chargingConsistency,
+                                onValueChange = { chargingConsistency = it }
+                            )
+                        }
+
+                        item {
+                            LifestyleSlider(
+                                title = "App Usage Patterns",
+                                description = "How predictable are the apps you use daily?",
+                                value = appUsagePredictability,
+                                onValueChange = { appUsagePredictability = it }
+                            )
+                        }
                     }
                 }
                 5 -> {
@@ -3069,6 +3193,17 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             )
                         }
 
+                        item {
+                            PermissionStatusCard(
+                                title = "Digital Psychomotor Dynamics",
+                                description = "Required to analyze typing speeds, backspace ratios, and scroll velocity.",
+                                isGranted = isAccessibilityGranted,
+                                onClick = {
+                                    showAccessibilityDisclosure = true
+                                }
+                            )
+                        }
+
                         if (showLocationDisclosure) {
                             item {
                                 LocationDisclosureDialog(
@@ -3099,6 +3234,19 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                                 Manifest.permission.ACTIVITY_RECOGNITION
                                             )
                                         )
+                                    }
+                                )
+                            }
+                        }
+
+                        if (showAccessibilityDisclosure) {
+                            item {
+                                AccessibilityDisclosureDialog(
+                                    onDismiss = { showAccessibilityDisclosure = false },
+                                    onConfirm = {
+                                        showAccessibilityDisclosure = false
+                                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                        ctx.startActivity(intent)
                                     }
                                 )
                             }
@@ -3270,6 +3418,10 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                     putInt("user_lifestyle_sleep", sleepHygiene.toInt())
                                     putInt("user_lifestyle_behavioral", moodReflection.toInt())
                                     putInt("user_lifestyle_engagement", checkinLikelihood.toInt())
+                                    putInt("user_lifestyle_travel", travelRegularity.toInt())
+                                    putInt("user_lifestyle_social", socialEngagement.toInt())
+                                    putInt("user_lifestyle_charging", chargingConsistency.toInt())
+                                    putInt("user_lifestyle_app_usage", appUsagePredictability.toInt())
                                     
                                     // Save clinical status
                                     putBoolean("user_has_chronic_condition", hasChronicCondition)
@@ -3289,6 +3441,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                     )
                                     withContext(Dispatchers.Main) {
                                         DataRepository.initWithDb(ctx, "patient@lumen.health")
+                                        DataRepository.completeOnboarding()
                                         onComplete()
                                     }
                                 }
@@ -3324,7 +3477,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.height(48.dp)
                 ) {
-                    Text("Back", fontFamily = Fredoka)
+                    Text("Back", fontFamily = Fredoka, fontWeight = FontWeight.ExtraBold)
                 }
 
                 Button(
@@ -3387,7 +3540,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         text = if (step == 10) "Calibrate" else "Next",
                         fontFamily = Fredoka,
                         color = Color.Black,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold
                     )
                 }
             }
@@ -3982,6 +4135,7 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                     put("mediaCountToday", day.mediaCountToday)
                     put("downloadsToday", day.downloadsToday)
                     put("musicTimeMinutes", day.musicTimeMinutes)
+                    put("conversationFrequency", day.conversationFrequency)
                 }
                 dayObj.put("metrics", features)
 
@@ -4033,6 +4187,7 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                     put("mediaCountToday", liveVector.mediaCountToday)
                     put("downloadsToday", liveVector.downloadsToday)
                     put("musicTimeMinutes", liveVector.musicTimeMinutes)
+                    put("conversationFrequency", liveVector.conversationFrequency)
                 })
                 
                 todayObj.put("location_snapshots", DataRepository.locationSnapshots.value.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" })
@@ -4065,6 +4220,49 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                 })
             }
             masterJson.put("analysis_reports", reportsArr)
+
+            // Add DNA Profile if present
+            val dnaProfileJson = DataRepository.s1ProfileJson.value
+            if (dnaProfileJson != null) {
+                try {
+                    masterJson.put("dna_profile", org.json.JSONObject(dnaProfileJson))
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+
+            // Add Onboarding Calibration Data
+            try {
+                val localPref = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+                masterJson.put("onboarding_calibration", org.json.JSONObject().apply {
+                    put("phq9_score", localPref.getInt("screener_phq9", 0))
+                    put("gad7_score", localPref.getInt("screener_gad7", 0))
+                    put("life_events", localPref.getInt("screener_life_events", 0))
+                    put("demographics", org.json.JSONObject().apply {
+                        put("name", localPref.getString("user_name", ""))
+                        put("gender", localPref.getString("user_gender", ""))
+                        put("age", localPref.getInt("user_age", 25))
+                        put("profession", localPref.getString("user_profession", ""))
+                        put("country", localPref.getString("user_country", ""))
+                        put("living_situation", localPref.getString("user_living_situation", ""))
+                        put("is_student", localPref.getBoolean("user_is_student", false))
+                    })
+                    put("lifestyle_sliders", org.json.JSONObject().apply {
+                        put("screen", localPref.getInt("user_lifestyle_screen", 3))
+                        put("communication", localPref.getInt("user_lifestyle_communication", 3))
+                        put("movement", localPref.getInt("user_lifestyle_movement", 3))
+                        put("sleep", localPref.getInt("user_lifestyle_sleep", 3))
+                        put("behavioral", localPref.getInt("user_lifestyle_behavioral", 3))
+                        put("engagement", localPref.getInt("user_lifestyle_engagement", 3))
+                        put("travel", localPref.getInt("user_lifestyle_travel", 3))
+                        put("social", localPref.getInt("user_lifestyle_social", 3))
+                        put("charging", localPref.getInt("user_lifestyle_charging", 3))
+                        put("app_usage", localPref.getInt("user_lifestyle_app_usage", 3))
+                    })
+                })
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
 
             context.contentResolver.openOutputStream(uri)?.use { outputStream ->
                 outputStream.write(masterJson.toString(4).toByteArray())
@@ -4234,6 +4432,48 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                     db.analysisResultDao().insert(r)
                 }
             }
+
+            if (masterJson.has("dna_profile")) {
+                val dnaObj = masterJson.getJSONObject("dna_profile")
+                db.personDnaDao().upsert(com.example.mhealth.logic.db.PersonDnaEntity(
+                    userId = userId,
+                    dna_json = dnaObj.toString()
+                ))
+            }
+
+            if (masterJson.has("onboarding_calibration")) {
+                val calObj = masterJson.getJSONObject("onboarding_calibration")
+                val localPref = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+                localPref.edit().apply {
+                    putInt("screener_phq9", calObj.optInt("phq9_score", 0))
+                    putInt("screener_gad7", calObj.optInt("gad7_score", 0))
+                    putInt("screener_life_events", calObj.optInt("life_events", 0))
+                    
+                    if (calObj.has("demographics")) {
+                        val demo = calObj.getJSONObject("demographics")
+                        putString("user_name", demo.optString("name", ""))
+                        putString("user_gender", demo.optString("gender", ""))
+                        putInt("user_age", demo.optInt("age", 25))
+                        putString("user_profession", demo.optString("profession", ""))
+                        putString("user_country", demo.optString("country", ""))
+                        putString("user_living_situation", demo.optString("living_situation", ""))
+                        putBoolean("user_is_student", demo.optBoolean("is_student", false))
+                    }
+                    if (calObj.has("lifestyle_sliders")) {
+                        val sliders = calObj.getJSONObject("lifestyle_sliders")
+                        putInt("user_lifestyle_screen", sliders.optInt("screen", 3))
+                        putInt("user_lifestyle_communication", sliders.optInt("communication", 3))
+                        putInt("user_lifestyle_movement", sliders.optInt("movement", 3))
+                        putInt("user_lifestyle_sleep", sliders.optInt("sleep", 3))
+                        putInt("user_lifestyle_behavioral", sliders.optInt("behavioral", 3))
+                        putInt("user_lifestyle_engagement", sliders.optInt("engagement", 3))
+                        putInt("user_lifestyle_travel", sliders.optInt("travel", 3))
+                        putInt("user_lifestyle_social", sliders.optInt("social", 3))
+                        putInt("user_lifestyle_charging", sliders.optInt("charging", 3))
+                        putInt("user_lifestyle_app_usage", sliders.optInt("app_usage", 3))
+                    }
+                }.apply()
+            }
             
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "✅ Backup imported successfully. Please restart Lumen to view imported data.", Toast.LENGTH_LONG).show()
@@ -4351,7 +4591,7 @@ fun AccessibilityDisclosureDialog(
                     fontFamily = Fredoka
                 )
                 Text(
-                    text = "To consent, click 'Agree'. You will be redirected to the Android system settings. Go to Installed Apps, tap 'Cove/Lumen', and toggle the switch to enable it. You can disable this service at any time.",
+                    text = "To consent, click 'Agree'. You will be redirected to the Android system settings. Go to Installed Apps, tap 'Lumen. Interaction Dynamics', and toggle the switch to enable it. You can disable this service at any time.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 17.sp

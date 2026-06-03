@@ -369,3 +369,16 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     *   If maximum pairwise distance and standard deviations are **below the average baseline cluster radii**, the anomalous period forms a tight, stable group ──► **Promote as New Context** (suppress alert, merge these days into the Golden Baseline as a new healthy lifestyle context).
     *   If the anomalous period is **scattered and chaotic** (fails compactness test), it indicates a disorganized clinical onset ──► **Flag user/caregiver** as a high-probability depressive episode.
 
+---
+
+### Update Log Additions
+*   **2026-06-04**: Completed release build 8-point enhancement and fix implementation:
+    1. Fixed the critical onboarding-skipping bug in `DataRepository.saveUserProfile()` by removing first-login-complete flag triggers and creating a dedicated `completeOnboarding()` method called in Step 11 "Start My Journey".
+    2. Overwrote launcher icons with the new `logo.png` scaled across all density mipmap buckets.
+    3. Re-registered the `MHealthAccessibilityService` in `AndroidManifest.xml` and rebranded its label dynamically to "Lumen. Interaction Dynamics". Aligned notification channel names, titles, and icons inside `MonitoringService.kt` to dynamically use "Lumen" branding and the custom launcher logo.
+    4. Added accessibility checks and disclosure dialogs to Step 7 (Permissions) and SettingsScreen.
+    5. Upgraded screen headers and buttons to `FontWeight.ExtraBold` typography.
+    6. Relaxed the Insights gate to show provisional rhythm charts from Day 2 onwards using a progressive average baseline.
+    7. Refactored JSON backup export/import to append and restore `dna_profile` and `onboarding_calibration` configurations.
+    8. Removed the redundant `isStudent` toggle in demographics (Step 2) in favor of the profession dropdown, and expanded Step 4 with 4 new sliders.
+

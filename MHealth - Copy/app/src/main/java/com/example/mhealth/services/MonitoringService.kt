@@ -20,6 +20,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.mhealth.MainActivity
+import com.example.mhealth.R
 import com.example.mhealth.logic.AnomalyDetector
 import com.example.mhealth.logic.PythonEngine
 import com.example.mhealth.logic.DataCollector
@@ -391,16 +392,17 @@ class MonitoringService : Service() {
 
     private fun startForegroundNotification() {
         val channelId = "mhealth_monitoring"
+        val appName = getString(R.string.app_name)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
-                channelId, "MHealth Monitoring", NotificationManager.IMPORTANCE_LOW
+                channelId, "$appName Monitoring", NotificationManager.IMPORTANCE_LOW
             ).apply { description = "Passive mental health pattern monitoring" }
             getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
         }
         val notification = NotificationCompat.Builder(this, channelId)
-            .setContentTitle("MHealth Active")
+            .setContentTitle("$appName Active")
             .setContentText("Passively monitoring device patterns")
-            .setSmallIcon(android.R.drawable.ic_menu_info_details)
+            .setSmallIcon(R.mipmap.ic_launcher)
             .setContentIntent(
                 PendingIntent.getActivity(
                     this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
@@ -1301,7 +1303,7 @@ class MonitoringService : Service() {
             2, NotificationCompat.Builder(this, "mhealth_monitoring")
                 .setContentTitle("Pattern Change: ${level.uppercase()}")
                 .setContentText(notes)
-                .setSmallIcon(android.R.drawable.ic_dialog_alert)
+                .setSmallIcon(R.mipmap.ic_launcher)
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .build()

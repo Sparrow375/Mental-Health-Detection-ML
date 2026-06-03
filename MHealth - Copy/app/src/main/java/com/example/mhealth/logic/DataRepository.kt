@@ -371,8 +371,11 @@ object DataRepository {
             putInt("user_age", profile.age)
             putString("user_profession", profile.profession)
             putString("user_country", profile.country)
-            putBoolean("first_login_complete", true)
         }?.apply()
+    }
+
+    fun completeOnboarding() {
+        prefs?.edit()?.putBoolean("first_login_complete", true)?.apply()
         _firstLoginComplete.value = true
     }
 

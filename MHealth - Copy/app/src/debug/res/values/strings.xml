@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Lumen Dev</string>
+    <string name="accessibility_service_label">Lumen Dev. Interaction Dynamics</string>
 </resources>

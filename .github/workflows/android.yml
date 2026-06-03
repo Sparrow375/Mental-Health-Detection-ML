@@ -3,8 +3,14 @@ name: Android CI Cloud Build
 on:
   push:
     branches: [ "**" ]
+    paths:
+      - 'MHealth - Copy/**'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [ "**" ]
+    paths:
+      - 'MHealth - Copy/**'
+      - '.github/workflows/android.yml'
   workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
 
 jobs:
@@ -16,6 +22,23 @@ jobs:
     steps:
     - name: Checkout Source Code
       uses: actions/checkout@v4
+
+    - name: Detect Changed Paths
+      uses: dorny/paths-filter@v3
+      id: changes
+      with:
+        filters: |
+          debug:
+            - 'MHealth - Copy/app/src/debug/**'
+          release:
+            - 'MHealth - Copy/app/src/release/**'
+          common:
+            - 'MHealth - Copy/app/src/main/**'
+            - 'MHealth - Copy/app/build.gradle.kts'
+            - 'MHealth - Copy/build.gradle.kts'
+            - 'MHealth - Copy/gradle.properties'
+            - 'MHealth - Copy/settings.gradle.kts'
+            - '.github/workflows/android.yml'
 
     - name: Set up JDK 21
       uses: actions/setup-java@v4
@@ -34,10 +57,12 @@ jobs:
       working-directory: MHealth - Copy
 
     - name: Build Debug APK
+      if: steps.changes.outputs.debug == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       run: ./gradlew assembleDebug --no-daemon
       working-directory: MHealth - Copy
 
     - name: Build Release APK
+      if: steps.changes.outputs.release == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       run: ./gradlew assembleRelease --no-daemon
       working-directory: MHealth - Copy
       env:
@@ -46,6 +71,7 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Build Release AAB
+      if: steps.changes.outputs.release == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       run: ./gradlew bundleRelease --no-daemon
       working-directory: MHealth - Copy
       env:
@@ -54,6 +80,7 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Upload Debug APK Artifact
+      if: steps.changes.outputs.debug == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-debug-apk
@@ -61,6 +88,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Release APK Artifact
+      if: steps.changes.outputs.release == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-release-apk
@@ -68,6 +96,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Release AAB Artifact
+      if: steps.changes.outputs.release == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-release-aab
@@ -75,7 +104,7 @@ jobs:
         if-no-files-found: error
 
     - name: Create GitHub Release
-      if: github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'Mhealth-app'
+      if: (github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'Mhealth-app') && (steps.changes.outputs.debug == 'true' || steps.changes.outputs.release == 'true' || steps.changes.outputs.common == 'true' || github.event_name == 'workflow_dispatch')
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "latest"
@@ -91,6 +120,7 @@ jobs:
         draft: false
         prerelease: true
         make_latest: true
+        fail_on_unmatched_files: false
         files: |
           MHealth - Copy/app/build/outputs/apk/debug/app-debug.apk
           MHealth - Copy/app/build/outputs/apk/release/app-release.apk

@@ -30,11 +30,14 @@ android {
 
     defaultConfig {
         val isRelease = project.gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
-        applicationId = if (isRelease) "com.lumen.mhealth" else "com.example.mhealth"
+        applicationId = if (isRelease) "com.lumen.mh.app" else "com.example.mhealth"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+
+        val baseVersionCode = 3
+        val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0
+        versionCode = baseVersionCode + runNumber
+        versionName = "1.1.$versionCode"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 

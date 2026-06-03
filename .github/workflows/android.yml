@@ -45,6 +45,14 @@ jobs:
         RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'lumen_key' }}
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
+    - name: Build Release AAB
+      run: ./gradlew bundleRelease --no-daemon
+      working-directory: MHealth - Copy
+      env:
+        RELEASE_STORE_PASSWORD: ${{ secrets.RELEASE_STORE_PASSWORD || 'lumen123' }}
+        RELEASE_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS || 'lumen_key' }}
+        RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
+
     - name: Upload Debug APK Artifact
       uses: actions/upload-artifact@v4
       with:
@@ -59,6 +67,13 @@ jobs:
         path: MHealth - Copy/app/build/outputs/apk/release/app-release.apk
         if-no-files-found: error
 
+    - name: Upload Release AAB Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: lumen-release-aab
+        path: MHealth - Copy/app/build/outputs/bundle/release/app-release.aab
+        if-no-files-found: error
+
     - name: Create GitHub Release
       if: github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'Mhealth-app'
       uses: softprops/action-gh-release@v2
@@ -69,7 +84,7 @@ jobs:
           This is the continuous, rolling build of the Lumen application.
           
           * **Lumen Dev Build**: Developer diagnostics, manual controls, and Firebase synchronization active (`app-debug.apk`).
-          * **Lumen Production User Build**: Calming theme, mindfulness features, offline privacy sandbox, and doctor report generation active (`app-release.apk`).
+          * **Lumen Production User Build**: Calming theme, mindfulness features, offline privacy sandbox, and doctor report generation active (`app-release.apk` / `app-release.aab`).
           
           * **Latest Commit**: `${{ github.sha }}`
           * **Last Triggered By**: `${{ github.actor }}`
@@ -79,5 +94,6 @@ jobs:
         files: |
           MHealth - Copy/app/build/outputs/apk/debug/app-debug.apk
           MHealth - Copy/app/build/outputs/apk/release/app-release.apk
+          MHealth - Copy/app/build/outputs/bundle/release/app-release.aab
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

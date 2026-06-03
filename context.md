@@ -388,5 +388,7 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     3. **Bold Font Synthesis**: Corrected the `Fredoka` `FontFamily` declaration to only map the `Normal` font weight. This enables Jetpack Compose to dynamically synthesize bold, extra-bold, and black weights, fixing the normal-only font rendering issues.
     4. **Lumen Branding Badges**: Injected a premium, subtle `L U M E N .` Row badge with a primary teal dot above the titles of all four primary screens (Home, Insights, Check In, Settings) to establish a cohesive brand identity.
     5. **Removed Cove references**: Renamed the main app name string from "Cove" to "Lumen" in `app/src/main/res/values/strings.xml` to eliminate any residual Cove references in accessibility settings and notifications.
+    6. **Monthly Check-in Cooldown Fix**: Keyed `cooldownDays` memory with `activeWizard` in `MonthlyCheckinTab` and reordered the declarations, so that the assessment cooldown screen displays immediately upon questionnaire submission instead of showing the screen refreshed/available again.
+
 
 

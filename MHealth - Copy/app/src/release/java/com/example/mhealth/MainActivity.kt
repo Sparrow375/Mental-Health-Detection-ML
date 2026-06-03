@@ -1608,8 +1608,8 @@ fun PremiumCheckinSlider(
 
 @Composable
 fun MonthlyCheckinTab(prefs: SharedPreferences) {
-    val cooldownDays = remember { getMonthlyCooldownDays(prefs) }
     var activeWizard by remember { mutableStateOf(false) }
+    val cooldownDays = remember(activeWizard) { getMonthlyCooldownDays(prefs) }
     
     val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
     val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }

@@ -100,12 +100,7 @@ class MainActivity : ComponentActivity() {
 // Premium Typography & Color Palettes
 // =============================================================================
 val Fredoka = FontFamily(
-    Font(R.font.fredoka, FontWeight.Normal),
-    Font(R.font.fredoka, FontWeight.Bold),
-    Font(R.font.fredoka, FontWeight.Medium),
-    Font(R.font.fredoka, FontWeight.SemiBold),
-    Font(R.font.fredoka, FontWeight.ExtraBold),
-    Font(R.font.fredoka, FontWeight.Black)
+    Font(R.font.fredoka, FontWeight.Normal)
 )
 
 // Calming Premium Theme colors
@@ -179,9 +174,15 @@ fun LumenTheme(
 
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+        typography = Typography
+    ) {
+        Surface(
+            color = colorScheme.background,
+            contentColor = colorScheme.onBackground
+        ) {
+            content()
+        }
+    }
 }
 
 // =============================================================================
@@ -447,6 +448,26 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
             ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                ) {
+                    Text(
+                        text = "L U M E N",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
                 Text(
                     text = if (name.isNotBlank()) "$greeting,\n$name." else "$greeting.",
                     fontSize = 28.sp,
@@ -872,6 +893,26 @@ fun InsightsScreen() {
     ) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                ) {
+                    Text(
+                        text = "L U M E N",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
                 Text(
                     text = "Your Rhythms",
                     fontSize = 24.sp,
@@ -1319,6 +1360,31 @@ fun CheckInScreen() {
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "L U M E N",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 2.sp
+                )
+                Spacer(Modifier.width(2.dp))
+                Box(
+                    modifier = Modifier
+                        .size(4.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary)
+                )
+            }
+        }
         TabRow(
             selectedTabIndex = subTab,
             containerColor = MaterialTheme.colorScheme.surface,
@@ -1797,6 +1863,26 @@ fun SettingsScreen() {
     ) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                ) {
+                    Text(
+                        text = "L U M E N",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.primary,
+                        letterSpacing = 2.sp
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
                 Text(
                     text = "Profile & Settings",
                     fontSize = 24.sp,
@@ -2803,26 +2889,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     ) {
                         item {
                             Text("Routines help Lumen construct a reference circadian rhythm context.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-
-                        item {
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                            ) {
-                                Column(Modifier.padding(16.dp)) {
-                                    Text("Typical Wake Time: ${formatTimeFloat(typicalWake)}", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
-                                    Slider(
-                                        value = typicalWake,
-                                        onValueChange = { typicalWake = it },
-                                        valueRange = 0f..24f,
-                                        steps = 47,
-                                        colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary)
-                                    )
-                                }
-                            }
                         }
 
                         item {

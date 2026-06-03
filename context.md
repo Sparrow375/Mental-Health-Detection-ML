@@ -382,4 +382,11 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     7. Refactored JSON backup export/import to append and restore `dna_profile` and `onboarding_calibration` configurations.
     8. Removed the redundant `isStudent` toggle in demographics (Step 2) in favor of the profession dropdown, and expanded Step 4 with 4 new sliders.
     9. Fixed a compilation error in release `MainActivity.kt`'s backup import logic where `PersonDnaEntity` instantiation had incorrect constructor fields and targeted a non-existent `upsert()` DAO method (changed to `insert()`).
+*   **2026-06-04**: Fixed dark mode text visibility issues, simplified onboarding sleep questions, and enhanced Lumen branding:
+    1. **Text Visibility Fix**: Wrapped the core `LumenTheme` inside a root `Surface` setting `color` to `colorScheme.background` and `contentColor` to `colorScheme.onBackground`. This automatically propagates correct text color styles to standard Text views, resolving the dark mode illegibility bug.
+    2. **Onboarding Simplification**: Removed the redundant "Typical Wake Time" slider from step 3 of the onboarding wizard (reducing sleep-related questions to one Typical Sleep Time slider). Saved a default value of `7.0f` for `user_typical_wake` in SharedPreferences to maintain backend telemetry database consistency.
+    3. **Bold Font Synthesis**: Corrected the `Fredoka` `FontFamily` declaration to only map the `Normal` font weight. This enables Jetpack Compose to dynamically synthesize bold, extra-bold, and black weights, fixing the normal-only font rendering issues.
+    4. **Lumen Branding Badges**: Injected a premium, subtle `L U M E N .` Row badge with a primary teal dot above the titles of all four primary screens (Home, Insights, Check In, Settings) to establish a cohesive brand identity.
+    5. **Removed Cove references**: Renamed the main app name string from "Cove" to "Lumen" in `app/src/main/res/values/strings.xml` to eliminate any residual Cove references in accessibility settings and notifications.
+
 

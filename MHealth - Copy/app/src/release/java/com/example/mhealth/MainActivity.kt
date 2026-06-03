@@ -448,26 +448,14 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.Start
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    text = "Lumen.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    Text(
-                        text = "L U M E N",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                )
                 Text(
                     text = if (name.isNotBlank()) "$greeting,\n$name." else "$greeting.",
                     fontSize = 28.sp,
@@ -893,26 +881,14 @@ fun InsightsScreen() {
     ) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    text = "Lumen.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    Text(
-                        text = "L U M E N",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                )
                 Text(
                     text = "Your Rhythms",
                     fontSize = 24.sp,
@@ -1365,25 +1341,13 @@ fun CheckInScreen() {
                 .fillMaxWidth()
                 .padding(horizontal = 24.dp, vertical = 12.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "L U M E N",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.primary,
-                    letterSpacing = 2.sp
-                )
-                Spacer(Modifier.width(2.dp))
-                Box(
-                    modifier = Modifier
-                        .size(4.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary)
-                )
-            }
+            Text(
+                text = "Lumen.",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.primary
+            )
         }
         TabRow(
             selectedTabIndex = subTab,
@@ -1863,26 +1827,14 @@ fun SettingsScreen() {
     ) {
         item {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                Text(
+                    text = "Lumen.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
-                ) {
-                    Text(
-                        text = "L U M E N",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 2.sp
-                    )
-                    Spacer(Modifier.width(2.dp))
-                    Box(
-                        modifier = Modifier
-                            .size(4.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.primary)
-                    )
-                }
+                )
                 Text(
                     text = "Profile & Settings",
                     fontSize = 24.sp,

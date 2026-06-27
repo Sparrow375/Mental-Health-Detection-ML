@@ -1,6 +1,7 @@
 package com.example.mhealth
 
 import android.Manifest
+import android.util.Log
 import android.app.Activity
 import android.app.AppOpsManager
 import android.content.Context

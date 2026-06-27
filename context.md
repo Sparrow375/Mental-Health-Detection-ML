@@ -408,6 +408,7 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     4. **False Alarm Blackout Guard**: Added a guard in Python's `detector.py` that checks for telemetry blackout (when screenTime, unlocks, appLaunches, notifications, and socialRatio are all 0.0). If true, it forces `alert_level = 'green'`, decays evidence state, and overrides notes with a warning message ("Limited data (telemetry permissions missing)").
     5. **Insights Real-time Refresh**: Integrated `DataRepository.updateWeeklyFeatureHistory(weeklyVectors)` inside `MonitoringService.kt` `runTick` to update weekly histories in real time on every tick, resolving the flat/stale Insights tab bug.
     6. **Release Settings Reset Parity**: Exposed "Soft Reset" and "Clear All Data" (Hard Reset) with auto-backup confirmations inside the release Settings screen, matching debug build parity.
+    7. **Build Variant Fixes**: Added missing `android.util.Log` import to release `MainActivity.kt` to resolve compiler errors, and removed build conditionals from `.github/workflows/android.yml` to guarantee both user (release) and dev (debug) APKs/AABs compile and upload on every push.
 
 
 

@@ -96,7 +96,13 @@ class L1Scorer:
                 continue
 
             current_val = current_data.get(feature, baseline_val)
-            z_raw = (current_val - baseline_val) / variance
+            if feature in ["sleepTimeHour", "wakeTimeHour"]:
+                diff = current_val - baseline_val
+                # Circular distance mapped to [-12, 12] range
+                diff_circ = ((diff + 12.0) % 24.0) - 12.0
+                z_raw = diff_circ / variance
+            else:
+                z_raw = (current_val - baseline_val) / variance
 
             # Per-feature deviation ceiling (default +/-4)
             ceiling = feature_ceilings.get(feature, 4.0) if feature_ceilings else 4.0

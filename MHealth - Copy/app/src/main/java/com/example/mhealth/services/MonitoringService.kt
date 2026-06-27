@@ -765,6 +765,9 @@ class MonitoringService : Service() {
                 collectedDailyVectors.addAll(pastVectors)
                 
                 DataRepository.updateCollectedBaselineVectors(collectedDailyVectors)
+                
+                val weeklyVectors = pastVectors.takeLast(7)
+                DataRepository.updateWeeklyFeatureHistory(weeklyVectors)
             } catch (e: Exception) {
                 Log.d("MHealth.Service", "Live daily features save/reload failed: ${e.message}")
             }
@@ -881,7 +884,7 @@ class MonitoringService : Service() {
      * The Python Bayesian warm-start system handles progressive refinement.
      */
     private fun checkAndFinalizeBaseline(liveSnapshot: PersonalityVector) {
-        if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.isNotEmpty()) {
+        if (DataRepository.isBuildingBaseline.value && collectedDailyVectors.size >= 7) {
             if (isPersistingBaseline) return // Prevent duplicate Coroutine launches
             isPersistingBaseline = true
 
@@ -1218,36 +1221,45 @@ class MonitoringService : Service() {
         // 10% Trimmed Mean: Removes extreme 10% high & 10% low outliers from the calibration period
         val trimCount = (n * 0.10).toInt().coerceAtLeast(0)
 
-        // Features whose raw 24h value crosses midnight — apply Noon-Offset before any math.
         val circularTimeFeatures = setOf("sleepTimeHour", "wakeTimeHour")
 
         features.forEach { feature ->
-            val vals = vectors.map {
-                val raw = it.toMap()[feature] ?: 0f
-                if (feature in circularTimeFeatures) normalizeTimeToNoon(raw) else raw
-            }
+            val vals = vectors.map { it.toMap()[feature] ?: 0f }
 
-            // Trim outliers for robust mean calculation
-            val sortedVals = vals.sorted()
-            val trimmedVals = if (n > 4 && trimCount > 0) {
-                sortedVals.subList(trimCount, n - trimCount)
+            if (feature in circularTimeFeatures) {
+                // Circular vector average (summing sines and cosines to avoid boundary wraps)
+                var sinSum = 0.0
+                var cosSum = 0.0
+                vals.forEach { v ->
+                    val radians = v * (2.0 * Math.PI / 24.0)
+                    sinSum += Math.sin(radians)
+                    cosSum += Math.cos(radians)
+                }
+                val avgAngle = Math.atan2(sinSum, cosSum)
+                val circularAvg = ((avgAngle * (24.0 / (2.0 * Math.PI))) + 24.0) % 24.0
+                averages[feature] = circularAvg.toFloat()
+
+                // Calculate standard deviation using circular differences
+                val diffsSq = vals.map { v ->
+                    val diff = v - circularAvg
+                    val diffCirc = ((diff + 12.0) % 24.0) - 12.0
+                    diffCirc * diffCirc
+                }
+                val varianceVal = diffsSq.average().toFloat()
+                val sd = kotlin.math.sqrt(varianceVal)
+                variances[feature] = if (sd < 0.01f) 0.01f else sd
             } else {
-                sortedVals
+                // Trim outliers for robust mean calculation
+                val sortedVals = vals.sorted()
+                val trimmedVals = if (n > 4 && trimCount > 0) {
+                    sortedVals.subList(trimCount, n - trimCount)
+                } else {
+                    sortedVals
+                }
+                val robustAvg = trimmedVals.average().toFloat()
+                averages[feature] = robustAvg
+                variances[feature] = calculateSD(vals, robustAvg)
             }
-
-            val robustAvg = trimmedVals.average().toFloat()
-
-            // IMPORTANT: variance is computed in Noon-Offset space (correct scale).
-            // The MEAN is stored back in raw 0-24h format so the downstream AnomalyDetector
-            // can normalize both sides (current + baseline) from raw — preventing double-normalization.
-            averages[feature] = if (feature in circularTimeFeatures) {
-                (robustAvg + 12f) % 24f   // de-normalize noon-offset → raw
-            } else {
-                robustAvg
-            }
-
-            // Variance is computed against the noon-offset average using the full valid dataset
-            variances[feature] = calculateSD(vals, robustAvg)
         }
 
         return PersonalityVector(

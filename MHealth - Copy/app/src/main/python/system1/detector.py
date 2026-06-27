@@ -312,59 +312,77 @@ class AnomalyDetector:
         # === BREADTH: count of co-deviating features (AND gate) ===
         breadth = sum(1 for v in deviations.values() if abs(v) > 1.5)
 
-        # === CANDIDATE CLUSTER EVALUATION ===
-        if (
-            self.candidate_evaluator is not None
-            and self.candidate_evaluator.is_active
-        ):
-            result = self.candidate_evaluator.evaluate_day(
-                l1_vector=current_data,
-                l2_result={'session_incoherence': session_incoherence},
-                effective_score=effective_score,
-            )
-            if result == 'PROMOTED':
-                self.candidate_evaluator.promote()
-            elif result == 'REJECTED':
-                held = self.candidate_evaluator.reject()
-                self.evidence_engine.release_held_evidence(held)
-            if result != 'EVALUATING':
-                self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
-        elif (
-            self.candidate_evaluator is not None
-            and candidate_flag
-            and self.candidate_evaluator.should_open_window(candidate_flag)
-        ):
-            self.candidate_evaluator.open_window(day_number)
-            self.candidate_evaluator.evaluate_day(
-                l1_vector=current_data,
-                l2_result={'session_incoherence': session_incoherence},
-                effective_score=effective_score,
-            )
+        # === TELEMETRY BLACKOUT GUARD ===
+        # If core UsageStats permissions are missing, key features will be permanently 0.0
+        critical_usage_features = ["screenTimeHours", "unlockCount", "appLaunchCount", "notificationsToday", "socialAppRatio"]
+        is_blackout = all(current_data.get(feat, 0.0) == 0.0 for feat in critical_usage_features)
+
+        # === CANDIDATE CLUSTER EVALUATION & EVIDENCE UPDATE ===
+        if is_blackout:
+            # Force decay of evidence to avoid false red alerts during telemetry blackouts
+            self.evidence_engine.update(0.0, breadth=0, cluster_just_promoted=cluster_just_promoted)
         else:
-            self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
+            if (
+                self.candidate_evaluator is not None
+                and self.candidate_evaluator.is_active
+            ):
+                result = self.candidate_evaluator.evaluate_day(
+                    l1_vector=current_data,
+                    l2_result={'session_incoherence': session_incoherence},
+                    effective_score=effective_score,
+                )
+                if result == 'PROMOTED':
+                    self.candidate_evaluator.promote()
+                elif result == 'REJECTED':
+                    held = self.candidate_evaluator.reject()
+                    self.evidence_engine.release_held_evidence(held)
+                if result != 'EVALUATING':
+                    self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
+            elif (
+                self.candidate_evaluator is not None
+                and candidate_flag
+                and self.candidate_evaluator.should_open_window(candidate_flag)
+            ):
+                self.candidate_evaluator.open_window(day_number)
+                self.candidate_evaluator.evaluate_day(
+                    l1_vector=current_data,
+                    l2_result={'session_incoherence': session_incoherence},
+                    effective_score=effective_score,
+                )
+            else:
+                self.evidence_engine.update(effective_score, breadth=breadth, cluster_just_promoted=cluster_just_promoted)
 
         # === TRACKING ===
         evidence_state = self.evidence_engine.get_state()
-        self.anomaly_score_history.append(effective_score)
-        self.full_anomaly_history.append(effective_score)
+        if is_blackout:
+            self.anomaly_score_history.append(0.0)
+            self.full_anomaly_history.append(0.0)
+        else:
+            self.anomaly_score_history.append(effective_score)
+            self.full_anomaly_history.append(effective_score)
 
-        # === ALERT ===
-        alert_level = self.alert_engine.determine_alert_level(
-            effective_score, deviations, evidence_state,
-            baseline_phase=phase,
-            baseline_confidence=confidence,
-        )
-        pattern_type = self.alert_engine.detect_pattern_type(deviations_history)
-        flagged = self.alert_engine.identify_flagged_features(deviations)
-        top_devs = self.alert_engine.get_top_deviations(deviations)
-
-        # === REPORTS ===
-        notes = self.reporter.generate_notes(
-            effective_score, alert_level, pattern_type,
-            evidence_state, final_l2_modifier,
-            self.thresholds['SUSTAINED_THRESHOLD_DAYS'],
-            self.thresholds['EVIDENCE_THRESHOLD'],
-        )
+        # === ALERT & NOTES ===
+        if is_blackout:
+            alert_level = 'green'
+            pattern_type = 'stable'
+            flagged = []
+            top_devs = {}
+            notes = "Limited data (telemetry permissions missing)"
+        else:
+            alert_level = self.alert_engine.determine_alert_level(
+                effective_score, deviations, evidence_state,
+                baseline_phase=phase,
+                baseline_confidence=confidence,
+            )
+            pattern_type = self.alert_engine.detect_pattern_type(deviations_history)
+            flagged = self.alert_engine.identify_flagged_features(deviations)
+            top_devs = self.alert_engine.get_top_deviations(deviations)
+            notes = self.reporter.generate_notes(
+                effective_score, alert_level, pattern_type,
+                evidence_state, final_l2_modifier,
+                self.thresholds['SUSTAINED_THRESHOLD_DAYS'],
+                self.thresholds['EVIDENCE_THRESHOLD'],
+            )
 
         anomaly_report = self.reporter.build_anomaly_report(
             l1_score=l1_score,

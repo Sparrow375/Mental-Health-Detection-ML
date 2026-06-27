@@ -384,6 +384,9 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
             }
         )
     }
+    var isUsageStatsGranted by remember {
+        mutableStateOf(hasUsageStatsPermission(context))
+    }
     var showLocationDisclosure by remember { mutableStateOf(false) }
     val homeLocationState by DataRepository.homeLocation.collectAsState()
     val isHomeSet = homeLocationState != null
@@ -405,6 +408,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 } else {
                     true
                 }
+                isUsageStatsGranted = hasUsageStatsPermission(context)
                 isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
             }
         }
@@ -433,7 +437,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         }
     }
 
-    val hasMissingPermissions = !isNotificationAccessGranted || !isLocationPermissionGranted || !isBackgroundLocationGranted || !isHomeSet
+    val hasMissingPermissions = !isNotificationAccessGranted || !isLocationPermissionGranted || !isBackgroundLocationGranted || !isHomeSet || !isUsageStatsGranted
 
     LazyColumn(
         modifier = Modifier
@@ -562,6 +566,15 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                                     buttonText = "Enable",
                                     onClick = {
                                         context.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                                    }
+                                )
+                            }
+                            if (!isUsageStatsGranted) {
+                                PermissionReminderRow(
+                                    name = "Usage Stats Access",
+                                    buttonText = "Enable",
+                                    onClick = {
+                                        context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                                     }
                                 )
                             }
@@ -1722,6 +1735,8 @@ fun SettingsScreen() {
     
     val profile by DataRepository.userProfile.collectAsState()
     val homeLocation by DataRepository.homeLocation.collectAsState()
+    val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
+    val progress by DataRepository.baselineProgress.collectAsState()
     var homeCapturing by remember { mutableStateOf(false) }
 
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
@@ -2061,6 +2076,103 @@ fun SettingsScreen() {
                         }
                         Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
                     }
+                }
+            }
+        }
+
+        item {
+            var showHardResetDialog by remember { mutableStateOf(false) }
+
+            if (showHardResetDialog) {
+                AlertDialog(
+                    onDismissRequest = { showHardResetDialog = false },
+                    title = {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Clear All Data?", fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Fredoka)
+                        }
+                    },
+                    text = {
+                        Column {
+                            Text(
+                                "This will permanently delete ALL collected telemetry data — daily features, app sessions, notification logs, DNA baselines, and analysis history.",
+                                fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.height(10.dp))
+                            Text(
+                                "✅ Your data will be automatically backed up as a JSON file in your Lumen files directory before deletion.",
+                                fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Spacer(Modifier.height(6.dp))
+                            Text(
+                                "Both layers will restart from Day 1 calibration in sync.",
+                                fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    },
+                    confirmButton = {
+                        Button(
+                            onClick = {
+                                showHardResetDialog = false
+                                exportDataAsJson(context, filePrefix = "mhealth_backup_before_reset_")
+                                DataRepository.triggerHardReset()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Clear All Data", color = Color.White, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showHardResetDialog = false }
+                        ) {
+                            Text("Cancel", color = MaterialTheme.colorScheme.primary, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Medium)
+                        }
+                    },
+                    shape = RoundedCornerShape(24.dp),
+                    containerColor = MaterialTheme.colorScheme.surface
+                )
+            }
+
+            InfoCard("System Calibration & Reset", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column {
+                            Text(if (isBuilding) "Calibration Phase" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontFamily = Fredoka)
+                            Text("Day $progress completed", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                        Button(
+                            onClick = { 
+                                DataRepository.triggerReset() 
+                                Toast.makeText(context, "Recalculating all wellness scores...", Toast.LENGTH_SHORT).show()
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text("Soft Reset", fontSize = 11.sp, color = Color.Black, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                        }
+                    }
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+
+                    Button(
+                        onClick = { showHardResetDialog = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error.copy(0.15f), contentColor = MaterialTheme.colorScheme.error),
+                        modifier = Modifier.fillMaxWidth(),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Icon(Icons.Default.Warning, null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("Clear All Data (Fresh Start)", fontSize = 13.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    }
+                    Text(
+                        "Exports a local JSON backup, wipes the database, and restarts calibration from Day 1.",
+                        fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f), lineHeight = 13.sp
+                    )
                 }
             }
         }
@@ -2465,6 +2577,9 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var isAccessibilityGranted by remember {
         mutableStateOf(com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx))
     }
+    var isUsageStatsGranted by remember {
+        mutableStateOf(hasUsageStatsPermission(ctx))
+    }
     var showLocationDisclosure by remember { mutableStateOf(false) }
     var showTelemetryDisclosure by remember { mutableStateOf(false) }
     var showAccessibilityDisclosure by remember { mutableStateOf(false) }
@@ -2484,6 +2599,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                 isTelemetryGranted = ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CONTACTS) == PackageManager.PERMISSION_GRANTED &&
                                      ContextCompat.checkSelfPermission(ctx, Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
                 isAccessibilityGranted = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(ctx)
+                isUsageStatsGranted = hasUsageStatsPermission(ctx)
                 homeSet = DataRepository.homeLocation.value != null
             }
         }
@@ -3175,6 +3291,17 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 text = "Lumen needs access to system permissions to passively monitor telemetry. All data is processed 100% locally.",
                                 fontSize = 13.sp,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        item {
+                            PermissionStatusCard(
+                                title = "App Usage Telemetry",
+                                description = "Required to track screen time, app launch patterns, and unlock counts.",
+                                isGranted = isUsageStatsGranted,
+                                onClick = {
+                                    ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                }
                             )
                         }
 
@@ -4851,4 +4978,147 @@ fun TelemetryDisclosureDialog(
         containerColor = MaterialTheme.colorScheme.surface
     )
 }
+
+private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_detailed_dump_") {
+    if (context !is ComponentActivity) return
+    val activity = context as ComponentActivity
+    activity.lifecycleScope.launch(Dispatchers.IO) {
+        try {
+            val db = MHealthDatabase.getInstance(context)
+            val userId = DataRepository.userProfile.value?.email ?: "local_patient@lumen.health"
+            
+            val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
+            val baselineRows = db.baselineDao().getBaseline(userId)
+            val analysisReports = db.analysisResultDao().getAll(userId)
+            val profile = db.userProfileDao().getProfile(userId)
+            
+            val masterJson = org.json.JSONObject()
+            
+            masterJson.put("profile", org.json.JSONObject().apply {
+                put("userId", userId)
+                put("baselineReady", profile?.baselineReady ?: false)
+                put("onboardingDate", profile?.onboardingDate ?: "")
+                put("currentStatus", profile?.currentStatus ?: "Collecting")
+            })
+
+            val baselineArr = org.json.JSONArray()
+            baselineRows.forEach { row ->
+                baselineArr.put(org.json.JSONObject().apply {
+                    put("feature", row.featureName)
+                    put("mean", row.baselineValue)
+                    put("std", row.stdDeviation)
+                    put("start", row.baselineStart)
+                    put("end", row.baselineEnd)
+                    put("contaminated", row.isContaminated)
+                })
+            }
+            masterJson.put("baseline", baselineArr)
+
+            val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.effectiveScore }
+
+            val historyArr = org.json.JSONArray()
+            dailyHistory.forEach { day ->
+                val dayObj = org.json.JSONObject()
+                dayObj.put("date", day.date)
+                dayObj.put("isSimulated", day.isSimulated)
+                dayObj.put("anomaly_score", scoreByDate[day.date] ?: -1.0)
+
+                val features = org.json.JSONObject().apply {
+                    put("screenTimeHours", day.screenTimeHours)
+                    put("unlockCount", day.unlockCount)
+                    put("appLaunchCount", day.appLaunchCount)
+                    put("notifications", day.notificationsToday)
+                    put("socialRatio", day.socialAppRatio)
+                    put("callsPerDay", day.callsPerDay)
+                    put("callDurationMins", day.callDurationMinutes)
+                    put("uniqueContacts", day.uniqueContacts)
+                    put("conversationFrequency", day.conversationFrequency)
+                    put("displacementKm", day.dailyDisplacementKm)
+                    put("locationEntropy", day.locationEntropy)
+                    put("homeTimeRatio", day.homeTimeRatio)
+                    put("wakeTimeHour", day.wakeTimeHour)
+                    put("sleepTimeHour", day.sleepTimeHour)
+                    put("sleepDurationHours", day.sleepDurationHours)
+                    put("dailyStepCount", day.dailyStepCount)
+                    put("activeMinutes", day.activeMinutes)
+                    put("keystrokeSpeed", day.keystrokeSpeed)
+                    put("backspaceRatio", day.backspaceRatio)
+                    put("scrollVelocity", day.scrollVelocity)
+                    put("daylightExposureMinutes", day.daylightExposureMinutes)
+                    put("chargeRegularity", day.chargeRegularity)
+                    put("chargeDurationHours", day.chargeDurationHours)
+                    put("upiTransactions", day.upiTransactionsToday)
+                    put("appUninstalls", day.appUninstallsToday)
+                    put("appInstalls", day.appInstallsToday)
+                    put("calendarEvents", day.calendarEventsToday)
+                    put("mediaCount", day.mediaCountToday)
+                    put("downloads", day.downloadsToday)
+                    put("musicTimeMinutes", day.musicTimeMinutes)
+                }
+                dayObj.put("metrics", features)
+
+                dayObj.put("detailed_logs", org.json.JSONObject().apply {
+                    put("app_breakdown", org.json.JSONObject(day.appBreakdownJson))
+                    put("notifications_breakdown", org.json.JSONObject(day.notificationBreakdownJson))
+                    put("app_launches_breakdown", org.json.JSONObject(day.appLaunchesBreakdownJson))
+                })
+                
+                historyArr.put(dayObj)
+            }
+            masterJson.put("daily_history", historyArr)
+
+            val liveVector = DataRepository.latestVector.value
+            if (liveVector != null) {
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+                val todayObj = org.json.JSONObject()
+                todayObj.put("date", todayStr)
+                todayObj.put("is_live_snapshot", true)
+                todayObj.put("isSimulated", false)
+                todayObj.put("metrics", org.json.JSONObject().apply {
+                    put("screenTimeHours",    liveVector.screenTimeHours)
+                    put("unlockCount",         liveVector.unlockCount)
+                    put("appLaunchCount",      liveVector.appLaunchCount)
+                    put("notifications",       liveVector.notificationsToday)
+                    put("socialRatio",         liveVector.socialAppRatio)
+                    put("callsPerDay",         liveVector.callsPerDay)
+                    put("callDurationMins",    liveVector.callDurationMinutes)
+                    put("uniqueContacts",      liveVector.uniqueContacts)
+                    put("conversationFrequency", liveVector.conversationFrequency)
+                    put("displacementKm",      liveVector.dailyDisplacementKm)
+                    put("locationEntropy",     liveVector.locationEntropy)
+                    put("homeTimeRatio",       liveVector.homeTimeRatio)
+                    put("wakeTimeHour",        liveVector.wakeTimeHour)
+                    put("sleepTimeHour",       liveVector.sleepTimeHour)
+                    put("sleepDurationHours",  liveVector.sleepDurationHours)
+                    put("dailyStepCount",      liveVector.dailyStepCount)
+                    put("activeMinutes",       liveVector.activeMinutes)
+                    put("keystrokeSpeed",      liveVector.keystrokeSpeed)
+                    put("backspaceRatio",      liveVector.backspaceRatio)
+                    put("scrollVelocity",      liveVector.scrollVelocity)
+                    put("daylightExposureMinutes", liveVector.daylightExposureMinutes)
+                    put("chargeRegularity",    liveVector.chargeRegularity)
+                    put("chargeDurationHours", liveVector.chargeDurationHours)
+                    put("upiTransactions",     liveVector.upiTransactionsToday)
+                    put("appUninstalls",       liveVector.appUninstallsToday)
+                    put("appInstalls",         liveVector.appInstallsToday)
+                    put("calendarEvents",      liveVector.calendarEventsToday)
+                    put("mediaCount",          liveVector.mediaCountToday)
+                    put("downloads",           liveVector.downloadsToday)
+                    put("musicTimeMinutes",    liveVector.musicTimeMinutes)
+                })
+                todayObj.put("location_snapshots", DataRepository.locationSnapshots.value.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" })
+                masterJson.put("live_today", todayObj)
+            }
+
+            val file = java.io.File(context.getExternalFilesDir(null), "$filePrefix${System.currentTimeMillis()}.json")
+            file.writeText(masterJson.toString())
+            withContext(Dispatchers.Main) {
+                Toast.makeText(context, "Backup auto-saved to: ${file.name}", Toast.LENGTH_LONG).show()
+            }
+        } catch (e: Exception) {
+            Log.e("MHealth", "Auto-backup failed: ${e.message}")
+        }
+    }
+}
+
 

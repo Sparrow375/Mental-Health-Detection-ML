@@ -268,6 +268,13 @@ class BayesianBaseline:
             p = self._posteriors[feat]
             value = day_data.get(feat, p.mu_n)  # impute missing with current posterior mean
 
+            # For circular features, map the input clock value to a continuous un-wrapped scale
+            # centered around the current running mean p.mu_n to prevent boundary explosions.
+            if feat in ["sleepTimeHour", "wakeTimeHour"]:
+                diff = value - p.mu_n
+                diff_circ = ((diff + 12.0) % 24.0) - 12.0
+                value = p.mu_n + diff_circ
+
             p.n_observations += 1
             p.sum_observations += value
             p.sum_sq_observations += value ** 2
@@ -295,7 +302,11 @@ class BayesianBaseline:
             p = self._posteriors[feat]
             
             # --- PERSONAL BASELINE ANCHORED BAYESIAN MEANS & EXPECTED VARIANCE ---
-            effective_means[feat] = p.mu_n
+            # De-normalize circular features back to 24h space for output
+            if feat in ["sleepTimeHour", "wakeTimeHour"]:
+                effective_means[feat] = p.mu_n % 24.0
+            else:
+                effective_means[feat] = p.mu_n
             
             # expected variance = beta_n / (alpha_n - 1.0)
             expected_variance = p.beta_n / (p.alpha_n - 1.0)

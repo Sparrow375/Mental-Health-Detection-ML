@@ -98,6 +98,11 @@ object DataRepository {
         _s1ProfileJson.value = profileJson
     }
 
+    /** Update weekly feature history flow to trigger real-time Insights tab refreshes. */
+    fun updateWeeklyFeatureHistory(history: List<PersonalityVector>) {
+        _weeklyFeatureHistory.value = history
+    }
+
     private fun DailyFeaturesEntity.toPersonalityVector() = PersonalityVector(
         screenTimeHours = screenTimeHours,
         unlockCount = unlockCount,

@@ -1589,29 +1589,17 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
     var activeWizard by remember { mutableStateOf(false) }
     val cooldownDays = remember(activeWizard) { getMonthlyCooldownDays(prefs) }
     
-    val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
-    val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }
+    val phq9Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
+    val gad7Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
     
     val phq9Questions = listOf(
         "Little interest or pleasure in doing things.",
-        "Feeling down, depressed, or hopeless.",
-        "Trouble falling or staying asleep, or sleeping too much.",
-        "Feeling tired or having little energy.",
-        "Poor appetite or overeating.",
-        "Feeling bad about yourself — or that you are a failure or have let yourself or your family down.",
-        "Trouble concentrating on things, such as reading the newspaper or watching television.",
-        "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual.",
-        "Thoughts that you would be better off dead or of hurting yourself in some way."
+        "Feeling down, depressed, or hopeless."
     )
 
     val gad7Questions = listOf(
         "Feeling nervous, anxious, or on edge.",
-        "Not being able to stop or control worrying.",
-        "Worrying too much about different things.",
-        "Trouble relaxing.",
-        "Being so restless that it is hard to sit still.",
-        "Becoming easily annoyed or irritable.",
-        "Feeling afraid as if something awful might happen."
+        "Not being able to stop or control worrying."
     )
     val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
     
@@ -1631,8 +1619,8 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
                 answers = gad7Answers,
                 options = optionsList,
                 onCompleted = {
-                    val totalPhq = phq9Answers.sum()
-                    val totalGad = gad7Answers.sum()
+                    val totalPhq = (phq9Answers.sum() * 9f / 2f).roundToInt()
+                    val totalGad = (gad7Answers.sum() * 7f / 2f).roundToInt()
                     val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
                     
                     DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
@@ -2097,7 +2085,7 @@ fun SettingsScreen() {
                     text = {
                         Column {
                             Text(
-                                "This will permanently delete ALL collected telemetry data — daily features, app sessions, notification logs, DNA baselines, and analysis history.",
+                                "This will permanently delete ALL collected telemetry data — daily features, app sessions, notification logs, behavioral baselines, and analysis history.",
                                 fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Spacer(Modifier.height(10.dp))
@@ -2108,7 +2096,7 @@ fun SettingsScreen() {
                             )
                             Spacer(Modifier.height(6.dp))
                             Text(
-                                "Both layers will restart from Day 1 calibration in sync.",
+                                "Both tracking modes will restart from Day 1 setup in sync.",
                                 fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
@@ -2138,11 +2126,11 @@ fun SettingsScreen() {
                 )
             }
 
-            InfoCard("System Calibration & Reset", headerColor = MaterialTheme.colorScheme.primary) {
+            InfoCard("System Setup & Reset", headerColor = MaterialTheme.colorScheme.primary) {
                 Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
-                            Text(if (isBuilding) "Calibration Phase" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontFamily = Fredoka)
+                            Text(if (isBuilding) "Learning Phase" else "Active Monitoring", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground, fontFamily = Fredoka)
                             Text("Day $progress completed", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                         Button(
@@ -2171,7 +2159,7 @@ fun SettingsScreen() {
                         Text("Clear All Data (Fresh Start)", fontSize = 13.sp, color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     }
                     Text(
-                        "Exports a local JSON backup, wipes the database, and restarts calibration from Day 1.",
+                        "Exports a local JSON backup, wipes the database, and restarts setup from Day 1.",
                         fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f), lineHeight = 13.sp
                     )
                 }
@@ -2636,28 +2624,16 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         }
     }
 
-    val phq9Answers = remember { mutableStateListOf(*Array(9) { -1 }) }
+    val phq9Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
     val phq9Questions = listOf(
         "Little interest or pleasure in doing things.",
-        "Feeling down, depressed, or hopeless.",
-        "Trouble falling or staying asleep, or sleeping too much.",
-        "Feeling tired or having little energy.",
-        "Poor appetite or overeating.",
-        "Feeling bad about yourself — or that you are a failure or have let yourself or your family down.",
-        "Trouble concentrating on things, such as reading the newspaper or watching television.",
-        "Moving or speaking so slowly that other people could have noticed? Or the opposite — being so fidgety or restless that you have been moving around a lot more than usual.",
-        "Thoughts that you would be better off dead or of hurting yourself in some way."
+        "Feeling down, depressed, or hopeless."
     )
 
-    val gad7Answers = remember { mutableStateListOf(*Array(7) { -1 }) }
+    val gad7Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
     val gad7Questions = listOf(
         "Feeling nervous, anxious, or on edge.",
-        "Not being able to stop or control worrying.",
-        "Worrying too much about different things.",
-        "Trouble relaxing.",
-        "Being so restless that it is hard to sit still.",
-        "Becoming easily annoyed or irritable.",
-        "Feeling afraid as if something awful might happen."
+        "Not being able to stop or control worrying."
     )
 
     val stressors = listOf(
@@ -2704,14 +2680,14 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         1 -> "Welcome to Lumen."
                         2 -> "Tell us a bit about yourself"
                         3 -> "Your Daily Rhythms"
-                        4 -> "Lifestyle Calibration"
+                        4 -> "Lifestyle Habits"
                         5 -> "Health Context"
                         6 -> "Set your home"
                         7 -> "System Permissions"
                         8 -> "Personal Well-being Survey"
                         9 -> "Daily Calmness & Reflection Checklist"
                         10 -> "Have you been through anything big lately?"
-                        else -> "Calibration Completed"
+                        else -> "Setup Completed"
                     },
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
@@ -2723,12 +2699,12 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         1 -> "A quiet companion for your wellness"
                         2 -> "These details remain entirely private on this device"
                         3 -> "Helps Lumen understand your target routines"
-                        4 -> "Calibrate telemetry weights to match your personal baseline profile"
+                        4 -> "Understand your typical habits to personalize your wellness profile"
                         5 -> "Provides lifestyle baseline context to customize thresholds"
                         6 -> "Used locally to evaluate daily time spent at home"
                         7 -> "Lumen runs passively offline and requires permissions to collect telemetry"
                         8 -> "Answer honestly to help establish your personal well-being baseline"
-                        9 -> "Helps Lumen calibrate tracking sensitivities to keep you safe"
+                        9 -> "Helps Lumen personalize its guidance to support you"
                         10 -> "Identifies transient life events that might mimic indicators"
                         else -> "Lumen will quietly monitor in the background."
                     },
@@ -2773,7 +2749,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         )
                         Spacer(Modifier.height(12.dp))
                         Text(
-                            "Lumen operates 100% locally and offline. It gathers passive behavioral telemetry—such as sleep patterns, physical movement, typing speeds, and social frequency—to construct a personalized Digital DNA and assist your wellness journey.",
+                            "Lumen operates 100% locally and offline. It gathers passive behavioral telemetry—such as sleep patterns, physical movement, typing speeds, and social frequency—to construct a personalized habit profile and assist your wellness journey.",
                             fontSize = 13.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
@@ -3036,7 +3012,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         item {
-                            Text("Rate your typical phone usage and activities from 1 to 5 to calibrate anomaly model weights.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("Rate your typical phone usage and activities to personalize your wellness profile.", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
                         item {
@@ -3281,121 +3257,117 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                     }
                 }
                 7 -> {
-                    LazyColumn(
-                        Modifier
-                            .fillMaxSize()
-                            .padding(24.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        item {
-                            Text(
-                                text = "Lumen needs access to system permissions to passively monitor telemetry. All data is processed 100% locally.",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    Box(Modifier.fillMaxSize()) {
+                        LazyColumn(
+                            Modifier
+                                .fillMaxSize()
+                                .padding(24.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            item {
+                                Text(
+                                    text = "Lumen needs access to system permissions to passively monitor telemetry. All data is processed 100% locally.",
+                                    fontSize = 13.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
 
-                        item {
-                            PermissionStatusCard(
-                                title = "App Usage Telemetry",
-                                description = "Required to track screen time, app launch patterns, and unlock counts.",
-                                isGranted = isUsageStatsGranted,
-                                onClick = {
-                                    ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                                }
-                            )
-                        }
+                            item {
+                                PermissionStatusCard(
+                                    title = "App Usage Telemetry",
+                                    description = "Required to track screen time, app launch patterns, and unlock counts.",
+                                    isGranted = isUsageStatsGranted,
+                                    onClick = {
+                                        ctx.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                    }
+                                )
+                            }
 
-                        item {
-                            PermissionStatusCard(
-                                title = "Notification Listener Access",
-                                description = "Required to track notification rates and music playtimes.",
-                                isGranted = isNotificationAccessGranted,
-                                onClick = {
-                                    ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
-                                }
-                            )
-                        }
+                            item {
+                                PermissionStatusCard(
+                                    title = "Notification Listener Access",
+                                    description = "Required to track notification rates and music playtimes.",
+                                    isGranted = isNotificationAccessGranted,
+                                    onClick = {
+                                        ctx.startActivity(Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"))
+                                    }
+                                )
+                            }
 
-                        item {
-                            PermissionStatusCard(
-                                title = "GPS Location & Background Tracking",
-                                description = "Required to analyze spatial entropy, home ratio, and daily displacement.",
-                                isGranted = isLocationPermissionGranted && isBackgroundLocationGranted,
-                                onClick = {
-                                    showLocationDisclosure = true
-                                }
-                            )
-                        }
+                            item {
+                                PermissionStatusCard(
+                                    title = "GPS Location & Background Tracking",
+                                    description = "Required to analyze spatial entropy, home ratio, and daily displacement.",
+                                    isGranted = isLocationPermissionGranted && isBackgroundLocationGranted,
+                                    onClick = {
+                                        showLocationDisclosure = true
+                                    }
+                                )
+                            }
 
-                        item {
-                            PermissionStatusCard(
-                                title = "Behavioral Rhythms Telemetry",
-                                description = "Required to analyze contact interactions, calendar events, and physical steps.",
-                                isGranted = isTelemetryGranted,
-                                onClick = {
-                                    showTelemetryDisclosure = true
-                                }
-                            )
-                        }
+                            item {
+                                PermissionStatusCard(
+                                    title = "Behavioral Rhythms Telemetry",
+                                    description = "Required to analyze contact interactions, calendar events, and physical steps.",
+                                    isGranted = isTelemetryGranted,
+                                    onClick = {
+                                        showTelemetryDisclosure = true
+                                    }
+                                )
+                            }
 
-                        item {
-                            PermissionStatusCard(
-                                title = "Digital Psychomotor Dynamics",
-                                description = "Required to analyze typing speeds, backspace ratios, and scroll velocity.",
-                                isGranted = isAccessibilityGranted,
-                                onClick = {
-                                    showAccessibilityDisclosure = true
-                                }
-                            )
+                            item {
+                                PermissionStatusCard(
+                                    title = "Digital Psychomotor Dynamics",
+                                    description = "Required to analyze typing speeds, backspace ratios, and scroll velocity.",
+                                    isGranted = isAccessibilityGranted,
+                                    onClick = {
+                                        showAccessibilityDisclosure = true
+                                    }
+                                )
+                            }
                         }
 
                         if (showLocationDisclosure) {
-                            item {
-                                LocationDisclosureDialog(
-                                    onDismiss = { showLocationDisclosure = false },
-                                    onConfirm = {
-                                        showLocationDisclosure = false
-                                        locPermissionLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.ACCESS_FINE_LOCATION,
-                                                Manifest.permission.ACCESS_COARSE_LOCATION
-                                            )
+                            LocationDisclosureDialog(
+                                onDismiss = { showLocationDisclosure = false },
+                                onConfirm = {
+                                    showLocationDisclosure = false
+                                    locPermissionLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.ACCESS_FINE_LOCATION,
+                                            Manifest.permission.ACCESS_COARSE_LOCATION
                                         )
-                                    }
-                                )
-                            }
+                                    )
+                                }
+                            )
                         }
 
                         if (showTelemetryDisclosure) {
-                            item {
-                                TelemetryDisclosureDialog(
-                                    onDismiss = { showTelemetryDisclosure = false },
-                                    onConfirm = {
-                                        showTelemetryDisclosure = false
-                                        telemetryLauncher.launch(
-                                            arrayOf(
-                                                Manifest.permission.READ_CONTACTS,
-                                                Manifest.permission.READ_CALENDAR,
-                                                Manifest.permission.ACTIVITY_RECOGNITION
-                                            )
+                            TelemetryDisclosureDialog(
+                                onDismiss = { showTelemetryDisclosure = false },
+                                onConfirm = {
+                                    showTelemetryDisclosure = false
+                                    telemetryLauncher.launch(
+                                        arrayOf(
+                                            Manifest.permission.READ_CONTACTS,
+                                            Manifest.permission.READ_CALENDAR,
+                                            Manifest.permission.ACTIVITY_RECOGNITION
                                         )
-                                    }
-                                )
-                            }
+                                    )
+                                }
+                            )
                         }
 
                         if (showAccessibilityDisclosure) {
-                            item {
-                                AccessibilityDisclosureDialog(
-                                    onDismiss = { showAccessibilityDisclosure = false },
-                                    onConfirm = {
-                                        showAccessibilityDisclosure = false
-                                        val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
-                                        ctx.startActivity(intent)
-                                    }
-                                )
-                            }
+                            AccessibilityDisclosureDialog(
+                                onDismiss = { showAccessibilityDisclosure = false },
+                                onConfirm = {
+                                    showAccessibilityDisclosure = false
+                                    val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                                    ctx.startActivity(intent)
+                                }
+                            )
                         }
                     }
                 }
@@ -3659,8 +3631,8 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                             7 -> step = 8
                             10 -> {
                                 // Calculate Calibration Scores
-                                val totalPhq = phq9Answers.sum()
-                                val totalGad = gad7Answers.sum()
+                                val totalPhq = (phq9Answers.sum() * 9f / 2f).roundToInt()
+                                val totalGad = (gad7Answers.sum() * 7f / 2f).roundToInt()
                                 val totalEvents = selectedStressors.filter { it.value && it.key < stressors.size - 1 }.size
 
                                 DataRepository.saveScreenerScores(totalPhq, totalGad, totalEvents)
@@ -3683,7 +3655,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         .height(48.dp)
                 ) {
                     Text(
-                        text = if (step == 10) "Calibrate" else "Next",
+                        text = if (step == 10) "Complete" else "Next",
                         fontFamily = Fredoka,
                         color = Color.Black,
                         fontWeight = FontWeight.ExtraBold
@@ -3701,6 +3673,7 @@ fun LifestyleSlider(
     value: Float,
     onValueChange: (Float) -> Unit
 ) {
+    val labels = listOf("Not Very Much", "Slightly", "Somewhat", "A Lot", "Very Much")
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -3711,17 +3684,36 @@ fun LifestyleSlider(
             Text(title, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
             Text(description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
             Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Slider(
-                    value = value,
-                    onValueChange = onValueChange,
-                    valueRange = 1f..5f,
-                    steps = 3,
-                    colors = SliderDefaults.colors(thumbColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.weight(1f)
-                )
-                Spacer(Modifier.width(12.dp))
-                Text("${value.toInt()}/5", fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.primary)
+            Slider(
+                value = value,
+                onValueChange = onValueChange,
+                valueRange = 1f..5f,
+                steps = 3,
+                colors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(0.2f),
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                ),
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(2.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                labels.forEachIndexed { index, label ->
+                    val isSelected = index + 1 == value.toInt()
+                    Text(
+                        text = label,
+                        fontSize = 8.5.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(0.4f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
         }
     }

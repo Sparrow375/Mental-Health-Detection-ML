@@ -17,6 +17,7 @@ import android.media.session.MediaSessionManager
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
+import android.content.SharedPreferences
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.mhealth.MainActivity
@@ -700,6 +701,9 @@ class MonitoringService : Service() {
         
         try {
             collectionTickCount++
+
+            // Check daily and monthly check-in notification triggers
+            checkAndSendCheckinNotifications()
 
             // BUG FIX: Proactively capture a GPS fix every tick so distance is
             // never 0.0 just because the passive 50m-displacement listener didn't fire.
@@ -1455,6 +1459,118 @@ class MonitoringService : Service() {
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
+
+    private fun checkAndSendCheckinNotifications() {
+        try {
+            val prefs = getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+            val checkinNotificationsEnabled = prefs.getBoolean("checkin_notifications_enabled", true)
+            if (!checkinNotificationsEnabled) return
+
+            val calendar = Calendar.getInstance()
+            val hour = calendar.get(Calendar.HOUR_OF_DAY)
+            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
+
+            // 1. Daily Check-in Notification (Send after 7 PM / 19:00 if not done and not sent today)
+            if (hour >= 19) {
+                val lastCheckinDate = prefs.getString("daily_checkin_date_last", "") ?: ""
+                val lastSentDate = prefs.getString("daily_checkin_notification_sent_date", "") ?: ""
+                if (lastCheckinDate != todayStr && lastSentDate != todayStr) {
+                    sendDailyCheckinNotification()
+                    prefs.edit().putString("daily_checkin_notification_sent_date", todayStr).apply()
+                }
+            }
+
+            // 2. Monthly Check-in Notification (Send after 12 PM / 12:00 if due, not done today, and not sent for this cycle)
+            val lastMonthlyCheckinDate = prefs.getString("monthly_checkin_last_date", "") ?: ""
+            val lastMonthlySentDate = prefs.getString("monthly_checkin_notification_sent_date", "") ?: ""
+            
+            val isMonthlyDue = getMonthlyCooldownDays(prefs) <= 0
+            val hasSentForThisCycle = if (lastMonthlySentDate.isNotEmpty() && lastMonthlyCheckinDate.isNotEmpty()) {
+                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                try {
+                    val sentTime = sdf.parse(lastMonthlySentDate)?.time ?: 0L
+                    val checkinTime = sdf.parse(lastMonthlyCheckinDate)?.time ?: 0L
+                    sentTime > checkinTime
+                } catch (e: Exception) {
+                    false
+                }
+            } else lastMonthlySentDate == todayStr
+
+            if (isMonthlyDue && lastMonthlyCheckinDate != todayStr && !hasSentForThisCycle) {
+                if (hour >= 12) {
+                    sendMonthlyCheckinNotification()
+                    prefs.edit().putString("monthly_checkin_notification_sent_date", todayStr).apply()
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("MHealth.Service", "Error checking checkin notifications: ${e.message}", e)
+        }
+    }
+
+    private fun getMonthlyCooldownDays(prefs: SharedPreferences): Int {
+        val lastDateStr = prefs.getString("monthly_checkin_last_date", "") ?: ""
+        if (lastDateStr.isEmpty()) return 0
+        
+        try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+            val lastDate = sdf.parse(lastDateStr) ?: return 0
+            val today = Calendar.getInstance().apply {
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }.time
+            
+            val diffMs = today.time - lastDate.time
+            val diffDays = diffMs / (1000 * 60 * 60 * 24)
+            
+            return (30 - diffDays).toInt().coerceAtLeast(0)
+        } catch (e: Exception) {
+            return 0
+        }
+    }
+
+    private fun sendDailyCheckinNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 101, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle("Time for your Daily Check-in")
+            .setContentText("Take a moment to reflect on your day and log your wellness.")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+            
+        nm.notify(3, notification)
+    }
+
+    private fun sendMonthlyCheckinNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 102, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle("Monthly Wellness Check-in")
+            .setContentText("It's time for your monthly well-being assessment.")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+            
+        nm.notify(4, notification)
+    }
 }
 
 /** Standalone receiver to handle the exact midnight alarm */

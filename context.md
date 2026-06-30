@@ -409,6 +409,32 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     5. **Insights Real-time Refresh**: Integrated `DataRepository.updateWeeklyFeatureHistory(weeklyVectors)` inside `MonitoringService.kt` `runTick` to update weekly histories in real time on every tick, resolving the flat/stale Insights tab bug.
     6. **Release Settings Reset Parity**: Exposed "Soft Reset" and "Clear All Data" (Hard Reset) with auto-backup confirmations inside the release Settings screen, matching debug build parity.
     7. **Build Variant Fixes**: Added missing `android.util.Log` import to release `MainActivity.kt` to resolve compiler errors, and removed build conditionals from `.github/workflows/android.yml` to guarantee both user (release) and dev (debug) APKs/AABs compile and upload on every push.
+*   **2026-06-30**: Refined the Lumen onboarding experience to pivot the application from a clinical tool to an intuitive wellness-focused platform:
+    1. **Lifestyle Slider Refinement**: Refactored the `LifestyleSlider` to replace 1–5 numerical scales with descriptive qualitative labels ("Not Very Much", "Slightly", "Somewhat", "A Lot", "Very Much").
+    2. **Jargon Sanitization**: Cleansed the onboarding text, descriptions, reset dialogs, and setup screens of all technical/clinical terminology (e.g. "model weights calibration", "Digital DNA", "calibration", "sensitivities").
+    3. **Permission Flow Optimization**: Moved the conditional disclosure dialog overlays outside the LazyColumn list builder in Step 7 of `OnboardingWizard` to eliminate layout re-composition lag.
+    4. **Daily and Monthly Check-in Notifications**: Integrated background check-in notification prompts inside `MonitoringService.kt` `runTick` to notify users daily (after 7 PM if unchecked) and monthly (after 12 PM when due) if permitted.
+    5. **Concise Assessments**: Shortened the PHQ-9 and GAD-7 screener questionnaires to the first 2 questions (PHQ-2 and GAD-2) in both onboarding and monthly check-ins, scaling the sums to the standard 0-27 and 0-21 ranges for backend compatibility.
+
+---
+
+## 9. Future Direction: Wellness & Self-Reflection Pivot
+
+To increase user engagement and ease regulatory boundaries, Lumen is pivoting from a passive clinical-diagnostic alert system to an active-passive hybrid **self-reflection and wellness coaching platform**.
+
+### 9.1 Pivot Design Pillars
+*   **Dual-Core Functionality**:
+    *   *Passive (Silent Shield)*: Systems 1 & 2 run unobtrusively on-device to build baselines and track anomalies. Instead of triggering clinical alerts or alarms, this data runs a contextual reflection trigger engine.
+    *   *Active (Mindful Reflection)*: High-engagement user-facing tasks (box breathing, journaling, cognitive reframing prompts, lifestyle goals) that keep the user coming back daily.
+*   **Biofeedback-Driven Journaling (Contextual Prompts)**:
+    *   Rather than standard daily mood check-ins, the app leverages passive telemetry to offer personalized reflection prompts.
+    *   *Example*: If screen time is abnormally high and sleep onset is delayed, the app prompts: *"We notice your evening digital wind-down was shorter yesterday. How did that affect your morning focus? Let's take a minute to reflect."*
+*   **Passive-Active Closed Loop Habits**:
+    *   Users opt-in to wellness habits (e.g., "Digital Balance", "Circadian Anchor", "Activity Restoration").
+    *   The app passively monitors adherence (using physical steps, screen time, charging habits) and updates active milestones, providing gamified positive reinforcement without requiring manual logs.
+*   **Aggregated B2B Burnout Insights**:
+    *   To target the corporate wellness market (inspired by MindPeers), Lumen will offer an organization-level dashboard summarizing anonymous wellness and focus trends (e.g., team sleep stability, average notification load) while strictly guaranteeing individual employee telemetry remains isolated and secure on-device.
+
 
 
 

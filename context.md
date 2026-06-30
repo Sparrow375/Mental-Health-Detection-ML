@@ -415,6 +415,7 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     3. **Permission Flow Optimization**: Moved the conditional disclosure dialog overlays outside the LazyColumn list builder in Step 7 of `OnboardingWizard` to eliminate layout re-composition lag.
     4. **Daily and Monthly Check-in Notifications**: Integrated background check-in notification prompts inside `MonitoringService.kt` `runTick` to notify users daily (after 7 PM if unchecked) and monthly (after 12 PM when due) if permitted.
     5. **Concise Assessments**: Shortened the PHQ-9 and GAD-7 screener questionnaires to the first 2 questions (PHQ-2 and GAD-2) in both onboarding and monthly check-ins, scaling the sums to the standard 0-27 and 0-21 ranges for backend compatibility.
+    6. **Google Play Policy Compliance**: Removed unused `READ_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES`, and `READ_MEDIA_VIDEO` permissions from `AndroidManifest.xml`, `release/MainActivity.kt`, and `debug/MainActivity.kt` to comply with Google Play guidelines regarding infrequent media access.
 
 ---
 

@@ -1,4 +1,5 @@
 <resources>
     <string name="app_name">Lumen</string>
     <string name="accessibility_service_label">Lumen. Interaction Dynamics</string>
+    <string name="accessibility_service_description">Lumen uses the AccessibilityService API to measure typing speed, deletion counts, and scroll velocity to establish your behavioral baseline. It does NOT read, record, or store any text content or sensitive entries (such as passwords). All measurements are processed 100% locally on your device.</string>
 </resources>

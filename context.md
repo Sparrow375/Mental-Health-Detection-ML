@@ -417,6 +417,10 @@ Following an architectural deep dive, the finalized blueprints for the core proc
     5. **Concise Assessments**: Shortened the PHQ-9 and GAD-7 screener questionnaires to the first 2 questions (PHQ-2 and GAD-2) in both onboarding and monthly check-ins, scaling the sums to the standard 0-27 and 0-21 ranges for backend compatibility.
     6. **Google Play Policy Compliance**: Removed unused `READ_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES`, and `READ_MEDIA_VIDEO` permissions from `AndroidManifest.xml`, `release/MainActivity.kt`, and `debug/MainActivity.kt` to comply with Google Play guidelines regarding infrequent media access.
 
+*   **2026-07-01**: Addressed Google Play Store Accessibility Service policy compliance:
+    1. **XML Config Description**: Configured `android:description="@string/accessibility_service_description"` in `accessibility_service_config.xml` to provide the required user-visible disclosure in system settings.
+    2. **Disclosures & Explanations**: Added a clear string translation in `strings.xml` explaining what the service measures (typing speed, deletion counts, and scroll velocity), and verifying that it does not read, record, or store any text content or sensitive fields (such as passwords), and that all processing is 100% local.
+
 ---
 
 ## 9. Future Direction: Wellness & Self-Reflection Pivot

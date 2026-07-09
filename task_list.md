@@ -1,7 +1,18 @@
 # Lumen Insights Enhancement Task List
 
-## Sprint: Pre-Open Testing Insights Overhaul
+## Sprint: Home Screen Polish & Daily Check-in Fixes (Current)
 
+- [x] **T19**: Correct daily check-in calmness/anxiety rating inversion (value 5 is "Calm / Relaxed", value 1 is "Severe Stress").
+- [x] **T20**: Dismiss check-in prompt on Home tab once completed today, and show "Today's Reflection Logged" summary card.
+- [x] **T21**: Restore circadian rhythm consistency preview chart (`QualitativeTrendChart`) inside the clickable card on the Insights tab.
+- [x] **T22**: Add "Mindful Breathing Pause" interactive box breathing card on the Home Screen.
+- [x] **T23**: Add "Daily Focus & Wisdom" rotating quote card on the Home Screen.
+- [x] **T24**: Add "Today's Routine Snapshot" telemetry comparisons card on the Home Screen.
+- [x] **T25**: Update `context.md` with the latest changes and structure.
+
+---
+
+### Previous Tasks (Completed)
 - [x] **T1**: Uncap check-in history (remove 7-entry trim from `saveCheckinToHistory`, keep unlimited)
 - [x] **T2**: Add journal note field to `DailyCheckinTab` + store in check-in history JSON
 - [x] **T3**: GPS display fix — reverse geocode home location, hide raw coordinates in Settings & Home
@@ -16,10 +27,7 @@
 - [x] **T12**: Weekly qualitative summary notification (Sunday evening)
 - [x] **T13**: Settings toggles for auto-backup and weekly summary notifications
 - [x] **T14**: Update `context.md` with all changes
-
----
-
-### Previous Tasks (Completed)
 - [x] **Compiler Fix**: Added missing Compose `rememberTextMeasurer` and `drawText` imports, and defined `formatValue` helper function to fix release build compilation
 - [x] **iOS Task 1**: Formulate iOS migration strategy and technical feasibility analysis
 - [x] **iOS Task 2**: Update `context.md` with iOS feasibility guidelines
+

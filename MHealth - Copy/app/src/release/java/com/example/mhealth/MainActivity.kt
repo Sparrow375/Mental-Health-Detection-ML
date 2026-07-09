@@ -371,6 +371,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     
     val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
     val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
+    val baseline by DataRepository.baseline.collectAsState()
     
     val db = remember { com.example.mhealth.logic.db.MHealthDatabase.getInstance(context.applicationContext) }
     val baselineEntities by produceState<List<com.example.mhealth.logic.db.BaselineEntity>>(emptyList(), db) {
@@ -384,6 +385,10 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     val activeStreak = remember(prefs) { getActiveStreak(prefs) }
+    
+    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
+    var lastCheckinDate by remember { mutableStateOf(prefs.getString("daily_checkin_date_last", "") ?: "") }
+    val alreadyCheckedIn = lastCheckinDate == todayStr
     
     val animatedStreak by animateIntAsState(
         targetValue = activeStreak,
@@ -436,6 +441,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 }
                 isUsageStatsGranted = hasUsageStatsPermission(context)
                 isReminderDismissed = prefs.getBoolean("home_permissions_reminder_dismissed", false)
+                lastCheckinDate = prefs.getString("daily_checkin_date_last", "") ?: ""
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -693,65 +699,163 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
             }
         }
         
-        item {
-            StaggeredFadeIn(index = 2) {
-                Card(
-                    onClick = onNavigateToCheckIn,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+        if (!alreadyCheckedIn) {
+            item {
+                StaggeredFadeIn(index = 2) {
+                    Card(
+                        onClick = onNavigateToCheckIn,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
                     ) {
-                        Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(0.15f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Favorite,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = "How are you feeling today?",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Take 30 seconds to log your current state.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
+                                    )
+                                }
                             }
-                            Spacer(Modifier.width(16.dp))
-                            Column {
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        } else {
+            val todayMood = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_mood", 3) }
+            val todayAnxiety = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_anxiety", 3) }
+            val todayNote = remember(alreadyCheckedIn) {
+                val list = getCheckinHistoryList(prefs)
+                list.firstOrNull { it.optString("date") == todayStr }?.optString("note") ?: ""
+            }
+            item {
+                StaggeredFadeIn(index = 2) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.04f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.12f))
+                    ) {
+                        Column(modifier = Modifier.padding(20.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("✅", fontSize = 20.sp)
+                                    Spacer(Modifier.width(12.dp))
+                                    Text(
+                                        text = "Today's Reflection Logged",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                                TextButton(onClick = onNavigateToCheckIn) {
+                                    Text("Edit", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                                }
+                            }
+                            
+                            Spacer(Modifier.height(8.dp))
+                            
+                            val moodEmoji = when (todayMood) {
+                                1 -> "😞 Down"
+                                2 -> "😕 Uneasy"
+                                3 -> "😐 Neutral"
+                                4 -> "🙂 Good"
+                                else -> "😊 Excellent"
+                            }
+                            
+                            val anxietyText = when (todayAnxiety) {
+                                1 -> "Severe Stress"
+                                2 -> "High Stress"
+                                3 -> "Mod. Stress"
+                                4 -> "Mild Stress"
+                                else -> "Calm / Relaxed"
+                            }
+                            
+                            Text(
+                                text = "Mood: $moodEmoji  •  Calmness: $anxietyText",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(0.8f)
+                            )
+                            
+                            if (todayNote.isNotBlank()) {
+                                Spacer(Modifier.height(10.dp))
                                 Text(
-                                    text = "How are you feeling today?",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Take 30 seconds to log your current state.",
+                                    text = "\"$todayNote\"",
                                     fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
+                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    lineHeight = 16.sp
                                 )
                             }
                         }
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary
-                        )
                     }
                 }
             }
         }
 
+        if (weeklyFeatures.isNotEmpty() && baseline != null) {
+            item {
+                StaggeredFadeIn(index = 3) {
+                    TelemetrySnapshotCard(features = weeklyFeatures, baseline = baseline)
+                }
+            }
+        }
+
         item {
-            StaggeredFadeIn(index = 3) {
+            StaggeredFadeIn(index = 4) {
+                MindfulBreathingCard()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 5) {
+                DailyFocusCard()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 6) {
                 MilestoneCard(prefs, weeklyFeatures)
             }
         }
@@ -900,6 +1004,275 @@ fun CalmLotusPulse(modifier: Modifier = Modifier) {
                 tint = primaryColor,
                 modifier = Modifier.size(48.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun DailyFocusCard() {
+    val quotes = remember {
+        listOf(
+            "Your body is a clock; let it chime in harmony with the sun.",
+            "Consistency in small routines breeds great peace of mind.",
+            "The best of wellness is not speed, but natural rhythm.",
+            "Step by step, day by day, we find our anchors.",
+            "Quiet the mind, and the patterns of wellness will speak.",
+            "Rest is not idleness, but key to restoration.",
+            "Allow yourself to breathe, to exist, and to just be.",
+            "Circadian harmony leads to emotional strength.",
+            "Small shifts in screen habits build massive changes in focus.",
+            "Movement is the natural medicine for a cluttered mind."
+        )
+    }
+    val quoteIndex = remember {
+        val cal = Calendar.getInstance()
+        val day = cal.get(Calendar.DAY_OF_YEAR)
+        day % quotes.size
+    }
+    val quote = quotes[quoteIndex]
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.06f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.06f))
+    ) {
+        Column(modifier = Modifier.padding(18.dp)) {
+            Text(
+                text = "Daily Focus",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(bottom = 6.dp)
+            )
+            Text(
+                text = "\"$quote\"",
+                fontSize = 13.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                lineHeight = 18.sp,
+                color = MaterialTheme.colorScheme.onBackground.copy(0.9f)
+            )
+        }
+    }
+}
+
+@Composable
+fun TelemetrySnapshotCard(features: List<PersonalityVector>, baseline: PersonalityVector?) {
+    val latest = features.lastOrNull() ?: return
+    val base = baseline ?: return
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = "Today's Routine Snapshot",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.padding(bottom = 12.dp)
+            )
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val snapshotPillModifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f))
+                    .padding(vertical = 10.dp, horizontal = 8.dp)
+                
+                // Sleep Pill
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
+                    Text("🌙 Sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text("%.1f h".format(latest.sleepDurationHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                    Text("Target: %.1f h".format(base.sleepDurationHours), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
+                }
+                
+                // Steps Pill
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
+                    Text("🏃 Steps", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text("%.0f".format(latest.dailyStepCount), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                    Text("Target: %.0f".format(base.dailyStepCount), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
+                }
+                
+                // Screen Pill
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
+                    Text("📱 Screen", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text("%.1f h".format(latest.screenTimeHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+                    Text("Target: %.1f h".format(base.screenTimeHours), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun MindfulBreathingCard() {
+    var active by remember { mutableStateOf(false) }
+    var phase by remember { mutableStateOf("Inhale") } // Inhale, Hold, Exhale, Hold
+    var secondsLeft by remember { mutableIntStateOf(4) }
+    var totalTimer by remember { mutableIntStateOf(60) }
+    
+    LaunchedEffect(active, phase, secondsLeft) {
+        if (active) {
+            if (totalTimer <= 0) {
+                active = false
+                totalTimer = 60
+                secondsLeft = 4
+                phase = "Inhale"
+            } else {
+                delay(1000L)
+                totalTimer -= 1
+                if (secondsLeft > 1) {
+                    secondsLeft -= 1
+                } else {
+                    // Switch phase
+                    when (phase) {
+                        "Inhale" -> { phase = "Hold"; secondsLeft = 4 }
+                        "Hold" -> { phase = "Exhale"; secondsLeft = 4 }
+                        "Exhale" -> { phase = "Hold"; secondsLeft = 4 }
+                        "Hold" -> { phase = "Inhale"; secondsLeft = 4 }
+                    }
+                }
+            }
+        }
+    }
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(modifier = Modifier.padding(20.dp)) {
+            if (!active) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Spa, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        }
+                        Spacer(Modifier.width(16.dp))
+                        Column {
+                            Text(
+                                text = "Mindful Breathing Pause",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            Text(
+                                text = "A quick 1-minute box breathing session",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = { active = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.height(36.dp)
+                    ) {
+                        Text("Start", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    }
+                }
+            } else {
+                // Active breathing session
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "Box Breathing Reset",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(Modifier.height(16.dp))
+                    
+                    // Breathing Circle Pulse
+                    val scale = when (phase) {
+                        "Inhale" -> 0.8f + (4 - secondsLeft) * 0.1f
+                        "Hold" -> 1.2f
+                        "Exhale" -> 1.2f - (4 - secondsLeft) * 0.1f
+                        else -> 0.8f
+                    }
+                    
+                    val animatedScale by animateFloatAsState(
+                        targetValue = scale,
+                        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
+                        label = "BreathCircleScale"
+                    )
+                    
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .scale(animatedScale)
+                            .clip(CircleShape)
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
+                                    )
+                                )
+                            )
+                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = phase,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Text(
+                                text = "$secondsLeft",
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                    
+                    Spacer(Modifier.height(16.dp))
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Remaining: ${totalTimer}s",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        TextButton(onClick = { active = false; totalTimer = 60; secondsLeft = 4; phase = "Inhale" }) {
+                            Text("Stop", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1161,36 +1534,42 @@ fun InsightsScreen() {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                         ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                                    contentAlignment = Alignment.Center
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Icon(Icons.Default.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Circadian Rhythm Consistency",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                        Text(
+                                            text = "Overall routine stability compared to baseline",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
+                                    }
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
                                 }
-                                Spacer(Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Overall Rhythm & Reflection",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = Fredoka,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                    Text(
-                                        text = "View your routine consistency score and read through your check-in journal history",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    )
-                                }
-                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                                
+                                Spacer(Modifier.height(16.dp))
+                                
+                                QualitativeTrendChart(features = weeklyFeatures, baseline = base)
                             }
                         }
                     }
@@ -1911,11 +2290,11 @@ fun JournalEntryCard(entry: org.json.JSONObject) {
     }
 
     val anxietyStr = when (anxiety) {
-        1 -> "Calm / Relaxed"
-        2 -> "Mild Stress"
+        1 -> "Severe Stress"
+        2 -> "High Stress"
         3 -> "Mod. Stress"
-        4 -> "High Stress"
-        else -> "Severe Stress"
+        4 -> "Mild Stress"
+        else -> "Calm / Relaxed"
     }
 
     Card(

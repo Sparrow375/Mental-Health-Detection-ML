@@ -927,14 +927,53 @@ fun InsightsScreen() {
 
     if (activeDetailSector != null) {
         val sector = activeDetailSector!!
-        SectorDetailScreen(
-            sectorName = sector,
-            sectorIcon = activeDetailIcon,
-            features = weeklyFeatures,
-            baselineEntities = baselineEntities,
-            checkinHistory = checkinHistory,
-            onBack = { activeDetailSector = null }
-        )
+        if (sector == "Overall Rhythm") {
+            val base = if (isDnaReady && baseline != null) baseline else {
+                val count = weeklyFeatures.size
+                if (count > 0) {
+                    PersonalityVector(
+                        screenTimeHours = weeklyFeatures.map { it.screenTimeHours }.sum() / count,
+                        unlockCount = weeklyFeatures.map { it.unlockCount }.sum() / count,
+                        appLaunchCount = weeklyFeatures.map { it.appLaunchCount }.sum() / count,
+                        notificationsToday = weeklyFeatures.map { it.notificationsToday }.sum() / count,
+                        socialAppRatio = weeklyFeatures.map { it.socialAppRatio }.sum() / count,
+                        callsPerDay = weeklyFeatures.map { it.callsPerDay }.sum() / count,
+                        callDurationMinutes = weeklyFeatures.map { it.callDurationMinutes }.sum() / count,
+                        uniqueContacts = weeklyFeatures.map { it.uniqueContacts }.sum() / count,
+                        conversationFrequency = weeklyFeatures.map { it.conversationFrequency }.sum() / count,
+                        dailyDisplacementKm = weeklyFeatures.map { it.dailyDisplacementKm }.sum() / count,
+                        locationEntropy = weeklyFeatures.map { it.locationEntropy }.sum() / count,
+                        homeTimeRatio = weeklyFeatures.map { it.homeTimeRatio }.sum() / count,
+                        wakeTimeHour = weeklyFeatures.map { it.wakeTimeHour }.sum() / count,
+                        sleepTimeHour = weeklyFeatures.map { it.sleepTimeHour }.sum() / count,
+                        sleepDurationHours = weeklyFeatures.map { it.sleepDurationHours }.sum() / count,
+                        dailyStepCount = weeklyFeatures.map { it.dailyStepCount }.sum() / count,
+                        activeMinutes = weeklyFeatures.map { it.activeMinutes }.sum() / count,
+                        keystrokeSpeed = weeklyFeatures.map { it.keystrokeSpeed }.sum() / count,
+                        backspaceRatio = weeklyFeatures.map { it.backspaceRatio }.sum() / count,
+                        scrollVelocity = weeklyFeatures.map { it.scrollVelocity }.sum() / count,
+                        daylightExposureMinutes = weeklyFeatures.map { it.daylightExposureMinutes }.sum() / count,
+                        chargeRegularity = weeklyFeatures.map { it.chargeRegularity }.sum() / count,
+                        chargeDurationHours = weeklyFeatures.map { it.chargeDurationHours }.sum() / count
+                    )
+                } else null
+            }
+            RhythmDetailScreen(
+                features = weeklyFeatures,
+                baseline = base,
+                checkinHistory = checkinHistory,
+                onBack = { activeDetailSector = null }
+            )
+        } else {
+            SectorDetailScreen(
+                sectorName = sector,
+                sectorIcon = activeDetailIcon,
+                features = weeklyFeatures,
+                baselineEntities = baselineEntities,
+                checkinHistory = checkinHistory,
+                onBack = { activeDetailSector = null }
+            )
+        }
         return
     }
     
@@ -1107,40 +1146,49 @@ fun InsightsScreen() {
                     }
                 }
                 
-                // 2. Sparkline Trend Chart
+                // 2. Clickable Rhythm & Reflection Card
                 item {
                     StaggeredFadeIn(index = 1) {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    activeDetailSector = "Overall Rhythm"
+                                },
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                         ) {
-                            Column(modifier = Modifier.padding(16.dp)) {
-                                Text(
-                                    text = "Rhythm Consistency",
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "A rolling depiction of routine adherence. A stable, flat trend highlights healthy routine consistency. Tap cards below for detailed charts.",
-                                    fontSize = 11.5.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
-                                )
-                                
-                                QualitativeTrendChart(weeklyFeatures, base)
-                                
-                                Spacer(Modifier.height(8.dp))
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text("Previous 7 Days", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                    Text("Today", fontSize = 10.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Default.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                 }
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Overall Rhythm & Reflection",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = "View your routine consistency score and read through your check-in journal history",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
@@ -1282,61 +1330,7 @@ fun InsightsScreen() {
                     }
                 }
 
-                // T8: Daylight & Charging Insight Cards
-                item {
-                    Text(
-                        text = "Rhythm Context",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
 
-                item {
-                    DaylightChargingCards(latest, base)
-                }
-
-                // T9: Mood × Behavior Correlation Card
-                item {
-                    MoodBehaviorCorrelationCard(checkinHistory, weeklyFeatures)
-                }
-
-                // T6: Integrated Behavioral Timeline
-                item {
-                    Text(
-                        text = "Behavioral History & Notes",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                if (checkinHistory.isEmpty()) {
-                    item {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                        ) {
-                            Text(
-                                text = "Your behavioral history is currently empty. Completing check-ins will build your timeline here.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(16.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-                } else {
-                    checkinHistory.reversed().forEach { entry ->
-                        item {
-                            JournalEntryCard(entry)
-                        }
-                    }
-                }
             }
         }
     }
@@ -1542,6 +1536,7 @@ fun SectorDetailScreen(
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
     var timeRange by remember { mutableIntStateOf(7) }
 
     val featureKeys = remember(sectorName) {
@@ -1556,7 +1551,11 @@ fun SectorDetailScreen(
         }
     }
 
-    val windowed = features.take(timeRange)
+    val db = remember { com.example.mhealth.logic.db.MHealthDatabase.getInstance(context.applicationContext) }
+    val dailyFeaturesList by produceState<List<com.example.mhealth.logic.db.DailyFeaturesEntity>>(emptyList(), db, timeRange) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.dailyFeaturesDao().getLatestN(userId, timeRange).reversed()
+    }
     val baseMap = baselineEntities.associate { it.featureName to it.baselineValue }
 
     LazyColumn(
@@ -1600,7 +1599,6 @@ fun SectorDetailScreen(
         // Charts for each feature in the sector
         featureKeys.forEach { (key, label) ->
             item {
-                val values = windowed.reversed().map { vec -> getFeatureValue(vec, key) }
                 val baseLine = baseMap[key]
 
                 Card(
@@ -1612,29 +1610,51 @@ fun SectorDetailScreen(
                     Column(modifier = Modifier.padding(16.dp)) {
                         Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                         if (baseLine != null) {
-                            Text("Baseline: ${String.format("%.1f", baseLine)}", fontSize = 10.sp, color = surfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                            Text("Baseline: ${formatValue(baseLine, key)}", fontSize = 10.sp, color = surfaceVariant, modifier = Modifier.padding(top = 2.dp))
                         }
+                        
                         Spacer(Modifier.height(12.dp))
-                        FeatureLineChart(values = values, baseline = baseLine, color = primary)
+                        FeatureLineChart(dailyFeatures = dailyFeaturesList, key = key, baseline = baseLine, color = primary)
+                        
+                        if (dailyFeaturesList.isNotEmpty()) {
+                            Spacer(Modifier.height(12.dp))
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.08f))
+                            Spacer(Modifier.height(8.dp))
+                            
+                            Text("Daily Logs:", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = surfaceVariant)
+                            Spacer(Modifier.height(6.dp))
+                            
+                            androidx.compose.foundation.lazy.LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                contentPadding = PaddingValues(horizontal = 2.dp)
+                            ) {
+                                items(dailyFeaturesList.reversed()) { feat ->
+                                    val dayVal = getFeatureValueFromEntity(feat, key)
+                                    val parsedDate = try {
+                                        val date = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(feat.date)
+                                        if (date != null) SimpleDateFormat("EEE, MMM d", Locale.US).format(date) else feat.date
+                                    } catch (e: Exception) { feat.date }
+                                    
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(MaterialTheme.colorScheme.onSurface.copy(0.03f))
+                                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    ) {
+                                        Text(parsedDate, fontSize = 9.sp, color = surfaceVariant.copy(0.8f))
+                                        Text(formatValue(dayVal, key), fontSize = 12.sp, fontWeight = FontWeight.Bold, color = primary, modifier = Modifier.padding(top = 2.dp))
+                                    }
+                                }
+                            }
+                        }
                     }
-                }
-            }
-        }
-
-        // Show journal notes from this time range
-        val rangeNotes = checkinHistory.filter { it.has("note") && it.getString("note").isNotBlank() }.takeLast(timeRange)
-        if (rangeNotes.isNotEmpty()) {
-            item {
-                Text("Journal Notes", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, modifier = Modifier.padding(top = 8.dp))
-            }
-            rangeNotes.forEach { entry ->
-                item {
-                    JournalEntryCard(entry)
                 }
             }
         }
     }
 }
+
 
 fun getFeatureValue(vec: PersonalityVector, key: String): Float {
     return when (key) {
@@ -1657,39 +1677,172 @@ fun getFeatureValue(vec: PersonalityVector, key: String): Float {
     }
 }
 
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
 @Composable
-fun FeatureLineChart(values: List<Float>, baseline: Float?, color: Color) {
+fun FeatureLineChart(
+    dailyFeatures: List<com.example.mhealth.logic.db.DailyFeaturesEntity>,
+    key: String,
+    baseline: Float?,
+    color: Color
+) {
+    val textMeasurer = rememberTextMeasurer()
     val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
-    Canvas(Modifier.fillMaxWidth().height(80.dp)) {
-        if (values.size < 2) return@Canvas
-        val maxV = (values.maxOrNull() ?: 1f).coerceAtLeast(baseline?.times(1.2f) ?: 1f)
-        val minV = (values.minOrNull() ?: 0f).coerceAtMost(baseline?.times(0.8f) ?: 0f)
+    val outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+
+    if (dailyFeatures.size < 2) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(100.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Need more data points to plot", fontSize = 11.sp, color = surfaceVariant)
+        }
+        return
+    }
+
+    val values = remember(dailyFeatures, key) {
+        dailyFeatures.map { getFeatureValueFromEntity(it, key) }
+    }
+
+    val dates = remember(dailyFeatures) {
+        dailyFeatures.map { feat ->
+            try {
+                val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(feat.date)
+                if (d != null) SimpleDateFormat("d/M", Locale.US).format(d) else feat.date
+            } catch (e: Exception) { feat.date }
+        }
+    }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(140.dp)
+            .padding(vertical = 4.dp)
+    ) {
+        val labelWidth = 50.dp.toPx()
+        val bottomOffset = 24.dp.toPx()
+        val chartWidth = size.width - labelWidth
+        val chartHeight = size.height - bottomOffset
+
+        if (chartWidth <= 0f || chartHeight <= 0f) return@Canvas
+
+        val maxV = (values.maxOrNull() ?: 1f).coerceAtLeast(baseline ?: 1f)
+        val minV = (values.minOrNull() ?: 0f).coerceAtMost(baseline ?: 0f)
         val range = (maxV - minV).coerceAtLeast(0.1f)
-        val spacing = size.width / (values.size - 1)
 
-        // Baseline ref
+        // 1. Draw horizontal grid lines & Y labels (min, mid, max)
+        val gridLines = listOf(0f, 0.5f, 1f)
+        gridLines.forEach { ratio ->
+            val y = ratio * chartHeight
+            val valueAtY = maxV - ratio * range
+
+            // Grid line
+            drawLine(
+                color = outlineColor,
+                start = Offset(labelWidth, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
+            )
+
+            // Y label
+            val textLayoutResult = textMeasurer.measure(
+                text = formatValue(valueAtY, key),
+                style = androidx.compose.ui.text.TextStyle(
+                    fontSize = 8.sp,
+                    color = surfaceVariant.copy(0.6f),
+                    fontFamily = FontFamily.SansSerif
+                )
+            )
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = Offset(4.dp.toPx(), y - textLayoutResult.size.height / 2f)
+            )
+        }
+
+        // 2. Draw baseline if available
         if (baseline != null) {
-            val bY = size.height - ((baseline - minV) / range) * size.height
-            drawLine(surfaceVariant.copy(0.3f), Offset(0f, bY), Offset(size.width, bY), 1.dp.toPx(),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())))
+            val bY = chartHeight - ((baseline - minV) / range) * chartHeight
+            drawLine(
+                color = surfaceVariant.copy(0.4f),
+                start = Offset(labelWidth, bY),
+                end = Offset(size.width, bY),
+                strokeWidth = 1.5.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+            )
+            val baseTextLayout = textMeasurer.measure(
+                text = "Baseline: ${formatValue(baseline, key)}",
+                style = androidx.compose.ui.text.TextStyle(
+                    fontSize = 8.sp,
+                    color = surfaceVariant.copy(0.7f),
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            drawText(
+                textLayoutResult = baseTextLayout,
+                topLeft = Offset(size.width - baseTextLayout.size.width - 4.dp.toPx(), bY - baseTextLayout.size.height - 2.dp.toPx())
+            )
         }
 
-        val path = Path()
-        val fillPath = Path()
-        values.forEachIndexed { idx, v ->
-            val x = idx * spacing
-            val y = size.height - ((v - minV) / range) * size.height
-            if (idx == 0) { path.moveTo(x, y); fillPath.moveTo(x, y) }
-            else { path.lineTo(x, y); fillPath.lineTo(x, y) }
+        // 3. Draw line chart path
+        val xSpacing = chartWidth / (values.size - 1).coerceAtLeast(1)
+        val points = values.mapIndexed { idx, v ->
+            val x = labelWidth + idx * xSpacing
+            val y = chartHeight - ((v - minV) / range) * chartHeight
+            Offset(x, y)
         }
-        val closedFill = Path().apply {
-            addPath(fillPath); lineTo((values.size - 1) * spacing, size.height); lineTo(0f, size.height); close()
+
+        val fillPath = Path().apply {
+            moveTo(points.first().x, chartHeight)
+            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.last().x, chartHeight)
+            close()
         }
-        drawPath(closedFill, Brush.verticalGradient(listOf(color.copy(0.2f), color.copy(0.02f))))
-        drawPath(path, color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
-        values.forEachIndexed { idx, v ->
-            val x = idx * spacing; val y = size.height - ((v - minV) / range) * size.height
-            drawCircle(color, 3.dp.toPx(), Offset(x, y))
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(color.copy(0.18f), color.copy(0.01f)),
+                startY = 0f,
+                endY = chartHeight
+            )
+        )
+
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(
+            path = linePath,
+            color = color,
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Draw dots and X-axis labels
+        points.forEachIndexed { idx, pt ->
+            drawCircle(
+                color = color,
+                radius = 3.dp.toPx(),
+                center = pt
+            )
+
+            // X-axis label (draw every 2nd or 3rd to avoid overlap on long history, or all if small)
+            val step = if (values.size > 14) 3 else if (values.size > 7) 2 else 1
+            if (idx % step == 0) {
+                val dateLabel = dates.getOrNull(idx) ?: ""
+                val labelLayout = textMeasurer.measure(
+                    text = dateLabel,
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontSize = 8.sp,
+                        color = surfaceVariant.copy(0.7f),
+                        fontWeight = FontWeight.Bold
+                    )
+                )
+                drawText(
+                    textLayoutResult = labelLayout,
+                    topLeft = Offset(pt.x - labelLayout.size.width / 2f, chartHeight + 6.dp.toPx())
+                )
+            }
         }
     }
 }
@@ -1706,35 +1859,476 @@ fun JournalEntryCard(entry: org.json.JSONObject) {
     val anxiety = entry.optInt("anxiety", 3)
     val note = entry.optString("note", "")
 
-    val moodEmoji = when (mood) { 1 -> "😞"; 2 -> "😕"; 3 -> "😐"; 4 -> "🙂"; else -> "😊" }
+    val parsedDate = remember(date) {
+        try {
+            val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(date)
+            if (d != null) SimpleDateFormat("EEEE, MMM d, yyyy", Locale.US).format(d) else date
+        } catch (e: Exception) { date }
+    }
+
+    val moodStr = when (mood) {
+        1 -> "😞 Down"
+        2 -> "😕 Uneasy"
+        3 -> "😐 Neutral"
+        4 -> "🙂 Good"
+        else -> "😊 Excellent"
+    }
+
+    val energyStr = when (energy) {
+        1 -> "Low Energy"
+        2 -> "Mod. Low"
+        3 -> "Moderate"
+        4 -> "High"
+        else -> "Very High"
+    }
+
+    val sleepStr = when (sleep) {
+        1 -> "Poor Sleep"
+        2 -> "Mod. Sleep"
+        3 -> "Good Sleep"
+        4 -> "Great Sleep"
+        else -> "Excellent"
+    }
+
+    val anxietyStr = when (anxiety) {
+        1 -> "Calm / Relaxed"
+        2 -> "Mild Stress"
+        3 -> "Mod. Stress"
+        4 -> "High Stress"
+        else -> "Severe Stress"
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
     ) {
-        Column(modifier = Modifier.padding(14.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                Text(moodEmoji, fontSize = 20.sp)
-                Spacer(Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(date, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.onBackground)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("E:$energy", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("S:$sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text("A:$anxiety", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(modifier = Modifier.padding(16.dp)) {
+            // Header with date and overall mood
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = parsedDate,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(0.1f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = moodStr,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontFamily = Fredoka
+                    )
+                }
+            }
+            
+            Spacer(Modifier.height(12.dp))
+            
+            // Grid of parameters
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                val pillModifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f))
+                    .padding(vertical = 8.dp)
+                
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = pillModifier) {
+                    Text("Energy", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    Text(energyStr, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 2.dp))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = pillModifier) {
+                    Text("Sleep", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    Text(sleepStr, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 2.dp))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = pillModifier) {
+                    Text("Calmness", fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
+                    Text(anxietyStr, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(top = 2.dp))
+                }
+            }
+            
+            if (note.isNotBlank()) {
+                Spacer(Modifier.height(14.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.primary.copy(0.03f))
+                        .border(1.dp, MaterialTheme.colorScheme.primary.copy(0.08f), RoundedCornerShape(12.dp))
+                        .padding(12.dp)
+                ) {
+                    Row(verticalAlignment = Alignment.Top) {
+                        Text(
+                            text = "✍️",
+                            fontSize = 16.sp,
+                            modifier = Modifier.padding(end = 8.dp)
+                        )
+                        Text(
+                            text = note,
+                            fontSize = 12.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Normal,
+                            color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
+                            lineHeight = 18.sp
+                        )
                     }
                 }
             }
-            if (note.isNotBlank()) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "\"$note\"",
-                    fontSize = 12.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                    color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
-                    lineHeight = 17.sp
+        }
+    }
+}
+
+fun getFeatureValueFromEntity(feat: com.example.mhealth.logic.db.DailyFeaturesEntity, key: String): Float {
+    return when (key) {
+        "screenTimeHours" -> feat.screenTimeHours
+        "unlockCount" -> feat.unlockCount
+        "appLaunchCount" -> feat.appLaunchCount
+        "callsPerDay" -> feat.callsPerDay
+        "uniqueContacts" -> feat.uniqueContacts
+        "conversationFrequency" -> feat.conversationFrequency
+        "dailyStepCount" -> feat.dailyStepCount
+        "dailyDisplacementKm" -> feat.dailyDisplacementKm
+        "activeMinutes" -> feat.activeMinutes
+        "sleepDurationHours" -> feat.sleepDurationHours
+        "wakeTimeHour" -> feat.wakeTimeHour
+        "sleepTimeHour" -> feat.sleepTimeHour
+        "daylightExposureMinutes" -> feat.daylightExposureMinutes
+        "chargeRegularity" -> feat.chargeRegularity
+        "chargeDurationHours" -> feat.chargeDurationHours
+        else -> 0f
+    }
+}
+
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+@Composable
+fun RhythmConsistencyChart(
+    features: List<PersonalityVector>,
+    baseline: PersonalityVector?,
+    timeRange: Int
+) {
+    val textMeasurer = rememberTextMeasurer()
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
+    val primary = MaterialTheme.colorScheme.primary
+
+    val reversed = remember(features, timeRange) { features.take(timeRange).reversed() }
+
+    if (reversed.size < 2) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Text("Need more data points to plot consistency", fontSize = 12.sp, color = surfaceVariant)
+        }
+        return
+    }
+
+    val scores = remember(reversed, baseline) {
+        reversed.map { day ->
+            if (baseline == null) 50f
+            else {
+                val deviations = listOf(
+                    safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
+                    safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
                 )
+                val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
+                ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
+            }
+        }
+    }
+
+    // Day labels
+    val dayLabels = remember(reversed) {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -(reversed.size - 1))
+        reversed.map {
+            val label = SimpleDateFormat("EEE", Locale.getDefault()).format(cal.time)
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            label
+        }
+    }
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(160.dp)
+            .padding(vertical = 8.dp)
+    ) {
+        val labelWidth = 50.dp.toPx()
+        val bottomOffset = 24.dp.toPx()
+        val chartWidth = size.width - labelWidth
+        val chartHeight = size.height - bottomOffset
+
+        if (chartWidth <= 0f || chartHeight <= 0f) return@Canvas
+
+        // 1. Draw horizontal grid lines and Y-axis labels (0%, 25%, 50%, 75%, 100%)
+        val gridLines = listOf(0f, 0.25f, 0.5f, 0.75f, 1f)
+        gridLines.forEach { ratio ->
+            val y = ratio * chartHeight
+            val valueAtY = (1f - ratio) * 100f
+
+            // Draw grid line
+            drawLine(
+                color = outlineColor,
+                start = Offset(labelWidth, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 4.dp.toPx()))
+            )
+
+            // Draw Y-axis text label
+            val textLayoutResult = textMeasurer.measure(
+                text = String.format("%.0f%%", valueAtY),
+                style = androidx.compose.ui.text.TextStyle(
+                    fontSize = 9.sp,
+                    color = surfaceVariant.copy(0.7f),
+                    fontFamily = FontFamily.SansSerif
+                )
+            )
+            drawText(
+                textLayoutResult = textLayoutResult,
+                topLeft = Offset(4.dp.toPx(), y - textLayoutResult.size.height / 2f)
+            )
+        }
+
+        // 2. Draw Baseline/Threshold reference line (70% as standard threshold)
+        val thresholdY = 0.3f * chartHeight // 70% from bottom
+        drawLine(
+            color = Color(0xFF81C784).copy(0.6f),
+            start = Offset(labelWidth, thresholdY),
+            end = Offset(size.width, thresholdY),
+            strokeWidth = 1.5.dp.toPx(),
+            pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))
+        )
+        val thresholdLabel = textMeasurer.measure(
+            text = "Target: 70%",
+            style = androidx.compose.ui.text.TextStyle(
+                fontSize = 8.sp,
+                color = Color(0xFF81C784).copy(0.8f),
+                fontWeight = FontWeight.Bold
+            )
+        )
+        drawText(
+            textLayoutResult = thresholdLabel,
+            topLeft = Offset(size.width - thresholdLabel.size.width - 4.dp.toPx(), thresholdY - thresholdLabel.size.height - 2.dp.toPx())
+        )
+
+        // 3. Plot data points and draw lines
+        val xSpacing = chartWidth / (scores.size - 1).coerceAtLeast(1)
+        val points = scores.mapIndexed { idx, score ->
+            val x = labelWidth + idx * xSpacing
+            val y = chartHeight - (score / 100f) * chartHeight
+            Offset(x, y)
+        }
+
+        // Draw gradient area
+        val fillPath = Path().apply {
+            moveTo(points.first().x, chartHeight)
+            points.forEach { lineTo(it.x, it.y) }
+            lineTo(points.last().x, chartHeight)
+            close()
+        }
+        drawPath(
+            path = fillPath,
+            brush = Brush.verticalGradient(
+                colors = listOf(primary.copy(0.2f), primary.copy(0.01f)),
+                startY = 0f,
+                endY = chartHeight
+            )
+        )
+
+        // Draw line path
+        val linePath = Path().apply {
+            moveTo(points.first().x, points.first().y)
+            points.forEach { lineTo(it.x, it.y) }
+        }
+        drawPath(
+            path = linePath,
+            color = primary,
+            style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+        )
+
+        // Draw circles & X labels
+        points.forEachIndexed { idx, pt ->
+            drawCircle(
+                color = primary,
+                radius = 3.5.dp.toPx(),
+                center = pt
+            )
+            drawCircle(
+                color = Color.White,
+                radius = 1.5.dp.toPx(),
+                center = pt
+            )
+
+            // Draw X-axis label
+            val dayLabel = dayLabels.getOrNull(idx) ?: ""
+            if (dayLabel.isNotEmpty()) {
+                val labelLayout = textMeasurer.measure(
+                    text = dayLabel.take(3), // Limit to 3 chars ("Mon")
+                    style = androidx.compose.ui.text.TextStyle(
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = surfaceVariant.copy(alpha = 0.8f)
+                    )
+                )
+                drawText(
+                    textLayoutResult = labelLayout,
+                    topLeft = Offset(pt.x - labelLayout.size.width / 2f, chartHeight + 6.dp.toPx())
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun RhythmDetailScreen(
+    features: List<PersonalityVector>,
+    baseline: PersonalityVector?,
+    checkinHistory: List<org.json.JSONObject>,
+    onBack: () -> Unit
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    var timeRange by remember { mutableIntStateOf(7) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
+                }
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Default.Timeline, null, tint = primary, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Overall Rhythm", fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka)
+            }
+        }
+
+        // Time range selector
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(7 to "7d", 14 to "14d", 30 to "30d").forEach { (days, label) ->
+                    val selected = timeRange == days
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selected) primary else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (selected) primary else MaterialTheme.colorScheme.outline.copy(0.15f)),
+                        modifier = Modifier.clickable { timeRange = days }
+                    ) {
+                        Text(
+                            text = label, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka,
+                            color = if (selected) Color.Black else surfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Rhythm Consistency Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Behavioral Consistency Score", fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text(
+                        text = "Calculated from your sleep, step counts, communication patterns, and screen usage adherence.",
+                        fontSize = 11.sp,
+                        color = surfaceVariant,
+                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                    )
+                    
+                    RhythmConsistencyChart(features = features, baseline = baseline, timeRange = timeRange)
+                }
+            }
+        }
+
+        // Context / Rhythm Cards (Moved from main screen)
+        if (features.isNotEmpty() && baseline != null) {
+            item {
+                Text(
+                    text = "Daily Context Insights",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+            item {
+                DaylightChargingCards(features.first(), baseline)
+            }
+        }
+
+        // Mood & Behavior Correlation Card
+        if (checkinHistory.size >= 5 && features.size >= 5) {
+            item {
+                MoodBehaviorCorrelationCard(checkinHistory, features)
+            }
+        }
+
+        // Reflection notes list
+        val rangeNotes = checkinHistory.takeLast(timeRange)
+        item {
+            Text(
+                text = "Journal History & Notes",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                modifier = Modifier.padding(top = 8.dp)
+            )
+        }
+
+        if (rangeNotes.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Text(
+                        text = "No check-in entries found for the selected time range.",
+                        fontSize = 12.sp,
+                        color = surfaceVariant,
+                        modifier = Modifier.padding(16.dp),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+        } else {
+            // Newest notes first for easy reading
+            rangeNotes.reversed().forEach { entry ->
+                item {
+                    JournalEntryCard(entry)
+                }
             }
         }
     }

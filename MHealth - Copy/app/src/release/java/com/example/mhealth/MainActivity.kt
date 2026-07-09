@@ -368,11 +368,16 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     val greeting = getGreeting()
     
     val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
-    val baseline by DataRepository.baseline.collectAsState()
     val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
     
-    val statusText = remember(isBuilding, score, weeklyFeatures, baseline, isDnaReady) {
-        generateBehavioralSummary(isBuilding, score, weeklyFeatures, baseline, isDnaReady)
+    val db = remember { com.example.mhealth.logic.db.MHealthDatabase.getInstance(context.applicationContext) }
+    val baselineEntities by produceState<List<com.example.mhealth.logic.db.BaselineEntity>>(emptyList(), db) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.baselineDao().getBaseline(userId)
+    }
+    
+    val statusText = remember(isBuilding, score, weeklyFeatures, baselineEntities, isDnaReady) {
+        generateBehavioralSummary(isBuilding, score, weeklyFeatures, baselineEntities, isDnaReady)
     }
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
@@ -913,7 +918,11 @@ fun InsightsScreen() {
     var activeDetailSector by remember { mutableStateOf<String?>(null) }
     var activeDetailIcon by remember { mutableStateOf<ImageVector>(Icons.Default.Info) }
 
-    val baselineEntities by DataRepository.baseline.collectAsState()
+    val db = remember { com.example.mhealth.logic.db.MHealthDatabase.getInstance(context.applicationContext) }
+    val baselineEntities by produceState<List<com.example.mhealth.logic.db.BaselineEntity>>(emptyList(), db) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.baselineDao().getBaseline(userId)
+    }
     val checkinHistory = remember(prefs) { getCheckinHistoryList(prefs) }
 
     if (activeDetailSector != null) {
@@ -1558,7 +1567,7 @@ fun SectorDetailScreen(
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
+                    Icon(Icons.Default.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
                 }
                 Spacer(Modifier.width(8.dp))
                 Icon(sectorIcon, null, tint = primary, modifier = Modifier.size(24.dp))

@@ -20,5 +20,6 @@
 ---
 
 ### Previous Tasks (Completed)
+- [x] **Compiler Fix**: Added missing Compose `rememberTextMeasurer` and `drawText` imports, and defined `formatValue` helper function to fix release build compilation
 - [x] **iOS Task 1**: Formulate iOS migration strategy and technical feasibility analysis
 - [x] **iOS Task 2**: Update `context.md` with iOS feasibility guidelines

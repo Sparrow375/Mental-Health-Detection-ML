@@ -103,9 +103,9 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent?) {
+    override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
-        intent?.getStringExtra("navigate_to")?.let {
+        intent.getStringExtra("navigate_to")?.let {
             DataRepository.setNavigationRoute(it)
             intent.removeExtra("navigate_to")
         }

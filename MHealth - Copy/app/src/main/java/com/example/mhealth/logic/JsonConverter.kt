@@ -299,7 +299,7 @@ object JsonConverter {
         return map
     }
 
-    fun buildBackupJson(context: Context, userId: String): String {
+    suspend fun buildBackupJson(context: Context, userId: String): String {
         val db = com.example.mhealth.logic.db.MHealthDatabase.getInstance(context)
         val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
         val baselineRows = db.baselineDao().getBaseline(userId)

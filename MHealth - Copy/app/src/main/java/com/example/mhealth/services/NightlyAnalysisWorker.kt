@@ -402,7 +402,7 @@ class NightlyAnalysisWorker(
         }
     }
 
-    private fun performAutoBackup(userId: String) {
+    private suspend fun performAutoBackup(userId: String) {
         val context = applicationContext
         val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
         if (!prefs.getBoolean("auto_backup_enabled", true)) {

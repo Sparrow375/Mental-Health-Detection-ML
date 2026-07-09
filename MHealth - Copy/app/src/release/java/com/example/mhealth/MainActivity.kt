@@ -56,6 +56,8 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -1674,6 +1676,24 @@ fun getFeatureValue(vec: PersonalityVector, key: String): Float {
         "chargeRegularity" -> vec.chargeRegularity
         "chargeDurationHours" -> vec.chargeDurationHours
         else -> 0f
+    }
+}
+
+fun formatValue(value: Float, key: String): String {
+    return when (key) {
+        "screenTimeHours" -> "%.1f h".format(value)
+        "sleepDurationHours", "chargeDurationHours" -> "%.1f h".format(value)
+        "callDurationMinutes", "activeMinutes", "daylightExposureMinutes" -> "%.0f m".format(value)
+        "dailyStepCount" -> "%.0f".format(value)
+        "dailyDisplacementKm" -> "%.1f km".format(value)
+        "chargeRegularity" -> "%.0f%%".format(value * 100f)
+        "wakeTimeHour", "sleepTimeHour" -> {
+            val hour = value.toInt()
+            val min = ((value - hour) * 60f).roundToInt().coerceIn(0, 59)
+            "%02d:%02d".format(hour % 24, min)
+        }
+        "unlockCount", "appLaunchCount", "callsPerDay", "uniqueContacts" -> "%.0f".format(value)
+        else -> "%.1f".format(value)
     }
 }
 

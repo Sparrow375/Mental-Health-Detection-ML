@@ -763,76 +763,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                     }
                 }
             }
-        } else {
-            item {
-                StaggeredFadeIn(index = 2) {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.04f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.12f))
-                    ) {
-                        Column(modifier = Modifier.padding(20.dp)) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text("✅", fontSize = 20.sp)
-                                    Spacer(Modifier.width(12.dp))
-                                    Text(
-                                        text = "Today's Reflection Logged",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = Fredoka,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                }
-                                TextButton(onClick = onNavigateToCheckIn) {
-                                    Text("Edit", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                                }
-                            }
-                            
-                            Spacer(Modifier.height(8.dp))
-                            
-                            val moodEmoji = when (todayMood) {
-                                1 -> "😞 Down"
-                                2 -> "😕 Uneasy"
-                                3 -> "😐 Neutral"
-                                4 -> "🙂 Good"
-                                else -> "😊 Excellent"
-                            }
-                            
-                            val anxietyText = when (todayAnxiety) {
-                                1 -> "Severe Stress"
-                                2 -> "High Stress"
-                                3 -> "Mod. Stress"
-                                4 -> "Mild Stress"
-                                else -> "Calm / Relaxed"
-                            }
-                            
-                            Text(
-                                text = "Mood: $moodEmoji  •  Calmness: $anxietyText",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onBackground.copy(0.8f)
-                            )
-                            
-                            if (todayNote.isNotBlank()) {
-                                Spacer(Modifier.height(10.dp))
-                                Text(
-                                    text = "\"$todayNote\"",
-                                    fontSize = 12.sp,
-                                    fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    lineHeight = 16.sp
-                                )
-                            }
-                        }
-                    }
-                }
-            }
         }
 
         if (weeklyFeatures.isNotEmpty() && baseline != null) {
@@ -1061,7 +991,6 @@ fun DailyFocusCard() {
 @Composable
 fun TelemetrySnapshotCard(features: List<PersonalityVector>, baseline: PersonalityVector?) {
     val latest = features.lastOrNull() ?: return
-    val base = baseline ?: return
     
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -1093,21 +1022,18 @@ fun TelemetrySnapshotCard(features: List<PersonalityVector>, baseline: Personali
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
                     Text("🌙 Sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.1f h".format(latest.sleepDurationHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
-                    Text("Target: %.1f h".format(base.sleepDurationHours), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
                 }
                 
                 // Steps Pill
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
                     Text("🏃 Steps", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.0f".format(latest.dailyStepCount), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
-                    Text("Target: %.0f".format(base.dailyStepCount), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
                 }
                 
                 // Screen Pill
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
                     Text("📱 Screen", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.1f h".format(latest.screenTimeHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
-                    Text("Target: %.1f h".format(base.screenTimeHours), fontSize = 9.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f), modifier = Modifier.padding(top = 2.dp))
                 }
             }
         }
@@ -1552,7 +1478,7 @@ fun InsightsScreen() {
                                     Spacer(Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "Circadian Rhythm Consistency",
+                                            text = "Rhythm Consistency",
                                             fontSize = 14.sp,
                                             fontWeight = FontWeight.Bold,
                                             fontFamily = Fredoka,

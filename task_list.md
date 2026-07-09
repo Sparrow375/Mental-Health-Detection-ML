@@ -3,11 +3,11 @@
 ## Sprint: Home Screen Polish & Daily Check-in Fixes (Current)
 
 - [x] **T19**: Correct daily check-in calmness/anxiety rating inversion (value 5 is "Calm / Relaxed", value 1 is "Severe Stress").
-- [x] **T20**: Dismiss check-in prompt on Home tab once completed today, and show "Today's Reflection Logged" summary card.
-- [x] **T21**: Restore circadian rhythm consistency preview chart (`QualitativeTrendChart`) inside the clickable card on the Insights tab.
+- [x] **T20**: Dismiss check-in prompt on Home tab once completed today (hiding it completely).
+- [x] **T21**: Restore rhythm consistency preview chart (`QualitativeTrendChart`) inside the clickable card on the Insights tab (renamed from Circadian Rhythm Consistency).
 - [x] **T22**: Add "Mindful Breathing Pause" interactive box breathing card on the Home Screen.
 - [x] **T23**: Add "Daily Focus & Wisdom" rotating quote card on the Home Screen.
-- [x] **T24**: Add "Today's Routine Snapshot" telemetry comparisons card on the Home Screen.
+- [x] **T24**: Add "Today's Routine Snapshot" telemetry comparisons card on the Home Screen (without showing targets).
 - [x] **T25**: Update `context.md` with the latest changes and structure.
 
 ---

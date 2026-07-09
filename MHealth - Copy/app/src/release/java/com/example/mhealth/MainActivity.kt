@@ -390,6 +390,13 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     var lastCheckinDate by remember { mutableStateOf(prefs.getString("daily_checkin_date_last", "") ?: "") }
     val alreadyCheckedIn = lastCheckinDate == todayStr
     
+    val todayMood = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_mood", 3) }
+    val todayAnxiety = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_anxiety", 3) }
+    val todayNote = remember(alreadyCheckedIn) {
+        val list = getCheckinHistoryList(prefs)
+        list.firstOrNull { it.optString("date") == todayStr }?.optString("note") ?: ""
+    }
+    
     val animatedStreak by animateIntAsState(
         targetValue = activeStreak,
         animationSpec = spring(
@@ -757,12 +764,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 }
             }
         } else {
-            val todayMood = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_mood", 3) }
-            val todayAnxiety = remember(alreadyCheckedIn) { prefs.getInt("daily_checkin_anxiety", 3) }
-            val todayNote = remember(alreadyCheckedIn) {
-                val list = getCheckinHistoryList(prefs)
-                list.firstOrNull { it.optString("date") == todayStr }?.optString("note") ?: ""
-            }
             item {
                 StaggeredFadeIn(index = 2) {
                     Card(

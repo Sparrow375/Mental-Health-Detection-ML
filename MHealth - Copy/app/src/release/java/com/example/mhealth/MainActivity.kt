@@ -79,6 +79,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.*
 import kotlin.math.roundToInt
+import kotlin.math.abs
+import android.location.Geocoder
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.material.icons.automirrored.filled.ShowChart
@@ -91,8 +93,21 @@ class MainActivity : ComponentActivity() {
         // Synchronously initialize the local data repository
         DataRepository.init(applicationContext)
         
+        intent?.getStringExtra("navigate_to")?.let {
+            DataRepository.setNavigationRoute(it)
+            intent.removeExtra("navigate_to")
+        }
+        
         setContent {
             LumenAppShell()
+        }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        intent?.getStringExtra("navigate_to")?.let {
+            DataRepository.setNavigationRoute(it)
+            intent.removeExtra("navigate_to")
         }
     }
 }
@@ -248,6 +263,14 @@ fun MainLumenDashboard() {
     var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
     val context = LocalContext.current
     
+    val navRoute by DataRepository.navigationRouteTrigger.collectAsState()
+    LaunchedEffect(navRoute) {
+        if (navRoute == "insights") {
+            selectedTab = LumenDest.INSIGHTS
+            DataRepository.setNavigationRoute(null)
+        }
+    }
+    
     val perms = buildList {
         addAll(listOf(
             Manifest.permission.READ_CONTACTS, 
@@ -344,13 +367,12 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     val name = (userProfile?.name ?: "").trim()
     val greeting = getGreeting()
     
-    val statusText = when {
-        isBuilding -> "Getting to know your rhythms..."
-        score < 0f -> "Getting to know your rhythms..."
-        score < 0.25f -> "Your routines feel steady this week."
-        score < 0.38f -> "Your rhythms look mostly balanced."
-        score < 0.50f -> "A few patterns feel slightly off this week."
-        else -> "Some changes detected. A check-in might help."
+    val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
+    val baseline by DataRepository.baseline.collectAsState()
+    val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
+    
+    val statusText = remember(isBuilding, score, weeklyFeatures, baseline, isDnaReady) {
+        generateBehavioralSummary(isBuilding, score, weeklyFeatures, baseline, isDnaReady)
     }
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
@@ -720,6 +742,12 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 }
             }
         }
+
+        item {
+            StaggeredFadeIn(index = 3) {
+                MilestoneCard(prefs, weeklyFeatures)
+            }
+        }
     }
 }
 
@@ -881,6 +909,25 @@ fun InsightsScreen() {
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     val showInsights = weeklyFeatures.size >= 2
+
+    var activeDetailSector by remember { mutableStateOf<String?>(null) }
+    var activeDetailIcon by remember { mutableStateOf<ImageVector>(Icons.Default.Info) }
+
+    val baselineEntities by DataRepository.baseline.collectAsState()
+    val checkinHistory = remember(prefs) { getCheckinHistoryList(prefs) }
+
+    if (activeDetailSector != null) {
+        val sector = activeDetailSector!!
+        SectorDetailScreen(
+            sectorName = sector,
+            sectorIcon = activeDetailIcon,
+            features = weeklyFeatures,
+            baselineEntities = baselineEntities,
+            checkinHistory = checkinHistory,
+            onBack = { activeDetailSector = null }
+        )
+        return
+    }
     
     LazyColumn(
         modifier = Modifier
@@ -1069,19 +1116,13 @@ fun InsightsScreen() {
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
-                                    text = "A rolling depiction of routine adherence. A stable, flat trend highlights healthy routine consistency.",
+                                    text = "A rolling depiction of routine adherence. A stable, flat trend highlights healthy routine consistency. Tap cards below for detailed charts.",
                                     fontSize = 11.5.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                                 )
                                 
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .height(100.dp)
-                                ) {
-                                    QualitativeTrendChart(weeklyFeatures)
-                                }
+                                QualitativeTrendChart(weeklyFeatures, base)
                                 
                                 Spacer(Modifier.height(8.dp))
                                 Row(
@@ -1122,7 +1163,11 @@ fun InsightsScreen() {
                             icon = Icons.Default.NightsStay,
                             badgeText = badgeText,
                             badgeColor = badgeColor,
-                            description = desc
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Sleep"
+                                activeDetailIcon = Icons.Default.NightsStay
+                            }
                         )
                     }
                 }
@@ -1155,7 +1200,11 @@ fun InsightsScreen() {
                             icon = Icons.Default.DirectionsRun,
                             badgeText = badgeText,
                             badgeColor = badgeColor,
-                            description = desc
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Movement"
+                                activeDetailIcon = Icons.Default.DirectionsRun
+                            }
                         )
                     }
                 }
@@ -1182,7 +1231,11 @@ fun InsightsScreen() {
                             icon = Icons.Default.Call,
                             badgeText = badgeText,
                             badgeColor = badgeColor,
-                            description = desc
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Social"
+                                activeDetailIcon = Icons.Default.Call
+                            }
                         )
                     }
                 }
@@ -1211,8 +1264,68 @@ fun InsightsScreen() {
                             icon = Icons.Default.Smartphone,
                             badgeText = badgeText,
                             badgeColor = badgeColor,
-                            description = desc
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Screen"
+                                activeDetailIcon = Icons.Default.Smartphone
+                            }
                         )
+                    }
+                }
+
+                // T8: Daylight & Charging Insight Cards
+                item {
+                    Text(
+                        text = "Rhythm Context",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                item {
+                    DaylightChargingCards(latest, base)
+                }
+
+                // T9: Mood × Behavior Correlation Card
+                item {
+                    MoodBehaviorCorrelationCard(checkinHistory, weeklyFeatures)
+                }
+
+                // T6: Integrated Behavioral Timeline
+                item {
+                    Text(
+                        text = "Behavioral History & Notes",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                if (checkinHistory.isEmpty()) {
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                        ) {
+                            Text(
+                                text = "Your behavioral history is currently empty. Completing check-ins will build your timeline here.",
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(16.dp),
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                } else {
+                    checkinHistory.reversed().forEach { entry ->
+                        item {
+                            JournalEntryCard(entry)
+                        }
                     }
                 }
             }
@@ -1226,10 +1339,13 @@ fun QualitativeInsightCard(
     icon: ImageVector,
     badgeText: String,
     badgeColor: Color,
-    description: String
+    description: String,
+    onClick: (() -> Unit)? = null
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().then(
+            if (onClick != null) Modifier.clickable { onClick() } else Modifier
+        ),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
@@ -1285,51 +1401,466 @@ fun QualitativeInsightCard(
 }
 
 @Composable
-fun QualitativeTrendChart(features: List<PersonalityVector>) {
+fun QualitativeTrendChart(features: List<PersonalityVector>, baseline: PersonalityVector? = null) {
     val primary = MaterialTheme.colorScheme.primary
-    val lineBrush = Brush.horizontalGradient(listOf(primary.copy(0.5f), primary))
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
     val reversed = features.take(7).reversed()
 
-    Canvas(Modifier.fillMaxSize()) {
-        if (reversed.size < 2) return@Canvas
+    // Compute composite rhythm adherence scores (0-100, 100 = baseline match)
+    val scores = remember(reversed, baseline) {
+        reversed.map { day ->
+            if (baseline == null) 50f
+            else {
+                val deviations = listOf(
+                    safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
+                    safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
+                )
+                val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
+                ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
+            }
+        }
+    }
 
-        val maxVal = reversed.map { it.screenTimeHours }.maxOrNull() ?: 1f
-        val minVal = reversed.map { it.screenTimeHours }.minOrNull() ?: 0f
-        val range = if (maxVal - minVal > 0f) maxVal - minVal else 1f
+    // Day-of-week labels
+    val dayLabels = remember(reversed) {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.DAY_OF_YEAR, -(reversed.size - 1))
+        reversed.map {
+            val label = SimpleDateFormat("EEE", Locale.getDefault()).format(cal.time)
+            cal.add(Calendar.DAY_OF_YEAR, 1)
+            label.take(1)
+        }
+    }
 
-        val path = Path()
-        val spacing = size.width / (reversed.size - 1)
+    Column {
+        Canvas(Modifier.fillMaxWidth().height(100.dp)) {
+            if (scores.size < 2) return@Canvas
 
-        reversed.forEachIndexed { idx, item ->
-            val relativeY = (item.screenTimeHours - minVal) / range
-            val x = idx * spacing
-            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
+            val paddingTop = 8.dp.toPx()
+            val paddingBottom = 4.dp.toPx()
+            val chartHeight = size.height - paddingTop - paddingBottom
+            val spacing = size.width / (scores.size - 1)
 
-            if (idx == 0) {
-                path.moveTo(x, y)
-            } else {
-                path.lineTo(x, y)
+            // Baseline reference line at 70%
+            val baselineY = size.height - paddingBottom - (0.7f * chartHeight)
+            drawLine(
+                color = surfaceVariant.copy(0.3f),
+                start = Offset(0f, baselineY),
+                end = Offset(size.width, baselineY),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx()))
+            )
+
+            // Gradient fill path
+            val fillPath = Path()
+            val linePath = Path()
+            scores.forEachIndexed { idx, score ->
+                val x = idx * spacing
+                val y = size.height - paddingBottom - ((score / 100f) * chartHeight)
+                if (idx == 0) {
+                    fillPath.moveTo(x, y)
+                    linePath.moveTo(x, y)
+                } else {
+                    fillPath.lineTo(x, y)
+                    linePath.lineTo(x, y)
+                }
+            }
+            // Close fill path
+            val fillClosePath = Path().apply {
+                addPath(fillPath)
+                lineTo((scores.size - 1) * spacing, size.height - paddingBottom)
+                lineTo(0f, size.height - paddingBottom)
+                close()
+            }
+            drawPath(
+                path = fillClosePath,
+                brush = Brush.verticalGradient(
+                    listOf(primary.copy(0.25f), primary.copy(0.02f)),
+                    startY = paddingTop,
+                    endY = size.height - paddingBottom
+                )
+            )
+            drawPath(
+                path = linePath,
+                brush = Brush.horizontalGradient(listOf(primary.copy(0.6f), primary)),
+                style = Stroke(width = 2.5.dp.toPx(), cap = StrokeCap.Round)
+            )
+
+            // Dots
+            scores.forEachIndexed { idx, score ->
+                val x = idx * spacing
+                val y = size.height - paddingBottom - ((score / 100f) * chartHeight)
+                drawCircle(color = primary, radius = 3.5.dp.toPx(), center = Offset(x, y))
             }
         }
 
-        drawPath(
-            path = path,
-            brush = lineBrush,
-            style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
-        )
-
-        reversed.forEachIndexed { idx, item ->
-            val relativeY = (item.screenTimeHours - minVal) / range
-            val x = idx * spacing
-            val y = size.height - (relativeY * (size.height - 20.dp.toPx())) - 10.dp.toPx()
-            
-            drawCircle(
-                color = primary,
-                radius = 4.dp.toPx(),
-                center = Offset(x, y)
-            )
+        // Day-of-week labels row
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            dayLabels.forEach { label ->
+                Text(
+                    text = label,
+                    fontSize = 10.sp,
+                    color = surfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
+}
+
+private fun safeDev(current: Float, base: Float, scale: Float): Float {
+    if (scale <= 0f) return 0f
+    return abs(current - base) / scale
+}
+
+// =============================================================================
+// Per-Sector Detail Screen (T7)
+// =============================================================================
+@Composable
+fun SectorDetailScreen(
+    sectorName: String,
+    sectorIcon: ImageVector,
+    features: List<PersonalityVector>,
+    baselineEntities: List<com.example.mhealth.logic.db.BaselineEntity>,
+    checkinHistory: List<org.json.JSONObject>,
+    onBack: () -> Unit
+) {
+    val primary = MaterialTheme.colorScheme.primary
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    var timeRange by remember { mutableIntStateOf(7) }
+
+    val featureKeys = remember(sectorName) {
+        when (sectorName) {
+            "Sleep" -> listOf("sleepDurationHours" to "Sleep Duration (h)", "wakeTimeHour" to "Wake Time", "sleepTimeHour" to "Bedtime")
+            "Movement" -> listOf("dailyStepCount" to "Steps", "dailyDisplacementKm" to "Distance (km)", "activeMinutes" to "Active Minutes")
+            "Social" -> listOf("callsPerDay" to "Calls/Day", "uniqueContacts" to "Unique Contacts", "conversationFrequency" to "Conversations")
+            "Screen" -> listOf("screenTimeHours" to "Screen Time (h)", "unlockCount" to "Unlocks", "appLaunchCount" to "App Launches")
+            "Daylight" -> listOf("daylightExposureMinutes" to "Daylight (min)")
+            "Charging" -> listOf("chargeRegularity" to "Charge Regularity", "chargeDurationHours" to "Charge Hours")
+            else -> emptyList()
+        }
+    }
+
+    val windowed = features.take(timeRange)
+    val baseMap = baselineEntities.associate { it.featureName to it.baselineValue }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = MaterialTheme.colorScheme.onBackground)
+                }
+                Spacer(Modifier.width(8.dp))
+                Icon(sectorIcon, null, tint = primary, modifier = Modifier.size(24.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(sectorName, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka)
+            }
+        }
+
+        // Time range selector
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(7 to "7d", 14 to "14d", 30 to "30d").forEach { (days, label) ->
+                    val selected = timeRange == days
+                    Surface(
+                        shape = RoundedCornerShape(8.dp),
+                        color = if (selected) primary else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, if (selected) primary else MaterialTheme.colorScheme.outline.copy(0.15f)),
+                        modifier = Modifier.clickable { timeRange = days }
+                    ) {
+                        Text(
+                            text = label, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka,
+                            color = if (selected) Color.Black else surfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
+            }
+        }
+
+        // Charts for each feature in the sector
+        featureKeys.forEach { (key, label) ->
+            item {
+                val values = windowed.reversed().map { vec -> getFeatureValue(vec, key) }
+                val baseLine = baseMap[key]
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(label, fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        if (baseLine != null) {
+                            Text("Baseline: ${String.format("%.1f", baseLine)}", fontSize = 10.sp, color = surfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                        }
+                        Spacer(Modifier.height(12.dp))
+                        FeatureLineChart(values = values, baseline = baseLine, color = primary)
+                    }
+                }
+            }
+        }
+
+        // Show journal notes from this time range
+        val rangeNotes = checkinHistory.filter { it.has("note") && it.getString("note").isNotBlank() }.takeLast(timeRange)
+        if (rangeNotes.isNotEmpty()) {
+            item {
+                Text("Journal Notes", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, modifier = Modifier.padding(top = 8.dp))
+            }
+            rangeNotes.forEach { entry ->
+                item {
+                    JournalEntryCard(entry)
+                }
+            }
+        }
+    }
+}
+
+fun getFeatureValue(vec: PersonalityVector, key: String): Float {
+    return when (key) {
+        "screenTimeHours" -> vec.screenTimeHours
+        "unlockCount" -> vec.unlockCount
+        "appLaunchCount" -> vec.appLaunchCount
+        "callsPerDay" -> vec.callsPerDay
+        "uniqueContacts" -> vec.uniqueContacts
+        "conversationFrequency" -> vec.conversationFrequency
+        "dailyStepCount" -> vec.dailyStepCount
+        "dailyDisplacementKm" -> vec.dailyDisplacementKm
+        "activeMinutes" -> vec.activeMinutes
+        "sleepDurationHours" -> vec.sleepDurationHours
+        "wakeTimeHour" -> vec.wakeTimeHour
+        "sleepTimeHour" -> vec.sleepTimeHour
+        "daylightExposureMinutes" -> vec.daylightExposureMinutes
+        "chargeRegularity" -> vec.chargeRegularity
+        "chargeDurationHours" -> vec.chargeDurationHours
+        else -> 0f
+    }
+}
+
+@Composable
+fun FeatureLineChart(values: List<Float>, baseline: Float?, color: Color) {
+    val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    Canvas(Modifier.fillMaxWidth().height(80.dp)) {
+        if (values.size < 2) return@Canvas
+        val maxV = (values.maxOrNull() ?: 1f).coerceAtLeast(baseline?.times(1.2f) ?: 1f)
+        val minV = (values.minOrNull() ?: 0f).coerceAtMost(baseline?.times(0.8f) ?: 0f)
+        val range = (maxV - minV).coerceAtLeast(0.1f)
+        val spacing = size.width / (values.size - 1)
+
+        // Baseline ref
+        if (baseline != null) {
+            val bY = size.height - ((baseline - minV) / range) * size.height
+            drawLine(surfaceVariant.copy(0.3f), Offset(0f, bY), Offset(size.width, bY), 1.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx())))
+        }
+
+        val path = Path()
+        val fillPath = Path()
+        values.forEachIndexed { idx, v ->
+            val x = idx * spacing
+            val y = size.height - ((v - minV) / range) * size.height
+            if (idx == 0) { path.moveTo(x, y); fillPath.moveTo(x, y) }
+            else { path.lineTo(x, y); fillPath.lineTo(x, y) }
+        }
+        val closedFill = Path().apply {
+            addPath(fillPath); lineTo((values.size - 1) * spacing, size.height); lineTo(0f, size.height); close()
+        }
+        drawPath(closedFill, Brush.verticalGradient(listOf(color.copy(0.2f), color.copy(0.02f))))
+        drawPath(path, color, style = Stroke(2.dp.toPx(), cap = StrokeCap.Round))
+        values.forEachIndexed { idx, v ->
+            val x = idx * spacing; val y = size.height - ((v - minV) / range) * size.height
+            drawCircle(color, 3.dp.toPx(), Offset(x, y))
+        }
+    }
+}
+
+// =============================================================================
+// Journal Entry Card (T6 - shows check-in + note inline)
+// =============================================================================
+@Composable
+fun JournalEntryCard(entry: org.json.JSONObject) {
+    val date = entry.optString("date", "")
+    val mood = entry.optInt("mood", 3)
+    val energy = entry.optInt("energy", 3)
+    val sleep = entry.optInt("sleep", 3)
+    val anxiety = entry.optInt("anxiety", 3)
+    val note = entry.optString("note", "")
+
+    val moodEmoji = when (mood) { 1 -> "😞"; 2 -> "😕"; 3 -> "😐"; 4 -> "🙂"; else -> "😊" }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
+    ) {
+        Column(modifier = Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                Text(moodEmoji, fontSize = 20.sp)
+                Spacer(Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(date, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.onBackground)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("E:$energy", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("S:$sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("A:$anxiety", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            if (note.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "\"$note\"",
+                    fontSize = 12.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                    color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
+                    lineHeight = 17.sp
+                )
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Daylight & Charging Insight Cards (T8)
+// =============================================================================
+@Composable
+fun DaylightChargingCards(latest: PersonalityVector, base: PersonalityVector) {
+    // Daylight
+    val daylightDiff = latest.daylightExposureMinutes - base.daylightExposureMinutes
+    val dlBadge = when { daylightDiff < -20f -> "Low"; daylightDiff > 20f -> "High"; else -> "Normal" }
+    val dlColor = if (abs(daylightDiff) > 20f) AlertWarning else MaterialTheme.colorScheme.primary
+    val dlDesc = when {
+        daylightDiff < -20f -> "Your daylight exposure has dropped. Sunlight helps regulate your circadian rhythm and mood."
+        daylightDiff > 20f -> "You've been getting more sunlight than usual — that's excellent for your natural energy."
+        else -> "Daylight exposure levels are consistent with your baseline."
+    }
+    QualitativeInsightCard("Daylight Exposure", Icons.Default.WbSunny, dlBadge, dlColor, dlDesc)
+
+    Spacer(Modifier.height(16.dp))
+
+    // Charging
+    val chargeDiff = latest.chargeRegularity - base.chargeRegularity
+    val chBadge = when { chargeDiff < -0.2f -> "Irregular"; else -> "Consistent" }
+    val chColor = if (chargeDiff < -0.2f) AlertWarning else MaterialTheme.colorScheme.primary
+    val chDesc = when {
+        chargeDiff < -0.2f -> "Your charging pattern has been irregular. This sometimes correlates with disrupted sleep or varying routines."
+        else -> "Your device charging routine remains consistent — a sign of stable daily habits."
+    }
+    QualitativeInsightCard("Charging Routine", Icons.Default.BatteryChargingFull, chBadge, chColor, chDesc)
+}
+
+// =============================================================================
+// Mood × Behavior Correlation Card (T9)
+// =============================================================================
+@Composable
+fun MoodBehaviorCorrelationCard(
+    checkinHistory: List<org.json.JSONObject>,
+    features: List<PersonalityVector>
+) {
+    if (checkinHistory.size < 5 || features.size < 5) return
+
+    // Cross-reference: on low-mood days, what was screen time vs average?
+    val moodEntries = checkinHistory.takeLast(14)
+    val lowMoodDays = moodEntries.filter { it.optInt("mood", 3) <= 2 }
+    val highMoodDays = moodEntries.filter { it.optInt("mood", 3) >= 4 }
+    val avgScreen = features.take(14).map { it.screenTimeHours }.average().toFloat()
+
+    if (lowMoodDays.size >= 2 && features.size >= lowMoodDays.size) {
+        // Match low mood dates to feature data
+        val lowDates = lowMoodDays.map { it.optString("date") }.toSet()
+        val lowScreenAvg = features.take(14).filterIndexed { idx, _ ->
+            val cal = Calendar.getInstance()
+            cal.add(Calendar.DAY_OF_YEAR, -(13 - idx))
+            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+            dateStr in lowDates
+        }.map { it.screenTimeHours }.average().toFloat()
+
+        if (lowScreenAvg > 0f && avgScreen > 0f) {
+            val pctDiff = ((lowScreenAvg - avgScreen) / avgScreen * 100).roundToInt()
+            if (abs(pctDiff) > 15) {
+                val msg = if (pctDiff > 0) {
+                    "On days you reported low mood, your screen time was ${pctDiff}% higher than average."
+                } else {
+                    "On days you reported low mood, your screen time was ${abs(pctDiff)}% lower than average."
+                }
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiary.copy(0.06f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.tertiary.copy(0.15f))
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("🔗", fontSize = 22.sp)
+                        Spacer(Modifier.width(14.dp))
+                        Column {
+                            Text("Mood & Screen Time", fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.onBackground)
+                            Text(msg, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.7f), lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Personal Milestones Card (T10)
+// =============================================================================
+@Composable
+fun MilestoneCard(prefs: SharedPreferences, features: List<PersonalityVector>) {
+    val streak = remember(prefs) { getActiveStreak(prefs) }
+    val milestones = remember(features, streak) {
+        val list = mutableListOf<String>()
+        if (streak >= 7) list.add("🔥 ${streak}-day check-in streak! Incredible consistency.")
+        else if (streak >= 3) list.add("🔥 ${streak}-day check-in streak — keep it going!")
+
+        if (features.size >= 7) {
+            val recentSleep = features.take(7).map { it.sleepDurationHours }
+            val sleepStd = kotlin.math.sqrt(recentSleep.map { (it - recentSleep.average()).let { d -> d * d } }.average()).toFloat()
+            if (sleepStd < 0.5f) list.add("🌙 Consistent Sleeper — your bedtime varied by less than 30 min this week!")
+
+            val recentSteps = features.take(7).map { it.dailyStepCount }
+            val bestDay = recentSteps.maxOrNull() ?: 0f
+            if (bestDay > 8000f) list.add("🏃 Peak day: ${bestDay.roundToInt()} steps!")
+        }
+        list
+    }
+
+    if (milestones.isEmpty()) return
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.06f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("Milestones", fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+            milestones.forEach { msg ->
+                Text(msg, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.8f), lineHeight = 17.sp)
+            }
+        }
+    }
+}
+
+// Helper: parse check-in history from SharedPreferences
+fun getCheckinHistoryList(prefs: SharedPreferences): List<org.json.JSONObject> {
+    val historyStr = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+    return try {
+        val array = org.json.JSONArray(historyStr)
+        (0 until array.length()).map { array.getJSONObject(it) }
+    } catch (e: Exception) { emptyList() }
 }
 
 // =============================================================================
@@ -1442,6 +1973,7 @@ fun DailyCheckinTab(prefs: SharedPreferences) {
         var energy by remember { mutableIntStateOf(3) }
         var sleep by remember { mutableIntStateOf(3) }
         var anxiety by remember { mutableIntStateOf(3) }
+        var journalNote by remember { mutableStateOf("") }
         
         val scrollState = rememberScrollState()
         
@@ -1494,13 +2026,70 @@ fun DailyCheckinTab(prefs: SharedPreferences) {
                 labels = listOf("Tense", "Anxious", "Neutral", "Calm", "Very Peaceful"),
                 onValueChange = { anxiety = it }
             )
+
+            // Optional Journal Note
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Anything on your mind?",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontFamily = Fredoka
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "(optional)",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    OutlinedTextField(
+                        value = journalNote,
+                        onValueChange = { if (it.length <= 500) journalNote = it },
+                        placeholder = { Text("Reflect on your day, note what's happening in your life...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        maxLines = 4,
+                        textStyle = androidx.compose.ui.text.TextStyle(
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    )
+                    Text(
+                        text = "${journalNote.length}/500",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
             
             Spacer(Modifier.height(16.dp))
             
             Button(
                 onClick = {
                     recordDailyCheckin(prefs, mood, energy, sleep, anxiety)
-                    saveCheckinToHistory(prefs, mood, energy, sleep, anxiety)
+                    saveCheckinToHistory(prefs, mood, energy, sleep, anxiety, journalNote.trim())
                     lastCheckinDate = todayStr
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
@@ -1735,6 +2324,8 @@ fun SettingsScreen() {
     
     var dailyReminders by remember { mutableStateOf(prefs.getBoolean("daily_reminders_enabled", true)) }
     var monthlyReminders by remember { mutableStateOf(prefs.getBoolean("monthly_reminders_enabled", true)) }
+    var autoBackupEnabled by remember { mutableStateOf(prefs.getBoolean("auto_backup_enabled", true)) }
+    var weeklySummaryEnabled by remember { mutableStateOf(prefs.getBoolean("weekly_summary_notifications_enabled", true)) }
 
     var showPrivacyDialog by remember { mutableStateOf(false) }
 
@@ -1999,11 +2590,12 @@ fun SettingsScreen() {
                 Column(modifier = Modifier.fillMaxWidth()) {
                     if (homeLocation != null) {
                         val (lat, lon) = checkNotNull(homeLocation)
+                        val locationLabel = remember(lat, lon) { geocodeLocationName(context, lat, lon) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Home, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "✓ Home GPS set: %.4f, %.4f".format(lat, lon),
+                                text = "✓ Home set: $locationLabel",
                                 fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
                             )
                         }
@@ -2178,6 +2770,19 @@ fun SettingsScreen() {
                         lineHeight = 17.sp
                     )
 
+                    ToggleRow(
+                        title = "Automatic Daily Backup",
+                        subtitle = "Backs up data to public Downloads daily",
+                        checked = autoBackupEnabled,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            autoBackupEnabled = it
+                            prefs.edit().putBoolean("auto_backup_enabled", it).apply()
+                        }
+                    )
+
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(
                             onClick = {
@@ -2236,6 +2841,17 @@ fun SettingsScreen() {
                         onToggle = {
                             monthlyReminders = it
                             prefs.edit().putBoolean("monthly_reminders_enabled", it).apply()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Weekly Insights Summary",
+                        subtitle = "Qualitative summary of weekly rhythms on Sunday evening",
+                        checked = weeklySummaryEnabled,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            weeklySummaryEnabled = it
+                            prefs.edit().putBoolean("weekly_summary_notifications_enabled", it).apply()
                         }
                     )
                 }
@@ -4021,6 +4637,97 @@ fun getGreeting(): String {
     }
 }
 
+fun geocodeLocationName(context: Context, lat: Double, lon: Double): String {
+    return try {
+        val geocoder = Geocoder(context, Locale.getDefault())
+        @Suppress("DEPRECATION")
+        val addresses = geocoder.getFromLocation(lat, lon, 1)
+        if (!addresses.isNullOrEmpty()) {
+            val addr = addresses[0]
+            val parts = listOfNotNull(addr.subLocality, addr.locality, addr.adminArea)
+            if (parts.isNotEmpty()) parts.joinToString(", ") else "📍 Home location set"
+        } else "📍 Home location set"
+    } catch (e: Exception) {
+        "📍 Home location set"
+    }
+}
+
+fun generateBehavioralSummary(
+    isBuilding: Boolean,
+    score: Float,
+    weeklyFeatures: List<PersonalityVector>,
+    baseline: List<com.example.mhealth.logic.db.BaselineEntity>,
+    isDnaReady: Boolean
+): String {
+    if (isBuilding || score < 0f || !isDnaReady || weeklyFeatures.isEmpty()) {
+        return "Getting to know your rhythms..."
+    }
+    if (baseline.isEmpty() || weeklyFeatures.size < 3) {
+        return "Building your behavioral picture..."
+    }
+
+    val baseMap = baseline.associate { it.featureName to (it.baselineValue to it.stdDeviation) }
+    val recent = weeklyFeatures.take(7)
+
+    data class SectorDelta(val name: String, val direction: String, val magnitude: Float, val message: String)
+    val deltas = mutableListOf<SectorDelta>()
+
+    // Sleep
+    val sleepBase = baseMap["sleepDurationHours"]
+    if (sleepBase != null && sleepBase.second > 0f) {
+        val avgSleep = recent.map { it.sleepDurationHours }.average().toFloat()
+        val diff = avgSleep - sleepBase.first
+        val zScore = diff / sleepBase.second.coerceAtLeast(0.5f)
+        if (abs(zScore) > 1.0f) {
+            val dir = if (diff < 0) "shorter" else "longer"
+            deltas.add(SectorDelta("Sleep", dir, abs(zScore),
+                "Your sleep has been about ${String.format("%.1f", abs(diff))}h $dir than usual. ${if (diff < 0) "Consider winding down a bit earlier." else "Great rest!"}"))
+        }
+    }
+
+    // Activity
+    val stepsBase = baseMap["dailyStepCount"]
+    if (stepsBase != null && stepsBase.second > 0f) {
+        val avgSteps = recent.map { it.dailyStepCount }.average().toFloat()
+        val diff = avgSteps - stepsBase.first
+        val zScore = diff / stepsBase.second.coerceAtLeast(500f)
+        if (abs(zScore) > 1.0f) {
+            deltas.add(SectorDelta("Activity", if (diff > 0) "higher" else "lower", abs(zScore),
+                if (diff > 0) "You've been more physically active than usual — nice work!" else "Your activity has dipped a bit. Even a short walk could help."))
+        }
+    }
+
+    // Screen
+    val screenBase = baseMap["screenTimeHours"]
+    if (screenBase != null && screenBase.second > 0f) {
+        val avgScreen = recent.map { it.screenTimeHours }.average().toFloat()
+        val diff = avgScreen - screenBase.first
+        val zScore = diff / screenBase.second.coerceAtLeast(0.5f)
+        if (abs(zScore) > 1.0f) {
+            deltas.add(SectorDelta("Screen", if (diff > 0) "higher" else "lower", abs(zScore),
+                if (diff > 0) "Screen time has crept up. Maybe try a short digital break tonight?" else "Screen time is lower than usual — that's a healthy shift."))
+        }
+    }
+
+    // Social
+    val socialBase = baseMap["callsPerDay"]
+    if (socialBase != null && socialBase.second > 0f) {
+        val avgCalls = recent.map { it.callsPerDay }.average().toFloat()
+        val diff = avgCalls - socialBase.first
+        val zScore = diff / socialBase.second.coerceAtLeast(0.5f)
+        if (abs(zScore) > 1.2f) {
+            deltas.add(SectorDelta("Social", if (diff > 0) "more" else "less", abs(zScore),
+                if (diff < 0) "You've been less socially connected lately. Reaching out to someone might help." else "Your social engagement is up — connection is great for wellbeing."))
+        }
+    }
+
+    return if (deltas.isEmpty()) {
+        "All your patterns look consistent. You're in a good rhythm. ✨"
+    } else {
+        deltas.maxByOrNull { it.magnitude }?.message ?: "Your routines feel steady this week."
+    }
+}
+
 fun getActiveStreak(prefs: SharedPreferences): Int {
     val currentStreak = prefs.getInt("checkin_streak_current", 0)
     val lastDateStr = prefs.getString("checkin_streak_last_date", "") ?: ""
@@ -4071,7 +4778,7 @@ fun recordDailyCheckin(prefs: SharedPreferences, mood: Int, energy: Int, sleep: 
     }.apply()
 }
 
-fun saveCheckinToHistory(prefs: SharedPreferences, mood: Int, energy: Int, sleep: Int, anxiety: Int) {
+fun saveCheckinToHistory(prefs: SharedPreferences, mood: Int, energy: Int, sleep: Int, anxiety: Int, note: String = "") {
     val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
     val historyStr = prefs.getString("daily_checkin_history", "[]") ?: "[]"
     
@@ -4087,6 +4794,7 @@ fun saveCheckinToHistory(prefs: SharedPreferences, mood: Int, energy: Int, sleep
                 obj.put("energy", energy)
                 obj.put("sleep", sleep)
                 obj.put("anxiety", anxiety)
+                if (note.isNotBlank()) obj.put("note", note) else obj.remove("note")
                 foundToday = true
             }
             list.add(obj)
@@ -4099,13 +4807,14 @@ fun saveCheckinToHistory(prefs: SharedPreferences, mood: Int, energy: Int, sleep
                 put("energy", energy)
                 put("sleep", sleep)
                 put("anxiety", anxiety)
+                if (note.isNotBlank()) put("note", note)
             }
             list.add(newObj)
         }
         
-        val trimmedList = if (list.size > 7) list.takeLast(7) else list
+        // No cap — keep unlimited history for user reflection
         val newArray = org.json.JSONArray()
-        trimmedList.forEach { newArray.put(it) }
+        list.forEach { newArray.put(it) }
         
         prefs.edit().putString("daily_checkin_history", newArray.toString()).apply()
     } catch (e: Exception) {
@@ -4968,139 +5677,15 @@ fun TelemetryDisclosureDialog(
     )
 }
 
-private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_detailed_dump_") {
+private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_backup_before_reset_") {
     if (context !is ComponentActivity) return
     val activity = context as ComponentActivity
     activity.lifecycleScope.launch(Dispatchers.IO) {
         try {
-            val db = MHealthDatabase.getInstance(context)
             val userId = DataRepository.userProfile.value?.email ?: "local_patient@lumen.health"
-            
-            val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
-            val baselineRows = db.baselineDao().getBaseline(userId)
-            val analysisReports = db.analysisResultDao().getAll(userId)
-            val profile = db.userProfileDao().getProfile(userId)
-            
-            val masterJson = org.json.JSONObject()
-            
-            masterJson.put("profile", org.json.JSONObject().apply {
-                put("userId", userId)
-                put("baselineReady", profile?.baselineReady ?: false)
-                put("onboardingDate", profile?.onboardingDate ?: "")
-                put("currentStatus", profile?.currentStatus ?: "Collecting")
-            })
-
-            val baselineArr = org.json.JSONArray()
-            baselineRows.forEach { row ->
-                baselineArr.put(org.json.JSONObject().apply {
-                    put("feature", row.featureName)
-                    put("mean", row.baselineValue)
-                    put("std", row.stdDeviation)
-                    put("start", row.baselineStart)
-                    put("end", row.baselineEnd)
-                    put("contaminated", row.isContaminated)
-                })
-            }
-            masterJson.put("baseline", baselineArr)
-
-            val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.effectiveScore }
-
-            val historyArr = org.json.JSONArray()
-            dailyHistory.forEach { day ->
-                val dayObj = org.json.JSONObject()
-                dayObj.put("date", day.date)
-                dayObj.put("isSimulated", day.isSimulated)
-                dayObj.put("anomaly_score", scoreByDate[day.date] ?: -1.0)
-
-                val features = org.json.JSONObject().apply {
-                    put("screenTimeHours", day.screenTimeHours)
-                    put("unlockCount", day.unlockCount)
-                    put("appLaunchCount", day.appLaunchCount)
-                    put("notifications", day.notificationsToday)
-                    put("socialRatio", day.socialAppRatio)
-                    put("callsPerDay", day.callsPerDay)
-                    put("callDurationMins", day.callDurationMinutes)
-                    put("uniqueContacts", day.uniqueContacts)
-                    put("conversationFrequency", day.conversationFrequency)
-                    put("displacementKm", day.dailyDisplacementKm)
-                    put("locationEntropy", day.locationEntropy)
-                    put("homeTimeRatio", day.homeTimeRatio)
-                    put("wakeTimeHour", day.wakeTimeHour)
-                    put("sleepTimeHour", day.sleepTimeHour)
-                    put("sleepDurationHours", day.sleepDurationHours)
-                    put("dailyStepCount", day.dailyStepCount)
-                    put("activeMinutes", day.activeMinutes)
-                    put("keystrokeSpeed", day.keystrokeSpeed)
-                    put("backspaceRatio", day.backspaceRatio)
-                    put("scrollVelocity", day.scrollVelocity)
-                    put("daylightExposureMinutes", day.daylightExposureMinutes)
-                    put("chargeRegularity", day.chargeRegularity)
-                    put("chargeDurationHours", day.chargeDurationHours)
-                    put("upiTransactions", day.upiTransactionsToday)
-                    put("appUninstalls", day.appUninstallsToday)
-                    put("appInstalls", day.appInstallsToday)
-                    put("calendarEvents", day.calendarEventsToday)
-                    put("mediaCount", day.mediaCountToday)
-                    put("downloads", day.downloadsToday)
-                    put("musicTimeMinutes", day.musicTimeMinutes)
-                }
-                dayObj.put("metrics", features)
-
-                dayObj.put("detailed_logs", org.json.JSONObject().apply {
-                    put("app_breakdown", org.json.JSONObject(day.appBreakdownJson))
-                    put("notifications_breakdown", org.json.JSONObject(day.notificationBreakdownJson))
-                    put("app_launches_breakdown", org.json.JSONObject(day.appLaunchesBreakdownJson))
-                })
-                
-                historyArr.put(dayObj)
-            }
-            masterJson.put("daily_history", historyArr)
-
-            val liveVector = DataRepository.latestVector.value
-            if (liveVector != null) {
-                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
-                val todayObj = org.json.JSONObject()
-                todayObj.put("date", todayStr)
-                todayObj.put("is_live_snapshot", true)
-                todayObj.put("isSimulated", false)
-                todayObj.put("metrics", org.json.JSONObject().apply {
-                    put("screenTimeHours",    liveVector.screenTimeHours)
-                    put("unlockCount",         liveVector.unlockCount)
-                    put("appLaunchCount",      liveVector.appLaunchCount)
-                    put("notifications",       liveVector.notificationsToday)
-                    put("socialRatio",         liveVector.socialAppRatio)
-                    put("callsPerDay",         liveVector.callsPerDay)
-                    put("callDurationMins",    liveVector.callDurationMinutes)
-                    put("uniqueContacts",      liveVector.uniqueContacts)
-                    put("conversationFrequency", liveVector.conversationFrequency)
-                    put("displacementKm",      liveVector.dailyDisplacementKm)
-                    put("locationEntropy",     liveVector.locationEntropy)
-                    put("homeTimeRatio",       liveVector.homeTimeRatio)
-                    put("wakeTimeHour",        liveVector.wakeTimeHour)
-                    put("sleepTimeHour",       liveVector.sleepTimeHour)
-                    put("sleepDurationHours",  liveVector.sleepDurationHours)
-                    put("dailyStepCount",      liveVector.dailyStepCount)
-                    put("activeMinutes",       liveVector.activeMinutes)
-                    put("keystrokeSpeed",      liveVector.keystrokeSpeed)
-                    put("backspaceRatio",      liveVector.backspaceRatio)
-                    put("scrollVelocity",      liveVector.scrollVelocity)
-                    put("daylightExposureMinutes", liveVector.daylightExposureMinutes)
-                    put("chargeRegularity",    liveVector.chargeRegularity)
-                    put("chargeDurationHours", liveVector.chargeDurationHours)
-                    put("upiTransactions",     liveVector.upiTransactionsToday)
-                    put("appUninstalls",       liveVector.appUninstallsToday)
-                    put("appInstalls",         liveVector.appInstallsToday)
-                    put("calendarEvents",      liveVector.calendarEventsToday)
-                    put("mediaCount",          liveVector.mediaCountToday)
-                    put("downloads",           liveVector.downloadsToday)
-                    put("musicTimeMinutes",    liveVector.musicTimeMinutes)
-                })
-                todayObj.put("location_snapshots", DataRepository.locationSnapshots.value.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" })
-                masterJson.put("live_today", todayObj)
-            }
-
+            val backupDataStr = com.example.mhealth.logic.JsonConverter.buildBackupJson(context, userId)
             val file = java.io.File(context.getExternalFilesDir(null), "$filePrefix${System.currentTimeMillis()}.json")
-            file.writeText(masterJson.toString())
+            file.writeText(backupDataStr)
             withContext(Dispatchers.Main) {
                 Toast.makeText(context, "Backup auto-saved to: ${file.name}", Toast.LENGTH_LONG).show()
             }

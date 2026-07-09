@@ -1,14 +1,24 @@
-# Lumen Pivot Onboarding Refinement Task List
+# Lumen Insights Enhancement Task List
 
-- [x] Task 1: Refactor Consistency Scaling Sliders in Onboarding
-  - Convert 1-5 numerical scales to descriptive qualitative options (e.g., "Not Very Much" to "Very Much").
-  - Update `LifestyleSlider` component to show qualitative text instead of numerical value.
-- [x] Task 2: Rephrase Onboarding Prompts
-  - Sanitize user-facing texts to avoid technical words like "model weights calibration", "Digital DNA calibration", or "calibration".
-- [x] Task 3: Fix Permission Enabling Lag
-  - Inspect permission clicking handling, especially accessibility and usage stats, to identify and resolve UI lag by moving disclosure dialogs out of the scrollable `LazyColumn`.
-- [x] Task 4: Implement Daily & Monthly Check-in Notification Triggers
-  - Register periodic wellness notification checks inside `MonitoringService`'s runTick.
-  - Send daily check-in prompt and monthly check-in reminder when permitted by user.
-- [x] Task 5: Shorten Onboarding PHQ-9 / GAD-7 Assessment
-  - Reduce the onboarding screening length to a concise format (PHQ-2 and GAD-2) and scale scores.
+## Sprint: Pre-Open Testing Insights Overhaul
+
+- [x] **T1**: Uncap check-in history (remove 7-entry trim from `saveCheckinToHistory`, keep unlimited)
+- [x] **T2**: Add journal note field to `DailyCheckinTab` + store in check-in history JSON
+- [x] **T3**: GPS display fix — reverse geocode home location, hide raw coordinates in Settings & Home
+- [x] **T4**: Behavioral summary prompt on Home screen (sector-aware contextual observation replacing generic status)
+- [x] **T5**: Fix Rhythm Consistency chart (composite adherence score + gradient fill + day-of-week labels)
+- [x] **T6**: Insights behavioral timeline with integrated check-in entries + journal note markers
+- [x] **T7**: Per-sector detail screens (navigate from insight cards, multi-line trend charts, baseline reference lines)
+- [x] **T8**: Add Daylight Exposure + Charging Routine insight cards to Insights tab
+- [x] **T9**: Mood × Behavior correlation cards (cross-reference check-in data with telemetry)
+- [x] **T10**: Personal milestones / celebration card on Home screen
+- [x] **T11**: Automatic daily backup to Downloads via MediaStore API (no extra permissions)
+- [x] **T12**: Weekly qualitative summary notification (Sunday evening)
+- [x] **T13**: Settings toggles for auto-backup and weekly summary notifications
+- [x] **T14**: Update `context.md` with all changes
+
+---
+
+### Previous Tasks (Completed)
+- [x] **iOS Task 1**: Formulate iOS migration strategy and technical feasibility analysis
+- [x] **iOS Task 2**: Update `context.md` with iOS feasibility guidelines

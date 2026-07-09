@@ -420,6 +420,7 @@ Following an architectural deep dive, the finalized blueprints for the core proc
 *   **2026-07-01**: Addressed Google Play Store Accessibility Service policy compliance:
     1. **XML Config Description**: Configured `android:description="@string/accessibility_service_description"` in `accessibility_service_config.xml` to provide the required user-visible disclosure in system settings.
     2. **Disclosures & Explanations**: Added a clear string translation in `strings.xml` explaining what the service measures (typing speed, deletion counts, and scroll velocity), and verifying that it does not read, record, or store any text content or sensitive fields (such as passwords), and that all processing is 100% local.
+*   **2026-07-04**: Formulated the iOS migration and technical feasibility strategy. Analyzed strict iOS background sandboxing limitations (no custom background services, accessibility observers, or notification listener hooks) and mapped out feature workarounds (CoreMotion pedometer buffering, CoreLocation SLC, and HealthKit sleep profiles). Drafted the Swift-native translation roadmap for the mathematical ML engine to avoid dynamic Python package rejections.
 
 ---
 
@@ -440,7 +441,40 @@ To increase user engagement and ease regulatory boundaries, Lumen is pivoting fr
 *   **Aggregated B2B Burnout Insights**:
     *   To target the corporate wellness market (inspired by MindPeers), Lumen will offer an organization-level dashboard summarizing anonymous wellness and focus trends (e.g., team sleep stability, average notification load) while strictly guaranteeing individual employee telemetry remains isolated and secure on-device.
 
+---
 
+## 10. iOS Architecture & Feasibility Strategy
 
+Due to the iOS sandbox design and strict privacy features, reproducing the full 29-feature Android telemetry vector is not possible. The following architectural constraints and implementation guidelines define the iOS version of Lumen:
 
+### 10.1 Key iOS Constraints
+1.  **Zero Accessibility Observers**: Apple blocks third-party applications from observing keystrokes, scroll speeds, or notification counts from other apps. Interaction dynamics features are unavailable.
+2.  **No Notification Listening**: There is no iOS equivalent to Android's `NotificationListenerService` to count notification badges or events globally.
+3.  **No Global Screen/App Usage Stats**: The Screen Time API (`FamilyControls`) is gated behind Apple's manual approval process. Without it, the app cannot trace other app launches or usage categories.
+4.  **No Call or SMS Logs**: Access to raw communication events is completely blocked by the system sandbox.
 
+### 10.2 Recommended Feature Adaptation
+To maintain compatibility and cross-platform scoring alignment, the telemetry vector should be adapted to a subset of 10–12 features available on both platforms:
+*   **CoreMotion**: Collect steps, pace, active minutes, and activity type (walking vs. stationary vs. driving). The M-series coprocessor buffers this for up to 7 days, eliminating the need for continuous background execution.
+*   **CoreLocation**: Use Significant Location Changes (SLC) and region geofencing (home/work boundaries) to track displacement, location entropy, and home time ratio with minimal battery drain.
+*   **HealthKit**: Request permissions to read sleep duration, sleep efficiency, and biometric signals (heart rate variability, resting heart rate) to populate the sleep and physiological indicators.
+*   **EventKit & Photos**: Query calendar engagement events and count daily media additions.
+
+### 10.3 Swift-Native ML Porting
+*   **No Python Interpreter**: Do not embed Python (via Pyto/Chaquopy wrapper) on iOS due to bundle size limits and App Store execution policy risks.
+*   **Swift Translation**: The mathematical functions of System 1 (z-score, EWMA velocity, L2 suppression) and System 2 (weighted cosine similarity, Euclidean sign penalties, temporal shapes) should be ported directly to Swift.
+*   **Accelerate Framework**: Use Apple's native `Accelerate` (vDSP/BLAS) framework for high-performance matrix and vector math.
+*   **Mean Shift**: Implement the PCA + Mean Shift clustering in Swift (~100 lines) using standard linear algebra helpers.
+*   **2026-07-09**: Designed and implemented the Wellness Insights & Self-Reflection Overhaul (Lumen Insights Pivot):
+    1. **Unlimited Check-in History**: Uncapped check-in history storage by removing the 7-entry limitation from `saveCheckinToHistory()`.
+    2. **Self-Reflection & Journaling**: Integrated an optional multi-line journal note input field into the `DailyCheckinTab` and stored notes in the check-in history JSON.
+    3. **GPS Coordinates Disclosure Mitigation**: Integrated reverse-geocoding (extracting city/district) in both `SettingsScreen` and `HomeScreen` using the native Android `Geocoder` class to replace displaying raw latitude/longitude coordinates.
+    4. **Contextual Home Screen Prompts**: Added a sector-aware "Contextual Observation" prompt system on the Home screen that dynamically evaluates the user's latest sleep, activity, digital usage, and mobility metrics against their historical averages, replacing generic status cards.
+    5. **Rhythm Consistency Chart Overhaul**: Replaced the previous circular progress rhythm gauge with an interactive, modern composite consistency bar chart featuring a gradient fill, day-of-week labels, and a clear composite score.
+    6. **Unified Behavioral & Reflection Timeline**: Built a unified chronological timeline on the Insights tab combining behavioral anomalies/observations and check-in history with journal note reflection markers.
+    7. **Interactive Per-Sector Detail Screens**: Added detailed per-sector sheets (Sleep, Activity, Digital, Mobility) accessible from insights cards, displaying interactive line charts with baseline references.
+    8. **Daylight & Charging Insights**: Implemented specific analysis cards for daylight exposure minutes and charging habits consistency.
+    9. **Mood × Behavior Correlation Insights**: Added analysis cards detailing correlations between check-in scores (mood/stress) and passive telemetry metrics (e.g., step count vs. mood, screen time vs. stress).
+    10. **Milestones & Personal Achievements**: Added a dynamic weekly milestones celebration card to the Home screen (e.g., sleep regularity streak, digital detox success, steps achievement).
+    11. **Automated MediaStore Downloads Backups**: Implemented daily automatic backups in `NightlyAnalysisWorker` using the Android `MediaStore` downloads API to store backups in the public Downloads directory without needing runtime permissions.
+    12. **Weekly Sunday Evening Notifications**: Configured `MonitoringService` to issue weekly qualitative wellness summary notifications on Sunday evenings, with direct deep-linking navigation to the Insights tab in both release and debug variants.

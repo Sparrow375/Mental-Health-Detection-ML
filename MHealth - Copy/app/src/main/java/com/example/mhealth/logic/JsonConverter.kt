@@ -298,4 +298,136 @@ object JsonConverter {
         } catch (e: Exception) {}
         return map
     }
+
+    fun buildBackupJson(context: Context, userId: String): String {
+        val db = com.example.mhealth.logic.db.MHealthDatabase.getInstance(context)
+        val dailyHistory = db.dailyFeaturesDao().getAllFeatures(userId)
+        val baselineRows = db.baselineDao().getBaseline(userId)
+        val analysisReports = db.analysisResultDao().getAll(userId)
+        val profile = db.userProfileDao().getProfile(userId)
+        
+        val masterJson = org.json.JSONObject()
+        
+        masterJson.put("profile", org.json.JSONObject().apply {
+            put("userId", userId)
+            put("baselineReady", profile?.baselineReady ?: false)
+            put("onboardingDate", profile?.onboardingDate ?: "")
+            put("currentStatus", profile?.currentStatus ?: "Collecting")
+        })
+
+        val baselineArr = org.json.JSONArray()
+        baselineRows.forEach { row ->
+            baselineArr.put(org.json.JSONObject().apply {
+                put("feature", row.featureName)
+                put("mean", row.baselineValue)
+                put("std", row.stdDeviation)
+                put("start", row.baselineStart)
+                put("end", row.baselineEnd)
+                put("contaminated", row.isContaminated)
+            })
+        }
+        masterJson.put("baseline", baselineArr)
+
+        val scoreByDate: Map<String, Float> = analysisReports.associate { it.date to it.effectiveScore }
+
+        val historyArr = org.json.JSONArray()
+        dailyHistory.forEach { day ->
+            val dayObj = org.json.JSONObject()
+            dayObj.put("date", day.date)
+            dayObj.put("isSimulated", day.isSimulated)
+            dayObj.put("anomaly_score", scoreByDate[day.date] ?: -1.0)
+
+            val features = org.json.JSONObject().apply {
+                put("screenTimeHours", day.screenTimeHours)
+                put("unlockCount", day.unlockCount)
+                put("appLaunchCount", day.appLaunchCount)
+                put("notifications", day.notificationsToday)
+                put("socialRatio", day.socialAppRatio)
+                put("callsPerDay", day.callsPerDay)
+                put("callDurationMins", day.callDurationMinutes)
+                put("uniqueContacts", day.uniqueContacts)
+                put("conversationFrequency", day.conversationFrequency)
+                put("displacementKm", day.dailyDisplacementKm)
+                put("locationEntropy", day.locationEntropy)
+                put("homeTimeRatio", day.homeTimeRatio)
+                put("wakeTimeHour", day.wakeTimeHour)
+                put("sleepTimeHour", day.sleepTimeHour)
+                put("sleepDurationHours", day.sleepDurationHours)
+                put("dailyStepCount", day.dailyStepCount)
+                put("activeMinutes", day.activeMinutes)
+                put("keystrokeSpeed", day.keystrokeSpeed)
+                put("backspaceRatio", day.backspaceRatio)
+                put("scrollVelocity", day.scrollVelocity)
+                put("daylightExposureMinutes", day.daylightExposureMinutes)
+                put("chargeRegularity", day.chargeRegularity)
+                put("chargeDurationHours", day.chargeDurationHours)
+                put("upiTransactions", day.upiTransactionsToday)
+                put("appUninstalls", day.appUninstallsToday)
+                put("appInstalls", day.appInstallsToday)
+                put("calendarEvents", day.calendarEventsToday)
+                put("mediaCount", day.mediaCountToday)
+                put("downloads", day.downloadsToday)
+                put("musicTimeMinutes", day.musicTimeMinutes)
+            }
+            dayObj.put("metrics", features)
+
+            dayObj.put("detailed_logs", org.json.JSONObject().apply {
+                put("app_breakdown", org.json.JSONObject(day.appBreakdownJson))
+                put("notifications_breakdown", org.json.JSONObject(day.notificationBreakdownJson))
+                put("app_launches_breakdown", org.json.JSONObject(day.appLaunchesBreakdownJson))
+            })
+            
+            historyArr.put(dayObj)
+        }
+        masterJson.put("daily_history", historyArr)
+
+        val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        val dailyCheckinHistory = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+        masterJson.put("daily_checkin_history", org.json.JSONArray(dailyCheckinHistory))
+
+        val liveVector = DataRepository.latestVector.value
+        if (liveVector != null) {
+            val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
+            val todayObj = org.json.JSONObject()
+            todayObj.put("date", todayStr)
+            todayObj.put("is_live_snapshot", true)
+            todayObj.put("isSimulated", false)
+            todayObj.put("metrics", org.json.JSONObject().apply {
+                put("screenTimeHours",    liveVector.screenTimeHours)
+                put("unlockCount",         liveVector.unlockCount)
+                put("appLaunchCount",      liveVector.appLaunchCount)
+                put("notifications",       liveVector.notificationsToday)
+                put("socialRatio",         liveVector.socialAppRatio)
+                put("callsPerDay",         liveVector.callsPerDay)
+                put("callDurationMins",    liveVector.callDurationMinutes)
+                put("uniqueContacts",      liveVector.uniqueContacts)
+                put("conversationFrequency", liveVector.conversationFrequency)
+                put("displacementKm",      liveVector.dailyDisplacementKm)
+                put("locationEntropy",     liveVector.locationEntropy)
+                put("homeTimeRatio",       liveVector.homeTimeRatio)
+                put("wakeTimeHour",        liveVector.wakeTimeHour)
+                put("sleepTimeHour",       liveVector.sleepTimeHour)
+                put("sleepDurationHours",  liveVector.sleepDurationHours)
+                put("dailyStepCount",      liveVector.dailyStepCount)
+                put("activeMinutes",       liveVector.activeMinutes)
+                put("keystrokeSpeed",      liveVector.keystrokeSpeed)
+                put("backspaceRatio",      liveVector.backspaceRatio)
+                put("scrollVelocity",      liveVector.scrollVelocity)
+                put("daylightExposureMinutes", liveVector.daylightExposureMinutes)
+                put("chargeRegularity",    liveVector.chargeRegularity)
+                put("chargeDurationHours", liveVector.chargeDurationHours)
+                put("upiTransactions",     liveVector.upiTransactionsToday)
+                put("appUninstalls",       liveVector.appUninstallsToday)
+                put("appInstalls",         liveVector.appInstallsToday)
+                put("calendarEvents",      liveVector.calendarEventsToday)
+                put("mediaCount",          liveVector.mediaCountToday)
+                put("downloads",           liveVector.downloadsToday)
+                put("musicTimeMinutes",    liveVector.musicTimeMinutes)
+            })
+            todayObj.put("location_snapshots", DataRepository.locationSnapshots.value.joinToString(";") { "${it.lat},${it.lon},${it.timeMs}" })
+            masterJson.put("live_today", todayObj)
+        }
+
+        return masterJson.toString()
+    }
 }

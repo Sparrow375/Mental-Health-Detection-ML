@@ -243,6 +243,14 @@ object DataRepository {
     private val _firstLoginComplete = MutableStateFlow(false)
     val firstLoginComplete: StateFlow<Boolean> = _firstLoginComplete
 
+    // ─── Deep Linking / Route Navigation Trigger ───────────────────────────
+    private val _navigationRouteTrigger = MutableStateFlow<String?>(null)
+    val navigationRouteTrigger: StateFlow<String?> = _navigationRouteTrigger
+
+    fun setNavigationRoute(route: String?) {
+        _navigationRouteTrigger.value = route
+    }
+
     // Onboarding screener and calibration values stored in SharedPreferences
     private val _phq9Score = MutableStateFlow(0)
     val phq9Score: StateFlow<Int> = _phq9Score

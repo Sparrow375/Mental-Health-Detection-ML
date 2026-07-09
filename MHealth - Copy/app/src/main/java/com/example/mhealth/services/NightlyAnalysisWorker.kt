@@ -391,6 +391,7 @@ class NightlyAnalysisWorker(
             }
 
             Log.i(TAG, "Nightly analysis complete for $targetDate")
+            performAutoBackup(userId)
             Result.success()
 
         } catch (e: Exception) {
@@ -398,6 +399,52 @@ class NightlyAnalysisWorker(
             Result.retry()
         } finally {
             DataRepository.setDnaAnalysing(false)
+        }
+    }
+
+    private fun performAutoBackup(userId: String) {
+        val context = applicationContext
+        val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        if (!prefs.getBoolean("auto_backup_enabled", true)) {
+            Log.i(TAG, "Auto-backup is disabled in settings — skipping")
+            return
+        }
+
+        try {
+            val backupJsonStr = com.example.mhealth.logic.JsonConverter.buildBackupJson(context, userId)
+            val dateStr = SimpleDateFormat("yyyyMMdd", Locale.getDefault()).format(Date())
+            val fileName = "Lumen_autobackup_$dateStr.json"
+
+            val resolver = context.contentResolver
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, fileName)
+                put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "application/json")
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, android.os.Environment.DIRECTORY_DOWNLOADS)
+                }
+            }
+
+            val uri = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                resolver.insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, contentValues)
+            } else {
+                null
+            }
+
+            if (uri != null) {
+                resolver.openOutputStream(uri)?.use { outputStream ->
+                    java.io.OutputStreamWriter(outputStream).use { writer ->
+                        writer.write(backupJsonStr)
+                    }
+                }
+                Log.i(TAG, "Auto-backup saved to Downloads: $fileName")
+            } else {
+                val fallbackDir = context.getExternalFilesDir(null)
+                val file = java.io.File(fallbackDir, fileName)
+                file.writeText(backupJsonStr)
+                Log.i(TAG, "Auto-backup saved to sandbox fallback: ${file.absolutePath}")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Auto-backup failed: ${e.message}", e)
         }
     }
 

@@ -1463,15 +1463,14 @@ class MonitoringService : Service() {
     private fun checkAndSendCheckinNotifications() {
         try {
             val prefs = getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
-            val checkinNotificationsEnabled = prefs.getBoolean("checkin_notifications_enabled", true)
-            if (!checkinNotificationsEnabled) return
 
             val calendar = Calendar.getInstance()
             val hour = calendar.get(Calendar.HOUR_OF_DAY)
             val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
 
             // 1. Daily Check-in Notification (Send after 7 PM / 19:00 if not done and not sent today)
-            if (hour >= 19) {
+            val dailyRemindersEnabled = prefs.getBoolean("daily_reminders_enabled", true)
+            if (dailyRemindersEnabled && hour >= 19) {
                 val lastCheckinDate = prefs.getString("daily_checkin_date_last", "") ?: ""
                 val lastSentDate = prefs.getString("daily_checkin_notification_sent_date", "") ?: ""
                 if (lastCheckinDate != todayStr && lastSentDate != todayStr) {
@@ -1481,30 +1480,68 @@ class MonitoringService : Service() {
             }
 
             // 2. Monthly Check-in Notification (Send after 12 PM / 12:00 if due, not done today, and not sent for this cycle)
-            val lastMonthlyCheckinDate = prefs.getString("monthly_checkin_last_date", "") ?: ""
-            val lastMonthlySentDate = prefs.getString("monthly_checkin_notification_sent_date", "") ?: ""
-            
-            val isMonthlyDue = getMonthlyCooldownDays(prefs) <= 0
-            val hasSentForThisCycle = if (lastMonthlySentDate.isNotEmpty() && lastMonthlyCheckinDate.isNotEmpty()) {
-                val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-                try {
-                    val sentTime = sdf.parse(lastMonthlySentDate)?.time ?: 0L
-                    val checkinTime = sdf.parse(lastMonthlyCheckinDate)?.time ?: 0L
-                    sentTime > checkinTime
-                } catch (e: Exception) {
-                    false
-                }
-            } else lastMonthlySentDate == todayStr
+            val monthlyRemindersEnabled = prefs.getBoolean("monthly_reminders_enabled", true)
+            if (monthlyRemindersEnabled) {
+                val lastMonthlyCheckinDate = prefs.getString("monthly_checkin_last_date", "") ?: ""
+                val lastMonthlySentDate = prefs.getString("monthly_checkin_notification_sent_date", "") ?: ""
+                
+                val isMonthlyDue = getMonthlyCooldownDays(prefs) <= 0
+                val hasSentForThisCycle = if (lastMonthlySentDate.isNotEmpty() && lastMonthlyCheckinDate.isNotEmpty()) {
+                    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
+                    try {
+                        val sentTime = sdf.parse(lastMonthlySentDate)?.time ?: 0L
+                        val checkinTime = sdf.parse(lastMonthlyCheckinDate)?.time ?: 0L
+                        sentTime > checkinTime
+                    } catch (e: Exception) {
+                        false
+                    }
+                } else lastMonthlySentDate == todayStr
 
-            if (isMonthlyDue && lastMonthlyCheckinDate != todayStr && !hasSentForThisCycle) {
-                if (hour >= 12) {
-                    sendMonthlyCheckinNotification()
-                    prefs.edit().putString("monthly_checkin_notification_sent_date", todayStr).apply()
+                if (isMonthlyDue && lastMonthlyCheckinDate != todayStr && !hasSentForThisCycle) {
+                    if (hour >= 12) {
+                        sendMonthlyCheckinNotification()
+                        prefs.edit().putString("monthly_checkin_notification_sent_date", todayStr).apply()
+                    }
+                }
+            }
+
+            // 3. Weekly Summary Notification (Send on Sunday after 6 PM / 18:00 if not sent this week)
+            val weeklySummaryEnabled = prefs.getBoolean("weekly_summary_notifications_enabled", true)
+            if (weeklySummaryEnabled) {
+                val dayOfWeek = calendar.get(Calendar.DAY_OF_WEEK)
+                if (dayOfWeek == Calendar.SUNDAY && hour >= 18) {
+                    val lastWeeklySentDate = prefs.getString("weekly_summary_notification_sent_date", "") ?: ""
+                    if (lastWeeklySentDate != todayStr) {
+                        sendWeeklySummaryNotification()
+                        prefs.edit().putString("weekly_summary_notification_sent_date", todayStr).apply()
+                    }
                 }
             }
         } catch (e: Exception) {
             Log.e("MHealth.Service", "Error checking checkin notifications: ${e.message}", e)
         }
+    }
+
+    private fun sendWeeklySummaryNotification() {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "insights")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 103, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle("Your Weekly Wellness Insights")
+            .setContentText("Your weekly qualitative rhythm summary is ready. Tap to view.")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+            
+        nm.notify(5, notification)
     }
 
     private fun getMonthlyCooldownDays(prefs: SharedPreferences): Int {

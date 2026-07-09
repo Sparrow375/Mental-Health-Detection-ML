@@ -141,7 +141,21 @@ class MainActivity : ComponentActivity() {
         // correct initial NavState and never flashes the login screen for
         // returning users.
         DataRepository.init(applicationContext)
+
+        intent?.getStringExtra("navigate_to")?.let {
+            DataRepository.setNavigationRoute(it)
+            intent.removeExtra("navigate_to")
+        }
+
         setContent { CoveTheme { CoveApp() } }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent?) {
+        super.onNewIntent(intent)
+        intent?.getStringExtra("navigate_to")?.let {
+            DataRepository.setNavigationRoute(it)
+            intent.removeExtra("navigate_to")
+        }
     }
 }
 
@@ -194,6 +208,14 @@ fun CoveApp() {
 fun MainDashboard() {
     var current by remember { mutableStateOf(AppDest.HOME) }
     val context = LocalContext.current
+    
+    val navRoute by DataRepository.navigationRouteTrigger.collectAsState()
+    LaunchedEffect(navRoute) {
+        if (navRoute == "insights") {
+            current = AppDest.INSIGHTS
+            DataRepository.setNavigationRoute(null)
+        }
+    }
     val s1ProfileJson by DataRepository.s1ProfileJson.collectAsState()
     val analysisResult by DataRepository.latestAnalysisResult.collectAsState()
     val analysisHistory by DataRepository.analysisHistory.collectAsState()

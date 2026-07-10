@@ -121,6 +121,10 @@ import androidx.compose.foundation.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.core.content.ContextCompat
+import android.content.pm.PackageManager
+import androidx.compose.ui.text.style.TextAlign
 import kotlin.math.*
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -252,13 +256,40 @@ fun MainDashboard() {
         }
         if (hasUsageStatsPermission(context)) startMonitoringService(context)
     }
+
+    var showLocationDisclosure by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
-        launcher.launch(perms.toTypedArray())
-        if (!hasUsageStatsPermission(context)) {
-            context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+        val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (!hasLoc) {
+            showLocationDisclosure = true
         } else {
-            startMonitoringService(context)
+            if (!hasUsageStatsPermission(context)) {
+                context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            } else {
+                startMonitoringService(context)
+            }
         }
+    }
+
+    if (showLocationDisclosure) {
+        LocationDisclosureDialog(
+            onDismiss = {
+                showLocationDisclosure = false
+                if (!hasUsageStatsPermission(context)) {
+                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                } else {
+                    startMonitoringService(context)
+                }
+            },
+            onConfirm = {
+                showLocationDisclosure = false
+                launcher.launch(perms.toTypedArray())
+                if (!hasUsageStatsPermission(context)) {
+                    context.startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -2987,4 +3018,112 @@ private fun parseFlaggedFeatures(json: String): List<String> {
     } catch (e: Exception) {
         emptyList()
     }
+}
+
+@Composable
+fun LocationDisclosureDialog(
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                imageVector = Icons.Default.LocationOn,
+                contentDescription = null,
+                tint = MhealthTeal,
+                modifier = Modifier.size(36.dp)
+            )
+        },
+        title = {
+            Text(
+                text = "Consent for Location Tracking",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
+        },
+        text = {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+            ) {
+                Text(
+                    text = "Lumen collects location data, including background location, to enable movement pattern tracking, spatial stability baseline estimation, daily displacement calculation, and location entropy mapping even when the app is closed or not in use.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                Text(
+                    text = "How we use location:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "• Displacement Distance: To calculate how far you travel daily to differentiate active vs. homebound states.\n" +
+                           "• Location Entropy: To measure the variety of places you visit to detect behavioral changes.\n" +
+                           "• Home Time Ratio: To calculate the portion of the day spent at home, which is a major indicator of behavioral routines.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Why Background Access is Needed:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "• Telemetry must be collected continuously in the background to compute daily metrics accurately.\n" +
+                           "• Disrupted background tracking results in incomplete data, compromising the accuracy of routine anomaly assessments.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Privacy Assurances:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "• 100% Offline: GPS coordinates are processed entirely on-device and mapped to a general ~110m grid. Your actual coordinates are never uploaded to any server or shared with third parties.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+                Text(
+                    text = "Consent Action:",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "To consent, click 'Agree'. You will first grant foreground location, and then be directed to system settings. Under Location permissions, select 'Allow all the time' to enable background tracking.",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 17.sp
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Agree", color = Color.Black, fontWeight = FontWeight.Bold)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Decline", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }

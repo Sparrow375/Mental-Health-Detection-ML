@@ -1,6 +1,16 @@
 # Lumen Insights Enhancement Task List
 
-## Sprint: Home Screen Polish & Daily Check-in Fixes (Current)
+## Sprint: Google Play Store Compliance (Completed)
+
+- [x] **T26**: Fix inadequate prominent disclosure text for Location permissions in release `LocationDisclosureDialog` to explicitly mention background location usage and the exact required phrase "even when the app is closed or not in use".
+- [x] **T27**: Fix onboarding step 6 (Home Location Capture) and Settings screen to show the `LocationDisclosureDialog` immediately before prompting for location permissions, ensuring that consent requests are always immediately preceded by an in-app disclosure.
+- [x] **T28**: Remove automatic permission request on startup in release `MainLumenDashboard()` to prevent launching runtime permission dialogs without user context or disclosure.
+- [x] **T29**: Update debug `MainActivity.kt` to also implement proper prominent disclosure before requesting location permissions, or avoid automatic startup permission prompts.
+- [x] **T30**: Update `context.md` with compliance changes.
+
+---
+
+## Sprint: Home Screen Polish & Daily Check-in Fixes (Completed)
 
 - [x] **T19**: Correct daily check-in calmness/anxiety rating inversion (value 5 is "Calm / Relaxed", value 1 is "Severe Stress").
 - [x] **T20**: Dismiss check-in prompt on Home tab once completed today (hiding it completely).
@@ -10,7 +20,6 @@
 - [x] **T24**: Add "Today's Routine Snapshot" telemetry comparisons card on the Home Screen (without showing targets).
 - [x] **T25**: Update `context.md` with the latest changes and structure.
 
----
 
 ### Previous Tasks (Completed)
 - [x] **T1**: Uncap check-in history (remove 7-entry trim from `saveCheckinToHistory`, keep unlimited)

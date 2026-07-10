@@ -273,30 +273,12 @@ fun MainLumenDashboard() {
         }
     }
     
-    val perms = buildList {
-        addAll(listOf(
-            Manifest.permission.READ_CONTACTS, 
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION, 
-            Manifest.permission.READ_CALENDAR
-        ))
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            add(Manifest.permission.POST_NOTIFICATIONS)
-        }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            add(Manifest.permission.ACTIVITY_RECOGNITION)
-        }
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions()
-    ) { results ->
-        startMonitoringService(context)
-    }
-
     LaunchedEffect(Unit) {
         DataRepository.initWithDb(context.applicationContext, "patient@lumen.health")
-        launcher.launch(perms.toTypedArray())
+        val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        if (hasLoc && hasUsageStatsPermission(context)) {
+            startMonitoringService(context)
+        }
     }
 
     Scaffold(
@@ -3438,12 +3420,7 @@ fun SettingsScreen() {
                         isReminderDismissed = isReminderDismissed,
                         onClick = {
                             if (!isLocationPermissionGranted) {
-                                locPermissionLauncher.launch(
-                                    arrayOf(
-                                        Manifest.permission.ACCESS_FINE_LOCATION,
-                                        Manifest.permission.ACCESS_COARSE_LOCATION
-                                    )
-                                )
+                                showLocationDisclosure = true
                             } else {
                                 Toast.makeText(context, "Location permission is enabled.", Toast.LENGTH_SHORT).show()
                             }
@@ -3973,6 +3950,21 @@ fun SettingsScreen() {
         }
     }
 
+    if (showLocationDisclosure) {
+        LocationDisclosureDialog(
+            onDismiss = { showLocationDisclosure = false },
+            onConfirm = {
+                showLocationDisclosure = false
+                locPermissionLauncher.launch(
+                    arrayOf(
+                        Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION
+                    )
+                )
+            }
+        )
+    }
+
     if (showAccessibilityDisclosure) {
         AccessibilityDisclosureDialog(
             onDismiss = { showAccessibilityDisclosure = false },
@@ -4081,6 +4073,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     // Step 6 State (Home Location Capture)
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.homeLocation.value != null) }
+    var showLocationDisclosureStep6 by remember { mutableStateOf(false) }
 
     // Step 7 State (System Permissions)
     var isNotificationAccessGranted by remember {
@@ -4735,12 +4728,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                         if (!isLocationPermissionGranted) {
                             Button(
                                 onClick = {
-                                    locPermissionLauncher.launch(
-                                        arrayOf(
-                                            Manifest.permission.ACCESS_FINE_LOCATION,
-                                            Manifest.permission.ACCESS_COARSE_LOCATION
-                                        )
-                                    )
+                                    showLocationDisclosureStep6 = true
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                                 modifier = Modifier
@@ -4749,6 +4737,20 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Text("Grant GPS Location Permission", color = Color.White, fontFamily = Fredoka)
+                            }
+                            if (showLocationDisclosureStep6) {
+                                LocationDisclosureDialog(
+                                    onDismiss = { showLocationDisclosureStep6 = false },
+                                    onConfirm = {
+                                        showLocationDisclosureStep6 = false
+                                        locPermissionLauncher.launch(
+                                            arrayOf(
+                                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                                Manifest.permission.ACCESS_COARSE_LOCATION
+                                            )
+                                        )
+                                    }
+                                )
                             }
                         } else {
                             if (homeSet) {
@@ -6424,7 +6426,7 @@ fun LocationDisclosureDialog(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = "Lumen requires access to location services, including background location, to monitor your movement behaviors and establish spatial stability baselines.",
+                    text = "Lumen collects location data, including background location, to enable movement pattern tracking, spatial stability baseline estimation, daily displacement calculation, and location entropy mapping even when the app is closed or not in use.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 18.sp

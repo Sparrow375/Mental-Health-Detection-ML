@@ -97,6 +97,39 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioTrack
+import android.content.ContextWrapper
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.platform.LocalDensity
+
+/**
+ * Reads the real navigation-bar height from the HOST Activity's decor view.
+ * This is needed because inside a Dialog window (decorFitsSystemWindows = false),
+ * navigationBarsPadding() resolves to 0 — the dialog does not receive insets.
+ * Falls back to 48.dp on older APIs or if the activity cannot be found.
+ */
+@Composable
+fun rememberNavBarPadding(): Dp {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    return remember(density) {
+        var ctx: Context = context
+        var activity: Activity? = null
+        while (ctx is ContextWrapper) {
+            if (ctx is Activity) { activity = ctx; break }
+            ctx = ctx.baseContext
+        }
+        val bottomPx = try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                activity?.window?.decorView?.rootWindowInsets
+                    ?.getInsets(android.view.WindowInsets.Type.navigationBars())?.bottom ?: 0
+            } else {
+                @Suppress("DEPRECATION")
+                activity?.window?.decorView?.rootWindowInsets?.systemWindowInsetBottom ?: 0
+            }
+        } catch (_: Exception) { 0 }
+        with(density) { bottomPx.toDp() }.coerceAtLeast(0.dp)
+    }
+}
 
 class MainActivity : ComponentActivity() {
     private lateinit var appUpdateManager: AppUpdateManager
@@ -1293,6 +1326,7 @@ fun FullScreenBreathingScreen(
     val synth = remember { CalmingSoundSynthesizer() }
 
     if (setupMode) {
+        val navBarPad = rememberNavBarPadding()
         Dialog(
             onDismissRequest = onDismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false)
@@ -1302,8 +1336,7 @@ fun FullScreenBreathingScreen(
                     .fillMaxSize()
                     .background(Color(0xFF0B1F28)) // Rich Dark Teal
                     .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = navBarPad + 24.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -1483,12 +1516,12 @@ fun FullScreenBreathingScreen(
                 onDismiss()
             }
 
+            val navBarPad2 = rememberNavBarPadding()
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFF07141C))
-                    .statusBarsPadding()
-                    .navigationBarsPadding(),
+                    .statusBarsPadding(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -1496,7 +1529,7 @@ fun FullScreenBreathingScreen(
                     verticalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(vertical = 48.dp, horizontal = 24.dp)
+                        .padding(top = 48.dp, bottom = navBarPad2 + 24.dp, start = 24.dp, end = 24.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -2115,6 +2148,7 @@ fun InsightsScreen() {
                 
                 // Social Card
                 item {
+                    val isProxyActive = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
                     val callDiff = latest.callsPerDay - base.callsPerDay
                     val badgeText = when {
                         callDiff < -2.0f -> "Social Pause"
@@ -2128,19 +2162,35 @@ fun InsightsScreen() {
                         callDiff < -2.0f -> "We noticed a quiet stretch in your communications. Reaching out to a close friend or family member for a brief chat can offer a comforting boost."
                         else -> "Your social connection rhythm and phone conversations are consistent with your usual baseline."
                     }
+                    val trackingNote = if (!isProxyActive)
+                        "⚠ Notification access is off — relational data uses dialer app launch signals as a proxy and will be 0 until the notification listener is enabled in Settings."
+                    else if (latest.callsPerDay == 0f && base.callsPerDay == 0f)
+                        "📡 Tracking active via dialer launch proxy. Relational metrics will populate as you use your phone for calls."
+                    else null
                     
                     StaggeredFadeIn(index = 4) {
-                        QualitativeInsightCard(
-                            title = "Relational Frequency",
-                            icon = Icons.Default.Call,
-                            badgeText = badgeText,
-                            badgeColor = badgeColor,
-                            description = desc,
-                            onClick = {
-                                activeDetailSector = "Social"
-                                activeDetailIcon = Icons.Default.Call
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            QualitativeInsightCard(
+                                title = "Relational Frequency",
+                                icon = Icons.Default.Call,
+                                badgeText = badgeText,
+                                badgeColor = badgeColor,
+                                description = desc,
+                                onClick = {
+                                    activeDetailSector = "Social"
+                                    activeDetailIcon = Icons.Default.Call
+                                }
+                            )
+                            if (trackingNote != null) {
+                                Text(
+                                    text = trackingNote,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
+                                    lineHeight = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
                             }
-                        )
+                        }
                     }
                 }
                 
@@ -2179,6 +2229,7 @@ fun InsightsScreen() {
 
                 // Interaction Tempo Card (T35)
                 item {
+                    val isAccessibilityActive = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
                     val tempoRatio = if (base.keystrokeSpeed > 0) latest.keystrokeSpeed / base.keystrokeSpeed else 1.0f
                     
                     val badgeText = when {
@@ -2196,19 +2247,35 @@ fun InsightsScreen() {
                         tempoRatio > 1.25f -> "Your key interactions show a swift cadence. A faster typing and scrolling tempo suggests high energy or active processing."
                         else -> "Your writing speed and reading scroll pace are flowing in harmony with your baseline."
                     }
+                    val tempoNote = if (!isAccessibilityActive)
+                        "⚠ Interaction Dynamics permission is off. Enable it under Settings → System Permissions to track typing speed, backspace ratio, and scroll velocity."
+                    else if (latest.keystrokeSpeed == 0f)
+                        "📡 Accessibility service active. Typing and scroll metrics will populate as you use your keyboard throughout the day."
+                    else null
                     
                     StaggeredFadeIn(index = 6) {
-                        QualitativeInsightCard(
-                            title = "Interaction Tempo & Cadence",
-                            icon = Icons.Default.Keyboard,
-                            badgeText = badgeText,
-                            badgeColor = badgeColor,
-                            description = desc,
-                            onClick = {
-                                activeDetailSector = "Interaction Tempo"
-                                activeDetailIcon = Icons.Default.Keyboard
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            QualitativeInsightCard(
+                                title = "Interaction Tempo & Cadence",
+                                icon = Icons.Default.Keyboard,
+                                badgeText = badgeText,
+                                badgeColor = badgeColor,
+                                description = desc,
+                                onClick = {
+                                    activeDetailSector = "Interaction Tempo"
+                                    activeDetailIcon = Icons.Default.Keyboard
+                                }
+                            )
+                            if (tempoNote != null) {
+                                Text(
+                                    text = tempoNote,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
+                                    lineHeight = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
                             }
-                        )
+                        }
                     }
                 }
 
@@ -5287,6 +5354,46 @@ fun SettingsScreen() {
                             }
                         }
                     }
+                }
+            }
+        }
+
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                val feedbackIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = Uri.parse("mailto:")
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("support@lumenapp.health"))
+                                    putExtra(Intent.EXTRA_SUBJECT, "Lumen App Feedback")
+                                    putExtra(Intent.EXTRA_TEXT, "Hi Lumen team,\n\nFeedback / Bug report:\n\n")
+                                }
+                                context.startActivity(feedbackIntent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "No email app found. Please email support@lumenapp.health directly.", Toast.LENGTH_LONG).show()
+                            }
+                        }
+                        .padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Email, null, tint = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(12.dp))
+                        Column {
+                            Text("Share Feedback", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                            Text("Report a bug or suggest a feature", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -8703,12 +8810,12 @@ fun WeeklyDigestDialog(
             modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
+            val digestNavPad = rememberNavBarPadding()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(24.dp)
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = digestNavPad + 24.dp)
             ) {
                 // Header
                 Row(
@@ -9201,8 +9308,35 @@ fun WindDownCompanionCard() {
     var showActiveOverlay by remember { mutableStateOf(false) }
 
     val enabled = remember(configSeq) { prefs.getBoolean("wind_down_enabled", false) }
-    val sleepTarget = remember(configSeq) { prefs.getFloat("habit_circadian_anchor_target", 23f) } // default 11 PM
-    
+
+    // T-D: Adaptive circadian baseline — derive personal sleep target from historical checkin data
+    // instead of forcing a hard-coded 11 PM on all users.
+    val sleepTarget = remember(configSeq) {
+        val anchorOverride = prefs.getFloat("habit_circadian_anchor_target", -1f)
+        if (anchorOverride > 0f) {
+            // User has explicitly set a bedtime anchor in Habit Goals — respect that
+            anchorOverride
+        } else {
+            // Derive average sleep-start time from checkin history (last 14 days)
+            val historyStr = prefs.getString("checkin_history", null)
+            if (!historyStr.isNullOrBlank()) {
+                try {
+                    val arr = org.json.JSONArray(historyStr)
+                    val sleepTimes = mutableListOf<Float>()
+                    for (i in 0 until minOf(arr.length(), 14)) {
+                        val obj = arr.optJSONObject(i)
+                        val st = obj?.optDouble("sleep_time", -1.0)?.toFloat() ?: -1f
+                        if (st > 0f) sleepTimes.add(st)
+                    }
+                    if (sleepTimes.size >= 3) {
+                        sleepTimes.average().toFloat() // personal baseline
+                    } else 23f // not enough data yet — default 11 PM
+                } catch (_: Exception) { 23f }
+            } else 23f
+        }
+    }
+    val isAdaptiveTarget = remember(configSeq) { prefs.getFloat("habit_circadian_anchor_target", -1f) < 0f }
+
     // Check if bedtime goal met last night
     val lastNightMet = remember {
         val lastSleepTime = prefs.getFloat("last_recorded_sleep_time_hour", -1f)
@@ -9265,7 +9399,10 @@ fun WindDownCompanionCard() {
             )
 
             Text(
-                text = "Target bedtime: $targetStr. Your companion will help you unplug and wind down 30 minutes before sleep.",
+                text = if (isAdaptiveTarget)
+                    "Your personal baseline: $targetStr. Lumen calculated this from your recent sleep patterns — it adapts as your routine evolves."
+                else
+                    "Target bedtime: $targetStr. Your companion will help you unplug and wind down 30 minutes before sleep.",
                 fontSize = 12.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 lineHeight = 17.sp
@@ -9330,12 +9467,12 @@ fun WindDownOverlay(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF030712) // Extremely deep space dark blue
         ) {
+            val windDownNavPad = rememberNavBarPadding()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = windDownNavPad + 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Header
@@ -9773,12 +9910,12 @@ fun DigitalDetoxTimerOverlay(
             modifier = Modifier.fillMaxSize(),
             color = Color(0xFF0F172A) // Sleek slate dark background
         ) {
+            val detoxNavPad = rememberNavBarPadding()
             Column(
                 modifier = Modifier
                     .fillMaxSize()
                     .statusBarsPadding()
-                    .navigationBarsPadding()
-                    .padding(24.dp),
+                    .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = detoxNavPad + 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.SpaceBetween
             ) {

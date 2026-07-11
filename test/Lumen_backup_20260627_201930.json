@@ -1,0 +1,2055 @@
+{
+    "profile": {
+        "userId": "patient@lumen.health",
+        "baselineReady": true,
+        "onboardingDate": "",
+        "currentStatus": "Monitoring"
+    },
+    "baseline": [
+        {
+            "feature": "activeMinutes",
+            "mean": 297.28,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "appInstallsToday",
+            "mean": 1,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "appLaunchCount",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "appUninstallsToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "backspaceRatio",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "calendarEventsToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "callDurationMinutes",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "callsPerDay",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "chargeDurationHours",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "chargeRegularity",
+            "mean": 1,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "conversationFrequency",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "dailyDisplacementKm",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "dailyStepCount",
+            "mean": 29728,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "daylightExposureMinutes",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "downloadsToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "homeTimeRatio",
+            "mean": 1,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "keystrokeSpeed",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "locationEntropy",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "mediaCountToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "musicTimeMinutes",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "notificationsToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "screenTimeHours",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "scrollVelocity",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "sleepDurationHours",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "sleepTimeHour",
+            "mean": 12,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "socialAppRatio",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "uniqueContacts",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "unlockCount",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "upiTransactionsToday",
+            "mean": 0,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        },
+        {
+            "feature": "wakeTimeHour",
+            "mean": 12,
+            "std": 1,
+            "start": "2026-06-03",
+            "end": "2026-06-03",
+            "contaminated": false
+        }
+    ],
+    "daily_history": [
+        {
+            "date": "2026-06-03",
+            "isSimulated": false,
+            "anomaly_score": 0.054532133,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0.09777987,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 35902,
+                "activeMinutes": 300,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 99.49195,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 22.497967,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-04",
+            "isSimulated": false,
+            "anomaly_score": 0.27844334,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 35902,
+                "activeMinutes": 300,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 99.48949,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 7,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 22.497967,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-05",
+            "isSimulated": false,
+            "anomaly_score": 0.2710071,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 97.49925,
+                "locationEntropy": 2.0184112,
+                "homeTimeRatio": 0.41723782,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 16532,
+                "activeMinutes": 165.32,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 145.29243,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 89.8548,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-06",
+            "isSimulated": false,
+            "anomaly_score": 0.26695967,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 68.08354,
+                "locationEntropy": 2.419427,
+                "homeTimeRatio": 0.22020037,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 5472,
+                "activeMinutes": 54.72,
+                "keystrokeSpeed": 2.8606253,
+                "backspaceRatio": 0.2580645,
+                "scrollVelocity": 1506.0326,
+                "daylightExposureMinutes": 197.81119,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0.28360167,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 38,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 55.052784,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-07",
+            "isSimulated": false,
+            "anomaly_score": 0.27521873,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 5.8498373,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 20,
+                "backspaceRatio": 0.03211009,
+                "scrollVelocity": 2003.3718,
+                "daylightExposureMinutes": 52.042114,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 0,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-08",
+            "isSimulated": false,
+            "anomaly_score": -1,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0.10233457,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 20,
+                "backspaceRatio": 0.03211009,
+                "scrollVelocity": 2003.3718,
+                "daylightExposureMinutes": 52.042114,
+                "chargeRegularity": 1,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 0,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-09",
+            "isSimulated": false,
+            "anomaly_score": 0.21916549,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 6.3306937,
+                "locationEntropy": 0.4780103,
+                "homeTimeRatio": 0.27040043,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 5189,
+                "activeMinutes": 51.89,
+                "keystrokeSpeed": 6.1506987,
+                "backspaceRatio": 0.062030077,
+                "scrollVelocity": 1494.052,
+                "daylightExposureMinutes": 122.453804,
+                "chargeRegularity": 0.8785942,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 2,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 27.726784,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-10",
+            "isSimulated": false,
+            "anomaly_score": 0.19517195,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 4.0735598,
+                "locationEntropy": 0.7886536,
+                "homeTimeRatio": 0,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 10061,
+                "activeMinutes": 100.61,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 50.984493,
+                "chargeRegularity": 0.8785942,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 17,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 0,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-11",
+            "isSimulated": false,
+            "anomaly_score": 0.14301814,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0.4482776,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 6154,
+                "activeMinutes": 61.54,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 177.98442,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 1.1086754,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 1,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 18.205166,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-12",
+            "isSimulated": false,
+            "anomaly_score": -1,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0.30236816,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 177.98442,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 1.1086754,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 6,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 1,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 18.205166,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-13",
+            "isSimulated": false,
+            "anomaly_score": 0.11166105,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 33.26689,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 21085,
+                "activeMinutes": 210.85,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 12.691318,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 2,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 68.234535,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-19",
+            "isSimulated": false,
+            "anomaly_score": 0.12040963,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 17.422281,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 0,
+                "daylightExposureMinutes": 12.684817,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 5,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 2,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 68.234535,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-20",
+            "isSimulated": false,
+            "anomaly_score": 0.100422606,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 17.96615,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 2935.8975,
+                "daylightExposureMinutes": 47.136356,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 2,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 26.946383,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-26",
+            "isSimulated": false,
+            "anomaly_score": 0.12296085,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 6.540075,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0.5,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 0,
+                "activeMinutes": 0,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 2935.8975,
+                "daylightExposureMinutes": 47.136356,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 5,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 2,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 26.946383,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        },
+        {
+            "date": "2026-06-27",
+            "isSimulated": false,
+            "anomaly_score": -1,
+            "metrics": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "dailyDisplacementKm": 0,
+                "locationEntropy": 0,
+                "homeTimeRatio": 0,
+                "wakeTimeHour": 12,
+                "sleepTimeHour": 12,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 3480,
+                "activeMinutes": 34.8,
+                "keystrokeSpeed": 0,
+                "backspaceRatio": 0,
+                "scrollVelocity": 1529.0697,
+                "daylightExposureMinutes": 0,
+                "chargeRegularity": 0.72370064,
+                "chargeDurationHours": 0,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 0,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0,
+                "mediaCountToday": 0,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 0,
+                "conversationFrequency": 0
+            },
+            "detailed_logs": {
+                "app_breakdown": {},
+                "notifications_breakdown": {},
+                "app_launches_breakdown": {},
+                "bg_audio_breakdown": {}
+            }
+        }
+    ],
+    "today_live": {
+        "date": "2026-06-27",
+        "is_live_snapshot": true,
+        "isSimulated": false,
+        "metrics": {
+            "screenTimeHours": 0,
+            "unlockCount": 0,
+            "appLaunchCount": 0,
+            "notificationsToday": 0,
+            "socialAppRatio": 0,
+            "callsPerDay": 0,
+            "callDurationMinutes": 0,
+            "uniqueContacts": 0,
+            "dailyDisplacementKm": 0,
+            "locationEntropy": 0,
+            "homeTimeRatio": 0,
+            "wakeTimeHour": 12,
+            "sleepTimeHour": 12,
+            "sleepDurationHours": 0,
+            "dailyStepCount": 3480,
+            "activeMinutes": 34.8,
+            "keystrokeSpeed": 0,
+            "backspaceRatio": 0,
+            "scrollVelocity": 1529.0697,
+            "daylightExposureMinutes": 0,
+            "chargeRegularity": 0.72370064,
+            "chargeDurationHours": 0,
+            "upiTransactionsToday": 0,
+            "appUninstallsToday": 0,
+            "appInstallsToday": 0,
+            "calendarEventsToday": 0,
+            "mediaCountToday": 0,
+            "downloadsToday": 0,
+            "musicTimeMinutes": 0,
+            "conversationFrequency": 0
+        },
+        "location_snapshots": "17.3828533,78.5156567,1782539383536;17.3828533,78.5156567,1782539383617;17.3828798,78.5156877,1782571765209;17.3828798,78.5156877,1782571765214;17.3828798,78.5156877,1782571765379",
+        "charge_hours": 0,
+        "bg_audio_ms": 0,
+        "step_baseline": 0
+    },
+    "analysis_reports": [
+        {
+            "date": "2026-06-03",
+            "anomalyDetected": false,
+            "anomalyScore": 0.054532133,
+            "effectiveScore": 0.054532133,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-04",
+            "anomalyDetected": false,
+            "anomalyScore": 0.27844334,
+            "effectiveScore": 0.27844334,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-05",
+            "anomalyDetected": false,
+            "anomalyScore": 0.2710071,
+            "effectiveScore": 0.2710071,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-06",
+            "anomalyDetected": false,
+            "anomalyScore": 0.26695967,
+            "effectiveScore": 0.26695967,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-07",
+            "anomalyDetected": false,
+            "anomalyScore": 0.27521873,
+            "effectiveScore": 0.27521873,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-09",
+            "anomalyDetected": false,
+            "anomalyScore": 0.21916549,
+            "effectiveScore": 0.21916549,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-10",
+            "anomalyDetected": false,
+            "anomalyScore": 0.19517195,
+            "effectiveScore": 0.19517195,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-11",
+            "anomalyDetected": false,
+            "anomalyScore": 0.14301814,
+            "effectiveScore": 0.14301814,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-13",
+            "anomalyDetected": false,
+            "anomalyScore": 0.11166105,
+            "effectiveScore": 0.11166105,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-19",
+            "anomalyDetected": false,
+            "anomalyScore": 0.12040963,
+            "effectiveScore": 0.12040963,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-20",
+            "anomalyDetected": false,
+            "anomalyScore": 0.100422606,
+            "effectiveScore": 0.100422606,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        },
+        {
+            "date": "2026-06-26",
+            "anomalyDetected": false,
+            "anomalyScore": 0.12296085,
+            "effectiveScore": 0.12296085,
+            "l2Modifier": 1,
+            "coherence": 0,
+            "rhythmDissolution": 0,
+            "sessionIncoherence": 0,
+            "evidenceAccumulated": 0,
+            "anomalyMessage": "Normal operation",
+            "alertLevel": "green",
+            "sustainedDays": 0,
+            "prototypeMatch": "life_event",
+            "matchMessage": "Likely life event or situational stress — dismissed",
+            "prototypeConfidence": 0,
+            "gateResults": {
+                "is_contaminated": false,
+                "gate1_passed": false,
+                "gate2_passed": true,
+                "gate3_passed": true,
+                "action": "EXTEND_MONITORING",
+                "message": "gate1: FLAG_POSSIBLE_CONDITION; gate2: PASS; gate3: PASS"
+            }
+        }
+    ],
+    "dna_profile": {
+        "person_id": "patient@lumen.health",
+        "profile_version": "2.0",
+        "built_at": "2026-06-27T12:54:08.784335Z",
+        "days_of_data": 15,
+        "personality_vector": {
+            "means": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "conversationFrequency": 0,
+                "dailyDisplacementKm": 17.1989,
+                "locationEntropy": 0.3803,
+                "homeTimeRatio": 0.3939,
+                "wakeTimeHour": 11.9544,
+                "sleepTimeHour": 11.9544,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 9086.4667,
+                "activeMinutes": 82.9953,
+                "keystrokeSpeed": 3.2674,
+                "backspaceRatio": 0.0256,
+                "scrollVelocity": 858.5749,
+                "daylightExposureMinutes": 86.3484,
+                "chargeRegularity": 0.8549,
+                "chargeDurationHours": 0.1667,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 1.5333,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0.2667,
+                "mediaCountToday": 4.2,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 29.6268
+            },
+            "variances": {
+                "screenTimeHours": 0,
+                "unlockCount": 0,
+                "appLaunchCount": 0,
+                "notificationsToday": 0,
+                "socialAppRatio": 0,
+                "callsPerDay": 0,
+                "callDurationMinutes": 0,
+                "uniqueContacts": 0,
+                "conversationFrequency": 0,
+                "dailyDisplacementKm": 27.7746,
+                "locationEntropy": 0.7576,
+                "homeTimeRatio": 0.2541,
+                "wakeTimeHour": 0.1705,
+                "sleepTimeHour": 0.1705,
+                "sleepDurationHours": 0,
+                "dailyStepCount": 12256.4194,
+                "activeMinutes": 105.8494,
+                "keystrokeSpeed": 6.762,
+                "backspaceRatio": 0.0646,
+                "scrollVelocity": 1116.8124,
+                "daylightExposureMinutes": 62.8909,
+                "chargeRegularity": 0.1286,
+                "chargeDurationHours": 0.3761,
+                "upiTransactionsToday": 0,
+                "appUninstallsToday": 2.5785,
+                "appInstallsToday": 0,
+                "calendarEventsToday": 0.6799,
+                "mediaCountToday": 9.9412,
+                "downloadsToday": 0,
+                "musicTimeMinutes": 27.2599
+            },
+            "confidence": "MEDIUM",
+            "feature_count": 30,
+            "days_used": 15
+        },
+        "anchor_clusters": [
+            {
+                "cluster_id": 0,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 12,
+                    "sleepTimeHour": 12,
+                    "dailyDisplacementKm": 0.0489,
+                    "locationEntropy": 0,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 35902,
+                    "chargeRegularity": 1
+                },
+                "centroid_pca_2d": [
+                    0.8388,
+                    -1.6164,
+                    3.0714
+                ],
+                "radius": 1.25,
+                "member_count": 2,
+                "member_dates": [
+                    "2026-06-03",
+                    "2026-06-04"
+                ],
+                "method": "clinical_pca_meanshift",
+                "_pca_projection": {
+                    "features": [
+                        "sleepDurationHours",
+                        "wakeTimeHour",
+                        "sleepTimeHour",
+                        "dailyDisplacementKm",
+                        "locationEntropy",
+                        "callsPerDay",
+                        "conversationFrequency",
+                        "screenTimeHours",
+                        "unlockCount",
+                        "socialAppRatio",
+                        "dailyStepCount",
+                        "chargeRegularity"
+                    ],
+                    "norm_means": [
+                        0,
+                        11.954444,
+                        11.954444,
+                        17.198869,
+                        0.3803,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        9086.466667,
+                        0.854873
+                    ],
+                    "norm_stds": [
+                        1,
+                        0.170453,
+                        0.170453,
+                        27.774613,
+                        0.757569,
+                        1,
+                        1,
+                        1,
+                        1,
+                        1,
+                        12256.419411,
+                        0.128566
+                    ],
+                    "clinical_weights": [
+                        1.6,
+                        1.4,
+                        1.3,
+                        1.5,
+                        1.3,
+                        1.3,
+                        0.9,
+                        1.4,
+                        1.2,
+                        1.3,
+                        1.4,
+                        1.2
+                    ],
+                    "pca_mean": [
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0
+                    ],
+                    "pca_components": [
+                        [
+                            0,
+                            0.470245,
+                            0.436656,
+                            0.484171,
+                            0.417342,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0.251275,
+                            0.341271
+                        ],
+                        [
+                            0,
+                            -0.492663,
+                            -0.457473,
+                            0.536453,
+                            0.478919,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            -0.170349,
+                            0.042862
+                        ],
+                        [
+                            0,
+                            -0.267305,
+                            -0.248212,
+                            -0.15131,
+                            -0.085607,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0,
+                            0.822949,
+                            0.399339
+                        ]
+                    ]
+                }
+            },
+            {
+                "cluster_id": 1,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 12,
+                    "sleepTimeHour": 12,
+                    "dailyDisplacementKm": 97.4993,
+                    "locationEntropy": 2.0184,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 16532,
+                    "chargeRegularity": 1
+                },
+                "centroid_pca_2d": [
+                    4.2765,
+                    3.2426,
+                    0.1577
+                ],
+                "radius": 1.25,
+                "member_count": 1,
+                "member_dates": [
+                    "2026-06-05"
+                ],
+                "method": "clinical_pca_meanshift"
+            },
+            {
+                "cluster_id": 2,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 12,
+                    "sleepTimeHour": 12,
+                    "dailyDisplacementKm": 68.0835,
+                    "locationEntropy": 2.4194,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 5472,
+                    "chargeRegularity": 1
+                },
+                "centroid_pca_2d": [
+                    3.4771,
+                    2.9352,
+                    -0.7005
+                ],
+                "radius": 1.25,
+                "member_count": 1,
+                "member_dates": [
+                    "2026-06-06"
+                ],
+                "method": "clinical_pca_meanshift"
+            },
+            {
+                "cluster_id": 3,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 12,
+                    "sleepTimeHour": 12,
+                    "dailyDisplacementKm": 9.9247,
+                    "locationEntropy": 0.2533,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 7267,
+                    "chargeRegularity": 0.8962
+                },
+                "centroid_pca_2d": [
+                    0.1259,
+                    -0.6064,
+                    -0.1252
+                ],
+                "radius": 1.25,
+                "member_count": 5,
+                "member_dates": [
+                    "2026-06-07",
+                    "2026-06-08",
+                    "2026-06-09",
+                    "2026-06-10",
+                    "2026-06-13"
+                ],
+                "method": "clinical_pca_meanshift"
+            },
+            {
+                "cluster_id": 4,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 12,
+                    "sleepTimeHour": 12,
+                    "dailyDisplacementKm": 8.5358,
+                    "locationEntropy": 0,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 1230.8,
+                    "chargeRegularity": 0.7237
+                },
+                "centroid_pca_2d": [
+                    -0.8145,
+                    -0.8064,
+                    -1.287
+                ],
+                "radius": 1.25,
+                "member_count": 5,
+                "member_dates": [
+                    "2026-06-11",
+                    "2026-06-12",
+                    "2026-06-19",
+                    "2026-06-20",
+                    "2026-06-26"
+                ],
+                "method": "clinical_pca_meanshift"
+            },
+            {
+                "cluster_id": 5,
+                "centroid_features": {
+                    "sleepDurationHours": 0,
+                    "wakeTimeHour": 11.3167,
+                    "sleepTimeHour": 11.3167,
+                    "dailyDisplacementKm": 0,
+                    "locationEntropy": 0,
+                    "callsPerDay": 0,
+                    "conversationFrequency": 0,
+                    "screenTimeHours": 0,
+                    "unlockCount": 0,
+                    "socialAppRatio": 0,
+                    "dailyStepCount": 0,
+                    "chargeRegularity": 0.7237
+                },
+                "centroid_pca_2d": [
+                    -5.988,
+                    4.1195,
+                    1.4609
+                ],
+                "radius": 1.25,
+                "member_count": 1,
+                "member_dates": [
+                    "2026-06-27"
+                ],
+                "method": "clinical_pca_meanshift"
+            }
+        ],
+        "feature_importance": {
+            "screenTimeHours": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.4,
+                "group": "screen_app"
+            },
+            "unlockCount": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.2,
+                "group": "screen_app"
+            },
+            "appLaunchCount": {
+                "mean": 0,
+                "std": 0,
+                "weight": 0.9,
+                "group": "screen_app"
+            },
+            "notificationsToday": {
+                "mean": 0,
+                "std": 0,
+                "weight": 0.8,
+                "group": "screen_app"
+            },
+            "socialAppRatio": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.3,
+                "group": "screen_app"
+            },
+            "callsPerDay": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.3,
+                "group": "communication"
+            },
+            "callDurationMinutes": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.2,
+                "group": "communication"
+            },
+            "uniqueContacts": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.1,
+                "group": "communication"
+            },
+            "conversationFrequency": {
+                "mean": 0,
+                "std": 0,
+                "weight": 0.9,
+                "group": "communication"
+            },
+            "dailyDisplacementKm": {
+                "mean": 17.1989,
+                "std": 27.7746,
+                "weight": 1.5,
+                "group": "location"
+            },
+            "locationEntropy": {
+                "mean": 0.3803,
+                "std": 0.7576,
+                "weight": 1.3,
+                "group": "location"
+            },
+            "homeTimeRatio": {
+                "mean": 0.3939,
+                "std": 0.2541,
+                "weight": 1.2,
+                "group": "location"
+            },
+            "wakeTimeHour": {
+                "mean": 11.9544,
+                "std": 0.1705,
+                "weight": 1.4,
+                "group": "sleep"
+            },
+            "sleepTimeHour": {
+                "mean": 11.9544,
+                "std": 0.1705,
+                "weight": 1.3,
+                "group": "sleep"
+            },
+            "sleepDurationHours": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.6,
+                "group": "sleep"
+            },
+            "dailyStepCount": {
+                "mean": 9086.4667,
+                "std": 12256.4194,
+                "weight": 1.4,
+                "group": "activity"
+            },
+            "activeMinutes": {
+                "mean": 82.9953,
+                "std": 105.8494,
+                "weight": 1.2,
+                "group": "activity"
+            },
+            "keystrokeSpeed": {
+                "mean": 3.2674,
+                "std": 6.762,
+                "weight": 1.3,
+                "group": "dynamics"
+            },
+            "backspaceRatio": {
+                "mean": 0.0256,
+                "std": 0.0646,
+                "weight": 1.2,
+                "group": "dynamics"
+            },
+            "scrollVelocity": {
+                "mean": 858.5749,
+                "std": 1116.8124,
+                "weight": 1.1,
+                "group": "dynamics"
+            },
+            "daylightExposureMinutes": {
+                "mean": 86.3484,
+                "std": 62.8909,
+                "weight": 1.1,
+                "group": "circadian"
+            },
+            "chargeRegularity": {
+                "mean": 0.8549,
+                "std": 0.1286,
+                "weight": 1.2,
+                "group": "circadian"
+            },
+            "chargeDurationHours": {
+                "mean": 0.1667,
+                "std": 0.3761,
+                "weight": 0.8,
+                "group": "system"
+            },
+            "upiTransactionsToday": {
+                "mean": 0,
+                "std": 0,
+                "weight": 1.1,
+                "group": "behavioral"
+            },
+            "appUninstallsToday": {
+                "mean": 1.5333,
+                "std": 2.5785,
+                "weight": 0.9,
+                "group": "behavioral"
+            },
+            "appInstallsToday": {
+                "mean": 0,
+                "std": 0,
+                "weight": 0.8,
+                "group": "behavioral"
+            },
+            "calendarEventsToday": {
+                "mean": 0.2667,
+                "std": 0.6799,
+                "weight": 0.9,
+                "group": "engagement"
+            },
+            "mediaCountToday": {
+                "mean": 4.2,
+                "std": 9.9412,
+                "weight": 0.7,
+                "group": "engagement"
+            },
+            "downloadsToday": {
+                "mean": 0,
+                "std": 0,
+                "weight": 0.6,
+                "group": "engagement"
+            },
+            "musicTimeMinutes": {
+                "mean": 29.6268,
+                "std": 27.2599,
+                "weight": 0.9,
+                "group": "engagement"
+            }
+        },
+        "group_summaries": {
+            "screen_app": {
+                "features": [
+                    "screenTimeHours",
+                    "unlockCount",
+                    "appLaunchCount",
+                    "notificationsToday",
+                    "socialAppRatio"
+                ],
+                "avg_weight": 1.12,
+                "total_weight": 5.6
+            },
+            "communication": {
+                "features": [
+                    "callsPerDay",
+                    "callDurationMinutes",
+                    "uniqueContacts",
+                    "conversationFrequency"
+                ],
+                "avg_weight": 1.12,
+                "total_weight": 4.5
+            },
+            "location": {
+                "features": [
+                    "dailyDisplacementKm",
+                    "locationEntropy",
+                    "homeTimeRatio"
+                ],
+                "avg_weight": 1.33,
+                "total_weight": 4
+            },
+            "sleep": {
+                "features": [
+                    "wakeTimeHour",
+                    "sleepTimeHour",
+                    "sleepDurationHours"
+                ],
+                "avg_weight": 1.43,
+                "total_weight": 4.3
+            },
+            "activity": {
+                "features": [
+                    "dailyStepCount",
+                    "activeMinutes"
+                ],
+                "avg_weight": 1.3,
+                "total_weight": 2.6
+            },
+            "dynamics": {
+                "features": [
+                    "keystrokeSpeed",
+                    "backspaceRatio",
+                    "scrollVelocity"
+                ],
+                "avg_weight": 1.2,
+                "total_weight": 3.6
+            },
+            "circadian": {
+                "features": [
+                    "daylightExposureMinutes",
+                    "chargeRegularity"
+                ],
+                "avg_weight": 1.15,
+                "total_weight": 2.3
+            },
+            "system": {
+                "features": [
+                    "chargeDurationHours"
+                ],
+                "avg_weight": 0.8,
+                "total_weight": 0.8
+            },
+            "behavioral": {
+                "features": [
+                    "upiTransactionsToday",
+                    "appUninstallsToday",
+                    "appInstallsToday"
+                ],
+                "avg_weight": 0.93,
+                "total_weight": 2.8
+            },
+            "engagement": {
+                "features": [
+                    "calendarEventsToday",
+                    "mediaCountToday",
+                    "downloadsToday",
+                    "musicTimeMinutes"
+                ],
+                "avg_weight": 0.78,
+                "total_weight": 3.1
+            }
+        },
+        "pca_projection": {
+            "features": [
+                "sleepDurationHours",
+                "wakeTimeHour",
+                "sleepTimeHour",
+                "dailyDisplacementKm",
+                "locationEntropy",
+                "callsPerDay",
+                "conversationFrequency",
+                "screenTimeHours",
+                "unlockCount",
+                "socialAppRatio",
+                "dailyStepCount",
+                "chargeRegularity"
+            ],
+            "norm_means": [
+                0,
+                11.954444,
+                11.954444,
+                17.198869,
+                0.3803,
+                0,
+                0,
+                0,
+                0,
+                0,
+                9086.466667,
+                0.854873
+            ],
+            "norm_stds": [
+                1,
+                0.170453,
+                0.170453,
+                27.774613,
+                0.757569,
+                1,
+                1,
+                1,
+                1,
+                1,
+                12256.419411,
+                0.128566
+            ],
+            "clinical_weights": [
+                1.6,
+                1.4,
+                1.3,
+                1.5,
+                1.3,
+                1.3,
+                0.9,
+                1.4,
+                1.2,
+                1.3,
+                1.4,
+                1.2
+            ],
+            "pca_mean": [
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "pca_components": [
+                [
+                    0,
+                    0.470245,
+                    0.436656,
+                    0.484171,
+                    0.417342,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0.251275,
+                    0.341271
+                ],
+                [
+                    0,
+                    -0.492663,
+                    -0.457473,
+                    0.536453,
+                    0.478919,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    -0.170349,
+                    0.042862
+                ],
+                [
+                    0,
+                    -0.267305,
+                    -0.248212,
+                    -0.15131,
+                    -0.085607,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0.822949,
+                    0.399339
+                ]
+            ]
+        },
+        "app_dna_profiles": {},
+        "phone_dna": {
+            "first_pickup_hour_mean": 11.95,
+            "first_pickup_hour_std": 0.17,
+            "active_window_duration_mean": 0,
+            "active_window_duration_std": 0,
+            "pickup_burst_rate": 0,
+            "inter_pickup_interval_mean": 0,
+            "inter_pickup_interval_std": 0,
+            "session_duration_distribution": [
+                0,
+                0,
+                0,
+                0,
+                0
+            ],
+            "deep_session_ratio": 0,
+            "micro_session_ratio": 0,
+            "notification_open_rate": 0,
+            "notification_dismiss_rate": 0,
+            "notification_ignore_rate": 0,
+            "daily_rhythm_regularity": 1,
+            "weekday_weekend_delta": 0,
+            "app_cooccurrence_labels": [],
+            "app_cooccurrence_matrix": []
+        },
+        "texture_profiles": [],
+        "l2_anchor_clusters": [],
+        "l2_pca_projection": null
+    },
+    "onboarding_calibration": {
+        "phq9_score": 0,
+        "gad7_score": 0,
+        "life_events": 0,
+        "demographics": {
+            "name": "Meruem ",
+            "gender": "Male",
+            "age": 2580,
+            "profession": "Student",
+            "country": "United Kingdom",
+            "living_situation": "",
+            "is_student": false
+        },
+        "lifestyle_sliders": {
+            "screen": 3,
+            "communication": 3,
+            "movement": 3,
+            "sleep": 3,
+            "behavioral": 3,
+            "engagement": 3,
+            "travel": 3,
+            "social": 3,
+            "charging": 3,
+            "app_usage": 3
+        }
+    }
+}

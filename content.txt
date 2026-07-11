@@ -1,0 +1,132 @@
+Health features in your app
+Your app uses the following health permissions and must meet Health apps policy requirements. If you don't have any health features in your app, remove these permissions from your app's manifest.
+
+android.permission.ACTIVITY_RECOGNITION
+App features
+Tell us about the health features in your app (select all that apply)
+To learn more about what we mean by health features, and to understand which features may apply to your app, visit the Help Center
+
+Health and fitness
+
+Activity and fitness
+
+Nutrition and weight management
+
+Period tracking
+
+Sleep management
+
+Stress management, relaxation, mental acuity
+Medical
+
+Diseases and conditions management
+
+Clinical decision support
+
+Disease prevention and public health
+
+Emergency and first aid
+
+Healthcare services and management
+
+Medical device apps
+
+Mental and behavioral health
+
+Medical reference and education
+
+Medication and treatment management
+
+Physical therapy and rehabilitation
+
+Reproductive and sexual health
+Human subjects research
+
+Research studies, clinical trials, and patient communities
+Apps leading research studies must check Fit & Health Research to see if you are in scope for additional requirements
+Other
+
+Other
+
+Step 1 of 3, Health features in your app
+
+
+Health data permissions
+Your app requests access to specific health data permissions. Let us know why your app requires access to these permissions, and how you will use the data being requested. To learn more about approved use cases for Health Connect permissions, visit the Help Center.
+
+Activity
+1/1 permission completed
+Activity recognition
+Describe your app's use of the android.permission.ACTIVITY_RECOGNITION permission
+
+Our app uses activity to create a behavioral baseline for the person
+ 
+
+68 / 10000
+
+1
+Financial features in your app
+2
+Documentation
+Financial features in your app
+App features
+Select all of the financial features your app provides. This helps us to make sure the right teams review your submission.
+Banking and loans
+
+Personal loan direct lender
+
+Loan facilitator
+
+Payday loans
+
+Banking
+
+Line of credit
+
+Earned wage advances
+
+Microfinance banking
+Payments and transfers
+
+Mobile payments and digital wallets
+
+Money transfer and wire services
+Purchase agreements
+
+Rewards, points, frequent flier miles, and other incentives
+
+Buy now, pay later
+Trading and funds
+
+Cryptocurrency wallet
+
+Cryptocurrency exchange
+
+Tokenized digital asset (NFT) sales, trading, and awards
+
+Stock trading and portfolio management
+
+Crowdfunding and chit funds
+
+Prediction markets
+Learn more about the Prediction Markets pilot
+Support services
+
+Credit monitoring and reporting
+
+Financial advice
+
+Insurance
+Other
+
+Other
+
+Or
+
+My app doesn't provide any financial features  (i selected this)
+
+
+Government apps
+Ready to send for review
+Apr 26, 2026
+You told us that your app is not a government app (i told not government app)

@@ -1,0 +1,162 @@
+Issue details
+Play Console Requirements: Violation of Play Console Requirements
+Your app is not compliant with the Play Console Requirements policy.
+Some types of apps can only be distributed by organizations. You have selected an app category or declared your app offers certain features that require you to submit your app using an organization account.
+
+How to fix
+Read through the Play Console Requirements policy for more information.
+Make sure that your App content declarations accurately reflect your app’s features.
+Learn more about transferring apps to an organization account in the Help Center.
+For information about setting up an organization account, visit the Help Center.
+
+Is this helpful?
+App not available on Google Play
+Enforced on
+Jun 3
+Error, Jun 3
+Related resources
+Play Console Requirements
+Play Console features
+Need more help?
+Ask the Play Help Community
+Connect with our community of product experts
+Get support
+Write to Play's team of policy specialists
+
+
+Policy declarations that you've actioned are shown here. We'll let you know if we find any issues. To comply with Google Play policy, you should review the information you've provided regularly, and make sure that it's kept up to date.
+Declaration
+Last edited
+Data safety
+Ready to send for review
+Jun 3, 2026
+Data sharing
+App doesn’t collect or share data
+Security practices
+Data isn’t encrypted
+Accessibility services
+Ready to send for review
+Jun 3, 2026
+Declared permissions
+android.permission.BIND_ACCESSIBILITY_SERVICE
+Foreground service permissions
+Ready to send for review
+Jun 3, 2026
+Declared permissions
+android.permission.FOREGROUND_SERVICE_LOCATION
+android.permission.FOREGROUND_SERVICE_SPECIAL_USE
+Query all packages permission
+Ready to send for review
+Jun 3, 2026
+Declared permissions
+android.permission.QUERY_ALL_PACKAGES
+Location permissions
+Ready to send for review
+Jun 3, 2026
+Declared permissions
+android.permission.ACCESS_BACKGROUND_LOCATION
+android.permission.ACCESS_FINE_LOCATION
+android.permission.ACCESS_COARSE_LOCATION
+Photo and video permissions
+Ready to send for review
+Apr 29, 2026
+Declared permissions
+android.permission.READ_MEDIA_IMAGES
+android.permission.READ_MEDIA_VIDEO
+SMS and Call log permissions
+Ready to send for review
+Apr 29, 2026
+Declared permissions
+android.permission.READ_CALL_LOG
+android.permission.READ_SMS
+Health apps
+Ready to send for review
+Apr 27, 2026
+You told us about the health features in your app
+Advertising ID
+Ready to send for review
+Apr 26, 2026
+You told us that your app doesn't use advertising ID
+Financial features
+Ready to send for review
+Apr 26, 2026
+Financial features
+My app doesn't provide any financial features
+Government apps
+Ready to send for review
+Apr 26, 2026
+You told us that your app is not a government app
+Target audience and content
+Ready to send for review
+Apr 26, 2026
+Target age
+The target age group for your app is: 13-15, 16-17, 18 and over
+Content ratings
+Ready to send for review
+Apr 26, 2026
+Your ratings
+All ages, Classificação Indicativa (ClassInd), Brazil
+Everyone, Entertainment Software Rating Board (ESRB), North America
+PEGI 3, Pan-European Game Information (PEGI), Europe
+USK: All ages, Unterhaltungssoftware Selbstkontrolle (USK), Germany
+Rated for 3+, IARC Generic, Rest of world
+Rated for 3+, Google Play, Russia
+Rated for 3+, Google Play, South Korea
+Ads
+Ready to send for review
+Apr 26, 2026
+You told us that your app doesn't contain ads
+App access
+Ready to send for review
+Apr 26, 2026
+All functionality is available without special access
+Privacy policy
+Ready to send for review
+Apr 26, 2026
+https://github.com/Sparrow375/Mental-Health-Detection-ML/blob/main/Privacy%20Policy.md
+
+Changes not yet sent for review
+Your changes can now be sent for review. We may find additional issues when reviewing your app.
+Closed testing - alpha test
+Latest Alpha
+Start full rollout
+Countries / regions
+Add 176 countries / regions: Albania, Algeria, and 174 more
+Countries / regions
+Add rest of world
+Countries / regions
+Unsync from production
+Track status
+Resume track
+Testers
+Set testers to be managed by email lists: Avaneesh, Sriram
+Store listings
+English (United States) – en-US
+Default store listing
+Add language. Provided app name (Lumen), and all other required information.
+App content
+Content Rating
+Submit new questionnaire
+Target audience and content
+Update Target audience and content information. Target age is 13 and older.
+Privacy policy
+Set Privacy policy URL to https://github.com/Sparrow375/Mental-Health-Detection-ML/blob/main/Privacy%20Policy.md
+Ads declaration
+Update ads declaration
+Data safety
+Complete Data safety questionnaire
+Store settings
+App category
+Select app category (Health & Fitness app)
+What you've told us
+Items listed here aren't published, but we'll take them into account when reviewing your app:
+App content: 'Update SMS and Call log permissions' declaration
+App content: 'Update Background location permissions' declaration
+App content: Update App access instructions (All functionality available without special access)
+App content: 'Advertising ID' declaration updated
+App content: 'Query all packages' permission declaration updated
+App content: 'Government apps' declaration updated
+App content: 'Financial features' declaration updated
+App content: 'Foreground services' declaration updated
+App content: 'Health' declaration updated
+App content: 'Photo and video permissions' declaration updated

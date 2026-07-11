@@ -1,0 +1,1163 @@
+{
+    "profile": {
+        "userId": "default_user",
+        "baselineReady": true,
+        "exportDate": "2026-06-27T20:19:30"
+    },
+    "baseline": [
+        {
+            "feature": "appInstallsToday",
+            "mean": 0.16666667,
+            "std": 0.5330929,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "appLaunchCount",
+            "mean": 215.16667,
+            "std": 65.245705,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "appUninstallsToday",
+            "mean": 0,
+            "std": 0.13867505,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "backgroundAudioHours",
+            "mean": 0,
+            "std": 0.01,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "calendarEventsToday",
+            "mean": 0,
+            "std": 0.57177186,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "callDurationMinutes",
+            "mean": 29.153175,
+            "std": 22.969503,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "callsPerDay",
+            "mean": 13.571428,
+            "std": 9.187883,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "chargeDurationHours",
+            "mean": 0.5851541,
+            "std": 0.58174443,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "conversationFrequency",
+            "mean": 2.52695,
+            "std": 1.2114085,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "dailyDisplacementKm",
+            "mean": 8.424535,
+            "std": 13.856677,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "dailySteps",
+            "mean": 0,
+            "std": 0.01,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "darkDurationHours",
+            "mean": 13.113899,
+            "std": 3.0758612,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "downloadsToday",
+            "mean": 0,
+            "std": 0.6354889,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "homeTimeRatio",
+            "mean": 0.69913644,
+            "std": 0.31619725,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "locationEntropy",
+            "mean": 0.8198163,
+            "std": 0.87007695,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "mediaCountToday",
+            "mean": 7.952381,
+            "std": 43.66822,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "memoryUsagePercent",
+            "mean": 67.090096,
+            "std": 3.0488245,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "networkMobileMB",
+            "mean": 924.607,
+            "std": 1372.6886,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "networkWifiMB",
+            "mean": 2673.9717,
+            "std": 1809.4203,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "notificationsToday",
+            "mean": 341.42856,
+            "std": 94.67019,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "placesVisited",
+            "mean": 18.904762,
+            "std": 23.630278,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "screenTimeHours",
+            "mean": 6.032643,
+            "std": 3.7641683,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "sleepDurationHours",
+            "mean": 8.505817,
+            "std": 1.3537315,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "sleepTimeHour",
+            "mean": 22.85357,
+            "std": 0.82048213,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "socialAppRatio",
+            "mean": 0.6048975,
+            "std": 0.19090016,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "storageUsedGB",
+            "mean": 85.10999,
+            "std": 3.5419643,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "totalAppsCount",
+            "mean": 63,
+            "std": 4.130096,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "uniqueContacts",
+            "mean": 5.1904764,
+            "std": 3.1674309,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "unlockCount",
+            "mean": 71.35714,
+            "std": 18.684072,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "upiTransactionsToday",
+            "mean": 2.0238094,
+            "std": 4.09733,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        },
+        {
+            "feature": "wakeTimeHour",
+            "mean": 7.299999,
+            "std": 1.2172571,
+            "baselineStart": "2026-06-16",
+            "baselineEnd": "2026-06-16"
+        }
+    ],
+    "daily_history": [
+        {
+            "date": "2026-04-23",
+            "screenTimeHours": 6.3975744,
+            "sleepDurationHours": 7.9433546,
+            "callsPerDay": 18,
+            "dailyDisplacementKm": 0,
+            "socialAppRatio": 0.44655132,
+            "wakeTimeHour": 8.033334,
+            "homeTimeRatio": 1,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-04-24",
+            "screenTimeHours": 5.564949,
+            "sleepDurationHours": 7.9750576,
+            "callsPerDay": 18,
+            "dailyDisplacementKm": 24.757158,
+            "socialAppRatio": 0.7624006,
+            "wakeTimeHour": 7.95,
+            "homeTimeRatio": 0.27701613,
+            "uniqueContacts": 13
+        },
+        {
+            "date": "2026-04-25",
+            "screenTimeHours": 5.39308,
+            "sleepDurationHours": 10.110914,
+            "callsPerDay": 9,
+            "dailyDisplacementKm": 0.0036704456,
+            "socialAppRatio": 0.39979944,
+            "wakeTimeHour": 8.8,
+            "homeTimeRatio": 0.999184,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-04-26",
+            "screenTimeHours": 6.842651,
+            "sleepDurationHours": 6.1693954,
+            "callsPerDay": 20,
+            "dailyDisplacementKm": 8.405622,
+            "socialAppRatio": 0.5712344,
+            "wakeTimeHour": 5.6833334,
+            "homeTimeRatio": 0.80900013,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-04-27",
+            "screenTimeHours": 7.461303,
+            "sleepDurationHours": 7.403533,
+            "callsPerDay": 30,
+            "dailyDisplacementKm": 7.003664,
+            "socialAppRatio": 0.51892877,
+            "wakeTimeHour": 5.866667,
+            "homeTimeRatio": 0.7743358,
+            "uniqueContacts": 13
+        },
+        {
+            "date": "2026-04-28",
+            "screenTimeHours": 4.9483376,
+            "sleepDurationHours": 9.748129,
+            "callsPerDay": 19,
+            "dailyDisplacementKm": 47.73537,
+            "socialAppRatio": 0.38219872,
+            "wakeTimeHour": 8.283334,
+            "homeTimeRatio": 0.27914244,
+            "uniqueContacts": 7
+        },
+        {
+            "date": "2026-04-29",
+            "screenTimeHours": 3.7513535,
+            "sleepDurationHours": 10.018624,
+            "callsPerDay": 33,
+            "dailyDisplacementKm": 0.1840507,
+            "socialAppRatio": 0.36294335,
+            "wakeTimeHour": 8.066667,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 11
+        },
+        {
+            "date": "2026-05-01",
+            "screenTimeHours": 3.7513535,
+            "sleepDurationHours": 10.018624,
+            "callsPerDay": 33,
+            "dailyDisplacementKm": 0.1840507,
+            "socialAppRatio": 0.36294335,
+            "wakeTimeHour": 8.066667,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 11
+        },
+        {
+            "date": "2026-05-02",
+            "screenTimeHours": 4.6017036,
+            "sleepDurationHours": 8.330277,
+            "callsPerDay": 12,
+            "dailyDisplacementKm": 3.2734854,
+            "socialAppRatio": 0.6873591,
+            "wakeTimeHour": 6.8166666,
+            "homeTimeRatio": 0.86774176,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-03",
+            "screenTimeHours": 5.2646966,
+            "sleepDurationHours": 6.1388173,
+            "callsPerDay": 23,
+            "dailyDisplacementKm": 2.7032046,
+            "socialAppRatio": 0.6918866,
+            "wakeTimeHour": 6.6666665,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-04",
+            "screenTimeHours": 5.2646966,
+            "sleepDurationHours": 6.1388173,
+            "callsPerDay": 23,
+            "dailyDisplacementKm": 2.7032046,
+            "socialAppRatio": 0.6918866,
+            "wakeTimeHour": 6.6666665,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-05",
+            "screenTimeHours": 7.983517,
+            "sleepDurationHours": 10.299119,
+            "callsPerDay": 19,
+            "dailyDisplacementKm": 0,
+            "socialAppRatio": 0.6248374,
+            "wakeTimeHour": 8.933333,
+            "homeTimeRatio": 1,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-06",
+            "screenTimeHours": 7.7506957,
+            "sleepDurationHours": 8.202065,
+            "callsPerDay": 7,
+            "dailyDisplacementKm": 2.1408117,
+            "socialAppRatio": 0.5008033,
+            "wakeTimeHour": 7.2833333,
+            "homeTimeRatio": 0.9732799,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-07",
+            "screenTimeHours": 7.0117073,
+            "sleepDurationHours": 7.103332,
+            "callsPerDay": 24,
+            "dailyDisplacementKm": 4.1144075,
+            "socialAppRatio": 0.73435175,
+            "wakeTimeHour": 6.266667,
+            "homeTimeRatio": 0.8892822,
+            "uniqueContacts": 9
+        },
+        {
+            "date": "2026-05-08",
+            "screenTimeHours": 4.95478,
+            "sleepDurationHours": 7.152492,
+            "callsPerDay": 11,
+            "dailyDisplacementKm": 10.549212,
+            "socialAppRatio": 0.8529286,
+            "wakeTimeHour": 5.7,
+            "homeTimeRatio": 0.8969117,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-09",
+            "screenTimeHours": 11.721483,
+            "sleepDurationHours": 8.083905,
+            "callsPerDay": 8,
+            "dailyDisplacementKm": 14.187623,
+            "socialAppRatio": 0.52618027,
+            "wakeTimeHour": 6.15,
+            "homeTimeRatio": 0.68971646,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-05-10",
+            "screenTimeHours": 4.884988,
+            "sleepDurationHours": 7.5746145,
+            "callsPerDay": 9,
+            "dailyDisplacementKm": 1.8947241,
+            "socialAppRatio": 0.61485213,
+            "wakeTimeHour": 7.4166665,
+            "homeTimeRatio": 0.97188514,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-11",
+            "screenTimeHours": 5.5685935,
+            "sleepDurationHours": 7.480553,
+            "callsPerDay": 15,
+            "dailyDisplacementKm": 12.773493,
+            "socialAppRatio": 0.62444913,
+            "wakeTimeHour": 5.1833334,
+            "homeTimeRatio": 0.6867991,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-05-12",
+            "screenTimeHours": 3.8101814,
+            "sleepDurationHours": 8.485243,
+            "callsPerDay": 9,
+            "dailyDisplacementKm": 6.705274,
+            "socialAppRatio": 0.75757575,
+            "wakeTimeHour": 6.5166664,
+            "homeTimeRatio": 0.8693615,
+            "uniqueContacts": 2
+        },
+        {
+            "date": "2026-05-13",
+            "screenTimeHours": 4.754498,
+            "sleepDurationHours": 8.289233,
+            "callsPerDay": 5,
+            "dailyDisplacementKm": 8.216869,
+            "socialAppRatio": 0.8933302,
+            "wakeTimeHour": 7.1833334,
+            "homeTimeRatio": 0.89449006,
+            "uniqueContacts": 2
+        },
+        {
+            "date": "2026-05-14",
+            "screenTimeHours": 7.2326427,
+            "sleepDurationHours": 7.5486493,
+            "callsPerDay": 5,
+            "dailyDisplacementKm": 8.680055,
+            "socialAppRatio": 0.6533986,
+            "wakeTimeHour": 5.883333,
+            "homeTimeRatio": 0.871022,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-15",
+            "screenTimeHours": 5.216408,
+            "sleepDurationHours": 6.85894,
+            "callsPerDay": 13,
+            "dailyDisplacementKm": 1.4948492,
+            "socialAppRatio": 0.75412375,
+            "wakeTimeHour": 6.233333,
+            "homeTimeRatio": 0.94748783,
+            "uniqueContacts": 7
+        },
+        {
+            "date": "2026-05-16",
+            "screenTimeHours": 4.939271,
+            "sleepDurationHours": 8.857045,
+            "callsPerDay": 13,
+            "dailyDisplacementKm": 21.03446,
+            "socialAppRatio": 0.811747,
+            "wakeTimeHour": 6.383333,
+            "homeTimeRatio": 0.7323137,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-17",
+            "screenTimeHours": 6.0259895,
+            "sleepDurationHours": 6.976023,
+            "callsPerDay": 8,
+            "dailyDisplacementKm": 1.7877406,
+            "socialAppRatio": 0.7178335,
+            "wakeTimeHour": 7.25,
+            "homeTimeRatio": 0.96251976,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-18",
+            "screenTimeHours": 4.7308965,
+            "sleepDurationHours": 9.530101,
+            "callsPerDay": 10,
+            "dailyDisplacementKm": 1.3670194,
+            "socialAppRatio": 0.63134766,
+            "wakeTimeHour": 8.133333,
+            "homeTimeRatio": 0.92798376,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-19",
+            "screenTimeHours": 5.8401,
+            "sleepDurationHours": 6.564754,
+            "callsPerDay": 5,
+            "dailyDisplacementKm": 4.1975245,
+            "socialAppRatio": 0.70179963,
+            "wakeTimeHour": 6.0333333,
+            "homeTimeRatio": 0.86165,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-20",
+            "screenTimeHours": 12.26895,
+            "sleepDurationHours": 8.548359,
+            "callsPerDay": 9,
+            "dailyDisplacementKm": 7.3800645,
+            "socialAppRatio": 0.315175,
+            "wakeTimeHour": 6.4,
+            "homeTimeRatio": 0.6925894,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-21",
+            "screenTimeHours": 6.9198194,
+            "sleepDurationHours": 7.261506,
+            "callsPerDay": 6,
+            "dailyDisplacementKm": 6.2785387,
+            "socialAppRatio": 0.72777796,
+            "wakeTimeHour": 6.5,
+            "homeTimeRatio": 0.7587764,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-22",
+            "screenTimeHours": 10.972476,
+            "sleepDurationHours": 9.398907,
+            "callsPerDay": 11,
+            "dailyDisplacementKm": 6.982935,
+            "socialAppRatio": 0.8511958,
+            "wakeTimeHour": 8.866667,
+            "homeTimeRatio": 0.59850067,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-23",
+            "screenTimeHours": 5.660312,
+            "sleepDurationHours": 10.695502,
+            "callsPerDay": 9,
+            "dailyDisplacementKm": 9.015268,
+            "socialAppRatio": 0.7399107,
+            "wakeTimeHour": 10.1,
+            "homeTimeRatio": 0.92091775,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-24",
+            "screenTimeHours": 7.273952,
+            "sleepDurationHours": 8.853805,
+            "callsPerDay": 3,
+            "dailyDisplacementKm": 14.061793,
+            "socialAppRatio": 0.34108782,
+            "wakeTimeHour": 7.25,
+            "homeTimeRatio": 0.8899941,
+            "uniqueContacts": 2
+        },
+        {
+            "date": "2026-05-25",
+            "screenTimeHours": 6.424252,
+            "sleepDurationHours": 8.034394,
+            "callsPerDay": 6,
+            "dailyDisplacementKm": 3.334711,
+            "socialAppRatio": 0.7343492,
+            "wakeTimeHour": 6.3333335,
+            "homeTimeRatio": 0.8730475,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-26",
+            "screenTimeHours": 2.5125737,
+            "sleepDurationHours": 8.354606,
+            "callsPerDay": 6,
+            "dailyDisplacementKm": 45.352516,
+            "socialAppRatio": 0.27530637,
+            "wakeTimeHour": 6.65,
+            "homeTimeRatio": 0.30875137,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-27",
+            "screenTimeHours": 4.2059364,
+            "sleepDurationHours": 10.252665,
+            "callsPerDay": 5,
+            "dailyDisplacementKm": 1.5652021,
+            "socialAppRatio": 0.4133175,
+            "wakeTimeHour": 10.433333,
+            "homeTimeRatio": 0.43596667,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-05-28",
+            "screenTimeHours": 23.372292,
+            "sleepDurationHours": 4.6741877,
+            "callsPerDay": 12,
+            "dailyDisplacementKm": 48.121265,
+            "socialAppRatio": 0.15081576,
+            "wakeTimeHour": 6.0833335,
+            "homeTimeRatio": 0.5185664,
+            "uniqueContacts": 4
+        },
+        {
+            "date": "2026-05-29",
+            "screenTimeHours": 6.3722,
+            "sleepDurationHours": 8.395894,
+            "callsPerDay": 18,
+            "dailyDisplacementKm": 5.5657587,
+            "socialAppRatio": 0.7025657,
+            "wakeTimeHour": 7.3166666,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-05-31",
+            "screenTimeHours": 6.3722,
+            "sleepDurationHours": 8.395894,
+            "callsPerDay": 18,
+            "dailyDisplacementKm": 5.5657587,
+            "socialAppRatio": 0.7025657,
+            "wakeTimeHour": 7.3166666,
+            "homeTimeRatio": 0,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-06-01",
+            "screenTimeHours": 4.068209,
+            "sleepDurationHours": 9.843328,
+            "callsPerDay": 15,
+            "dailyDisplacementKm": 4.064493,
+            "socialAppRatio": 0.67580324,
+            "wakeTimeHour": 9.616667,
+            "homeTimeRatio": 0.7427121,
+            "uniqueContacts": 9
+        },
+        {
+            "date": "2026-06-02",
+            "screenTimeHours": 5.217399,
+            "sleepDurationHours": 7.7841887,
+            "callsPerDay": 4,
+            "dailyDisplacementKm": 2.6724327,
+            "socialAppRatio": 0.59095174,
+            "wakeTimeHour": 6.75,
+            "homeTimeRatio": 0.87671626,
+            "uniqueContacts": 2
+        },
+        {
+            "date": "2026-06-03",
+            "screenTimeHours": 5.0237613,
+            "sleepDurationHours": 10.358377,
+            "callsPerDay": 7,
+            "dailyDisplacementKm": 5.783116,
+            "socialAppRatio": 0.746793,
+            "wakeTimeHour": 8.533334,
+            "homeTimeRatio": 0.8515958,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-06-04",
+            "screenTimeHours": 17.256699,
+            "sleepDurationHours": 7.065052,
+            "callsPerDay": 8,
+            "dailyDisplacementKm": 17.771914,
+            "socialAppRatio": 0.20617694,
+            "wakeTimeHour": 6,
+            "homeTimeRatio": 0.7614327,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-06-05",
+            "screenTimeHours": 6.837445,
+            "sleepDurationHours": 10.999161,
+            "callsPerDay": 12,
+            "dailyDisplacementKm": 11.16777,
+            "socialAppRatio": 0.85011053,
+            "wakeTimeHour": 8.966666,
+            "homeTimeRatio": 0.83742416,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-06-06",
+            "screenTimeHours": 5.9000554,
+            "sleepDurationHours": 10.052404,
+            "callsPerDay": 7,
+            "dailyDisplacementKm": 8.431516,
+            "socialAppRatio": 0.7387733,
+            "wakeTimeHour": 9.116667,
+            "homeTimeRatio": 0.81697166,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-06-07",
+            "screenTimeHours": 6.951941,
+            "sleepDurationHours": 9.199405,
+            "callsPerDay": 33,
+            "dailyDisplacementKm": 4.0179086,
+            "socialAppRatio": 0.578922,
+            "wakeTimeHour": 7.266667,
+            "homeTimeRatio": 0.8730081,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-06-08",
+            "screenTimeHours": 5.4621677,
+            "sleepDurationHours": 9.33585,
+            "callsPerDay": 24,
+            "dailyDisplacementKm": 38.904015,
+            "socialAppRatio": 0.25242114,
+            "wakeTimeHour": 7.85,
+            "homeTimeRatio": 0.33176085,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-06-09",
+            "screenTimeHours": 4.814411,
+            "sleepDurationHours": 9.974792,
+            "callsPerDay": 18,
+            "dailyDisplacementKm": 41.332268,
+            "socialAppRatio": 0.46113744,
+            "wakeTimeHour": 8.416667,
+            "homeTimeRatio": 0.3341486,
+            "uniqueContacts": 9
+        },
+        {
+            "date": "2026-06-10",
+            "screenTimeHours": 17.7749,
+            "sleepDurationHours": 8.213775,
+            "callsPerDay": 16,
+            "dailyDisplacementKm": 41.863483,
+            "socialAppRatio": 0.16932446,
+            "wakeTimeHour": 7.3,
+            "homeTimeRatio": 0.38194117,
+            "uniqueContacts": 9
+        },
+        {
+            "date": "2026-06-11",
+            "screenTimeHours": 5.04229,
+            "sleepDurationHours": 9.574101,
+            "callsPerDay": 48,
+            "dailyDisplacementKm": 36.38266,
+            "socialAppRatio": 0.467546,
+            "wakeTimeHour": 8.333333,
+            "homeTimeRatio": 0.37184948,
+            "uniqueContacts": 15
+        },
+        {
+            "date": "2026-06-12",
+            "screenTimeHours": 7.445519,
+            "sleepDurationHours": 8.90212,
+            "callsPerDay": 24,
+            "dailyDisplacementKm": 8.200073,
+            "socialAppRatio": 0.7631191,
+            "wakeTimeHour": 8.083333,
+            "homeTimeRatio": 0.7855732,
+            "uniqueContacts": 10
+        },
+        {
+            "date": "2026-06-13",
+            "screenTimeHours": 6.124341,
+            "sleepDurationHours": 7.9364395,
+            "callsPerDay": 21,
+            "dailyDisplacementKm": 4.7109365,
+            "socialAppRatio": 0.5296716,
+            "wakeTimeHour": 6.4,
+            "homeTimeRatio": 0.8759387,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-06-14",
+            "screenTimeHours": 7.5666976,
+            "sleepDurationHours": 8.899155,
+            "callsPerDay": 15,
+            "dailyDisplacementKm": 1.9848353,
+            "socialAppRatio": 0.7428468,
+            "wakeTimeHour": 6.85,
+            "homeTimeRatio": 0.7737842,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-06-15",
+            "screenTimeHours": 4.1507435,
+            "sleepDurationHours": 9.529642,
+            "callsPerDay": 15,
+            "dailyDisplacementKm": 1.9983451,
+            "socialAppRatio": 0.71369624,
+            "wakeTimeHour": 9.133333,
+            "homeTimeRatio": 0.5149888,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-06-16",
+            "screenTimeHours": 6.083575,
+            "sleepDurationHours": 10.767259,
+            "callsPerDay": 29,
+            "dailyDisplacementKm": 10.4853,
+            "socialAppRatio": 0.7460077,
+            "wakeTimeHour": 7.45,
+            "homeTimeRatio": 0.4458972,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-06-17",
+            "screenTimeHours": 4.42498,
+            "sleepDurationHours": 11.135439,
+            "callsPerDay": 38,
+            "dailyDisplacementKm": 10.622751,
+            "socialAppRatio": 0.42120653,
+            "wakeTimeHour": 9.733334,
+            "homeTimeRatio": 0.44843012,
+            "uniqueContacts": 9
+        },
+        {
+            "date": "2026-06-18",
+            "screenTimeHours": 8.838236,
+            "sleepDurationHours": 9.114535,
+            "callsPerDay": 17,
+            "dailyDisplacementKm": 0.5749731,
+            "socialAppRatio": 0.79592067,
+            "wakeTimeHour": 7.6833334,
+            "homeTimeRatio": 0.7635443,
+            "uniqueContacts": 3
+        },
+        {
+            "date": "2026-06-19",
+            "screenTimeHours": 6.2134643,
+            "sleepDurationHours": 7.697531,
+            "callsPerDay": 23,
+            "dailyDisplacementKm": 2.2218099,
+            "socialAppRatio": 0.7031959,
+            "wakeTimeHour": 7.6833334,
+            "homeTimeRatio": 0.62528974,
+            "uniqueContacts": 2
+        },
+        {
+            "date": "2026-06-20",
+            "screenTimeHours": 4.711511,
+            "sleepDurationHours": 10.028209,
+            "callsPerDay": 23,
+            "dailyDisplacementKm": 33.8229,
+            "socialAppRatio": 0.42015743,
+            "wakeTimeHour": 8.283334,
+            "homeTimeRatio": 0.24966338,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-06-21",
+            "screenTimeHours": 7.035921,
+            "sleepDurationHours": 8.594118,
+            "callsPerDay": 21,
+            "dailyDisplacementKm": 28.729235,
+            "socialAppRatio": 0.6783741,
+            "wakeTimeHour": 6.7166667,
+            "homeTimeRatio": 0.6949021,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-06-22",
+            "screenTimeHours": 8.130766,
+            "sleepDurationHours": 8.1849575,
+            "callsPerDay": 33,
+            "dailyDisplacementKm": 13.709099,
+            "socialAppRatio": 0.7332262,
+            "wakeTimeHour": 6.4333334,
+            "homeTimeRatio": 0.68910867,
+            "uniqueContacts": 10
+        },
+        {
+            "date": "2026-06-23",
+            "screenTimeHours": 5.3893924,
+            "sleepDurationHours": 11.365191,
+            "callsPerDay": 19,
+            "dailyDisplacementKm": 24.77635,
+            "socialAppRatio": 0.7052955,
+            "wakeTimeHour": 10.2,
+            "homeTimeRatio": 0.49828738,
+            "uniqueContacts": 6
+        },
+        {
+            "date": "2026-06-24",
+            "screenTimeHours": 7.17003,
+            "sleepDurationHours": 8.5925,
+            "callsPerDay": 20,
+            "dailyDisplacementKm": 2.09474,
+            "socialAppRatio": 0.58115685,
+            "wakeTimeHour": 7.016667,
+            "homeTimeRatio": 0.870944,
+            "uniqueContacts": 5
+        },
+        {
+            "date": "2026-06-25",
+            "screenTimeHours": 3.4528837,
+            "sleepDurationHours": 7.310882,
+            "callsPerDay": 20,
+            "dailyDisplacementKm": 41.792385,
+            "socialAppRatio": 0.7457507,
+            "wakeTimeHour": 6,
+            "homeTimeRatio": 0.345322,
+            "uniqueContacts": 8
+        },
+        {
+            "date": "2026-06-26",
+            "screenTimeHours": 9.2790365,
+            "sleepDurationHours": 8.787498,
+            "callsPerDay": 6,
+            "dailyDisplacementKm": 4.3701773,
+            "socialAppRatio": 0.511478,
+            "wakeTimeHour": 6.9333334,
+            "homeTimeRatio": 0.6399416,
+            "uniqueContacts": 2
+        }
+    ],
+    "analysis_reports": [
+        {
+            "date": "2026-05-22",
+            "anomalyScore": 0.18646133,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-23",
+            "anomalyScore": 0.4731127,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-24",
+            "anomalyScore": 0.48200208,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-25",
+            "anomalyScore": 0.103196524,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-26",
+            "anomalyScore": 0.21545279,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-27",
+            "anomalyScore": 0.23694603,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-28",
+            "anomalyScore": 0.71032965,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-05-29",
+            "anomalyScore": 0.10205939,
+            "alertLevel": "green",
+            "prototypeMatch": "rapid_cycling"
+        },
+        {
+            "date": "2026-05-29",
+            "anomalyScore": 0.12959088,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-01",
+            "anomalyScore": 0.36528677,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-02",
+            "anomalyScore": 0.10795981,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-03",
+            "anomalyScore": 0.32928404,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-04",
+            "anomalyScore": 0.19256215,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-05",
+            "anomalyScore": 0.17328756,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-06",
+            "anomalyScore": 0.4293453,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-07",
+            "anomalyScore": 0.15101731,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-08",
+            "anomalyScore": 0.4957583,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-09",
+            "anomalyScore": 0.51963055,
+            "alertLevel": "green",
+            "prototypeMatch": "mixed_pattern"
+        },
+        {
+            "date": "2026-06-10",
+            "anomalyScore": 0.23755409,
+            "alertLevel": "green",
+            "prototypeMatch": "mixed_pattern"
+        },
+        {
+            "date": "2026-06-11",
+            "anomalyScore": 0.63687444,
+            "alertLevel": "green",
+            "prototypeMatch": "rapid_cycling"
+        },
+        {
+            "date": "2026-06-12",
+            "anomalyScore": 0.13125442,
+            "alertLevel": "green",
+            "prototypeMatch": "rapid_cycling"
+        },
+        {
+            "date": "2026-06-12",
+            "anomalyScore": 0.131163,
+            "alertLevel": "green",
+            "prototypeMatch": "rapid_cycling"
+        },
+        {
+            "date": "2026-06-13",
+            "anomalyScore": 0.104875356,
+            "alertLevel": "green",
+            "prototypeMatch": "rapid_cycling"
+        },
+        {
+            "date": "2026-06-14",
+            "anomalyScore": 0.139053,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-15",
+            "anomalyScore": 0.43511733,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-16",
+            "anomalyScore": 0.1419139,
+            "alertLevel": "green",
+            "prototypeMatch": "insufficient_data"
+        },
+        {
+            "date": "2026-06-17",
+            "anomalyScore": 0.2169086,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-18",
+            "anomalyScore": 0.45064646,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-19",
+            "anomalyScore": 0.500143,
+            "alertLevel": "green",
+            "prototypeMatch": "mixed_pattern"
+        },
+        {
+            "date": "2026-06-20",
+            "anomalyScore": 0.16216539,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-21",
+            "anomalyScore": 0.1265058,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-22",
+            "anomalyScore": 0.13497028,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-23",
+            "anomalyScore": 0.17683181,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-24",
+            "anomalyScore": 0.13354026,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-25",
+            "anomalyScore": 0.16426674,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        },
+        {
+            "date": "2026-06-26",
+            "anomalyScore": 0.12840718,
+            "alertLevel": "green",
+            "prototypeMatch": "stable"
+        }
+    ],
+    "checkins": {
+        "checked_2026-04-16": true,
+        "monthly_phq_total_2026-04-16": 2,
+        "pulse_mood_2026-06-01": 3,
+        "monthly_note_2026-04-16": "",
+        "weekly_done_2026-04-16": true,
+        "last_checkin": 1780315419001,
+        "monthly_phq_2026-04-16": "1,0,0,1,0",
+        "pulse_energy_2026-04-16": 3,
+        "life_event_note_2026-04-16": "",
+        "checked_2026-06-01": true,
+        "pulse_note_2026-06-01": "",
+        "pulse_social_2026-04-16": 3,
+        "pulse_energy_2026-06-01": 4,
+        "pulse_social_2026-06-01": 2,
+        "monthly_gad_total_2026-04-16": 0,
+        "weekly_done_2026-06-01": true,
+        "life_event_2026-04-16": "no",
+        "last_monthly_checkin": 1776310070542,
+        "monthly_done_2026-04-16": true,
+        "monthly_gad_2026-04-16": "0,0,0",
+        "pulse_note_2026-04-16": "",
+        "pulse_mood_2026-04-16": 4
+    }
+}

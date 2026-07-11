@@ -29,6 +29,14 @@
 - [x] **T48**: Implement Digital Detox Timer with screen-off tracking and records.
 - [x] **T49**: Implement Mood × Behavior Correlation Cards.
 
+## Sprint: Adaptive Wellness & Bug Fixes (Completed)
+
+- [x] **T-A**: Fix nav-bar button overlap on all 5 full-screen dialogs (`WindDownOverlay`, `DigitalDetoxTimerOverlay`, `FullScreenBreathingScreen` x2, `WeeklyDigestDialog`) — added `rememberNavBarPadding()` helper that reads from the host Activity's `rootWindowInsets`, applied as explicit bottom padding in each dialog since `navigationBarsPadding()` returns 0 inside Dialog windows.
+- [x] **T-B**: Added functional "Share Feedback" card (`Intent.ACTION_SENDTO` → `support@lumenapp.health`) to `SettingsScreen` in the release build, placed above Privacy Policy card.
+- [x] **T-C**: Added permission-aware status note under Relational Frequency and Interaction Tempo insight cards — shows ⚠ if service is off (with instructions) or 📡 if service is on but data is still accumulating.
+- [x] **T-D**: Replaced hard-coded 11PM wind-down target with adaptive circadian baseline — reads last 14 days of checkin `sleep_time` history, averages it (≥3 entries required), falls back to 23:00 for new users, respects Habit Goals override if set. Card subtitle text adapts to tell user whether it's personal or default.
+- [x] **T-E**: Updated `context.md` and `task_list.md`. Build verified: `assembleRelease` → **BUILD SUCCESSFUL**.
+
 ## Sprint: UX Polish & Phase 3 Extensions (Completed)
 - [x] **T50**: Fix guided box breathing state machine (resolve exhale->hold loop and duplicate volume adjustments).
 - [x] **T51**: Fix system back button navigation handler for inner tabs in Insights (activeDetailSector).

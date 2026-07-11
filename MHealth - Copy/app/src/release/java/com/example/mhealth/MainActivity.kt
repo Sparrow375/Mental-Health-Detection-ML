@@ -86,8 +86,21 @@ import android.location.Geocoder
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.material.icons.automirrored.filled.ShowChart
+import com.google.android.play.core.appupdate.AppUpdateManagerFactory
+import com.google.android.play.core.appupdate.AppUpdateManager
+import com.google.android.play.core.install.model.UpdateAvailability
+import com.google.android.play.core.install.model.AppUpdateType
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 
 class MainActivity : ComponentActivity() {
+    private lateinit var appUpdateManager: AppUpdateManager
+    private val UPDATE_REQUEST_CODE = 999
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -99,9 +112,65 @@ class MainActivity : ComponentActivity() {
             DataRepository.setNavigationRoute(it)
             intent.removeExtra("navigate_to")
         }
+
+        // Start checking for updates in release build
+        checkForUpdates()
         
         setContent {
             LumenAppShell()
+        }
+    }
+
+    private fun checkForUpdates() {
+        appUpdateManager = AppUpdateManagerFactory.create(this)
+        val appUpdateInfoTask = appUpdateManager.appUpdateInfo
+
+        appUpdateInfoTask.addOnSuccessListener { appUpdateInfo ->
+            if (appUpdateInfo.updateAvailability() == UpdateAvailability.UPDATE_AVAILABLE
+                && appUpdateInfo.isUpdateTypeAllowed(AppUpdateType.IMMEDIATE)
+            ) {
+                try {
+                    appUpdateManager.startUpdateFlowForResult(
+                        appUpdateInfo,
+                        AppUpdateType.IMMEDIATE,
+                        this,
+                        UPDATE_REQUEST_CODE
+                    )
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Failed to start update flow: ${e.message}")
+                }
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (::appUpdateManager.isInitialized) {
+            appUpdateManager.appUpdateInfo.addOnSuccessListener { appUpdateInfo ->
+                if (appUpdateInfo.updateAvailability() == UpdateAvailability.DEVELOPER_TRIGGERED_UPDATE_IN_PROGRESS) {
+                    try {
+                        appUpdateManager.startUpdateFlowForResult(
+                            appUpdateInfo,
+                            AppUpdateType.IMMEDIATE,
+                            this,
+                            UPDATE_REQUEST_CODE
+                        )
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Failed to resume update flow: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == UPDATE_REQUEST_CODE) {
+            if (resultCode != Activity.RESULT_OK) {
+                Log.e("MainActivity", "Update flow failed or was cancelled by user. Result code: $resultCode")
+                Toast.makeText(this, "A critical update is required to continue using Lumen.", Toast.LENGTH_LONG).show()
+                finishAffinity()
+            }
         }
     }
 
@@ -274,6 +343,10 @@ fun MainLumenDashboard() {
     }
     
     LaunchedEffect(Unit) {
+        val prefs = context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        if (!prefs.contains("app_install_timestamp")) {
+            prefs.edit().putLong("app_install_timestamp", System.currentTimeMillis()).apply()
+        }
         DataRepository.initWithDb(context.applicationContext, "patient@lumen.health")
         val hasLoc = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
         if (hasLoc && hasUsageStatsPermission(context)) {
@@ -459,6 +532,8 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     }
 
     val hasMissingPermissions = !isNotificationAccessGranted || !isLocationPermissionGranted || !isBackgroundLocationGranted || !isHomeSet || !isUsageStatsGranted
+    val hasCriticalMissingPermissions = !isLocationPermissionGranted || !isUsageStatsGranted
+    val showBanner = hasCriticalMissingPermissions || (!isReminderDismissed && hasMissingPermissions)
 
     LazyColumn(
         modifier = Modifier
@@ -497,7 +572,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
             }
         }
 
-        if (!isReminderDismissed && hasMissingPermissions) {
+        if (showBanner) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -530,19 +605,21 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
-                            IconButton(
-                                onClick = {
-                                    prefs.edit().putBoolean("home_permissions_reminder_dismissed", true).apply()
-                                    isReminderDismissed = true
-                                },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Close,
-                                    contentDescription = "Dismiss",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(16.dp)
-                                )
+                            if (!hasCriticalMissingPermissions) {
+                                IconButton(
+                                    onClick = {
+                                        prefs.edit().putBoolean("home_permissions_reminder_dismissed", true).apply()
+                                        isReminderDismissed = true
+                                    },
+                                    modifier = Modifier.size(24.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Dismiss",
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                }
                             }
                         }
 
@@ -631,15 +708,53 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         }
         
         item {
-            Text(
-                text = statusText,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                fontFamily = Fredoka,
-                color = MaterialTheme.colorScheme.onBackground,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("✨", fontSize = 18.sp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Your Rhythm Story",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = "AI Insights",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                            fontFamily = Fredoka,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(0.5f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        )
+                    }
+                    Text(
+                        text = statusText,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(0.9f)
+                    )
+                }
+            }
         }
         
         item {
@@ -758,6 +873,58 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         item {
             StaggeredFadeIn(index = 4) {
                 MindfulBreathingCard()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 4) {
+                HabitQuestsSection()
+            }
+        }
+
+        // 30 days research contribution prompt card (Task 17)
+        item {
+            val installDate = remember(prefs) { prefs.getLong("app_install_timestamp", System.currentTimeMillis()) }
+            val daysPassed = remember(installDate) { ((System.currentTimeMillis() - installDate) / (1000L * 3600 * 24)).toInt() }
+            val isResearchShareCompleted = remember(prefs) { prefs.getBoolean("research_share_completed", false) }
+
+            if (daysPassed >= 30 && !isResearchShareCompleted) {
+                var showResearchDialog by remember { mutableStateOf(false) }
+                if (showResearchDialog) {
+                    ResearchContributionDialog(onDismiss = { showResearchDialog = false })
+                }
+                StaggeredFadeIn(index = 5) {
+                    Card(
+                        modifier = Modifier.fillMaxWidth().clickable { showResearchDialog = true },
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text("🔬", fontSize = 28.sp)
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Support Mental Health Research",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "You have completed 30 days of tracking! Tap to share anonymized data with researchers.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
+                                    modifier = Modifier.padding(top = 2.dp)
+                                )
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
             }
         }
 
@@ -925,16 +1092,32 @@ fun CalmLotusPulse(modifier: Modifier = Modifier) {
 fun DailyFocusCard() {
     val quotes = remember {
         listOf(
-            "Your body is a clock; let it chime in harmony with the sun.",
-            "Consistency in small routines breeds great peace of mind.",
-            "The best of wellness is not speed, but natural rhythm.",
-            "Step by step, day by day, we find our anchors.",
-            "Quiet the mind, and the patterns of wellness will speak.",
-            "Rest is not idleness, but key to restoration.",
-            "Allow yourself to breathe, to exist, and to just be.",
-            "Circadian harmony leads to emotional strength.",
-            "Small shifts in screen habits build massive changes in focus.",
-            "Movement is the natural medicine for a cluttered mind."
+            "Your body is a clock; let it chime in harmony with the sun. (Circadian Sync)",
+            "Consistency in small routines breeds great peace of mind. (Routine)",
+            "The best of wellness is not speed, but natural rhythm. (Pacing)",
+            "Step by step, day by day, we find our anchors. (Habits)",
+            "You have power over your mind - not outside events. Realize this, and you will find strength. — Marcus Aurelius (Stoicism)",
+            "We suffer more often in imagination than in reality. — Seneca (Stoicism)",
+            "Difficulties strengthen the mind, as labor does the body. — Seneca (Stoicism)",
+            "Talk to yourself like you would to someone you love. — Brené Brown (Self-Compassion)",
+            "If your compassion does not include yourself, it is incomplete. — Jack Kornfield (Self-Compassion)",
+            "You yourself, as much as anybody in the entire universe, deserve your love and affection. — Buddha (Self-Compassion)",
+            "Be gentle with yourself. You are doing the best you can. (Self-Compassion)",
+            "The present moment is filled with joy and happiness. If you are attentive, you will see it. — Thich Nhat Hanh (Mindfulness)",
+            "Quiet the mind, and the soul will speak. — Ma Jaya Sati Bhagavati (Mindfulness)",
+            "Slow down and everything you are chasing will come and catch you. — John De Paola (Mindfulness)",
+            "Circadian rhythms are our ancient connection to the spinning Earth. Align with daylight. (Science)",
+            "Consistent daily patterns of light, movement, and sleep are the biological pillars of mental well-being. (Science)",
+            "The brain works in oscillations; finding your natural resonance is key to focus. (Science)",
+            "Nature does not hurry, yet everything is accomplished. — Lao Tzu (Pacing)",
+            "A small routine change today creates a completely different biological trajectory tomorrow. (Science)",
+            "Control your perceptions. Direct your actions properly. Willingly accept what's outside your control. (Stoicism)",
+            "Rule your mind or it will rule you. — Horace (Stoicism)",
+            "Quiet the mind, and the patterns of wellness will speak. (Mindfulness)",
+            "Rest is not idleness, but key to restoration. (Pacing)",
+            "Allow yourself to breathe, to exist, and to just be. (Mindfulness)",
+            "Small shifts in screen habits build massive changes in focus. (Digital Boundaries)",
+            "Movement is the natural medicine for a cluttered mind. (Mobility)"
         )
     }
     val quoteIndex = remember {
@@ -1022,167 +1205,476 @@ fun TelemetrySnapshotCard(features: List<PersonalityVector>, baseline: Personali
     }
 }
 
+class CalmingSoundSynthesizer {
+    private var audioTrack: AudioTrack? = null
+    private var isPlaying = false
+    private var currentVolume = 0.0f
+    private var targetVolume = 0.0f
+
+    fun start() {
+        if (isPlaying) return
+        isPlaying = true
+        kotlin.concurrent.thread {
+            val sampleRate = 44100
+            val bufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            try {
+                val track = AudioTrack(
+                    AudioManager.STREAM_MUSIC,
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    bufferSize,
+                    AudioTrack.MODE_STREAM
+                )
+                audioTrack = track
+                track.play()
+
+                val buffer = ShortArray(1024)
+                var phaseAngle = 0.0
+                val frequency = 432.0 // Soothing 432Hz sine wave
+
+                while (isPlaying) {
+                    val volStep = 0.02f
+                    if (currentVolume < targetVolume) {
+                        currentVolume = (currentVolume + volStep).coerceAtMost(targetVolume)
+                    } else if (currentVolume > targetVolume) {
+                        currentVolume = (currentVolume - volStep).coerceAtLeast(targetVolume)
+                    }
+
+                    for (i in buffer.indices) {
+                        val angle = phaseAngle + (2.0 * Math.PI * frequency / sampleRate)
+                        buffer[i] = (Math.sin(angle) * Short.MAX_VALUE * currentVolume).toInt().toShort()
+                        phaseAngle = angle
+                    }
+                    track.write(buffer, 0, buffer.size)
+                }
+                try {
+                    track.stop()
+                } catch (ignored: Exception) {}
+                track.release()
+            } catch (e: Exception) {
+                Log.e("Synthesizer", "Error in audio thread: ${e.message}")
+            }
+        }
+    }
+
+    fun setVolume(volume: Float) {
+        targetVolume = volume.coerceIn(0f, 0.5f) // Cap volume to prevent loudness
+    }
+
+    fun stop() {
+        isPlaying = false
+    }
+}
+
 @Composable
-fun MindfulBreathingCard() {
-    var active by remember { mutableStateOf(false) }
-    var phase by remember { mutableStateOf("Inhale") } // Inhale, Hold, Exhale, Hold
-    var secondsLeft by remember { mutableIntStateOf(4) }
-    var totalTimer by remember { mutableIntStateOf(60) }
-    
-    LaunchedEffect(active, phase, secondsLeft) {
-        if (active) {
-            if (totalTimer <= 0) {
-                active = false
-                totalTimer = 60
-                secondsLeft = 4
-                phase = "Inhale"
-            } else {
-                delay(1000L)
-                totalTimer -= 1
-                if (secondsLeft > 1) {
-                    secondsLeft -= 1
-                } else {
-                    // Switch phase
-                    when (phase) {
-                        "Inhale" -> { phase = "Hold"; secondsLeft = 4 }
-                        "Hold" -> { phase = "Exhale"; secondsLeft = 4 }
-                        "Exhale" -> { phase = "Hold"; secondsLeft = 4 }
-                        "Hold" -> { phase = "Inhale"; secondsLeft = 4 }
+fun FullScreenBreathingScreen(
+    onDismiss: () -> Unit
+) {
+    var setupMode by remember { mutableStateOf(true) }
+    var selectedMinutes by remember { mutableIntStateOf(1) }
+    var enableSound by remember { mutableStateOf(true) }
+
+    val haptic = LocalHapticFeedback.current
+    val synth = remember { CalmingSoundSynthesizer() }
+
+    if (setupMode) {
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF0B1F28)) // Rich Dark Teal
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Spa,
+                        contentDescription = null,
+                        tint = TealAccent,
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Text(
+                        text = "Mindful Breathing Reset",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color.White,
+                        fontFamily = Fredoka
+                    )
+                    Text(
+                        text = "Take a moment to align your focus. Box breathing (4s inhale, 4s hold, 4s exhale, 4s hold) reduces stress and anchors your nervous system.",
+                        fontSize = 14.sp,
+                        color = GrayTextSecondary,
+                        textAlign = TextAlign.Center,
+                        lineHeight = 20.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "Duration",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontFamily = Fredoka
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            listOf(1, 3, 5).forEach { min ->
+                                val isSel = selectedMinutes == min
+                                OutlinedButton(
+                                    onClick = { selectedMinutes = min },
+                                    colors = ButtonDefaults.outlinedButtonColors(
+                                        containerColor = if (isSel) TealAccent else Color.Transparent,
+                                        contentColor = if (isSel) Color.Black else TealAccent
+                                    ),
+                                    border = BorderStroke(1.dp, TealAccent),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Text(
+                                        text = "$min Min",
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color.White.copy(0.05f))
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = "Ambient Sound Bath",
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color.White,
+                                fontFamily = Fredoka
+                            )
+                            Text(
+                                text = "Play calming 432Hz sine wave harmony",
+                                fontSize = 11.sp,
+                                color = GrayTextSecondary
+                            )
+                        }
+                        Switch(
+                            checked = enableSound,
+                            onCheckedChange = { enableSound = it },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = TealAccent,
+                                checkedTrackColor = TealAccent.copy(0.4f)
+                            )
+                        )
+                    }
+
+                    Spacer(Modifier.height(16.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            border = BorderStroke(1.dp, Color.White.copy(0.3f)),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Cancel", fontFamily = Fredoka)
+                        }
+                        Button(
+                            onClick = { setupMode = false },
+                            modifier = Modifier.weight(1.5f),
+                            colors = ButtonDefaults.buttonColors(containerColor = TealAccent),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Text("Start Session", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        Dialog(
+            onDismissRequest = {
+                synth.stop()
+                onDismiss()
+            },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            var activePhase by remember { mutableStateOf("Inhale") }
+            var secondsLeft by remember { mutableIntStateOf(4) }
+            var totalTimerSeconds by remember { mutableIntStateOf(selectedMinutes * 60) }
+
+            DisposableEffect(Unit) {
+                if (enableSound) {
+                    synth.start()
+                    synth.setVolume(0.1f)
+                }
+                onDispose {
+                    synth.stop()
+                }
+            }
+
+            LaunchedEffect(activePhase) {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                if (enableSound) {
+                    when (activePhase) {
+                        "Inhale" -> synth.setVolume(0.4f)
+                        "Hold" -> synth.setVolume(0.4f)
+                        "Exhale" -> synth.setVolume(0.02f)
+                        "Hold" -> synth.setVolume(0.0f)
+                    }
+                }
+            }
+
+            LaunchedEffect(Unit) {
+                while (totalTimerSeconds > 0) {
+                    delay(1000L)
+                    totalTimerSeconds -= 1
+                    if (secondsLeft > 1) {
+                        secondsLeft -= 1
+                    } else {
+                        activePhase = when (activePhase) {
+                            "Inhale" -> "Hold"
+                            "Hold" -> "Exhale"
+                            "Exhale" -> "Hold"
+                            else -> "Inhale"
+                        }
+                        secondsLeft = 4
+                    }
+                }
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                delay(500L)
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                synth.stop()
+                onDismiss()
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFF07141C)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(vertical = 48.dp, horizontal = 24.dp)
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "Reset Your Rhythm",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TealAccent,
+                            fontFamily = Fredoka
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "Remaining: ${totalTimerSeconds / 60}:${String.format("%02d", totalTimerSeconds % 60)}",
+                            fontSize = 14.sp,
+                            color = GrayTextSecondary
+                        )
+                    }
+
+                    val animatedProgress = remember { Animatable(0f) }
+                    LaunchedEffect(activePhase, secondsLeft) {
+                        val targetVal = when (activePhase) {
+                            "Inhale" -> 1.0f - (secondsLeft - 1) / 4f
+                            "Hold" -> 1f
+                            "Exhale" -> (secondsLeft - 1) / 4f
+                            else -> 0f
+                        }
+                        animatedProgress.animateTo(
+                            targetValue = targetVal,
+                            animationSpec = tween(durationMillis = 1000, easing = LinearEasing)
+                        )
+                    }
+
+                    val scaleFactor = when (activePhase) {
+                        "Inhale" -> 0.7f + (animatedProgress.value * 0.5f)
+                        "Hold" -> 1.2f
+                        "Exhale" -> 0.7f + (animatedProgress.value * 0.5f)
+                        else -> 0.7f
+                    }
+
+                    Box(
+                        contentAlignment = Alignment.Center,
+                        modifier = Modifier.size(300.dp)
+                    ) {
+                        val infiniteTransition = rememberInfiniteTransition(label = "Ripple")
+                        val rippleScale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.15f,
+                            animationSpec = infiniteRepeatable(
+                                animation = tween(1500, easing = EaseInOutSine),
+                                repeatMode = RepeatMode.Reverse
+                            ),
+                            label = "RippleScale"
+                        )
+                        
+                        Canvas(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .scale(scaleFactor)
+                        ) {
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        TealAccent.copy(alpha = 0.25f),
+                                        TealAccent.copy(alpha = 0.0f)
+                                    )
+                                ),
+                                radius = size.minDimension / 2 * rippleScale
+                            )
+
+                            drawCircle(
+                                color = TealAccent,
+                                style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round),
+                                radius = size.minDimension / 3
+                            )
+
+                            drawCircle(
+                                color = TealAccent.copy(alpha = 0.15f),
+                                radius = size.minDimension / 3 - 2.dp.toPx()
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = activePhase.uppercase(),
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TealAccent,
+                                fontFamily = Fredoka,
+                                letterSpacing = 2.sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = "$secondsLeft",
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                color = Color.White
+                            )
+                        }
+                    }
+
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        val instruction = when (activePhase) {
+                            "Inhale" -> "Breathe in slowly, filling your lungs."
+                            "Hold" -> "Suspend your breath, rest in silence."
+                            "Exhale" -> "Release the air gently, letting go."
+                            else -> "Keep your lungs empty, wait for the cycle."
+                        }
+                        Text(
+                            text = instruction,
+                            fontSize = 14.sp,
+                            color = GrayTextPrimary,
+                            textAlign = TextAlign.Center,
+                            fontFamily = Fredoka,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                synth.stop()
+                                onDismiss()
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = AlertRose),
+                            border = BorderStroke(1.dp, AlertRose.copy(0.5f)),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.padding(top = 8.dp)
+                        ) {
+                            Text("Stop Session", fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
                     }
                 }
             }
         }
     }
-    
+}
+
+@Composable
+fun MindfulBreathingCard() {
+    var showSession by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
     ) {
-        Column(modifier = Modifier.padding(20.dp)) {
-            if (!active) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(Icons.Default.Spa, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                text = "Mindful Breathing Pause",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Text(
-                                text = "A quick 1-minute box breathing session",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Button(
-                        onClick = { active = true },
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier.height(36.dp)
-                    ) {
-                        Text("Start", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                    }
+                    Icon(Icons.Default.Spa, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                 }
-            } else {
-                // Active breathing session
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
+                Spacer(Modifier.width(16.dp))
+                Column {
                     Text(
-                        text = "Box Breathing Reset",
-                        fontSize = 14.sp,
+                        text = "Mindful Breathing Pause",
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.primary
+                        color = MaterialTheme.colorScheme.onBackground
                     )
-                    Spacer(Modifier.height(16.dp))
-                    
-                    // Breathing Circle Pulse
-                    val scale = when (phase) {
-                        "Inhale" -> 0.8f + (4 - secondsLeft) * 0.1f
-                        "Hold" -> 1.2f
-                        "Exhale" -> 1.2f - (4 - secondsLeft) * 0.1f
-                        else -> 0.8f
-                    }
-                    
-                    val animatedScale by animateFloatAsState(
-                        targetValue = scale,
-                        animationSpec = tween(durationMillis = 1000, easing = LinearEasing),
-                        label = "BreathCircleScale"
+                    Text(
+                        text = "Guided box breathing reset for your nervous system.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
-                    Box(
-                        modifier = Modifier
-                            .size(100.dp)
-                            .scale(animatedScale)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                                    )
-                                )
-                            )
-                            .border(2.dp, MaterialTheme.colorScheme.primary, CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = phase,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = "$secondsLeft",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.ExtraBold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
-                    
-                    Spacer(Modifier.height(16.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Remaining: ${totalTimer}s",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        TextButton(onClick = { active = false; totalTimer = 60; secondsLeft = 4; phase = "Inhale" }) {
-                            Text("Stop", color = MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                        }
-                    }
                 }
             }
+            Button(
+                onClick = { showSession = true },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text("Start", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
         }
+    }
+
+    if (showSession) {
+        FullScreenBreathingScreen(onDismiss = { showSession = false })
     }
 }
 
@@ -1430,6 +1922,52 @@ fun InsightsScreen() {
                     }
                 }
                 
+                // Weekly Digest Report Card (Task 16)
+                item {
+                    StaggeredFadeIn(index = 0) {
+                        var showWeeklyDigest by remember { mutableStateOf(false) }
+                        if (showWeeklyDigest) {
+                            WeeklyDigestDialog(
+                                weeklyFeatures = weeklyFeatures,
+                                baseline = base,
+                                onDismiss = { showWeeklyDigest = false }
+                            )
+                        }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showWeeklyDigest = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text("📊", fontSize = 28.sp)
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Weekly Digest Report Card",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Your Sunday comprehensive routine summary is ready.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
+                }
+                
                 // 2. Clickable Rhythm & Reflection Card
                 item {
                     StaggeredFadeIn(index = 1) {
@@ -1490,18 +2028,18 @@ fun InsightsScreen() {
                 item {
                     val sleepDiff = latest.sleepDurationHours - base.sleepDurationHours
                     val badgeText = when {
-                        sleepDiff > 1.5f -> "Elongated"
-                        sleepDiff < -1.5f -> "Contracted"
-                        else -> "Balanced"
+                        sleepDiff > 1.5f -> "Rest Extended"
+                        sleepDiff < -1.5f -> "Rest Shortened"
+                        else -> "Balanced Rest"
                     }
                     val badgeColor = when {
-                        Math.abs(sleepDiff) > 1.5f -> MaterialTheme.colorScheme.error
+                        Math.abs(sleepDiff) > 1.5f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
                     val desc = when {
-                        sleepDiff > 1.5f -> "Your sleep duration is significantly longer than your typical baseline. This might represent vegetative hypersomnia or a withdrawal state."
-                        sleepDiff < -1.5f -> "Your sleep cycle is compressed. Restricting rest or waking too early can decay cognitive resilience."
-                        else -> "Sleep durations and DND silent gaps are stable, demonstrating strong circular time consistency."
+                        sleepDiff > 1.5f -> "Your sleep window is notably longer than typical. Allow yourself the extra rest, but try to ease back into your active daily rhythm with gentle daylight."
+                        sleepDiff < -1.5f -> "Your sleep duration is shorter today. Creating a calm, screen-free wind-down routine tonight can help restore your energy."
+                        else -> "Your sleep duration and bedtime boundaries are beautifully aligned with your typical rest rhythms."
                     }
                     
                     StaggeredFadeIn(index = 2) {
@@ -1526,19 +2064,19 @@ fun InsightsScreen() {
                     val activeRatio = if (base.dailyStepCount > 0) stepRatio else dispRatio
                     
                     val badgeText = when {
-                        activeRatio < 0.6f -> "Reduced"
-                        activeRatio > 1.4f -> "Elevated"
-                        else -> "Stable"
+                        activeRatio < 0.6f -> "Pace Slowed"
+                        activeRatio > 1.4f -> "Active Flow"
+                        else -> "Steady Flow"
                     }
                     val badgeColor = when {
-                        activeRatio < 0.6f -> MaterialTheme.colorScheme.error
-                        activeRatio > 1.4f -> AlertWarning
+                        activeRatio < 0.6f -> AlertWarning
+                        activeRatio > 1.4f -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.primary
                     }
                     val desc = when {
-                        activeRatio < 0.6f -> "Physical activity is notably lower than your locked routine. Consider introducing small active windows to promote circulation."
-                        activeRatio > 1.4f -> "Physical activity is highly elevated. Active pacing or energetic exercise has been registered."
-                        else -> "Mobility levels and physical tracking features match your standard behavior metrics."
+                        activeRatio < 0.6f -> "Your physical movement is quieter today. Consider taking a short, gentle walk to refresh your body and mind."
+                        activeRatio > 1.4f -> "You've been highly active today! Excellent job channeling your physical energy and staying in flow."
+                        else -> "Your steps and physical mobility are matching your typical baseline patterns."
                     }
                     
                     StaggeredFadeIn(index = 3) {
@@ -1560,16 +2098,16 @@ fun InsightsScreen() {
                 item {
                     val callDiff = latest.callsPerDay - base.callsPerDay
                     val badgeText = when {
-                        callDiff < -2.0f -> "Low Engagement"
-                        else -> "Stable Outbound"
+                        callDiff < -2.0f -> "Social Pause"
+                        else -> "Connected Flow"
                     }
                     val badgeColor = when {
-                        callDiff < -2.0f -> MaterialTheme.colorScheme.error
+                        callDiff < -2.0f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
                     val desc = when {
-                        callDiff < -2.0f -> "We observed a significant retraction in calls and contact frequencies. Maintaining active connection guards against emotional withdrawal."
-                        else -> "Call logs, unique contacts, and conversation frequency variables remain steady."
+                        callDiff < -2.0f -> "We noticed a quiet stretch in your communications. Reaching out to a close friend or family member for a brief chat can offer a comforting boost."
+                        else -> "Your social connection rhythm and phone conversations are consistent with your usual baseline."
                     }
                     
                     StaggeredFadeIn(index = 4) {
@@ -1591,8 +2129,8 @@ fun InsightsScreen() {
                 item {
                     val screenDiff = latest.screenTimeHours - base.screenTimeHours
                     val badgeText = when {
-                        screenDiff > 2.0f -> "Increased Screen"
-                        screenDiff < -2.0f -> "Reduced Screen"
+                        screenDiff > 2.0f -> "Screen Elevated"
+                        screenDiff < -2.0f -> "Screen Reduced"
                         else -> "Within Norms"
                     }
                     val badgeColor = when {
@@ -1600,9 +2138,9 @@ fun InsightsScreen() {
                         else -> MaterialTheme.colorScheme.primary
                     }
                     val desc = when {
-                        screenDiff > 2.0f -> "Digital interaction is elevated. Extended evening engagement or quick unlock pickup bursts can indicate restlessness."
-                        screenDiff < -2.0f -> "Screen interactions have contracted. This highlights lower digital dependence or reduced social apps ratio."
-                        else -> "Daily screen time hours, lock counts, and app session metrics are steady."
+                        screenDiff > 2.0f -> "Your screen interaction is higher than usual today. Taking a few intentional digital-free breaks can help reduce eye strain and clear your mind."
+                        screenDiff < -2.0f -> "Your screen time is beautifully low today! Enjoying this digital space is a wonderful way to reconnect with your surroundings."
+                        else -> "Your daily screen interactions, unlocks, and app session pacing are steady."
                     }
                     
                     StaggeredFadeIn(index = 5) {
@@ -1615,6 +2153,105 @@ fun InsightsScreen() {
                             onClick = {
                                 activeDetailSector = "Screen"
                                 activeDetailIcon = Icons.Default.Smartphone
+                            }
+                        )
+                    }
+                }
+
+                // Interaction Tempo Card (T35)
+                item {
+                    val tempoRatio = if (base.keystrokeSpeed > 0) latest.keystrokeSpeed / base.keystrokeSpeed else 1.0f
+                    
+                    val badgeText = when {
+                        tempoRatio < 0.8f -> "Measured Cadence"
+                        tempoRatio > 1.25f -> "Swift Cadence"
+                        else -> "Steady Cadence"
+                    }
+                    val badgeColor = when {
+                        tempoRatio < 0.8f -> MaterialTheme.colorScheme.primary
+                        tempoRatio > 1.25f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        tempoRatio < 0.8f -> "Your typing pace is more deliberate and measured. Taking extra time to write can indicate a quiet, thoughtful state of mind."
+                        tempoRatio > 1.25f -> "Your key interactions show a swift cadence. A faster typing and scrolling tempo suggests high energy or active processing."
+                        else -> "Your writing speed and reading scroll pace are flowing in harmony with your baseline."
+                    }
+                    
+                    StaggeredFadeIn(index = 6) {
+                        QualitativeInsightCard(
+                            title = "Interaction Tempo & Cadence",
+                            icon = Icons.Default.Keyboard,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Interaction Tempo"
+                                activeDetailIcon = Icons.Default.Keyboard
+                            }
+                        )
+                    }
+                }
+
+                // Daylight Card (T36)
+                item {
+                    val daylight = latest.daylightExposureMinutes
+                    val badgeText = when {
+                        daylight < 15f -> "Indoor Focus"
+                        daylight > 60f -> "Bright Light Flow"
+                        else -> "Balanced Light"
+                    }
+                    val badgeColor = when {
+                        daylight < 15f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        daylight < 15f -> "Natural light exposure is low today. Stepping outdoors for just 10-15 minutes can significantly boost your daytime alertness and evening sleep quality."
+                        daylight > 60f -> "You secured ample outdoor daylight today. This is exceptional for keeping your sleep-wake cycles and mood naturally synchronized!"
+                        else -> "Your daylight exposure matches your standard healthy baseline."
+                    }
+                    
+                    StaggeredFadeIn(index = 7) {
+                        QualitativeInsightCard(
+                            title = "Daylight & Ambient Rhythm",
+                            icon = Icons.Default.WbSunny,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Daylight"
+                                activeDetailIcon = Icons.Default.WbSunny
+                            }
+                        )
+                    }
+                }
+
+                // Charging Card (T36)
+                item {
+                    val regularity = latest.chargeRegularity
+                    val badgeText = when {
+                        regularity < 0.6f -> "Erratic Boundary"
+                        else -> "Stable Boundary"
+                    }
+                    val badgeColor = when {
+                        regularity < 0.6f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        regularity < 0.6f -> "Your device charging times are shifting. Keeping a regular phone plug-in schedule helps support steady morning and evening sleep boundaries."
+                        else -> "Your phone charging patterns demonstrate a consistent daily rhythm, indicating strong day-to-day boundaries."
+                    }
+                    
+                    StaggeredFadeIn(index = 8) {
+                        QualitativeInsightCard(
+                            title = "Circadian Boundary Stability",
+                            icon = Icons.Default.Bolt,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Charging"
+                                activeDetailIcon = Icons.Default.Bolt
                             }
                         )
                     }
@@ -1837,6 +2474,7 @@ fun SectorDetailScreen(
             "Screen" -> listOf("screenTimeHours" to "Screen Time (h)", "unlockCount" to "Unlocks", "appLaunchCount" to "App Launches")
             "Daylight" -> listOf("daylightExposureMinutes" to "Daylight (min)")
             "Charging" -> listOf("chargeRegularity" to "Charge Regularity", "chargeDurationHours" to "Charge Hours")
+            "Interaction Tempo" -> listOf("keystrokeSpeed" to "Typing Speed (chars/s)", "backspaceRatio" to "Backspace Ratio", "scrollVelocity" to "Scroll Velocity (px/s)")
             else -> emptyList()
         }
     }
@@ -2508,6 +3146,350 @@ fun RhythmConsistencyChart(
 }
 
 @Composable
+fun RhythmConsistencyGauge(score: Float) {
+    val primary = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+    
+    val coherenceText = when {
+        score >= 80f -> "Highly Coherent"
+        score >= 60f -> "Stable"
+        else -> "Adapting Pacing"
+    }
+    
+    val animatedScore by animateFloatAsState(
+        targetValue = score,
+        animationSpec = tween(durationMillis = 1000, easing = FastOutSlowInEasing),
+        label = "GaugeScore"
+    )
+
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp)
+    ) {
+        Box(contentAlignment = Alignment.Center, modifier = Modifier.size(120.dp)) {
+            // Background track circle
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawArc(
+                    color = outlineColor,
+                    startAngle = 135f,
+                    sweepAngle = 270f,
+                    useCenter = false,
+                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+            // Active arc
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawArc(
+                    color = primary,
+                    startAngle = 135f,
+                    sweepAngle = 270f * (animatedScore / 100f),
+                    useCenter = false,
+                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
+                )
+            }
+            // Score text
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "${animatedScore.toInt()}%",
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = coherenceText,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = primary
+                )
+            }
+        }
+    }
+}
+
+@OptIn(androidx.compose.ui.text.ExperimentalTextApi::class)
+@Composable
+fun BehavioralFingerprintRadar(latest: PersonalityVector, base: PersonalityVector) {
+    val primary = MaterialTheme.colorScheme.primary
+    val outlineColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f)
+    val textMeasurer = rememberTextMeasurer()
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    
+    val restVal = (1.0f - Math.abs(latest.sleepDurationHours - base.sleepDurationHours) / 3f).coerceIn(0.1f, 1f)
+    val mobVal = (if (base.dailyStepCount > 0) latest.dailyStepCount / base.dailyStepCount else 1.0f).coerceIn(0.1f, 2.0f) / 2.0f
+    val socVal = (if (base.callsPerDay > 0) latest.callsPerDay / base.callsPerDay else 1.0f).coerceIn(0.1f, 2.0f) / 2.0f
+    val digVal = (1.0f - Math.abs(latest.screenTimeHours - base.screenTimeHours) / 4f).coerceIn(0.1f, 1f)
+    val dayVal = (if (base.daylightExposureMinutes > 0) latest.daylightExposureMinutes / base.daylightExposureMinutes else 1.0f).coerceIn(0.1f, 2.0f) / 2.0f
+    val cadVal = (if (base.keystrokeSpeed > 0) latest.keystrokeSpeed / base.keystrokeSpeed else 1.0f).coerceIn(0.1f, 2.0f) / 2.0f
+
+    val values = listOf(restVal, mobVal, socVal, digVal, dayVal, cadVal)
+    val labels = listOf("Rest", "Mobility", "Social", "Digital", "Daylight", "Cadence")
+
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .padding(24.dp)
+    ) {
+        val centerX = size.width / 2f
+        val centerY = size.height / 2f
+        val maxRadius = (Math.min(size.width, size.height) / 2f) - 16.dp.toPx()
+        
+        if (maxRadius <= 0f) return@Canvas
+        
+        val gridLevels = listOf(0.33f, 0.66f, 1.0f)
+        gridLevels.forEach { level ->
+            val path = Path()
+            for (i in 0 until 6) {
+                val angleRad = Math.toRadians(i * 60.0 - 90.0)
+                val r = maxRadius * level
+                val x = centerX + r * Math.cos(angleRad).toFloat()
+                val y = centerY + r * Math.sin(angleRad).toFloat()
+                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            path.close()
+            drawPath(path = path, color = outlineColor, style = Stroke(width = 1.dp.toPx()))
+        }
+
+        for (i in 0 until 6) {
+            val angleRad = Math.toRadians(i * 60.0 - 90.0)
+            val outerX = centerX + maxRadius * Math.cos(angleRad).toFloat()
+            val outerY = centerY + maxRadius * Math.sin(angleRad).toFloat()
+            
+            drawLine(
+                color = outlineColor,
+                start = Offset(centerX, centerY),
+                end = Offset(outerX, outerY),
+                strokeWidth = 1.dp.toPx()
+            )
+            
+            val label = labels[i]
+            val labelLayout = textMeasurer.measure(
+                text = label,
+                style = androidx.compose.ui.text.TextStyle(
+                    fontFamily = Fredoka,
+                    fontSize = 10.sp,
+                    color = onSurface.copy(0.6f)
+                )
+            )
+            val textX = outerX + (10.dp.toPx() * Math.cos(angleRad).toFloat()) - (labelLayout.size.width / 2f)
+            val textY = outerY + (10.dp.toPx() * Math.sin(angleRad).toFloat()) - (labelLayout.size.height / 2f)
+            
+            drawText(labelLayout, topLeft = Offset(textX, textY))
+        }
+
+        val dataPath = Path()
+        for (i in 0 until 6) {
+            val angleRad = Math.toRadians(i * 60.0 - 90.0)
+            val r = maxRadius * values[i]
+            val x = centerX + r * Math.cos(angleRad).toFloat()
+            val y = centerY + r * Math.sin(angleRad).toFloat()
+            if (i == 0) dataPath.moveTo(x, y) else dataPath.lineTo(x, y)
+        }
+        dataPath.close()
+        
+        drawPath(path = dataPath, color = primary.copy(alpha = 0.2f))
+        drawPath(path = dataPath, color = primary, style = Stroke(width = 2.dp.toPx()))
+    }
+}
+
+fun com.example.mhealth.logic.db.DailyFeaturesEntity.toModelVector() = PersonalityVector(
+    screenTimeHours = screenTimeHours,
+    unlockCount = unlockCount,
+    appLaunchCount = appLaunchCount,
+    notificationsToday = notificationsToday,
+    socialAppRatio = socialAppRatio,
+    callsPerDay = callsPerDay,
+    callDurationMinutes = callDurationMinutes,
+    uniqueContacts = uniqueContacts,
+    conversationFrequency = conversationFrequency,
+    dailyDisplacementKm = dailyDisplacementKm,
+    locationEntropy = locationEntropy,
+    homeTimeRatio = homeTimeRatio,
+    wakeTimeHour = wakeTimeHour,
+    sleepTimeHour = sleepTimeHour,
+    sleepDurationHours = sleepDurationHours,
+    dailyStepCount = dailyStepCount,
+    activeMinutes = activeMinutes,
+    keystrokeSpeed = keystrokeSpeed,
+    backspaceRatio = backspaceRatio,
+    scrollVelocity = scrollVelocity,
+    daylightExposureMinutes = daylightExposureMinutes,
+    chargeRegularity = chargeRegularity,
+    chargeDurationHours = chargeDurationHours
+)
+
+fun saveNoteForDate(prefs: SharedPreferences, dateStr: String, note: String) {
+    val historyStr = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+    try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        var foundDate = false
+        
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            if (obj.getString("date") == dateStr) {
+                if (note.isNotBlank()) obj.put("note", note) else obj.remove("note")
+                foundDate = true
+            }
+            list.add(obj)
+        }
+        
+        if (!foundDate && note.isNotBlank()) {
+            val newObj = org.json.JSONObject().apply {
+                put("date", dateStr)
+                put("mood", 3)
+                put("energy", 3)
+                put("sleep", 3)
+                put("anxiety", 3)
+                put("note", note)
+            }
+            list.add(newObj)
+        }
+        
+        val newArray = org.json.JSONArray()
+        list.forEach { newArray.put(it) }
+        prefs.edit().putString("daily_checkin_history", newArray.toString()).apply()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+@Composable
+fun UnifiedTimelineCard(
+    dateStr: String,
+    checkinEntry: org.json.JSONObject?,
+    analysisResult: com.example.mhealth.logic.db.AnalysisResultEntity?,
+    onAnnotate: () -> Unit
+) {
+    val parsedDate = remember(dateStr) {
+        try {
+            val d = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(dateStr)
+            if (d != null) java.text.SimpleDateFormat("EEEE, MMM d, yyyy", java.util.Locale.US).format(d) else dateStr
+        } catch (e: Exception) { dateStr }
+    }
+    
+    val hasCheckin = checkinEntry != null
+    val note = checkinEntry?.optString("note", "") ?: ""
+    val hasNote = note.isNotBlank()
+    
+    val anomalyDetected = analysisResult?.anomalyDetected ?: false
+    
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(
+            1.dp, 
+            if (anomalyDetected) AlertWarning.copy(0.4f) else MaterialTheme.colorScheme.outline.copy(0.08f)
+        )
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = parsedDate,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    if (hasCheckin) {
+                        val mood = checkinEntry!!.optInt("mood", 3)
+                        val moodStr = when (mood) {
+                            1 -> "😞 Down"
+                            2 -> "😕 Uneasy"
+                            3 -> "😐 Neutral"
+                            4 -> "🙂 Good"
+                            else -> "😊 Excellent"
+                        }
+                        Text(
+                            text = "Mood: $moodStr",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    } else {
+                        Text(
+                            text = "No log entry",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f),
+                            modifier = Modifier.padding(top = 2.dp)
+                        )
+                    }
+                }
+                
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (anomalyDetected) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = AlertWarning.copy(0.12f),
+                            border = BorderStroke(1.dp, AlertWarning.copy(0.3f)),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = "Rhythm Shift",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = AlertWarning,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+                    
+                    IconButton(
+                        onClick = onAnnotate,
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (hasNote) Icons.Default.EditNote else Icons.Default.AddComment,
+                            contentDescription = "Annotate",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+            
+            if (hasNote) {
+                Spacer(Modifier.height(10.dp))
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(0.2f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.04f))
+                ) {
+                    Text(
+                        text = note,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(0.85f),
+                        lineHeight = 17.sp,
+                        fontFamily = Fredoka,
+                        modifier = Modifier.padding(12.dp)
+                    )
+                }
+            } else if (anomalyDetected) {
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = "A change in your daily rhythms was detected today. Tap the comment icon to add a context note (e.g., went on a trip, caught a cold).",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                    fontFamily = Fredoka,
+                    lineHeight = 15.sp,
+                    style = androidx.compose.ui.text.TextStyle(fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun RhythmDetailScreen(
     features: List<PersonalityVector>,
     baseline: PersonalityVector?,
@@ -2516,7 +3498,118 @@ fun RhythmDetailScreen(
 ) {
     val primary = MaterialTheme.colorScheme.primary
     val surfaceVariant = MaterialTheme.colorScheme.onSurfaceVariant
+    val context = LocalContext.current
     var timeRange by remember { mutableIntStateOf(7) }
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    
+    var checkinRefreshTrigger by remember { mutableStateOf(0) }
+    val reactiveCheckinHistory = remember(prefs, checkinRefreshTrigger) { getCheckinHistoryList(prefs) }
+
+    val db = remember { com.example.mhealth.logic.db.MHealthDatabase.getInstance(context.applicationContext) }
+    
+    val dailyFeaturesList by produceState<List<com.example.mhealth.logic.db.DailyFeaturesEntity>>(emptyList(), db, timeRange) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.dailyFeaturesDao().getLatestN(userId, timeRange).reversed()
+    }
+    
+    val analysisResultsList by produceState<List<com.example.mhealth.logic.db.AnalysisResultEntity>>(emptyList(), db, timeRange) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.analysisResultDao().getLatestN(userId, timeRange)
+    }
+
+    val modelVectors = remember(dailyFeaturesList) {
+        dailyFeaturesList.map { it.toModelVector() }
+    }
+
+    val scores = remember(modelVectors, baseline) {
+        modelVectors.map { day ->
+            if (baseline == null) 50f
+            else {
+                val deviations = listOf(
+                    safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
+                    safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
+                )
+                val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
+                ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
+            }
+        }
+    }
+
+    val latestScore = remember(scores) { scores.lastOrNull() ?: 100f }
+
+    val datesList = remember(timeRange) {
+        val list = mutableListOf<String>()
+        val cal = java.util.Calendar.getInstance()
+        for (i in 0 until timeRange) {
+            list.add(java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(cal.time))
+            cal.add(java.util.Calendar.DAY_OF_YEAR, -1)
+        }
+        list
+    }
+
+    var editingDate by remember { mutableStateOf<String?>(null) }
+    var editingNoteText by remember { mutableStateOf("") }
+
+    if (editingDate != null) {
+        val dateStr = editingDate!!
+        val formattedDate = remember(dateStr) {
+            try {
+                val d = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).parse(dateStr)
+                if (d != null) java.text.SimpleDateFormat("EEEE, MMMM d, yyyy", java.util.Locale.US).format(d) else dateStr
+            } catch (e: Exception) { dateStr }
+        }
+        
+        Dialog(onDismissRequest = { editingDate = null }) {
+            Surface(
+                shape = RoundedCornerShape(24.dp),
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.15f))
+            ) {
+                Column(modifier = Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(
+                        text = "Reflect on $formattedDate",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    
+                    OutlinedTextField(
+                        value = editingNoteText,
+                        onValueChange = { editingNoteText = it },
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        placeholder = { Text("What happened today? (e.g. went on a trip, caught a cold, stressful workday)", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
+                        shape = RoundedCornerShape(12.dp),
+                        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Fredoka, fontSize = 14.sp)
+                    )
+                    
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        TextButton(onClick = { editingDate = null }) {
+                            Text("Cancel", fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(
+                            onClick = {
+                                saveNoteForDate(prefs, dateStr, editingNoteText.trim())
+                                checkinRefreshTrigger += 1
+                                editingDate = null
+                            },
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text("Save", fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
@@ -2557,53 +3650,89 @@ fun RhythmDetailScreen(
             }
         }
 
-        // Rhythm Consistency Card
+        // Rhythm Consistency Gauge Card (T39)
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(20.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Behavioral Consistency Score", fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                Column(modifier = Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
-                        text = "Calculated from your sleep, step counts, communication patterns, and screen usage adherence.",
+                        text = "Rhythm Consistency Score",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.align(Alignment.Start)
+                    )
+                    Text(
+                        text = "Your consistency score is compiled by comparing sleep timing, physical mobility, key tempo, and communication boundaries against your personal baseline.",
                         fontSize = 11.sp,
                         color = surfaceVariant,
-                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                        modifier = Modifier.padding(top = 2.dp, bottom = 12.dp).align(Alignment.Start)
                     )
                     
-                    RhythmConsistencyChart(features = features, baseline = baseline, timeRange = timeRange)
+                    RhythmConsistencyGauge(score = latestScore)
                 }
             }
         }
 
-        // Context / Rhythm Cards (Moved from main screen)
-        if (features.isNotEmpty() && baseline != null) {
+        // 6-Axis Behavioral Fingerprint Radar Chart (T40)
+        if (modelVectors.isNotEmpty() && baseline != null) {
             item {
-                Text(
-                    text = "Daily Context Insights",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            item {
-                DaylightChargingCards(features.first(), baseline)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Behavioral Fingerprint",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "A multidimensional comparison mapping your current activity coordinates directly to your locked baseline signature.",
+                            fontSize = 11.sp,
+                            color = surfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp, bottom = 12.dp)
+                        )
+                        BehavioralFingerprintRadar(latest = modelVectors.last(), base = baseline)
+                    }
+                }
             }
         }
 
-        // Mood & Behavior Correlation Card
-        if (checkinHistory.size >= 5 && features.size >= 5) {
+        // Rhythm Consistency Trend Chart
+        if (modelVectors.size >= 2) {
             item {
-                MoodBehaviorCorrelationCard(checkinHistory, features)
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = "Routine Consistency Trend",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        RhythmConsistencyChart(features = modelVectors, baseline = baseline, timeRange = timeRange)
+                    }
+                }
             }
         }
 
-        // Reflection notes list
-        val rangeNotes = checkinHistory.takeLast(timeRange)
+        // Unified Journal History & Note Event Annotations (T38)
         item {
             Text(
                 text = "Journal History & Notes",
@@ -2614,7 +3743,7 @@ fun RhythmDetailScreen(
             )
         }
 
-        if (rangeNotes.isEmpty()) {
+        if (datesList.isEmpty()) {
             item {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -2623,7 +3752,7 @@ fun RhythmDetailScreen(
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                 ) {
                     Text(
-                        text = "No check-in entries found for the selected time range.",
+                        text = "No history found for the selected time range.",
                         fontSize = 12.sp,
                         color = surfaceVariant,
                         modifier = Modifier.padding(16.dp),
@@ -2632,43 +3761,24 @@ fun RhythmDetailScreen(
                 }
             }
         } else {
-            // Newest notes first for easy reading
-            rangeNotes.reversed().forEach { entry ->
+            datesList.forEach { dateStr ->
+                val checkinEntry = reactiveCheckinHistory.firstOrNull { it.optString("date") == dateStr }
+                val analysisResult = analysisResultsList.firstOrNull { it.date == dateStr }
+                
                 item {
-                    JournalEntryCard(entry)
+                    UnifiedTimelineCard(
+                        dateStr = dateStr,
+                        checkinEntry = checkinEntry,
+                        analysisResult = analysisResult,
+                        onAnnotate = {
+                            editingDate = dateStr
+                            editingNoteText = checkinEntry?.optString("note", "") ?: ""
+                        }
+                    )
                 }
             }
         }
     }
-}
-
-// =============================================================================
-// Daylight & Charging Insight Cards (T8)
-// =============================================================================
-@Composable
-fun DaylightChargingCards(latest: PersonalityVector, base: PersonalityVector) {
-    // Daylight
-    val daylightDiff = latest.daylightExposureMinutes - base.daylightExposureMinutes
-    val dlBadge = when { daylightDiff < -20f -> "Low"; daylightDiff > 20f -> "High"; else -> "Normal" }
-    val dlColor = if (abs(daylightDiff) > 20f) AlertWarning else MaterialTheme.colorScheme.primary
-    val dlDesc = when {
-        daylightDiff < -20f -> "Your daylight exposure has dropped. Sunlight helps regulate your circadian rhythm and mood."
-        daylightDiff > 20f -> "You've been getting more sunlight than usual — that's excellent for your natural energy."
-        else -> "Daylight exposure levels are consistent with your baseline."
-    }
-    QualitativeInsightCard("Daylight Exposure", Icons.Default.WbSunny, dlBadge, dlColor, dlDesc)
-
-    Spacer(Modifier.height(16.dp))
-
-    // Charging
-    val chargeDiff = latest.chargeRegularity - base.chargeRegularity
-    val chBadge = when { chargeDiff < -0.2f -> "Irregular"; else -> "Consistent" }
-    val chColor = if (chargeDiff < -0.2f) AlertWarning else MaterialTheme.colorScheme.primary
-    val chDesc = when {
-        chargeDiff < -0.2f -> "Your charging pattern has been irregular. This sometimes correlates with disrupted sleep or varying routines."
-        else -> "Your device charging routine remains consistent — a sign of stable daily habits."
-    }
-    QualitativeInsightCard("Charging Routine", Icons.Default.BatteryChargingFull, chBadge, chColor, chDesc)
 }
 
 // =============================================================================
@@ -3080,26 +4190,73 @@ fun PremiumCheckinSlider(
     }
 }
 
+fun saveMonthlyReflection(prefs: SharedPreferences, phqScore: Int, gadScore: Int, note: String) {
+    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val historyStr = prefs.getString("monthly_reflections_history", "[]") ?: "[]"
+    try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until array.length()) {
+            list.add(array.getJSONObject(i))
+        }
+        list.removeAll { it.optString("date") == dateStr }
+        val newObj = org.json.JSONObject().apply {
+            put("date", dateStr)
+            put("phqScore", phqScore)
+            put("gadScore", gadScore)
+            put("note", note)
+        }
+        list.add(newObj)
+        val newArray = org.json.JSONArray()
+        list.forEach { newArray.put(it) }
+        prefs.edit().putString("monthly_reflections_history", newArray.toString()).apply()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
+
+fun getMonthlyReflectionsList(prefs: SharedPreferences): List<org.json.JSONObject> {
+    val historyStr = prefs.getString("monthly_reflections_history", "[]") ?: "[]"
+    return try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until array.length()) {
+            list.add(array.getJSONObject(i))
+        }
+        list.sortedByDescending { it.optString("date") }
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
+
 @Composable
 fun MonthlyCheckinTab(prefs: SharedPreferences) {
     var activeWizard by remember { mutableStateOf(false) }
     val cooldownDays = remember(activeWizard) { getMonthlyCooldownDays(prefs) }
+    val reflections = remember(cooldownDays) { getMonthlyReflectionsList(prefs) }
     
-    val phq9Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
-    val gad7Answers = remember { mutableStateListOf(*Array(2) { -1 }) }
+    val phq9Answers = remember { mutableStateListOf(*Array(5) { -1 }) }
+    val gad7Answers = remember { mutableStateListOf(*Array(5) { -1 }) }
     
     val phq9Questions = listOf(
         "Little interest or pleasure in doing things.",
-        "Feeling down, depressed, or hopeless."
+        "Feeling down, depressed, or hopeless.",
+        "Trouble falling or staying asleep, or sleeping too much.",
+        "Feeling tired or having little energy.",
+        "Poor appetite or overeating."
     )
 
     val gad7Questions = listOf(
         "Feeling nervous, anxious, or on edge.",
-        "Not being able to stop or control worrying."
+        "Not being able to stop or control worrying.",
+        "Worrying too much about different things.",
+        "Trouble relaxing.",
+        "Becoming easily annoyed or irritable."
     )
     val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
     
     var wizardStep by remember { mutableIntStateOf(1) }
+    var reflectionNote by remember { mutableStateOf("") }
     
     if (activeWizard) {
         if (wizardStep == 1) {
@@ -3109,101 +4266,226 @@ fun MonthlyCheckinTab(prefs: SharedPreferences) {
                 options = optionsList,
                 onCompleted = { wizardStep = 2 }
             )
-        } else {
+        } else if (wizardStep == 2) {
             ScreenerWizard(
                 questions = gad7Questions,
                 answers = gad7Answers,
                 options = optionsList,
-                onCompleted = {
-                    val totalPhq = (phq9Answers.sum() * 9f / 2f).roundToInt()
-                    val totalGad = (gad7Answers.sum() * 7f / 2f).roundToInt()
-                    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
-                    
-                    DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
-                    prefs.edit().putString("monthly_checkin_last_date", todayStr).apply()
-                    
-                    activeWizard = false
-                    wizardStep = 1
-                }
+                onCompleted = { wizardStep = 3 }
             )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Monthly Reflection Note",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Reflecting on your month can help you identify trends, triggers, and patterns. Write down your general thoughts, experiences, and how you feel you've paced yourself.",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    lineHeight = 18.sp
+                )
+                
+                OutlinedTextField(
+                    value = reflectionNote,
+                    onValueChange = { reflectionNote = it },
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    placeholder = { Text("Write your thoughts here...", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Fredoka, fontSize = 14.sp)
+                )
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { wizardStep = 2 }) {
+                        Text("Back", fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = {
+                            val totalPhq = (phq9Answers.sum() * 9f / 5f).roundToInt()
+                            val totalGad = (gad7Answers.sum() * 7f / 5f).roundToInt()
+                            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                            
+                            DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
+                            saveMonthlyReflection(prefs, totalPhq, totalGad, reflectionNote.trim())
+                            prefs.edit().putString("monthly_checkin_last_date", todayStr).apply()
+                            
+                            phq9Answers.fill(-1)
+                            gad7Answers.fill(-1)
+                            reflectionNote = ""
+                            activeWizard = false
+                            wizardStep = 1
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.width(140.dp).height(48.dp)
+                    ) {
+                        Text("Save & Close", fontFamily = Fredoka, fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+                }
+            }
         }
     } else {
-        Column(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(24.dp),
-            verticalArrangement = Arrangement.Center,
+                .padding(horizontal = 4.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            if (cooldownDays > 0) {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(0.08f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("⏳", fontSize = 40.sp)
+            item {
+                if (cooldownDays > 0) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(0.08f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("⏳", fontSize = 32.sp)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Assessment Cooldown",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "Lumen requested a detailed wellness check-in recently.\nYour next check-in will be available in $cooldownDays days.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("📋", fontSize = 32.sp)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Monthly Reflection Check-in",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "A detailed wellness assessment to help Lumen recalibrate its tracking sensitivity and align with your baseline trends.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        Button(
+                            onClick = { activeWizard = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Start Assessment",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
                 }
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    text = "Assessment Cooldown",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "Lumen only requests a detailed wellness check-in every 30 days.\nYour next check-in will be available in $cooldownDays days.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    lineHeight = 18.sp
-                )
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("📋", fontSize = 40.sp)
+            }
+
+            if (reflections.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Historical Reflections & Trends",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        )
+                    }
                 }
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    text = "Monthly Reflection Check-in",
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = "A detailed wellness assessment to help Lumen recalibrate its tracking sensitivity and align with your baseline trends.",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    lineHeight = 18.sp
-                )
-                Spacer(Modifier.height(32.dp))
-                Button(
-                    onClick = { activeWizard = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text(
-                        text = "Start Assessment",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        fontSize = 15.sp
-                    )
+                
+                reflections.forEach { obj ->
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    val dateStr = obj.optString("date")
+                                    val formattedDate = remember(dateStr) {
+                                        try {
+                                            val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
+                                            if (d != null) SimpleDateFormat("MMMM yyyy", Locale.US).format(d) else dateStr
+                                        } catch (e: Exception) { dateStr }
+                                    }
+                                    Text(
+                                        text = formattedDate,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "PHQ-9: ${obj.optInt("phqScore")} | GAD-7: ${obj.optInt("gadScore")}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                
+                                val note = obj.optString("note", "")
+                                if (note.isNotBlank()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = note,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
+                                        lineHeight = 16.sp,
+                                        fontFamily = Fredoka
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -3558,6 +4840,30 @@ fun SettingsScreen() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        item {
+            var showResearchDialogSettings by remember { mutableStateOf(false) }
+            if (showResearchDialogSettings) {
+                ResearchContributionDialog(onDismiss = { showResearchDialogSettings = false })
+            }
+            InfoCard("Research Project Contribution", headerColor = MaterialTheme.colorScheme.primary) {
+                Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "Contribute to mental health research by sharing anonymized behavioral telemetry. All date timelines and PII are stripped, and differential privacy noise is added to protect your identity.",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Button(
+                        onClick = { showResearchDialogSettings = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text("🔬 Share Anonymized Telemetry Data", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -5591,72 +6897,133 @@ fun generateBehavioralSummary(
     isDnaReady: Boolean
 ): String {
     if (isBuilding || score < 0f || !isDnaReady || weeklyFeatures.isEmpty()) {
-        return "Getting to know your rhythms..."
+        return "Lumen is calibrating your daily rhythms. Continue your normal routines while we establish your baseline."
     }
-    if (baseline.isEmpty() || weeklyFeatures.size < 3) {
-        return "Building your behavioral picture..."
+    if (baseline.isEmpty() || weeklyFeatures.size < 2) {
+        return "Gently mapping your routines. Your daily rhythm story will appear here as more telemetry is registered."
     }
 
     val baseMap = baseline.associate { it.featureName to (it.baselineValue to it.stdDeviation) }
     val recent = weeklyFeatures.take(7)
 
-    data class SectorDelta(val name: String, val direction: String, val magnitude: Float, val message: String)
-    val deltas = mutableListOf<SectorDelta>()
+    // Gather deviations
+    val deviations = mutableListOf<String>()
+    var sleepShift = 0f
+    var screenShift = 0f
+    var stepShift = 0f
+    var socialShift = 0f
+    var spatialShift = 0f
+    var daylightShift = 0f
 
-    // Sleep
+    // 1. Sleep
     val sleepBase = baseMap["sleepDurationHours"]
     if (sleepBase != null && sleepBase.second > 0f) {
         val avgSleep = recent.map { it.sleepDurationHours }.average().toFloat()
         val diff = avgSleep - sleepBase.first
         val zScore = diff / sleepBase.second.coerceAtLeast(0.5f)
         if (abs(zScore) > 1.0f) {
-            val dir = if (diff < 0) "shorter" else "longer"
-            deltas.add(SectorDelta("Sleep", dir, abs(zScore),
-                "Your sleep has been about ${String.format("%.1f", abs(diff))}h $dir than usual. ${if (diff < 0) "Consider winding down a bit earlier." else "Great rest!"}"))
+            sleepShift = zScore
+            deviations.add(if (diff < 0) "shorter sleep windows (-${String.format("%.1f", abs(diff))}h)" else "longer rest periods (+${String.format("%.1f", abs(diff))}h)")
         }
     }
 
-    // Activity
-    val stepsBase = baseMap["dailyStepCount"]
-    if (stepsBase != null && stepsBase.second > 0f) {
-        val avgSteps = recent.map { it.dailyStepCount }.average().toFloat()
-        val diff = avgSteps - stepsBase.first
-        val zScore = diff / stepsBase.second.coerceAtLeast(500f)
-        if (abs(zScore) > 1.0f) {
-            deltas.add(SectorDelta("Activity", if (diff > 0) "higher" else "lower", abs(zScore),
-                if (diff > 0) "You've been more physically active than usual — nice work!" else "Your activity has dipped a bit. Even a short walk could help."))
-        }
-    }
-
-    // Screen
+    // 2. Screen
     val screenBase = baseMap["screenTimeHours"]
     if (screenBase != null && screenBase.second > 0f) {
         val avgScreen = recent.map { it.screenTimeHours }.average().toFloat()
         val diff = avgScreen - screenBase.first
         val zScore = diff / screenBase.second.coerceAtLeast(0.5f)
         if (abs(zScore) > 1.0f) {
-            deltas.add(SectorDelta("Screen", if (diff > 0) "higher" else "lower", abs(zScore),
-                if (diff > 0) "Screen time has crept up. Maybe try a short digital break tonight?" else "Screen time is lower than usual — that's a healthy shift."))
+            screenShift = zScore
+            deviations.add(if (diff > 0) "elevated screen engagement (+${String.format("%.1f", abs(diff))}h)" else "reduced screen time (-${String.format("%.1f", abs(diff))}h)")
         }
     }
 
-    // Social
-    val socialBase = baseMap["callsPerDay"]
-    if (socialBase != null && socialBase.second > 0f) {
+    // 3. Activity (Steps)
+    val stepsBase = baseMap["dailyStepCount"]
+    if (stepsBase != null && stepsBase.second > 0f) {
+        val avgSteps = recent.map { it.dailyStepCount }.average().toFloat()
+        val diff = avgSteps - stepsBase.first
+        val zScore = diff / stepsBase.second.coerceAtLeast(500f)
+        if (abs(zScore) > 1.0f) {
+            stepShift = zScore
+            deviations.add(if (diff > 0) "increased physical movement" else "decreased physical steps")
+        }
+    }
+
+    // 4. Social (Calls & Social Ratio)
+    val callsBase = baseMap["callsPerDay"]
+    if (callsBase != null && callsBase.second > 0f) {
         val avgCalls = recent.map { it.callsPerDay }.average().toFloat()
-        val diff = avgCalls - socialBase.first
-        val zScore = diff / socialBase.second.coerceAtLeast(0.5f)
-        if (abs(zScore) > 1.2f) {
-            deltas.add(SectorDelta("Social", if (diff > 0) "more" else "less", abs(zScore),
-                if (diff < 0) "You've been less socially connected lately. Reaching out to someone might help." else "Your social engagement is up — connection is great for wellbeing."))
+        val diff = avgCalls - callsBase.first
+        val zScore = diff / callsBase.second.coerceAtLeast(0.5f)
+        if (abs(zScore) > 1.0f) {
+            socialShift = zScore
+            deviations.add(if (diff > 0) "frequent social contact" else "reduced social interactions")
         }
     }
 
-    return if (deltas.isEmpty()) {
-        "All your patterns look consistent. You're in a good rhythm. ✨"
-    } else {
-        deltas.maxByOrNull { it.magnitude }?.message ?: "Your routines feel steady this week."
+    // 5. Spatial (Entropy & Displacement)
+    val entBase = baseMap["locationEntropy"]
+    if (entBase != null && entBase.second > 0f) {
+        val avgEnt = recent.map { it.locationEntropy }.average().toFloat()
+        val diff = avgEnt - entBase.first
+        val zScore = diff / entBase.second.coerceAtLeast(0.1f)
+        if (abs(zScore) > 1.0f) {
+            spatialShift = zScore
+            deviations.add(if (diff > 0) "greater environmental variety" else "staying in familiar locations")
+        }
     }
+
+    // 6. Daylight
+    val daylightBase = baseMap["daylightExposureMinutes"]
+    if (daylightBase != null && daylightBase.second > 0f) {
+        val avgDaylight = recent.map { it.daylightExposureMinutes }.average().toFloat()
+        val diff = avgDaylight - daylightBase.first
+        val zScore = diff / daylightBase.second.coerceAtLeast(10f)
+        if (abs(zScore) > 1.0f) {
+            daylightShift = zScore
+            deviations.add(if (diff > 0) "increased outdoor light exposure" else "low daylight exposure")
+        }
+    }
+
+    if (deviations.isEmpty()) {
+        return "Your daily routines are flowing in beautiful alignment. You're maintaining a steady balance across screen time, activity, and sleep. Keep nurturing this steady rhythm! ✨"
+    }
+
+    // Build story based on multi-dimensional shifts
+    val intro = "Lumen has observed a few subtle shifts in your behavioral rhythm this week, characterized by " + 
+        when (deviations.size) {
+            1 -> deviations[0]
+            2 -> "${deviations[0]} and ${deviations[1]}"
+            else -> deviations.dropLast(1).joinToString(", ") + ", and " + deviations.last()
+        } + "."
+
+    val analysisText = java.lang.StringBuilder(intro)
+
+    // Multi-dimensional cohesive analysis
+    if (screenShift > 1.0f && sleepShift < -1.0f) {
+        analysisText.append(" Late-night digital engagement is correlating with reduced rest. Unplugging earlier could help restore sleep consistency.")
+    } else if (stepShift < -1.0f && spatialShift < -1.0f) {
+        analysisText.append(" A quiet physical flow matches a preference for staying indoors. A short walk in a new setting might help refresh your outlook.")
+    } else if (socialShift < -1.0f && stepShift < -1.0f) {
+        analysisText.append(" A quieter social rhythm is paired with lower physical energy. Gentle self-care and a brief contact with a loved one could boost resilience.")
+    } else if (daylightShift < -1.0f && screenShift > 1.0f) {
+        analysisText.append(" Low outdoor light and elevated screen use suggest a indoor-heavy cycle. Stepping outside for 10 minutes can reset your body clock.")
+    } else {
+        // Fallback single-dimension highlights
+        if (sleepShift < -1.0f) {
+            analysisText.append(" Shorter sleep durations indicate a need for recovery. Prioritizing rest tonight could bring back balance.")
+        } else if (screenShift > 1.0f) {
+            analysisText.append(" Higher digital engagement suggests softer screen boundaries. Setting small offline windows could clear mental clutter.")
+        } else if (stepShift < -1.0f) {
+            analysisText.append(" Physical movement is quiet compared to your baseline. A gentle stretch or quick walk can renew your physical energy.")
+        } else if (socialShift < -1.0f) {
+            analysisText.append(" Social interaction has dipped. Connecting with someone close, even briefly, can provide comforting emotional grounding.")
+        }
+    }
+
+    return analysisText.toString()
 }
 
 fun getActiveStreak(prefs: SharedPreferences): Int {
@@ -6625,5 +7992,776 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_bac
         }
     }
 }
+
+// =============================================================================
+// Habit Quest & Anonymized Research Sharing Composables
+// =============================================================================
+
+@Composable
+fun HabitQuestsSection() {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    
+    // Sequence to trigger recomposition when settings are updated in dialog
+    var configSeq by remember { mutableStateOf(0) }
+    var showCustomizeDialog by remember { mutableStateOf(false) }
+
+    val sunsetEnabled = remember(configSeq) { prefs.getBoolean("habit_digital_sunset_enabled", false) }
+    val sunsetTarget = remember(configSeq) { prefs.getInt("habit_digital_sunset_target", 30) }
+    val sunsetStreak = remember(configSeq) { prefs.getInt("habit_digital_sunset_streak", 0) }
+
+    val circadianEnabled = remember(configSeq) { prefs.getBoolean("habit_circadian_anchor_enabled", false) }
+    val circadianTarget = remember(configSeq) { prefs.getFloat("habit_circadian_anchor_target", 23f) }
+    val circadianStreak = remember(configSeq) { prefs.getInt("habit_circadian_anchor_streak", 0) }
+
+    val movementEnabled = remember(configSeq) { prefs.getBoolean("habit_movement_boost_enabled", false) }
+    val movementTarget = remember(configSeq) { prefs.getInt("habit_movement_boost_target", 6000) }
+    val movementStreak = remember(configSeq) { prefs.getInt("habit_movement_boost_streak", 0) }
+
+    val focusEnabled = remember(configSeq) { prefs.getBoolean("habit_focus_mode_enabled", false) }
+    val focusTarget = remember(configSeq) { prefs.getFloat("habit_focus_mode_target", 0.20f) }
+    val focusStreak = remember(configSeq) { prefs.getInt("habit_focus_mode_streak", 0) }
+
+    val liveVector by DataRepository.latestVector.collectAsState()
+    val stepsToday = liveVector?.dailyStepCount ?: 0f
+    val socialRatioToday = liveVector?.socialAppRatio ?: 0f
+
+    val sunsetUsage by produceState(0f, configSeq) {
+        withContext(Dispatchers.IO) {
+            value = com.example.mhealth.logic.DataCollector(context).getScreenTimeAfter9PMToday()
+        }
+    }
+
+    if (showCustomizeDialog) {
+        ManageHabitsDialog(
+            onDismiss = {
+                showCustomizeDialog = false
+                configSeq++
+            }
+        )
+    }
+
+    val anyHabit = sunsetEnabled || circadianEnabled || movementEnabled || focusEnabled
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+    ) {
+        Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("🛡️", fontSize = 18.sp)
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "Active Habit Quests",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                }
+                TextButton(
+                    onClick = { showCustomizeDialog = true },
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+                    modifier = Modifier.height(28.dp)
+                ) {
+                    Text("Customize", fontSize = 12.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+
+            if (!anyHabit) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Text(
+                        text = "No active habit quests.",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
+                        text = "Choose a micro-habit target to anchor your circadian, movement, or screen habits.",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                }
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (sunsetEnabled) {
+                        HabitProgressRow(
+                            title = "Digital Sunset",
+                            subtitle = "Keep screen time after 9 PM under ${sunsetTarget}m",
+                            currentValue = sunsetUsage,
+                            targetValue = sunsetTarget.toFloat(),
+                            streak = sunsetStreak,
+                            isLowerBetter = true,
+                            unit = "min"
+                        )
+                    }
+                    if (circadianEnabled) {
+                        val displayHour = if (circadianTarget > 12f) (circadianTarget - 12f).toInt() else circadianTarget.toInt()
+                        val amPm = if (circadianTarget >= 12f && circadianTarget < 24f) "PM" else "AM"
+                        HabitProgressRow(
+                            title = "Circadian Anchor",
+                            subtitle = "Sleep before ${displayHour}:00 $amPm",
+                            currentValue = liveVector?.sleepTimeHour ?: -1f,
+                            targetValue = circadianTarget,
+                            streak = circadianStreak,
+                            isBedtime = true,
+                            unit = ""
+                        )
+                    }
+                    if (movementEnabled) {
+                        HabitProgressRow(
+                            title = "Movement Boost",
+                            subtitle = "Walk at least ${movementTarget} steps today",
+                            currentValue = stepsToday,
+                            targetValue = movementTarget.toFloat(),
+                            streak = movementStreak,
+                            isLowerBetter = false,
+                            unit = "steps"
+                        )
+                    }
+                    if (focusEnabled) {
+                        val pctToday = (socialRatioToday * 100).roundToInt()
+                        val pctTarget = (focusTarget * 100).roundToInt()
+                        HabitProgressRow(
+                            title = "Focus Mode Ratio",
+                            subtitle = "Social app screen ratio under ${pctTarget}%",
+                            currentValue = socialRatioToday * 100f,
+                            targetValue = focusTarget * 100f,
+                            streak = focusStreak,
+                            isLowerBetter = true,
+                            unit = "%"
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun HabitProgressRow(
+    title: String,
+    subtitle: String,
+    currentValue: Float,
+    targetValue: Float,
+    streak: Int,
+    isLowerBetter: Boolean = false,
+    isBedtime: Boolean = false,
+    unit: String = ""
+) {
+    val progress = when {
+        isBedtime -> {
+            if (currentValue < 0f) 0.5f
+            else {
+                val diff = targetValue - currentValue
+                if (diff >= 0f) 1.0f else 0.0f
+            }
+        }
+        else -> {
+            if (targetValue == 0f) 0f
+            else (currentValue / targetValue).coerceIn(0f, 1f)
+        }
+    }
+
+    val isMet = when {
+        isBedtime -> {
+            if (currentValue < 0f) false
+            else {
+                val hour = currentValue
+                val target = targetValue
+                if (target >= 12f) {
+                    hour >= target || hour < 5f
+                } else {
+                    hour <= target && hour >= 0f
+                }
+            }
+        }
+        isLowerBetter -> currentValue <= targetValue
+        else -> currentValue >= targetValue
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = Fredoka)
+                Text(subtitle, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (streak > 0) {
+                    Text("🔥 $streak", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
+                }
+                val statusText = if (isBedtime && currentValue < 0f) "Pending Sleep" else if (isMet) "On Track" else if (isLowerBetter) "Over Target" else "Pending"
+                val statusColor = if (isBedtime && currentValue < 0f) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f) else if (isMet) TealAccent else MaterialTheme.colorScheme.error
+                Text(
+                    text = statusText,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = statusColor,
+                    fontFamily = Fredoka,
+                    modifier = Modifier
+                        .background(statusColor.copy(0.12f), RoundedCornerShape(4.dp))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                )
+            }
+        }
+
+        if (!isBedtime || currentValue >= 0f) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.outline.copy(0.15f))
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .fillMaxWidth(progress)
+                        .clip(CircleShape)
+                        .background(if (isMet) TealAccent else MaterialTheme.colorScheme.primary)
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End
+            ) {
+                val currentStr = if (unit == "%") "${currentValue.roundToInt()}" else String.format(Locale.US, "%.0f", currentValue)
+                val targetStr = if (unit == "%") "${targetValue.roundToInt()}" else String.format(Locale.US, "%.0f", targetValue)
+                Text(
+                    text = "$currentStr / $targetStr $unit",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun ManageHabitsDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+
+    var sunsetEnabled by remember { mutableStateOf(prefs.getBoolean("habit_digital_sunset_enabled", false)) }
+    var sunsetTarget by remember { mutableStateOf(prefs.getInt("habit_digital_sunset_target", 30).toFloat()) }
+
+    var circadianEnabled by remember { mutableStateOf(prefs.getBoolean("habit_circadian_anchor_enabled", false)) }
+    var circadianTarget by remember { mutableStateOf(prefs.getFloat("habit_circadian_anchor_target", 23f)) }
+
+    var movementEnabled by remember { mutableStateOf(prefs.getBoolean("habit_movement_boost_enabled", false)) }
+    var movementTarget by remember { mutableStateOf(prefs.getInt("habit_movement_boost_target", 6000).toFloat()) }
+
+    var focusEnabled by remember { mutableStateOf(prefs.getBoolean("habit_focus_mode_enabled", false)) }
+    var focusTarget by remember { mutableStateOf(prefs.getFloat("habit_focus_mode_target", 0.20f)) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text("Customize Habits", fontWeight = FontWeight.Bold, fontSize = 18.sp, fontFamily = Fredoka)
+        },
+        text = {
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)
+            ) {
+                item {
+                    Text("Select which wellness targets to anchor and verify daily.", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                // Digital Sunset
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Digital Sunset Screen Time", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Limit screen time after 9:00 PM", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = sunsetEnabled, onCheckedChange = { sunsetEnabled = it })
+                        }
+                        if (sunsetEnabled) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Slider(
+                                    value = sunsetTarget,
+                                    onValueChange = { sunsetTarget = it },
+                                    valueRange = 10f..120f,
+                                    steps = 21,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("${sunsetTarget.roundToInt()}m", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            }
+                        }
+                    }
+                }
+
+                // Bedtime Anchor
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Circadian Bedtime Anchor", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Keep your sleep hour before a target", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = circadianEnabled, onCheckedChange = { circadianEnabled = it })
+                        }
+                        if (circadianEnabled) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Slider(
+                                    value = circadianTarget,
+                                    onValueChange = { circadianTarget = it },
+                                    valueRange = 20f..26f, // 8 PM to 2 AM
+                                    steps = 12,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                val displayHour = if (circadianTarget > 24f) (circadianTarget - 24f).roundToInt() else if (circadianTarget > 12f) (circadianTarget - 12f).roundToInt() else circadianTarget.roundToInt()
+                                val amPm = if (circadianTarget >= 12f && circadianTarget < 24f) "PM" else "AM"
+                                Text("${displayHour}:00 $amPm", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            }
+                        }
+                    }
+                }
+
+                // Movement Boost
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Movement Steps Boost", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Minimum daily steps count target", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = movementEnabled, onCheckedChange = { movementEnabled = it })
+                        }
+                        if (movementEnabled) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Slider(
+                                    value = movementTarget,
+                                    onValueChange = { movementTarget = it },
+                                    valueRange = 2000f..15000f,
+                                    steps = 26,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("${movementTarget.roundToInt()}", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            }
+                        }
+                    }
+                }
+
+                // Focus Mode Ratio
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Focus Social App Ratio", fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Keep social apps usage under ratio", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = focusEnabled, onCheckedChange = { focusEnabled = it })
+                        }
+                        if (focusEnabled) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Slider(
+                                    value = focusTarget * 100f,
+                                    onValueChange = { focusTarget = it / 100f },
+                                    valueRange = 5f..50f,
+                                    steps = 9,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("${(focusTarget * 100).roundToInt()}%", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    prefs.edit().apply {
+                        putBoolean("habit_digital_sunset_enabled", sunsetEnabled)
+                        putInt("habit_digital_sunset_target", sunsetTarget.roundToInt())
+                        
+                        putBoolean("habit_circadian_anchor_enabled", circadianEnabled)
+                        putFloat("habit_circadian_anchor_target", circadianTarget)
+                        
+                        putBoolean("habit_movement_boost_enabled", movementEnabled)
+                        putInt("habit_movement_boost_target", movementTarget.roundToInt())
+                        
+                        putBoolean("habit_focus_mode_enabled", focusEnabled)
+                        putFloat("habit_focus_mode_target", focusTarget)
+                    }.apply()
+                    Toast.makeText(context, "Habit targets updated successfully!", Toast.LENGTH_SHORT).show()
+                    onDismiss()
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Save", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
+@Composable
+fun WeeklyDigestDialog(
+    weeklyFeatures: List<PersonalityVector>,
+    baseline: PersonalityVector,
+    onDismiss: () -> Unit
+) {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+
+    // Find the Sunday of the week
+    val weekStartStr = remember {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cal.time)
+    }
+
+    val reflectionKey = "weekly_reflection_$weekStartStr"
+    var reflectionText by remember { mutableStateOf(prefs.getString(reflectionKey, "") ?: "") }
+
+    // Compute stats
+    val avgSleep = remember(weeklyFeatures) { weeklyFeatures.map { it.sleepDurationHours }.average().toFloat() }
+    val baseSleep = baseline.sleepDurationHours
+    val sleepPct = if (baseSleep > 0f) (avgSleep / baseSleep * 100).roundToInt() else 100
+
+    val avgSteps = remember(weeklyFeatures) { weeklyFeatures.map { it.dailyStepCount }.average().toFloat() }
+    val baseSteps = baseline.dailyStepCount
+    val stepPct = if (baseSteps > 0f) (avgSteps / baseSteps * 100).roundToInt() else 100
+
+    val avgScreen = remember(weeklyFeatures) { weeklyFeatures.map { it.screenTimeHours }.average().toFloat() }
+    val baseScreen = baseline.screenTimeHours
+    val screenPct = if (baseScreen > 0f) (avgScreen / baseScreen * 100).roundToInt() else 100
+
+    val avgSocial = remember(weeklyFeatures) { weeklyFeatures.map { it.socialAppRatio }.average().toFloat() }
+    val baseSocial = baseline.socialAppRatio
+    val socialPct = if (baseSocial > 0f) (avgSocial / baseSocial * 100).roundToInt() else 100
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+                    .padding(24.dp)
+            ) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Weekly Digest",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = "Sunday Summary report card",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .background(MaterialTheme.colorScheme.surfaceVariant.copy(0.5f), CircleShape)
+                            .size(36.dp)
+                    ) {
+                        Icon(Icons.Default.Close, null, modifier = Modifier.size(18.dp))
+                    }
+                }
+
+                Spacer(Modifier.height(20.dp))
+
+                LazyColumn(
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    // Multi-axis score vs baseline
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text("Circadian & Activity Balances", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                                
+                                WeeklyMetricRow("Sleep Consistency", "$sleepPct% of baseline", sleepPct >= 90)
+                                WeeklyMetricRow("Physical Activity Flow", "$stepPct% of baseline", stepPct >= 90)
+                                WeeklyMetricRow("Digital Balance Ratio", "$screenPct% of baseline", screenPct <= 110)
+                                WeeklyMetricRow("Social Contact Ratio", "$socialPct% of baseline", socialPct >= 90)
+                            }
+                        }
+                    }
+
+                    // Highlights
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.04f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.1f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("🎉", fontSize = 18.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Weekly Highlights", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+                                }
+                                val highlightStr = when {
+                                    stepPct > 110 -> "Your steps count was exceptionally strong this week, fueling your physical energy and circadian resilience."
+                                    sleepPct > 105 -> "You secured deep, restorative sleep windows, providing ample recovery for mind and body."
+                                    screenPct < 90 -> "You successfully reclaimed quiet offline spaces, significantly reducing digital eye strain and mental fatigue."
+                                    else -> "You maintained a highly balanced, predictable lifestyle rhythm throughout the entire week. Fantastic consistency!"
+                                }
+                                Text(highlightStr, fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.8f))
+                            }
+                        }
+                    }
+
+                    // Watch Items
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer.copy(0.05f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error.copy(0.1f))
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text("⚠️", fontSize = 18.sp)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Items to Watch", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.error)
+                                }
+                                val watchStr = when {
+                                    screenPct > 115 -> "Screen time is elevated compared to your baseline. Introducing screen-free gaps in the afternoon could restore focus."
+                                    sleepPct < 85 -> "Your sleep window is shorter than usual this week. Prioritize a regular, early bedtime to help recharge your body clock."
+                                    stepPct < 80 -> "Physical steps are lower than baseline. A gentle daily 15-minute walk can help anchor your energy levels."
+                                    else -> "No major circadian drifts or digital spikes detected. Continue checking in daily to maintain this healthy flow."
+                                }
+                                Text(watchStr, fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.8f))
+                            }
+                        }
+                    }
+
+                    // Qualitative notes reflection
+                    item {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(
+                                text = "Qualitative Reflection",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                            OutlinedTextField(
+                                value = reflectionText,
+                                onValueChange = {
+                                    reflectionText = it
+                                    prefs.edit().putString(reflectionKey, it).apply()
+                                },
+                                placeholder = { Text("Write a brief qualitative note about your week (e.g. stress levels, sleep environment changes)...", fontSize = 12.sp) },
+                                modifier = Modifier.fillMaxWidth().height(120.dp),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                ) {
+                    Text("Close Summary", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WeeklyMetricRow(label: String, value: String, isPositive: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(value, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+            Text(if (isPositive) "✓" else "!", color = if (isPositive) TealAccent else MaterialTheme.colorScheme.error, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+fun ResearchContributionDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("🔬", fontSize = 20.sp)
+                Spacer(Modifier.width(8.dp))
+                Text("Support Mental Health Research", fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Fredoka)
+            }
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "You can anonymously contribute your daily aggregated rhythm trends to help build open-source mental health models. The shared dataset strictly observes privacy guarantees:",
+                    fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "🔒 Privacy Protections:\n" +
+                    "• Zero PII: Your name, coordinates, phone logs, and app lists are stripped entirely.\n" +
+                    "• Timeline Blinding: Actual dates and timestamps are removed; daily records are indexed as Day 1, Day 2, etc.\n" +
+                    "• Noise Perturbation: Small differential noise is injected into step counts (+/- 150) and screen times (+/- 10 min) to prevent tracing back to individuals.",
+                    fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onDismiss()
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            val db = MHealthDatabase.getInstance(context)
+                            val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+                            val entities = db.dailyFeaturesDao().getAllFeatures(userId)
+                            
+                            if (entities.isEmpty()) {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(context, "No telemetry data collected yet.", Toast.LENGTH_SHORT).show()
+                                }
+                                return@launch
+                            }
+
+                            // Build anonymized JSON
+                            val anonymousId = UUID.randomUUID().toString()
+                            val array = org.json.JSONArray()
+                            val noiseGenerator = java.util.Random()
+
+                            entities.forEachIndexed { index, vector ->
+                                val obj = org.json.JSONObject()
+                                obj.put("day_index", index + 1)
+                                
+                                // Perturb steps
+                                val stepNoise = noiseGenerator.nextInt(300) - 150
+                                obj.put("perturbed_steps", (vector.dailyStepCount + stepNoise).coerceAtLeast(0f).toInt())
+                                
+                                // Perturb screen time (minutes)
+                                val screenNoise = noiseGenerator.nextFloat() * 20f - 10f
+                                obj.put("perturbed_screen_time_hours", (vector.screenTimeHours + screenNoise / 60f).coerceAtLeast(0f))
+                                
+                                // Anonymized ratios/entropy (no noise needed, highly abstract)
+                                obj.put("location_entropy", vector.locationEntropy)
+                                obj.put("social_ratio", vector.socialAppRatio)
+                                obj.put("sleep_duration_hours", vector.sleepDurationHours)
+                                obj.put("sleep_time_hour", vector.sleepTimeHour)
+                                
+                                array.put(obj)
+                            }
+
+                            val payload = org.json.JSONObject()
+                            payload.put("research_payload_id", anonymousId)
+                            payload.put("anonymized_days", entities.size)
+                            payload.put("daily_records", array)
+
+                            val payloadStr = payload.toString(2)
+                            
+                            withContext(Dispatchers.Main) {
+                                val sendIntent = Intent().apply {
+                                    action = Intent.ACTION_SEND
+                                    putExtra(Intent.EXTRA_TEXT, payloadStr)
+                                    type = "application/json"
+                                }
+                                val shareIntent = Intent.createChooser(sendIntent, "Share Anonymized Research Data")
+                                context.startActivity(shareIntent)
+                                
+                                prefs.edit().putBoolean("research_share_completed", true).apply()
+                            }
+                        } catch (e: Exception) {
+                            Log.e("MHealth", "Research share preparation failed: ${e.message}")
+                        }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("Anonymize & Share", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Decline", color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
+            }
+        },
+        shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
 
 

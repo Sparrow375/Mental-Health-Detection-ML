@@ -837,6 +837,9 @@ class MonitoringService : Service() {
                     handleAnomalyDetection(fullDaySnapshot, today, savedDay, isSimulated)
                 }
 
+                // Evaluate Passive Habits
+                evaluateHabitsForDay(fullDaySnapshot, yesterdayStart, yesterdayEnd, yesterdayStr)
+
                 // Reset daily accumulators for the new day
                 DataRepository.resetDailyState()
                 gpsStateManager.reset()  // Reset GPS state machine to STATIONARY
@@ -858,6 +861,78 @@ class MonitoringService : Service() {
         } catch (e: Exception) {
             Log.e("MHealth.Service", "Error in runTick: ${e.message}", e)
         }
+    }
+
+    private fun evaluateHabitsForDay(snapshot: PersonalityVector, yesterdayStartMs: Long, yesterdayEndMs: Long, dateStr: String) {
+        val prefs = getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        val editor = prefs.edit()
+        
+        Log.i("MHealth.Service", "Evaluating habits for $dateStr...")
+
+        // 1. Digital Sunset
+        if (prefs.getBoolean("habit_digital_sunset_enabled", false)) {
+            val targetMin = prefs.getInt("habit_digital_sunset_target", 30)
+            val screenMinAfter9 = dataCollector.getScreenTimeAfter9PM(yesterdayStartMs, yesterdayEndMs)
+            val success = screenMinAfter9 <= targetMin
+            val streak = prefs.getInt("habit_digital_sunset_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_digital_sunset_streak", newStreak)
+            editor.putBoolean("habit_digital_sunset_status_last", success)
+            Log.i("MHealth.Service", "  Digital Sunset: $screenMinAfter9 mins (target: $targetMin mins) -> success=$success, streak=$newStreak")
+        } else {
+            editor.putInt("habit_digital_sunset_streak", 0)
+        }
+
+        // 2. Circadian Anchor
+        if (prefs.getBoolean("habit_circadian_anchor_enabled", false)) {
+            val targetHour = prefs.getFloat("habit_circadian_anchor_target", 23.0f) // default 11 PM
+            val bedtime = snapshot.sleepTimeHour
+            val success = if (bedtime >= 18.0f) {
+                bedtime <= targetHour || targetHour < 12.0f
+            } else if (bedtime >= 0.0f) {
+                targetHour < 12.0f && bedtime <= targetHour
+            } else {
+                false
+            }
+            val streak = prefs.getInt("habit_circadian_anchor_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_circadian_anchor_streak", newStreak)
+            editor.putBoolean("habit_circadian_anchor_status_last", success)
+            Log.i("MHealth.Service", "  Circadian Anchor: bedtime $bedtime (target: $targetHour) -> success=$success, streak=$newStreak")
+        } else {
+            editor.putInt("habit_circadian_anchor_streak", 0)
+        }
+
+        // 3. Movement Boost
+        if (prefs.getBoolean("habit_movement_boost_enabled", false)) {
+            val targetSteps = prefs.getInt("habit_movement_boost_target", 6000)
+            val steps = snapshot.dailyStepCount.toInt()
+            val success = steps >= targetSteps
+            val streak = prefs.getInt("habit_movement_boost_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_movement_boost_streak", newStreak)
+            editor.putBoolean("habit_movement_boost_status_last", success)
+            Log.i("MHealth.Service", "  Movement Boost: $steps steps (target: $targetSteps) -> success=$success, streak=$newStreak")
+        } else {
+            editor.putInt("habit_movement_boost_streak", 0)
+        }
+
+        // 4. Focus Mode
+        if (prefs.getBoolean("habit_focus_mode_enabled", false)) {
+            val targetRatio = prefs.getFloat("habit_focus_mode_target", 0.20f)
+            val socialRatio = snapshot.socialAppRatio
+            val success = socialRatio <= targetRatio
+            val streak = prefs.getInt("habit_focus_mode_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_focus_mode_streak", newStreak)
+            editor.putBoolean("habit_focus_mode_status_last", success)
+            Log.i("MHealth.Service", "  Focus Mode: social ratio $socialRatio (target: $targetRatio) -> success=$success, streak=$newStreak")
+        } else {
+            editor.putInt("habit_focus_mode_streak", 0)
+        }
+
+        editor.putString("habit_last_checked_date", dateStr)
+        editor.apply()
     }
 
     private suspend fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {

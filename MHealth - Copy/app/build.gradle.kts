@@ -130,4 +130,7 @@ dependencies {
 
     // OpenPDF for medical reports
     implementation("com.github.librepdf:openpdf:2.0.3")
+
+    // Google Play In-App Updates
+    implementation(libs.play.app.update)
 }

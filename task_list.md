@@ -1,5 +1,34 @@
 # Lumen Insights Enhancement Task List
 
+## Sprint: Pivot & Release Readiness (In Progress)
+
+### Phase 1: P0 Critical Release Fixes
+- [x] **T31**: Implement call log proxy signals using dialer app launches (`com.samsung.android.dialer`, `com.samsung.android.incallui`, `com.google.android.dialer`, `com.truecaller`) from `UsageEvents` (unblocking Relational/Communication metrics).
+- [x] **T32**: Add a client-side force app update on launch using Google Play In-App Updates API (`AppUpdateManager` in `MainActivity.onCreate`).
+- [x] **T33**: Verify end-to-end permission flows in release build, ensuring that if usage stats or location isn't granted, a persistent non-dismissible banner is displayed on the dashboard.
+
+### Phase 2: P1 Core Wellness & ML Showcase
+- [x] **T34**: Enrich the guided box breathing card to launch a full-screen interactive breathing screen with Canvas animations, phase indicators, and haptic feedback.
+- [x] **T35**: Add Interaction Tempo insight sector displaying Typing Speed, Edit Frequency, and Scroll Pace (qualitative baseline comparisons + 7-day sparklines).
+- [x] **T36**: Add Charging Patterns + Daylight Exposure + Daily Engagement insight sectors.
+- [x] **T37**: Evolve raw stats on all insight cards to reflective qualitative narratives comparing current status to personal baseline.
+- [x] **T38**: Implement Event Annotation system ("Add a note") triggered by elevated anomaly scores or notable pattern shifts.
+- [x] **T39**: Surface "Rhythm Consistency %" gauge (derived from ML anomaly score) on the dashboard with coherence indicators.
+- [x] **T40**: Add a Behavioral Fingerprint 6-axis Radar/Spider chart normalized to personal baseline.
+- [x] **T41**: Expand the Daily Quotes system to include diverse wisdom categories (mindfulness, stoicism, self-compassion, science).
+- [x] **T42**: Enhance Monthly Screeners with a larger UI layout and a qualitative monthly reflection note field.
+
+### Phase 3: P2 Engagement & Anonymization (Completed)
+- [x] **T43**: Implement Passive-Verified Habit Goals (Digital Sunset, Circadian Anchor, Movement Boost, Focus Mode) with streak counters and Home Screen cards.
+- [x] **T44**: Implement Pattern Stories Narration Engine based on anomaly deviations and cluster coherence changes.
+- [x] **T45**: Implement Weekly Digest Report Card displaying weekly telemetry highlights, watch items, and mood correlation trends.
+- [x] **T46**: Implement Anonymous Research Contribution export system triggered 30 days post-installation with differential privacy noise and PII scrubbing.
+
+### Phase 4: P3 Polish & Delight (Not Started)
+- [ ] **T47**: Implement Wind-Down Companion (bedtime reminders, dark UI state).
+- [ ] **T48**: Implement Digital Detox Timer with screen-off tracking and records.
+- [ ] **T49**: Implement Mood × Behavior Correlation Cards.
+
 ## Sprint: Google Play Store Compliance (Completed)
 
 - [x] **T26**: Fix inadequate prominent disclosure text for Location permissions in release `LocationDisclosureDialog` to explicitly mention background location usage and the exact required phrase "even when the app is closed or not in use".

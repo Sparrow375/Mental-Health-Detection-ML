@@ -161,11 +161,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val sleepData = calculateSleepProxy(startOfDay, now)
 
         val locationData  = calculateLocationMetrics(locationSnapshots, startOfDay, now)
-        val comms         = collectCommunicationStats(startOfDay)
+        val comms         = collectCommunicationStats(startOfDay, events)
         val calEvents     = countCalendarEvents(startOfDay, now)
         val mediaCount    = countMediaAdded(startOfDay, now)
         val appInstalls   = countAppInstalls(startOfDay, now)
-        val contacts      = countUniqueContactsToday(startOfDay)
+        val contacts      = countUniqueContactsToday(startOfDay, events)
         val downloads     = countDownloads(startOfDay, now)
         val appUninstalls = countAppUninstalls()
         val upiLaunches   = countUpiLaunches(events.appLaunches)
@@ -406,7 +406,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val appMinutes: Map<String, Long>, // package → foreground minutes
         val appLaunches: Map<String, Int>, // package → launch count
         val notificationCount: Int,        // total notification interruptions
-        val notificationBreakdown: Map<String, Int> // package → notification count
+        val notificationBreakdown: Map<String, Int>, // package → notification count
+        val proxyCalls: Int,
+        val proxyDurationMinutes: Float,
+        val proxyUniqueContacts: Int
     )
 
     // calculateSleepProxy is defined lower in this file (production version with Core Sleep filter)
@@ -520,6 +523,49 @@ class DataCollector(private val context: Context) : SensorEventListener {
         return false
     }
 
+    fun getScreenTimeAfter9PM(startOfDayMs: Long, endOfDayMs: Long): Float {
+        return try {
+            val usm = context.getSystemService(Context.USAGE_STATS_SERVICE) as? UsageStatsManager ?: return 0f
+            val ninePm = startOfDayMs + 21 * 3600_000L
+            if (endOfDayMs <= ninePm) return 0f
+
+            val events = usm.queryEvents(ninePm, endOfDayMs) ?: return 0f
+            val event = UsageEvents.Event()
+            val appFgStart = mutableMapOf<String, Long>()
+            var totalScreenMs = 0L
+
+            while (events.hasNextEvent()) {
+                events.getNextEvent(event)
+                val ts = event.timeStamp.coerceIn(ninePm, endOfDayMs)
+                val pkg = event.packageName ?: ""
+                if (event.eventType == UsageEvents.Event.MOVE_TO_FOREGROUND) {
+                    if (!isExcluded(pkg)) {
+                        appFgStart[pkg] = ts
+                    }
+                } else if (event.eventType == UsageEvents.Event.MOVE_TO_BACKGROUND) {
+                    val fgStart = appFgStart.remove(pkg)
+                    if (fgStart != null && fgStart <= ts) {
+                        totalScreenMs += (ts - fgStart)
+                    }
+                }
+            }
+            // Add any app currently in foreground
+            for ((pkg, fgStart) in appFgStart) {
+                if (fgStart <= endOfDayMs) {
+                    totalScreenMs += (endOfDayMs - fgStart)
+                }
+            }
+            totalScreenMs / 60_000f // Return in minutes
+        } catch (e: Exception) {
+            Log.e("DataCollector", "Error in getScreenTimeAfter9PM: ${e.message}")
+            0f
+        }
+    }
+
+    fun getScreenTimeAfter9PMToday(): Float {
+        return getScreenTimeAfter9PM(getStartOfDayMs(), System.currentTimeMillis())
+    }
+
     private fun parseUsageEvents(startMs: Long, endMs: Long): EventsResult {
         val usm = checkNotNull(context.getSystemService(UsageStatsManager::class.java)) { "UsageStatsManager not available" }
 
@@ -544,6 +590,22 @@ class DataCollector(private val context: Context) : SensorEventListener {
         var notifications    = 0
         val appNotifications = mutableMapOf<String, Int>()
 
+        val dialerPkgs = setOf(
+            "com.samsung.android.dialer",
+            "com.google.android.dialer",
+            "com.android.dialer",
+            "com.truecaller"
+        )
+        val incallPkgs = setOf(
+            "com.samsung.android.incallui",
+            "com.android.phone",
+            "com.google.android.dialer"
+        )
+        var lastDialerLaunchTs = 0L
+        var uniqueDialerSessions = 0
+        var dialerLaunches = 0
+        var dialerNotifications = 0
+
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
             val ts  = event.timeStamp.coerceIn(startMs, endMs)
@@ -552,7 +614,14 @@ class DataCollector(private val context: Context) : SensorEventListener {
             when (event.eventType) {
                 // ── App comes to foreground (1) ────────────────────────────────
                 UsageEvents.Event.MOVE_TO_FOREGROUND -> {
-                    if (!isExcluded(pkg)) {
+                    if (pkg in dialerPkgs) {
+                        dialerLaunches++
+                        if (lastDialerLaunchTs == 0L || (ts - lastDialerLaunchTs > 300_000L)) {
+                            uniqueDialerSessions++
+                        }
+                        lastDialerLaunchTs = ts
+                    }
+                    if (pkg in dialerPkgs || pkg in incallPkgs || !isExcluded(pkg)) {
                         appFgStart[pkg] = ts
                         val lastBg = lastBgAt[pkg] ?: 0L
                         if (lastBg == 0L || (ts - lastBg > 1500L)) {
@@ -564,7 +633,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
                 // ── App goes to background (2) ─────────────────────────────────
                 UsageEvents.Event.MOVE_TO_BACKGROUND -> {
-                    if (!isExcluded(pkg)) {
+                    if (pkg in dialerPkgs || pkg in incallPkgs || !isExcluded(pkg)) {
                         val fgStart = appFgStart.remove(pkg)
                         if (fgStart != null && fgStart <= ts) {
                             val duration = ts - fgStart
@@ -597,7 +666,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
                 // ── Notification Interruption (12 = NOTIFICATION_INTERRUPTION) ──
                 12 -> {
-                    if (!isExcluded(pkg)) {
+                    if (pkg in dialerPkgs) {
+                        dialerNotifications++
+                    }
+                    if (pkg in dialerPkgs || pkg in incallPkgs || !isExcluded(pkg)) {
                         notifications++
                         appNotifications[pkg] = (appNotifications[pkg] ?: 0) + 1
                     }
@@ -609,6 +681,11 @@ class DataCollector(private val context: Context) : SensorEventListener {
         val socialInteractionMs = finalAppMs.filterKeys { pkg ->
             isSocialApp(pkg)
         }.values.sum()
+
+        val proxyCalls = dialerLaunches + dialerNotifications
+        val incallDurationMs = finalAppMs.filterKeys { it in incallPkgs }.values.sum()
+        val proxyDurationMinutes = incallDurationMs / 60_000f
+        val proxyUniqueContacts = uniqueDialerSessions.coerceAtLeast(if (proxyCalls > 0) 1 else 0)
 
         val minutes = finalAppMs.mapValues { it.value / 60_000L }.filter { it.value > 0 }
 
@@ -622,7 +699,10 @@ class DataCollector(private val context: Context) : SensorEventListener {
             appMinutes        = minutes,
             appLaunches       = appLaunches,
             notificationCount = notifications,
-            notificationBreakdown = appNotifications
+            notificationBreakdown = appNotifications,
+            proxyCalls        = proxyCalls,
+            proxyDurationMinutes = proxyDurationMinutes,
+            proxyUniqueContacts = proxyUniqueContacts
         )
     }
 
@@ -1037,43 +1117,63 @@ class DataCollector(private val context: Context) : SensorEventListener {
 
     private data class CommStats(val callCount: Int, val callDurationMinutes: Float)
 
-    private fun collectCommunicationStats(since: Long): CommStats {
-        var calls = 0
-        var totalDurationSeconds = 0f
-        try {
-            context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI, arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DURATION),
-                "${CallLog.Calls.DATE} >= ?", arrayOf(since.toString()), null
-            )?.use { cursor ->
-                calls = cursor.count
-                val durIndex = cursor.getColumnIndex(CallLog.Calls.DURATION)
-                if (durIndex != -1) {
-                    while (cursor.moveToNext()) {
-                        totalDurationSeconds += cursor.getLong(durIndex).toFloat()
+    private val CALL_PACKAGES = setOf(
+        "com.samsung.android.dialer",
+        "com.google.android.dialer",
+        "com.android.dialer",
+        "com.truecaller",
+        "com.samsung.android.incallui",
+        "com.android.phone",
+        "com.samsung.android.callassistant"
+    )
+
+    private fun collectCommunicationStats(since: Long, events: EventsResult): CommStats {
+        if (context.checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+            var calls = 0
+            var totalDurationSeconds = 0f
+            try {
+                context.contentResolver.query(
+                    CallLog.Calls.CONTENT_URI, arrayOf(CallLog.Calls.NUMBER, CallLog.Calls.DURATION),
+                    "${CallLog.Calls.DATE} >= ?", arrayOf(since.toString()), null
+                )?.use { cursor ->
+                    calls = cursor.count
+                    val durIndex = cursor.getColumnIndex(CallLog.Calls.DURATION)
+                    if (durIndex != -1) {
+                        while (cursor.moveToNext()) {
+                            totalDurationSeconds += cursor.getLong(durIndex).toFloat()
+                        }
                     }
                 }
-            }
-        } catch (e: Exception) { Log.e(TAG, "Comm error: ${e.message}") }
-        return CommStats(calls, totalDurationSeconds / 60f)
+            } catch (e: Exception) { Log.e(TAG, "Comm error: ${e.message}") }
+            return CommStats(calls, totalDurationSeconds / 60f)
+        } else {
+            Log.d(TAG, "collectCommunicationStats Proxy: calls=${events.proxyCalls} durMin=${events.proxyDurationMinutes}")
+            return CommStats(events.proxyCalls, events.proxyDurationMinutes)
+        }
     }
 
-    private fun countUniqueContactsToday(startOfDay: Long): Int {
-        val uniqueNumbers = mutableSetOf<String>()
-        try {
-            context.contentResolver.query(
-                CallLog.Calls.CONTENT_URI,
-                arrayOf(CallLog.Calls.NUMBER),
-                "${CallLog.Calls.DATE} >= ?",
-                arrayOf(startOfDay.toString()), null
-            )?.use { cursor ->
-                val numIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
-                while (cursor.moveToNext()) {
-                    val num = cursor.getString(numIndex)?.replace("\\s".toRegex(), "") ?: continue
-                    if (num.isNotBlank()) uniqueNumbers.add(num)
+    private fun countUniqueContactsToday(startOfDay: Long, events: EventsResult): Int {
+        if (context.checkSelfPermission(Manifest.permission.READ_CALL_LOG) == PackageManager.PERMISSION_GRANTED) {
+            val uniqueNumbers = mutableSetOf<String>()
+            try {
+                context.contentResolver.query(
+                    CallLog.Calls.CONTENT_URI,
+                    arrayOf(CallLog.Calls.NUMBER),
+                    "${CallLog.Calls.DATE} >= ?",
+                    arrayOf(startOfDay.toString()), null
+                )?.use { cursor ->
+                    val numIndex = cursor.getColumnIndex(CallLog.Calls.NUMBER)
+                    while (cursor.moveToNext()) {
+                        val num = cursor.getString(numIndex)?.replace("\\s".toRegex(), "") ?: continue
+                        if (num.isNotBlank()) uniqueNumbers.add(num)
+                    }
                 }
-            }
-        } catch (e: Exception) { Log.e(TAG, "UniqueContacts error: ${e.message}") }
-        return uniqueNumbers.size
+            } catch (e: Exception) { Log.e(TAG, "UniqueContacts error: ${e.message}") }
+            return uniqueNumbers.size
+        } else {
+            Log.d(TAG, "countUniqueContactsToday Proxy: unique=${events.proxyUniqueContacts}")
+            return events.proxyUniqueContacts
+        }
     }
 
     // Kept for backward compatibility — counts starred (favourite) contacts overall

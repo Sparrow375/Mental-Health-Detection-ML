@@ -24,10 +24,23 @@
 - [x] **T45**: Implement Weekly Digest Report Card displaying weekly telemetry highlights, watch items, and mood correlation trends.
 - [x] **T46**: Implement Anonymous Research Contribution export system triggered 30 days post-installation with differential privacy noise and PII scrubbing.
 
-### Phase 4: P3 Polish & Delight (Not Started)
-- [ ] **T47**: Implement Wind-Down Companion (bedtime reminders, dark UI state).
-- [ ] **T48**: Implement Digital Detox Timer with screen-off tracking and records.
-- [ ] **T49**: Implement Mood × Behavior Correlation Cards.
+### Phase 4: P3 Polish & Delight (Completed)
+- [x] **T47**: Implement Wind-Down Companion (bedtime reminders, dark UI state).
+- [x] **T48**: Implement Digital Detox Timer with screen-off tracking and records.
+- [x] **T49**: Implement Mood × Behavior Correlation Cards.
+
+## Sprint: UX Polish & Phase 3 Extensions (Completed)
+- [x] **T50**: Fix guided box breathing state machine (resolve exhale->hold loop and duplicate volume adjustments).
+- [x] **T51**: Fix system back button navigation handler for inner tabs in Insights (activeDetailSector).
+- [x] **T52**: Fix UI elements going under the navigation bar (add `decorFitsSystemWindows = false` to full-screen dialogs like `WeeklyDigestDialog` and `FullScreenBreathingScreen`).
+- [x] **T53**: Redesign Weekly Digest to be highly analytical (add weekly average consistency score gauge, daily consistency mini bar chart/sparkline, habit quest completion rate, and detailed metric vs baseline comparisons).
+- [x] **T54**: Fix x-axis overlaps in Rhythm Detail Screen trend chart (implement step spacing for dates).
+- [x] **T55**: snappier StaggeredFadeIn animations (decrease delay to 30ms/index, cap at 150ms, decrease duration to 300ms).
+- [x] **T56**: Daily Quotes cleanup and refresh behavior (regex strip category tag, random quote selection on app start).
+- [x] **T57**: Implement Wind-Down Companion details (bedtime approach reminders, dim-screen overlay theme).
+- [x] **T58**: Implement Digital Detox Timer details (configurable timer, screen-off tracking with broadcast receiver, success/interrupted notification & streak).
+- [x] **T59**: Expand Mood x Behavior Correlation Cards (physical vs mood, sleep vs mood, digital vs mood).
+
 
 ## Sprint: Google Play Store Compliance (Completed)
 

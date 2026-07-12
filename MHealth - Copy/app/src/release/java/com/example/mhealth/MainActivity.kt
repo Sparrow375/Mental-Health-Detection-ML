@@ -2430,7 +2430,7 @@ fun QualitativeTrendChart(features: List<PersonalityVector>, baseline: Personali
                 val deviations = listOf(
                     safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
                     safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
-                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(3f)),
                     safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
                 )
                 val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
@@ -2532,7 +2532,7 @@ fun QualitativeTrendChart(features: List<PersonalityVector>, baseline: Personali
 
 private fun safeDev(current: Float, base: Float, scale: Float): Float {
     if (scale <= 0f) return 0f
-    return abs(current - base) / scale
+    return (abs(current - base) / scale).coerceAtMost(2.0f)
 }
 
 // =============================================================================
@@ -3041,6 +3041,9 @@ fun getFeatureValueFromEntity(feat: com.example.mhealth.logic.db.DailyFeaturesEn
         "daylightExposureMinutes" -> feat.daylightExposureMinutes
         "chargeRegularity" -> feat.chargeRegularity
         "chargeDurationHours" -> feat.chargeDurationHours
+        "keystrokeSpeed" -> feat.keystrokeSpeed
+        "backspaceRatio" -> feat.backspaceRatio
+        "scrollVelocity" -> feat.scrollVelocity
         else -> 0f
     }
 }
@@ -3078,7 +3081,7 @@ fun RhythmConsistencyChart(
                 val deviations = listOf(
                     safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
                     safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
-                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(3f)),
                     safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
                 )
                 val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
@@ -3619,7 +3622,7 @@ fun RhythmDetailScreen(
                 val deviations = listOf(
                     safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
                     safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
-                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                    safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(3f)),
                     safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
                 )
                 val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
@@ -4738,6 +4741,9 @@ fun SettingsScreen() {
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
     val progress by DataRepository.baselineProgress.collectAsState()
     var homeCapturing by remember { mutableStateOf(false) }
+    var showManualInputs by remember { mutableStateOf(false) }
+    var manualLat by remember { mutableStateOf("") }
+    var manualLon by remember { mutableStateOf("") }
 
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     
@@ -5073,6 +5079,60 @@ fun SettingsScreen() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    if (!showManualInputs) {
+                        OutlinedButton(
+                            onClick = { showManualInputs = true },
+                            modifier = Modifier.fillMaxWidth().height(48.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.5f))
+                        ) {
+                            Text("Manually Enter Coordinates", color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                        }
+                    } else {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                OutlinedTextField(
+                                    value = manualLat,
+                                    onValueChange = { manualLat = it },
+                                    label = { Text("Latitude") },
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    modifier = Modifier.weight(1f)
+                                )
+                                OutlinedTextField(
+                                    value = manualLon,
+                                    onValueChange = { manualLon = it },
+                                    label = { Text("Longitude") },
+                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            Button(
+                                onClick = {
+                                    val latVal = manualLat.toDoubleOrNull()
+                                    val lonVal = manualLon.toDoubleOrNull()
+                                    if (latVal != null && lonVal != null && latVal in -90.0..90.0 && lonVal in -180.0..180.0) {
+                                        DataRepository.setHomeLocation(latVal, lonVal)
+                                        showManualInputs = false
+                                        Toast.makeText(context, "🏠 Home location coordinates saved!", Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        Toast.makeText(context, "❌ Invalid coordinates.", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                modifier = Modifier.fillMaxWidth().height(48.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Text("Save Coordinates", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                            }
+                        }
                     }
                 }
             }
@@ -5653,6 +5713,9 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.homeLocation.value != null) }
     var showLocationDisclosureStep6 by remember { mutableStateOf(false) }
+    var showManualInputsStep6 by remember { mutableStateOf(false) }
+    var manualLatStep6 by remember { mutableStateOf("") }
+    var manualLonStep6 by remember { mutableStateOf("") }
 
     // Step 7 State (System Permissions)
     var isNotificationAccessGranted by remember {
@@ -5772,6 +5835,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
         Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .navigationBarsPadding()
     ) {
         Box(
             Modifier
@@ -6374,6 +6438,62 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                     Spacer(Modifier.width(8.dp))
                                 }
                                 Text(if (homeCapturing) "Acquiring GPS Signal..." else "📌 Capture Current GPS as Home", color = Color.White, fontFamily = Fredoka)
+                            }
+                            Spacer(Modifier.height(8.dp))
+                            if (!showManualInputsStep6) {
+                                OutlinedButton(
+                                    onClick = { showManualInputsStep6 = true },
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
+                                    modifier = Modifier.fillMaxWidth().height(48.dp),
+                                    shape = RoundedCornerShape(12.dp),
+                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(0.5f))
+                                ) {
+                                    Text("Manually Enter Coordinates", color = MaterialTheme.colorScheme.secondary, fontFamily = Fredoka)
+                                }
+                            } else {
+                                Column(
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        OutlinedTextField(
+                                            value = manualLatStep6,
+                                            onValueChange = { manualLatStep6 = it },
+                                            label = { Text("Latitude") },
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                        OutlinedTextField(
+                                            value = manualLonStep6,
+                                            onValueChange = { manualLonStep6 = it },
+                                            label = { Text("Longitude") },
+                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
+                                            modifier = Modifier.weight(1f)
+                                        )
+                                    }
+                                    Button(
+                                        onClick = {
+                                            val latVal = manualLatStep6.toDoubleOrNull()
+                                            val lonVal = manualLonStep6.toDoubleOrNull()
+                                            if (latVal != null && lonVal != null && latVal in -90.0..90.0 && lonVal in -180.0..180.0) {
+                                                DataRepository.setHomeLocation(latVal, lonVal)
+                                                homeSet = true
+                                                showManualInputsStep6 = false
+                                                Toast.makeText(ctx, "🏠 Home location coordinates saved!", Toast.LENGTH_SHORT).show()
+                                            } else {
+                                                Toast.makeText(ctx, "❌ Invalid coordinates.", Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                                        shape = RoundedCornerShape(12.dp)
+                                    ) {
+                                        Text("Save Coordinates", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                                    }
+                                }
                             }
                         }
                     }
@@ -8757,7 +8877,7 @@ fun WeeklyDigestDialog(
             val deviations = listOf(
                 safeDev(day.sleepDurationHours, baseline.sleepDurationHours, 1.5f),
                 safeDev(day.dailyStepCount, baseline.dailyStepCount, baseline.dailyStepCount.coerceAtLeast(500f)),
-                safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(1f)),
+                safeDev(day.callsPerDay, baseline.callsPerDay, baseline.callsPerDay.coerceAtLeast(3f)),
                 safeDev(day.screenTimeHours, baseline.screenTimeHours, baseline.screenTimeHours.coerceAtLeast(1f))
             )
             val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
@@ -9270,13 +9390,9 @@ fun ResearchContributionDialog(onDismiss: () -> Unit) {
                             val payloadStr = payload.toString(2)
                             
                             withContext(Dispatchers.Main) {
-                                val sendIntent = Intent().apply {
-                                    action = Intent.ACTION_SEND
-                                    putExtra(Intent.EXTRA_TEXT, payloadStr)
-                                    type = "application/json"
-                                }
-                                val shareIntent = Intent.createChooser(sendIntent, "Share Anonymized Research Data")
-                                context.startActivity(shareIntent)
+                                val formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScuBGMbL17yUOdADwgrFvHj2EfMcvPLC3fOBlqmJV8PhxUuuQ/viewform?usp=sharing"
+                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(formUrl))
+                                context.startActivity(intent)
                                 
                                 prefs.edit().putBoolean("research_share_completed", true).apply()
                             }
@@ -9748,17 +9864,37 @@ fun DigitalDetoxCard() {
                         .clip(RoundedCornerShape(8.dp))
                         .background(AlertRose.copy(0.1f))
                         .padding(horizontal = 12.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("⚠️", fontSize = 14.sp)
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = "Last detox was interrupted. Try again to rebuild your streak!",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AlertRose,
-                        fontFamily = Fredoka
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("⚠️", fontSize = 14.sp)
+                        Spacer(Modifier.width(8.dp))
+                        Text(
+                            text = "Last detox was interrupted. Try again to rebuild your streak!",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AlertRose,
+                            fontFamily = Fredoka
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            prefs.edit().putBoolean("detox_interrupted", false).apply()
+                            configSeq++
+                        },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Dismiss",
+                            tint = AlertRose,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
                 }
             }
 

@@ -1,6 +1,14 @@
 # Lumen Insights Enhancement Task List
 
-## Sprint: Pivot & Release Readiness (In Progress)
+## Sprint: Pilot Readiness Adjustments (In Progress)
+- [x] **T60**: Fix interaction tempo graph missing mappings in `getFeatureValueFromEntity()` for keystroke speed, backspace ratio, scroll velocity.
+- [x] **T61**: Fix research share button action: launch ACTION_VIEW intent opening Google Form URL.
+- [x] **T62**: Fix digital detox interrupted warning persistence: add close/dismiss icon to the warning.
+- [x] **T63**: Fix rhythm score drop: clamp individual feature deviations in `safeDev()` to `2.0f` and raise the callsPerDay scale floor to `3f`.
+- [x] **T64**: Add manual coordinate setting options for home location in both Settings and Onboarding step 6.
+- [x] **T65**: Add navigation bar padding to `OnboardingWizard` to prevent system navigation bar interference.
+
+## Sprint: Pivot & Release Readiness (Completed)
 
 ### Phase 1: P0 Critical Release Fixes
 - [x] **T31**: Implement call log proxy signals using dialer app launches (`com.samsung.android.dialer`, `com.samsung.android.incallui`, `com.google.android.dialer`, `com.truecaller`) from `UsageEvents` (unblocking Relational/Communication metrics).

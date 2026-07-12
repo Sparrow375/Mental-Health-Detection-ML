@@ -4741,9 +4741,6 @@ fun SettingsScreen() {
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
     val progress by DataRepository.baselineProgress.collectAsState()
     var homeCapturing by remember { mutableStateOf(false) }
-    var showManualInputs by remember { mutableStateOf(false) }
-    var manualLat by remember { mutableStateOf("") }
-    var manualLon by remember { mutableStateOf("") }
 
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     
@@ -5079,60 +5076,6 @@ fun SettingsScreen() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(if (homeCapturing) "Getting GPS fix..." else "📌 Reset Current Location as Home", color = Color.Black, fontSize = 13.sp, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    if (!showManualInputs) {
-                        OutlinedButton(
-                            onClick = { showManualInputs = true },
-                            modifier = Modifier.fillMaxWidth().height(48.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.5f))
-                        ) {
-                            Text("Manually Enter Coordinates", color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka, fontWeight = FontWeight.Bold)
-                        }
-                    } else {
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                OutlinedTextField(
-                                    value = manualLat,
-                                    onValueChange = { manualLat = it },
-                                    label = { Text("Latitude") },
-                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                    modifier = Modifier.weight(1f)
-                                )
-                                OutlinedTextField(
-                                    value = manualLon,
-                                    onValueChange = { manualLon = it },
-                                    label = { Text("Longitude") },
-                                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                    modifier = Modifier.weight(1f)
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    val latVal = manualLat.toDoubleOrNull()
-                                    val lonVal = manualLon.toDoubleOrNull()
-                                    if (latVal != null && lonVal != null && latVal in -90.0..90.0 && lonVal in -180.0..180.0) {
-                                        DataRepository.setHomeLocation(latVal, lonVal)
-                                        showManualInputs = false
-                                        Toast.makeText(context, "🏠 Home location coordinates saved!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "❌ Invalid coordinates.", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                modifier = Modifier.fillMaxWidth().height(48.dp),
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text("Save Coordinates", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                            }
-                        }
                     }
                 }
             }
@@ -5713,9 +5656,6 @@ fun OnboardingWizard(onComplete: () -> Unit) {
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.homeLocation.value != null) }
     var showLocationDisclosureStep6 by remember { mutableStateOf(false) }
-    var showManualInputsStep6 by remember { mutableStateOf(false) }
-    var manualLatStep6 by remember { mutableStateOf("") }
-    var manualLonStep6 by remember { mutableStateOf("") }
 
     // Step 7 State (System Permissions)
     var isNotificationAccessGranted by remember {
@@ -6439,62 +6379,7 @@ fun OnboardingWizard(onComplete: () -> Unit) {
                                 }
                                 Text(if (homeCapturing) "Acquiring GPS Signal..." else "📌 Capture Current GPS as Home", color = Color.White, fontFamily = Fredoka)
                             }
-                            Spacer(Modifier.height(8.dp))
-                            if (!showManualInputsStep6) {
-                                OutlinedButton(
-                                    onClick = { showManualInputsStep6 = true },
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.secondary),
-                                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                                    shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(0.5f))
-                                ) {
-                                    Text("Manually Enter Coordinates", color = MaterialTheme.colorScheme.secondary, fontFamily = Fredoka)
-                                }
-                            } else {
-                                Column(
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Row(
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        modifier = Modifier.fillMaxWidth()
-                                    ) {
-                                        OutlinedTextField(
-                                            value = manualLatStep6,
-                                            onValueChange = { manualLatStep6 = it },
-                                            label = { Text("Latitude") },
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                        OutlinedTextField(
-                                            value = manualLonStep6,
-                                            onValueChange = { manualLonStep6 = it },
-                                            label = { Text("Longitude") },
-                                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Number),
-                                            modifier = Modifier.weight(1f)
-                                        )
-                                    }
-                                    Button(
-                                        onClick = {
-                                            val latVal = manualLatStep6.toDoubleOrNull()
-                                            val lonVal = manualLonStep6.toDoubleOrNull()
-                                            if (latVal != null && lonVal != null && latVal in -90.0..90.0 && lonVal in -180.0..180.0) {
-                                                DataRepository.setHomeLocation(latVal, lonVal)
-                                                homeSet = true
-                                                showManualInputsStep6 = false
-                                                Toast.makeText(ctx, "🏠 Home location coordinates saved!", Toast.LENGTH_SHORT).show()
-                                            } else {
-                                                Toast.makeText(ctx, "❌ Invalid coordinates.", Toast.LENGTH_SHORT).show()
-                                            }
-                                        },
-                                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                                        modifier = Modifier.fillMaxWidth().height(48.dp),
-                                        shape = RoundedCornerShape(12.dp)
-                                    ) {
-                                        Text("Save Coordinates", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                                    }
-                                }
-                            }
+                            // Removed manual coordinates button and input fields
                         }
                     }
                 }
@@ -9342,64 +9227,15 @@ fun ResearchContributionDialog(onDismiss: () -> Unit) {
         confirmButton = {
             Button(
                 onClick = {
-                    onDismiss()
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            val db = MHealthDatabase.getInstance(context)
-                            val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
-                            val entities = db.dailyFeaturesDao().getAllFeatures(userId)
-                            
-                            if (entities.isEmpty()) {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(context, "No telemetry data collected yet.", Toast.LENGTH_SHORT).show()
-                                }
-                                return@launch
-                            }
-
-                            // Build anonymized JSON
-                            val anonymousId = UUID.randomUUID().toString()
-                            val array = org.json.JSONArray()
-                            val noiseGenerator = java.util.Random()
-
-                            entities.forEachIndexed { index, vector ->
-                                val obj = org.json.JSONObject()
-                                obj.put("day_index", index + 1)
-                                
-                                // Perturb steps
-                                val stepNoise = noiseGenerator.nextInt(300) - 150
-                                obj.put("perturbed_steps", (vector.dailyStepCount + stepNoise).coerceAtLeast(0f).toInt())
-                                
-                                // Perturb screen time (minutes)
-                                val screenNoise = noiseGenerator.nextFloat() * 20f - 10f
-                                obj.put("perturbed_screen_time_hours", (vector.screenTimeHours + screenNoise / 60f).coerceAtLeast(0f))
-                                
-                                // Anonymized ratios/entropy (no noise needed, highly abstract)
-                                obj.put("location_entropy", vector.locationEntropy)
-                                obj.put("social_ratio", vector.socialAppRatio)
-                                obj.put("sleep_duration_hours", vector.sleepDurationHours)
-                                obj.put("sleep_time_hour", vector.sleepTimeHour)
-                                
-                                array.put(obj)
-                            }
-
-                            val payload = org.json.JSONObject()
-                            payload.put("research_payload_id", anonymousId)
-                            payload.put("anonymized_days", entities.size)
-                            payload.put("daily_records", array)
-
-                            val payloadStr = payload.toString(2)
-                            
-                            withContext(Dispatchers.Main) {
-                                val formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScuBGMbL17yUOdADwgrFvHj2EfMcvPLC3fOBlqmJV8PhxUuuQ/viewform?usp=sharing"
-                                val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(formUrl))
-                                context.startActivity(intent)
-                                
-                                prefs.edit().putBoolean("research_share_completed", true).apply()
-                            }
-                        } catch (e: Exception) {
-                            Log.e("MHealth", "Research share preparation failed: ${e.message}")
-                        }
+                    val formUrl = "https://docs.google.com/forms/d/e/1FAIpQLScuBGMbL17yUOdADwgrFvHj2EfMcvPLC3fOBlqmJV8PhxUuuQ/viewform?usp=sharing"
+                    try {
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(formUrl))
+                        context.startActivity(intent)
+                        prefs.edit().putBoolean("research_share_completed", true).apply()
+                    } catch (e: Exception) {
+                        Log.e("MHealth", "Failed to open form: ${e.message}")
                     }
+                    onDismiss()
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {

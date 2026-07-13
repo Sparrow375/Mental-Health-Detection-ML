@@ -3207,6 +3207,10 @@ fun MapPickerDialog(
                 AndroidView(
                     factory = { ctx ->
                         WebView(ctx).apply {
+                            layoutParams = android.view.ViewGroup.LayoutParams(
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                                android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                            )
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
                             settings.databaseEnabled = true
@@ -3297,6 +3301,8 @@ fun MapPickerDialog(
                                         var marker;
                                         
                                         function initMap() {
+                                            var loader = document.getElementById('loading-indicator');
+                                            if (loader) loader.style.display = 'none';
                                             map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
                                             L.control.zoom({ position: 'bottomright' }).addTo(map);
                                             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -3354,6 +3360,10 @@ fun MapPickerDialog(
                                     </script>
                                 </head>
                                 <body>
+                                    <div id="loading-indicator" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-family: sans-serif; font-size: 14px; color: #666; text-align: center; z-index: 500;">
+                                        <div style="font-weight: bold; margin-bottom: 8px;">Loading Map...</div>
+                                        <div style="font-size: 12px; color: #999;">Make sure the device has internet connection.</div>
+                                    </div>
                                     <div id="search-container">
                                         <input type="text" id="search-input" placeholder="Search location..." />
                                         <button id="search-btn" onclick="performSearch()">Search</button>

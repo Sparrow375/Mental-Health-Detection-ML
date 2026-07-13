@@ -3339,7 +3339,17 @@ fun MapPickerDialog(
                                             if (!map || !marker) return;
                                             var query = document.getElementById('search-input').value;
                                             if (!query) return;
-                                            fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query))
+                                            var list = document.getElementById('suggestions-list');
+                                            if (list) list.style.display = 'none';
+                                            
+                                            var url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query);
+                                            if (map) {
+                                                var bounds = map.getBounds();
+                                                var viewbox = bounds.getWest() + ',' + bounds.getSouth() + ',' + bounds.getEast() + ',' + bounds.getNorth();
+                                                url += '&viewbox=' + encodeURIComponent(viewbox);
+                                            }
+                                            
+                                            fetch(url)
                                                 .then(response => response.json())
                                                 .then(data => {
                                                     if (data && data.length > 0) {
@@ -3375,7 +3385,13 @@ fun MapPickerDialog(
                                                 return;
                                             }
                                             debounceTimeout = setTimeout(function() {
-                                                fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(val))
+                                                var url = 'https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(val);
+                                                if (map) {
+                                                    var bounds = map.getBounds();
+                                                    var viewbox = bounds.getWest() + ',' + bounds.getSouth() + ',' + bounds.getEast() + ',' + bounds.getNorth();
+                                                    url += '&viewbox=' + encodeURIComponent(viewbox);
+                                                }
+                                                fetch(url)
                                                     .then(response => response.json())
                                                     .then(data => {
                                                         list.innerHTML = '';

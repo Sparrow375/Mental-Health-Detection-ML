@@ -3252,13 +3252,12 @@ fun MapPickerDialog(
                                 }
                             }, "AndroidBridge")
                             
-                            val html = """
+                             val html = """
                                 <!DOCTYPE html>
                                 <html>
                                 <head>
                                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-                                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
                                     <style>
                                         body, html, #map { height: 100%; margin: 0; padding: 0; }
                                         #search-container {
@@ -3287,33 +3286,31 @@ fun MapPickerDialog(
                                             cursor: pointer;
                                         }
                                     </style>
-                                </head>
-                                <body>
-                                    <div id="search-container">
-                                        <input type="text" id="search-input" placeholder="Search location..." />
-                                        <button id="search-btn" onclick="performSearch()">Search</button>
-                                    </div>
-                                    <div id="map"></div>
-                                    <button id="select-btn" onclick="confirmLocation()">Confirm Location</button>
                                     <script>
-                                        var map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
-                                        L.control.zoom({ position: 'bottomright' }).addTo(map);
-                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                                            attribution: 'OSM'
-                                        }).addTo(map);
-                                        var marker = L.marker([20.5937, 78.9629], {draggable: true}).addTo(map);
+                                        var map;
+                                        var marker;
                                         
-                                        // Auto location
-                                        map.locate({setView: true, maxZoom: 15});
-                                        map.on('locationfound', function(e) {
-                                            marker.setLatLng(e.latlng);
-                                        });
-                                        
-                                        map.on('click', function(e) {
-                                            marker.setLatLng(e.latlng);
-                                        });
+                                        function initMap() {
+                                            map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
+                                            L.control.zoom({ position: 'bottomright' }).addTo(map);
+                                            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                                attribution: 'OSM'
+                                            }).addTo(map);
+                                            marker = L.marker([20.5937, 78.9629], {draggable: true}).addTo(map);
+                                            
+                                            // Auto location
+                                            map.locate({setView: true, maxZoom: 15});
+                                            map.on('locationfound', function(e) {
+                                                marker.setLatLng(e.latlng);
+                                            });
+                                            
+                                            map.on('click', function(e) {
+                                                marker.setLatLng(e.latlng);
+                                            });
+                                        }
                                         
                                         function performSearch() {
+                                            if (!map || !marker) return;
                                             var query = document.getElementById('search-input').value;
                                             if (!query) return;
                                             fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query))
@@ -3334,16 +3331,31 @@ fun MapPickerDialog(
                                                     alert('Search failed.');
                                                 });
                                         }
-                                        document.getElementById('search-input').addEventListener('keypress', function(e) {
-                                            if (e.key === 'Enter') performSearch();
-                                        });
+                                        
                                         function confirmLocation() {
+                                            if (!marker) return;
                                             var latlng = marker.getLatLng();
                                             if (window.AndroidBridge) {
                                                 window.AndroidBridge.onLocationSelected(latlng.lat, latlng.lng);
                                             }
                                         }
+                                        
+                                        window.onload = function() {
+                                            document.getElementById('search-input').addEventListener('keypress', function(e) {
+                                                if (e.key === 'Enter') performSearch();
+                                            });
+                                        };
                                     </script>
+                                </head>
+                                <body>
+                                    <div id="search-container">
+                                        <input type="text" id="search-input" placeholder="Search location..." />
+                                        <button id="search-btn" onclick="performSearch()">Search</button>
+                                    </div>
+                                    <div id="map"></div>
+                                    <button id="select-btn" onclick="confirmLocation()">Confirm Location</button>
+                                    
+                                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" onload="initMap()"></script>
                                 </body>
                                 </html>
                             """.trimIndent()

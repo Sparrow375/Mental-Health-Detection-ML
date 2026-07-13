@@ -11,7 +11,18 @@ on:
     paths:
       - 'MHealth - Copy/**'
       - '.github/workflows/android.yml'
-  workflow_dispatch: # Allows manual trigger from the GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      build_debug:
+        description: 'Build Debug APK'
+        required: true
+        type: boolean
+        default: true
+      build_release:
+        description: 'Build Release APK & AAB'
+        required: true
+        type: boolean
+        default: true
 
 jobs:
   build:
@@ -40,6 +51,30 @@ jobs:
             - 'MHealth - Copy/settings.gradle.kts'
             - '.github/workflows/android.yml'
 
+    - name: Determine Build Targets
+      id: targets
+      run: |
+        build_debug=true
+        build_release=true
+        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          build_debug="${{ github.event.inputs.build_debug }}"
+          build_release="${{ github.event.inputs.build_release }}"
+        else
+          debug_changed="${{ steps.changes.outputs.debug }}"
+          release_changed="${{ steps.changes.outputs.release }}"
+          common_changed="${{ steps.changes.outputs.common }}"
+          if [ "$common_changed" = "false" ]; then
+            if [ "$debug_changed" = "true" ] && [ "$release_changed" = "false" ]; then
+              build_release=false
+            elif [ "$debug_changed" = "false" ] && [ "$release_changed" = "true" ]; then
+              build_debug=false
+            fi
+          fi
+        fi
+        echo "build_debug=$build_debug" >> ${GITHUB_OUTPUT}
+        echo "build_release=$build_release" >> ${GITHUB_OUTPUT}
+      shell: bash
+
     - name: Set up JDK 21
       uses: actions/setup-java@v4
       with:
@@ -57,10 +92,12 @@ jobs:
       working-directory: MHealth - Copy
 
     - name: Build Debug APK
+      if: steps.targets.outputs.build_debug == 'true'
       run: ./gradlew assembleDebug --no-daemon
       working-directory: MHealth - Copy
 
     - name: Build Release APK
+      if: steps.targets.outputs.build_release == 'true'
       run: ./gradlew assembleRelease --no-daemon
       working-directory: MHealth - Copy
       env:
@@ -69,6 +106,7 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Build Release AAB
+      if: steps.targets.outputs.build_release == 'true'
       run: ./gradlew bundleRelease --no-daemon
       working-directory: MHealth - Copy
       env:
@@ -77,6 +115,7 @@ jobs:
         RELEASE_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD || 'lumen123' }}
 
     - name: Upload Debug APK Artifact
+      if: steps.targets.outputs.build_debug == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-debug-apk
@@ -84,6 +123,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Release APK Artifact
+      if: steps.targets.outputs.build_release == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-release-apk
@@ -91,6 +131,7 @@ jobs:
         if-no-files-found: error
 
     - name: Upload Release AAB Artifact
+      if: steps.targets.outputs.build_release == 'true'
       uses: actions/upload-artifact@v4
       with:
         name: lumen-release-aab
@@ -98,7 +139,7 @@ jobs:
         if-no-files-found: error
 
     - name: Create GitHub Release
-      if: github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'Mhealth-app'
+      if: (github.ref_name == 'main' || github.ref_name == 'master' || github.ref_name == 'Mhealth-app') && (steps.targets.outputs.build_debug == 'true' || steps.targets.outputs.build_release == 'true')
       uses: softprops/action-gh-release@v2
       with:
         tag_name: "latest"

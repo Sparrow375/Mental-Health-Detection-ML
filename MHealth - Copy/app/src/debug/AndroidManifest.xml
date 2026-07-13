@@ -4,6 +4,7 @@
     package="com.example.mhealth">
 
     <!-- Permissions that are ONLY needed for local developer debugging/testing -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.READ_CALL_LOG" />
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />

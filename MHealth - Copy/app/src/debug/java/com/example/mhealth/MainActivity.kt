@@ -3209,8 +3209,39 @@ fun MapPickerDialog(
                         WebView(ctx).apply {
                             settings.javaScriptEnabled = true
                             settings.domStorageEnabled = true
+                            settings.databaseEnabled = true
+                            settings.mixedContentMode = android.webkit.WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
                             settings.userAgentString = "LumenMapPicker/1.0"
-                            webChromeClient = WebChromeClient()
+                            
+                            webViewClient = object : android.webkit.WebViewClient() {
+                                override fun onReceivedError(
+                                    view: WebView?,
+                                    request: android.webkit.WebResourceRequest?,
+                                    error: android.webkit.WebResourceError?
+                                ) {
+                                    super.onReceivedError(view, request, error)
+                                    android.util.Log.e("LumenMapWebView", "Error loading ${request?.url}: ${error?.description}")
+                                }
+
+                                override fun onReceivedHttpError(
+                                    view: WebView?,
+                                    request: android.webkit.WebResourceRequest?,
+                                    errorResponse: android.webkit.WebResourceResponse?
+                                ) {
+                                    super.onReceivedHttpError(view, request, errorResponse)
+                                    android.util.Log.e("LumenMapWebView", "HTTP Error loading ${request?.url}: ${errorResponse?.statusCode}")
+                                }
+                            }
+                            
+                            webChromeClient = object : WebChromeClient() {
+                                override fun onConsoleMessage(consoleMessage: android.webkit.ConsoleMessage?): Boolean {
+                                    android.util.Log.d(
+                                        "LumenMapConsole",
+                                        "${consoleMessage?.message()} -- From line ${consoleMessage?.lineNumber()} of ${consoleMessage?.sourceId()}"
+                                    )
+                                    return true
+                                }
+                            }
                             
                             addJavascriptInterface(object {
                                 @JavascriptInterface

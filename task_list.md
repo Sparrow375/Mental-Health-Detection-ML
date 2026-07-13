@@ -7,6 +7,7 @@
 - [x] **T63**: Fix rhythm score drop: clamp individual feature deviations in `safeDev()` to `2.0f` and raise the callsPerDay scale floor to `3f`.
 - [x] **T64**: Remove manual coordinate setting options for home location in both Settings and Onboarding step 6.
 - [x] **T65**: Add navigation bar padding to `OnboardingWizard` to prevent system navigation bar interference.
+- [x] **T66**: Add a lightweight WebView-based map picker with geocoding address search to the debug build for developer evaluation.
 
 ## Sprint: Pivot & Release Readiness (Completed)
 

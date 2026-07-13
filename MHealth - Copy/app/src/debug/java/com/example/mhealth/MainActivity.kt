@@ -134,6 +134,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.security.MessageDigest
+import androidx.compose.ui.viewinterop.AndroidView
+import android.webkit.WebView
+import android.webkit.JavascriptInterface
+import android.webkit.WebChromeClient
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -626,6 +630,19 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
     var step by remember { mutableStateOf(1) }  // 1 = profile, 2 = home location
     var homeCapturing by remember { mutableStateOf(false) }
     var homeSet by remember { mutableStateOf(DataRepository.getHomeLatitude() != null) }
+    var showMapPickerStep2 by remember { mutableStateOf(false) }
+
+    if (showMapPickerStep2) {
+        MapPickerDialog(
+            onDismiss = { showMapPickerStep2 = false },
+            onLocationSelected = { lat, lon ->
+                DataRepository.setHomeLocation(lat, lon)
+                homeSet = true
+                showMapPickerStep2 = false
+                android.widget.Toast.makeText(ctx, "🏠 Home location coordinates saved!", android.widget.Toast.LENGTH_SHORT).show()
+            }
+        )
+    }
 
     val genderOptions = listOf("Male", "Female", "Non-binary", "Prefer not to say")
 
@@ -847,7 +864,19 @@ fun QuestionnaireScreen(onComplete: () -> Unit) {
                         Spacer(Modifier.width(10.dp))
                     }
                     Text(
-                        if (homeCapturing) "Getting GPS fix" else if (homeSet) "Update Home Location" else "📍 Set Current Location as Home",
+                        if (homeCapturing) "Getting GPS fix" else if (homeSet) "Update Home Location via GPS" else "📍 Set Current Location via GPS",
+                        color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+                Button(
+                    onClick = { showMapPickerStep2 = true },
+                    colors = ButtonDefaults.buttonColors(containerColor = OceanBlue),
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(
+                        "🗺️ Pick Location on Map",
                         color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold
                     )
                 }
@@ -2357,6 +2386,18 @@ fun SettingsScreen() {
             val context = LocalContext.current
             val homeLocation by DataRepository.homeLocation.collectAsState()
             var homeCapturing by remember { mutableStateOf(false) }
+            var showMapPicker by remember { mutableStateOf(false) }
+
+            if (showMapPicker) {
+                MapPickerDialog(
+                    onDismiss = { showMapPicker = false },
+                    onLocationSelected = { lat, lon ->
+                        DataRepository.setHomeLocation(lat, lon)
+                        showMapPicker = false
+                        android.widget.Toast.makeText(context, "🏠 Home location coordinates saved!", android.widget.Toast.LENGTH_SHORT).show()
+                    }
+                )
+            }
 
             InfoCard("Home Location", headerColor = SoftCyan) {
                 Column(Modifier.fillMaxWidth()) {
@@ -2411,7 +2452,19 @@ fun SettingsScreen() {
                             Spacer(Modifier.width(8.dp))
                         }
                         Text(
-                            if (homeCapturing) "Getting GPS fix" else if (homeLocation != null) "Update Home Location" else "Set Current Location as Home",
+                            if (homeCapturing) "Getting GPS fix" else if (homeLocation != null) "Update Home Location via GPS" else "Set Current Location via GPS",
+                            color = Color.White, fontSize = 13.sp
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Button(
+                        onClick = { showMapPicker = true },
+                        colors = ButtonDefaults.buttonColors(containerColor = OceanBlue),
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            "🗺️ Pick Location on Map",
                             color = Color.White, fontSize = 13.sp
                         )
                     }
@@ -3124,6 +3177,153 @@ fun LocationDisclosureDialog(
             }
         },
         shape = RoundedCornerShape(24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    )
+}
+
+@Composable
+fun MapPickerDialog(
+    onDismiss: () -> Unit,
+    onLocationSelected: (Double, Double) -> Unit
+) {
+    androidx.compose.material3.AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = OceanBlue, fontWeight = FontWeight.Bold)
+            }
+        },
+        title = {
+            Text("Select Home Location", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = TextPrimary)
+        },
+        text = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(400.dp)
+                    .clip(RoundedCornerShape(12.dp))
+            ) {
+                AndroidView(
+                    factory = { ctx ->
+                        WebView(ctx).apply {
+                            settings.javaScriptEnabled = true
+                            settings.domStorageEnabled = true
+                            settings.userAgentString = "LumenMapPicker/1.0"
+                            webChromeClient = WebChromeClient()
+                            
+                            addJavascriptInterface(object {
+                                @JavascriptInterface
+                                fun onLocationSelected(lat: Double, lng: Double) {
+                                    post {
+                                        onLocationSelected(lat, lng)
+                                    }
+                                }
+                            }, "AndroidBridge")
+                            
+                            val html = """
+                                <!DOCTYPE html>
+                                <html>
+                                <head>
+                                    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+                                    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+                                    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+                                    <style>
+                                        body, html, #map { height: 100%; margin: 0; padding: 0; }
+                                        #search-container {
+                                            position: absolute; top: 10px; left: 10px; right: 10px;
+                                            z-index: 1000; display: flex; gap: 8px;
+                                            background: rgba(255,255,255,0.95);
+                                            padding: 6px; border-radius: 6px;
+                                            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+                                        }
+                                        #search-input {
+                                            flex-grow: 1; border: 1px solid #ccc;
+                                            border-radius: 4px; padding: 6px; font-size: 13px;
+                                            outline: none;
+                                        }
+                                        #search-btn {
+                                            background: #2196F3; color: white; border: none;
+                                            border-radius: 4px; padding: 6px 12px; font-weight: bold;
+                                            font-size: 13px; cursor: pointer;
+                                        }
+                                        #select-btn {
+                                            position: absolute; bottom: 20px; left: 50%;
+                                            transform: translateX(-50%); z-index: 1000;
+                                            background: #00E676; color: black; border: none;
+                                            padding: 10px 20px; font-weight: bold; font-size: 13px;
+                                            border-radius: 20px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+                                            cursor: pointer;
+                                        }
+                                    </style>
+                                </head>
+                                <body>
+                                    <div id="search-container">
+                                        <input type="text" id="search-input" placeholder="Search location..." />
+                                        <button id="search-btn" onclick="performSearch()">Search</button>
+                                    </div>
+                                    <div id="map"></div>
+                                    <button id="select-btn" onclick="confirmLocation()">Confirm Location</button>
+                                    <script>
+                                        var map = L.map('map', { zoomControl: false }).setView([20.5937, 78.9629], 5);
+                                        L.control.zoom({ position: 'bottomright' }).addTo(map);
+                                        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                                            attribution: 'OSM'
+                                        }).addTo(map);
+                                        var marker = L.marker([20.5937, 78.9629], {draggable: true}).addTo(map);
+                                        
+                                        // Auto location
+                                        map.locate({setView: true, maxZoom: 15});
+                                        map.on('locationfound', function(e) {
+                                            marker.setLatLng(e.latlng);
+                                        });
+                                        
+                                        map.on('click', function(e) {
+                                            marker.setLatLng(e.latlng);
+                                        });
+                                        
+                                        function performSearch() {
+                                            var query = document.getElementById('search-input').value;
+                                            if (!query) return;
+                                            fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query))
+                                                .then(response => response.json())
+                                                .then(data => {
+                                                    if (data && data.length > 0) {
+                                                        var first = data[0];
+                                                        var lat = parseFloat(first.lat);
+                                                        var lon = parseFloat(first.lon);
+                                                        map.setView([lat, lon], 15);
+                                                        marker.setLatLng([lat, lon]);
+                                                    } else {
+                                                        alert('Location not found.');
+                                                    }
+                                                })
+                                                .catch(err => {
+                                                    console.error(err);
+                                                    alert('Search failed.');
+                                                });
+                                        }
+                                        document.getElementById('search-input').addEventListener('keypress', function(e) {
+                                            if (e.key === 'Enter') performSearch();
+                                        });
+                                        function confirmLocation() {
+                                            var latlng = marker.getLatLng();
+                                            if (window.AndroidBridge) {
+                                                window.AndroidBridge.onLocationSelected(latlng.lat, latlng.lng);
+                                            }
+                                        }
+                                    </script>
+                                </body>
+                                </html>
+                            """.trimIndent()
+                            loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                        }
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        },
+        shape = RoundedCornerShape(16.dp),
         containerColor = MaterialTheme.colorScheme.surface
     )
 }

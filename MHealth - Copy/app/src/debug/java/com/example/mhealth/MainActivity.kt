@@ -3290,6 +3290,20 @@ fun MapPickerDialog(
                                             border-radius: 20px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);
                                             cursor: pointer;
                                         }
+                                        #suggestions-list {
+                                            position: absolute; top: 55px; left: 10px; right: 10px;
+                                            background: white; border-radius: 6px;
+                                            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+                                            max-height: 220px; overflow-y: auto; z-index: 2000;
+                                            display: none; list-style: none; padding: 0; margin: 0;
+                                            border: 1px solid #e0e0e0;
+                                        }
+                                        #suggestions-list li {
+                                            padding: 10px 12px; font-family: sans-serif; font-size: 13px;
+                                            border-bottom: 1px solid #eee; cursor: pointer; color: #333;
+                                        }
+                                        #suggestions-list li:last-child { border-bottom: none; }
+                                        #suggestions-list li:hover, #suggestions-list li:active { background: #f0f0f0; }
                                     </style>
                                     <script>
                                         window.onerror = function(msg, url, line) {
@@ -3352,9 +3366,62 @@ fun MapPickerDialog(
                                             }
                                         }
                                         
+                                        var debounceTimeout;
+                                        function onSearchInput(val) {
+                                            clearTimeout(debounceTimeout);
+                                            var list = document.getElementById('suggestions-list');
+                                            if (!val || val.length < 3) {
+                                                list.style.display = 'none';
+                                                return;
+                                            }
+                                            debounceTimeout = setTimeout(function() {
+                                                fetch('https://nominatim.openstreetmap.org/search?format=json&limit=5&q=' + encodeURIComponent(val))
+                                                    .then(response => response.json())
+                                                    .then(data => {
+                                                        list.innerHTML = '';
+                                                        if (data && data.length > 0) {
+                                                            data.forEach(function(item) {
+                                                                var li = document.createElement('li');
+                                                                li.textContent = item.display_name;
+                                                                li.onclick = function() {
+                                                                    document.getElementById('search-input').value = item.display_name;
+                                                                    var lat = parseFloat(item.lat);
+                                                                    var lon = parseFloat(item.lon);
+                                                                    map.setView([lat, lon], 15);
+                                                                    marker.setLatLng([lat, lon]);
+                                                                    list.style.display = 'none';
+                                                                };
+                                                                list.appendChild(li);
+                                                            });
+                                                            list.style.display = 'block';
+                                                        } else {
+                                                            list.style.display = 'none';
+                                                        }
+                                                    })
+                                                    .catch(err => {
+                                                        console.error(err);
+                                                    });
+                                            }, 400);
+                                        }
+                                        
+                                        document.addEventListener('click', function(e) {
+                                            var container = document.getElementById('search-container');
+                                            var list = document.getElementById('suggestions-list');
+                                            if (container && !container.contains(e.target) && list && !list.contains(e.target)) {
+                                                list.style.display = 'none';
+                                            }
+                                        });
+                                        
                                         window.onload = function() {
-                                            document.getElementById('search-input').addEventListener('keypress', function(e) {
-                                                if (e.key === 'Enter') performSearch();
+                                            var input = document.getElementById('search-input');
+                                            input.addEventListener('keypress', function(e) {
+                                                if (e.key === 'Enter') {
+                                                    performSearch();
+                                                    document.getElementById('suggestions-list').style.display = 'none';
+                                                }
+                                            });
+                                            input.addEventListener('input', function(e) {
+                                                onSearchInput(e.target.value);
                                             });
                                         };
                                     </script>
@@ -3368,6 +3435,7 @@ fun MapPickerDialog(
                                         <input type="text" id="search-input" placeholder="Search location..." />
                                         <button id="search-btn" onclick="performSearch()">Search</button>
                                     </div>
+                                    <ul id="suggestions-list"></ul>
                                     <div id="map"></div>
                                     <button id="select-btn" onclick="confirmLocation()">Confirm Location</button>
                                     

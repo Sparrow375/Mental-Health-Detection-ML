@@ -3259,7 +3259,8 @@ fun MapPickerDialog(
                                     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
                                     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
                                     <style>
-                                        body, html, #map { height: 100%; margin: 0; padding: 0; }
+                                        body, html { height: 100%; margin: 0; padding: 0; overflow: hidden; }
+                                        #map { position: absolute; top: 0; bottom: 0; left: 0; right: 0; width: 100%; height: 100%; }
                                         #search-container {
                                             position: absolute; top: 10px; left: 10px; right: 10px;
                                             z-index: 1000; display: flex; gap: 8px;
@@ -3287,6 +3288,11 @@ fun MapPickerDialog(
                                         }
                                     </style>
                                     <script>
+                                        window.onerror = function(msg, url, line) {
+                                            alert("JS Error: " + msg + " (Line: " + line + ")");
+                                            return false;
+                                        };
+                                        
                                         var map;
                                         var marker;
                                         
@@ -3359,7 +3365,7 @@ fun MapPickerDialog(
                                 </body>
                                 </html>
                             """.trimIndent()
-                            loadDataWithBaseURL("https://openstreetmap.org", html, "text/html", "UTF-8", null)
+                             loadDataWithBaseURL("https://unpkg.com/", html, "text/html", "UTF-8", null)
                         }
                     },
                     modifier = Modifier.fillMaxSize()

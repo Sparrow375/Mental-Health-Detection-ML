@@ -313,6 +313,7 @@ fun LumenTheme(
 enum class LumenDest(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
     INSIGHTS("Insights", Icons.Default.Timeline),
+    HISTORY("History", Icons.Default.History),
     CHECKIN("Check In", Icons.Default.Favorite),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -365,6 +366,68 @@ fun LumenAppShell() {
 }
 
 @Composable
+fun AmbientCoolingBackground() {
+    val infiniteTransition = rememberInfiniteTransition(label = "ambient_cooling")
+    val shiftX by infiniteTransition.animateFloat(
+        initialValue = 0.2f,
+        targetValue = 0.8f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(12000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shift_x"
+    )
+    val shiftY by infiniteTransition.animateFloat(
+        initialValue = 0.8f,
+        targetValue = 0.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(16000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "shift_y"
+    )
+    val radiusScale by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.2f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(14000, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "radius"
+    )
+
+    Canvas(modifier = Modifier.fillMaxSize()) {
+        val width = size.width
+        val height = size.height
+        val baseColor = Color(0xFF070B19)
+        val glowColor1 = Color(0xFF0F2B48)
+        val glowColor2 = Color(0xFF1B0F3A)
+
+        drawRect(color = baseColor)
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(glowColor1.copy(alpha = 0.45f), Color.Transparent),
+                center = Offset(width * shiftX, height * shiftY),
+                radius = width * radiusScale
+            ),
+            center = Offset(width * shiftX, height * shiftY),
+            radius = width * radiusScale
+        )
+
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(glowColor2.copy(alpha = 0.35f), Color.Transparent),
+                center = Offset(width * (1f - shiftX), height * (1f - shiftY)),
+                radius = width * (radiusScale * 0.9f)
+            ),
+            center = Offset(width * (1f - shiftX), height * (1f - shiftY)),
+            radius = width * (radiusScale * 0.9f)
+        )
+    }
+}
+
+@Composable
 fun MainLumenDashboard() {
     var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
     val context = LocalContext.current
@@ -390,8 +453,9 @@ fun MainLumenDashboard() {
     }
 
     Scaffold(
+        containerColor = Color.Transparent,
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), tonalElevation = 0.dp) {
                 LumenDest.entries.forEach { dest ->
                     val isSelected = selectedTab == dest
                     NavigationBarItem(
@@ -416,6 +480,7 @@ fun MainLumenDashboard() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
+            AmbientCoolingBackground()
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
@@ -434,6 +499,7 @@ fun MainLumenDashboard() {
                 when (targetTab) {
                     LumenDest.HOME -> HomeScreen(onNavigateToCheckIn = { selectedTab = LumenDest.CHECKIN })
                     LumenDest.INSIGHTS -> InsightsScreen()
+                    LumenDest.HISTORY -> HistoryScreen()
                     LumenDest.CHECKIN -> CheckInScreen()
                     LumenDest.SETTINGS -> SettingsScreen()
                 }
@@ -765,9 +831,9 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(Color.Transparent),
         horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(24.dp),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
@@ -2434,8 +2500,6 @@ fun MindfulBreathingCard() {
 }
 
 // =============================================================================
-// Insights Screen Composable
-// =============================================================================
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun InsightsScreen() {
@@ -2524,8 +2588,8 @@ fun InsightsScreen() {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
+            .background(Color.Transparent),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -2546,7 +2610,7 @@ fun InsightsScreen() {
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "A curated timeline of rhythm changes and insights",
+                    text = "Daily routines, deviations, and detailed telemetry analysis",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -2622,6 +2686,33 @@ fun InsightsScreen() {
             }
             
             if (latest != null && base != null) {
+                val currentScore = {
+                    val deviations = listOf(
+                        safeDev(latest.sleepDurationHours, base.sleepDurationHours, 1.5f),
+                        safeDev(latest.dailyStepCount, base.dailyStepCount, base.dailyStepCount.coerceAtLeast(500f)),
+                        safeDev(latest.callsPerDay, base.callsPerDay, base.callsPerDay.coerceAtLeast(3f)),
+                        safeDev(latest.screenTimeHours, base.screenTimeHours, base.screenTimeHours.coerceAtLeast(1f)),
+                        safeDev(latest.locationEntropy, base.locationEntropy, base.locationEntropy.coerceAtLeast(0.1f)),
+                        safeDev(latest.homeTimeRatio, base.homeTimeRatio, base.homeTimeRatio.coerceAtLeast(0.05f))
+                    )
+                    val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
+                    ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
+                }()
+
+                val topDeviations = {
+                    val devs = listOf(
+                        "Sleep Duration" to (latest.sleepDurationHours - base.sleepDurationHours) / 1.5f,
+                        "Daily Steps" to (latest.dailyStepCount - base.dailyStepCount) / base.dailyStepCount.coerceAtLeast(500f),
+                        "Phone Calls" to (latest.callsPerDay - base.callsPerDay) / base.callsPerDay.coerceAtLeast(3f),
+                        "Screen Time" to (latest.screenTimeHours - base.screenTimeHours) / base.screenTimeHours.coerceAtLeast(1f),
+                        "Location Variance" to (latest.locationEntropy - base.locationEntropy) / base.locationEntropy.coerceAtLeast(0.1f),
+                        "Time at Home" to (latest.homeTimeRatio - base.homeTimeRatio) / base.homeTimeRatio.coerceAtLeast(0.05f)
+                    )
+                    devs.filter { Math.abs(it.second) >= 0.35f }
+                        .sortedByDescending { Math.abs(it.second) }
+                        .take(3)
+                }()
+
                 if (!isDnaReady) {
                     item {
                         Card(
@@ -2652,8 +2743,303 @@ fun InsightsScreen() {
                         }
                     }
                 }
-                
-                // Narrative Discovery Cards Feed (T77)
+
+                // 1. Daily Rhythm Score Gauge
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = "Today's Rhythm Consistency",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.align(Alignment.Start)
+                            )
+                            RhythmConsistencyGauge(score = currentScore)
+                            Text(
+                                text = when {
+                                    currentScore >= 85f -> "Your circadian boundaries are extremely stable today. Excellent job staying in harmony with your natural routine!"
+                                    currentScore >= 70f -> "Your routine is mostly stable. Only minor deviations in your typical behaviors were detected."
+                                    else -> "We detected notable shifts in your routine boundaries today. Check the routine deviations below to align your habits."
+                                },
+                                fontSize = 12.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp
+                            )
+                        }
+                    }
+                }
+
+                // 2. Summary of Top Deviated Features Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "Routine Deviations",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            if (topDeviations.isEmpty()) {
+                                Text(
+                                    text = "Your behaviors today are beautifully aligned with your typical baseline patterns. No significant routine deviations detected.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            } else {
+                                topDeviations.forEach { (name, devRatio) ->
+                                    val pct = Math.abs(devRatio * 100f).roundToInt()
+                                    val dir = if (devRatio > 0f) "higher" else "lower"
+                                    val color = if (Math.abs(devRatio) > 0.8f) AlertWarning else MaterialTheme.colorScheme.secondary
+
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                        ) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(color)
+                                            )
+                                            Text(
+                                                text = name,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                color = MaterialTheme.colorScheme.onBackground
+                                            )
+                                        }
+                                        Text(
+                                            text = "$pct% $dir",
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = color
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 3. Location Entropy & Home Time Ratio Card
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            Text(
+                                text = "Spatial Mobility & Bounds",
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            ) {
+                                // Location Entropy
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Location Entropy",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "%.2f".format(latest.locationEntropy),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = "Baseline: %.2f".format(base.locationEntropy),
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                                // Home Time Ratio
+                                Column(
+                                    modifier = Modifier.weight(1f),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(
+                                        text = "Time at Home",
+                                        fontSize = 11.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                    Text(
+                                        text = "%.0f%%".format(latest.homeTimeRatio * 100f),
+                                        fontSize = 20.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = "Baseline: %.0f%%".format(base.homeTimeRatio * 100f),
+                                        fontSize = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // 4. Explore everything in more detail (collapsible bottom drawer trigger button)
+                item {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { showMetricsDrawer = true },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Timeline,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(Modifier.width(16.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "View Detailed Telemetry",
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Analyze consistency trends, Sleep, Social, Screen, & Mobility details.",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+
+                // Weekly Digest Report Card (Task 16)
+                item {
+                    StaggeredFadeIn(index = 0) {
+                        var showWeeklyDigest by remember { mutableStateOf(false) }
+                        if (showWeeklyDigest) {
+                            WeeklyDigestDialog(
+                                weeklyFeatures = weeklyFeatures,
+                                baseline = base,
+                                onDismiss = { showWeeklyDigest = false }
+                            )
+                        }
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showWeeklyDigest = true },
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Assessment,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(16.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = "Weekly Digest Report Card",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.onBackground
+                                    )
+                                    Text(
+                                        text = "Your Sunday comprehensive routine summary is ready.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.padding(top = 2.dp)
+                                    )
+                                }
+                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
+
+                // 5. Narrative Daily Discoveries Header
+                item {
+                    Text(
+                        text = "Rhythm Stories Feed",
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
                 if (stories.isEmpty()) {
                     item {
                         Card(
@@ -2866,165 +3252,10 @@ fun InsightsScreen() {
                             }
                         }
                     }
-                }
-
-                // 2. Mood Trend Card (Optional)
-                val avgMood = getWeeklyCheckinAverageMood(prefs)
-                if (avgMood > 0f) {
-                    item {
-                        StaggeredFadeIn(index = 0) {
-                            val moodMsg = when {
-                                avgMood >= 4.0f -> "Your mood has been consistently positive this week."
-                                avgMood >= 3.0f -> "Your mood has been mostly stable this week."
-                                else -> "Your mood has been on the lower side this week. Remember to take things slow."
-                            }
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.05f)),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.1f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(16.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Star,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(Modifier.width(16.dp))
-                                    Column {
-                                        Text(
-                                            text = "Weekly Mood: %.1f / 5".format(avgMood),
-                                            fontSize = 15.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = Fredoka,
-                                            color = MaterialTheme.colorScheme.primary
-                                        )
-                                        Text(
-                                            text = moodMsg,
-                                            fontSize = 12.sp,
-                                            color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
-                                            modifier = Modifier.padding(top = 2.dp)
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                
-                // Weekly Digest Report Card (Task 16)
-                item {
-                    StaggeredFadeIn(index = 0) {
-                        var showWeeklyDigest by remember { mutableStateOf(false) }
-                        if (showWeeklyDigest) {
-                            WeeklyDigestDialog(
-                                weeklyFeatures = weeklyFeatures,
-                                baseline = base,
-                                onDismiss = { showWeeklyDigest = false }
-                            )
-                        }
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable { showWeeklyDigest = true },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f))
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Assessment,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
-                                Spacer(Modifier.width(16.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "Weekly Digest Report Card",
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        fontFamily = Fredoka,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                    Text(
-                                        text = "Your Sunday comprehensive routine summary is ready.",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
-                                        modifier = Modifier.padding(top = 2.dp)
-                                    )
-                                }
-                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
-                            }
-                        }
-                    }
-                }
-
-                // Collapsible Drawer Trigger Button
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showMetricsDrawer = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.secondary.copy(0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Timeline,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "Explore Metrics & Baselines",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "Analyze consistency gauges, radar finger-prints, and sensor baselines.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(Icons.Default.ExpandLess, null, tint = MaterialTheme.colorScheme.secondary)
-                        }
-                    }
-                }
             }
         }
     }
+}
 
     // Modal Bottom Sheet Drawer for Explore Metrics (T78)
     if (showMetricsDrawer && showInsights) {
@@ -3319,58 +3550,31 @@ fun InsightsScreen() {
                         }
                     }
 
-                    // Daylight Card
-                    val daylight = latest.daylightExposureMinutes
-                    val daylightBadge = when {
-                        daylight < 15f -> "Indoor Focus"
-                        daylight > 60f -> "Bright Light Flow"
-                        else -> "Balanced Light"
+                    // Location Mobility Card
+                    val entropyDiff = latest.locationEntropy - base.locationEntropy
+                    val locationBadge = when {
+                        entropyDiff < -0.3f -> "Mobility Confined"
+                        entropyDiff > 0.3f -> "Expansive Travel"
+                        else -> "Steady Range"
                     }
-                    val daylightBadgeColor = when {
-                        daylight < 15f -> AlertWarning
+                    val locationBadgeColor = when {
+                        entropyDiff < -0.3f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val daylightDesc = when {
-                        daylight < 15f -> "Natural light exposure is low today. Stepping outdoors for just 10-15 minutes can significantly boost your daytime alertness and evening sleep quality."
-                        daylight > 60f -> "You secured ample outdoor daylight today. This is exceptional for keeping your sleep-wake cycles and mood naturally synchronized!"
-                        else -> "Your daylight exposure matches your standard healthy baseline."
+                    val locationDesc = when {
+                        entropyDiff < -0.3f -> "Your geographic variance is lower today, indicating you stayed in familiar or confined locations. Taking a small excursion can break routine monotony."
+                        entropyDiff > 0.3f -> "You explored new or wider areas today! Expanding your spatial range can have positive effects on mental flexibility."
+                        else -> "Your geographic exploration and travel patterns are consistent with your baseline."
                     }
                     QualitativeInsightCard(
-                        title = "Daylight & Ambient Rhythm",
-                        icon = Icons.Default.WbSunny,
-                        badgeText = daylightBadge,
-                        badgeColor = daylightBadgeColor,
-                        description = daylightDesc,
+                        title = "Location Mobility & Variance",
+                        icon = Icons.Default.Explore,
+                        badgeText = locationBadge,
+                        badgeColor = locationBadgeColor,
+                        description = locationDesc,
                         onClick = {
-                            activeDetailSector = "Daylight"
-                            activeDetailIcon = Icons.Default.WbSunny
-                            showMetricsDrawer = false
-                        }
-                    )
-
-                    // Charging Card
-                    val regularity = latest.chargeRegularity
-                    val chargeBadge = when {
-                        regularity < 0.6f -> "Erratic Boundary"
-                        else -> "Stable Boundary"
-                    }
-                    val chargeBadgeColor = when {
-                        regularity < 0.6f -> AlertWarning
-                        else -> MaterialTheme.colorScheme.primary
-                    }
-                    val chargeDesc = when {
-                        regularity < 0.6f -> "Your device charging times are shifting. Keeping a regular phone plug-in schedule helps support steady morning and evening sleep boundaries."
-                        else -> "Your phone charging patterns demonstrate a consistent daily rhythm, indicating strong day-to-day boundaries."
-                    }
-                    QualitativeInsightCard(
-                        title = "Circadian Boundary Stability",
-                        icon = Icons.Default.Bolt,
-                        badgeText = chargeBadge,
-                        badgeColor = chargeBadgeColor,
-                        description = chargeDesc,
-                        onClick = {
-                            activeDetailSector = "Charging"
-                            activeDetailIcon = Icons.Default.Bolt
+                            activeDetailSector = "Location Mobility"
+                            activeDetailIcon = Icons.Default.Explore
                             showMetricsDrawer = false
                         }
                     )
@@ -3570,7 +3774,6 @@ private fun safeDev(current: Float, base: Float, scale: Float): Float {
 
 // =============================================================================
 // Per-Sector Detail Screen (T7)
-// =============================================================================
 @Composable
 fun SectorDetailScreen(
     sectorName: String,
@@ -3594,6 +3797,7 @@ fun SectorDetailScreen(
             "Daylight" -> listOf("daylightExposureMinutes" to "Daylight (min)")
             "Charging" -> listOf("chargeRegularity" to "Charge Regularity", "chargeDurationHours" to "Charge Hours")
             "Interaction Tempo" -> listOf("keystrokeSpeed" to "Typing Speed (chars/s)", "backspaceRatio" to "Backspace Ratio", "scrollVelocity" to "Scroll Velocity (px/s)")
+            "Location Mobility" -> listOf("locationEntropy" to "Location Entropy", "homeTimeRatio" to "Time at Home", "dailyDisplacementKm" to "Distance (km)")
             else -> emptyList()
         }
     }
@@ -3606,8 +3810,8 @@ fun SectorDetailScreen(
     val baseMap = baselineEntities.associate { it.featureName to it.baselineValue }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
+        modifier = Modifier.fillMaxSize().background(Color.Transparent),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -3720,6 +3924,8 @@ fun getFeatureValue(vec: PersonalityVector, key: String): Float {
         "daylightExposureMinutes" -> vec.daylightExposureMinutes
         "chargeRegularity" -> vec.chargeRegularity
         "chargeDurationHours" -> vec.chargeDurationHours
+        "locationEntropy" -> vec.locationEntropy
+        "homeTimeRatio" -> vec.homeTimeRatio
         else -> 0f
     }
 }
@@ -3732,6 +3938,8 @@ fun formatValue(value: Float, key: String): String {
         "dailyStepCount" -> "%.0f".format(value)
         "dailyDisplacementKm" -> "%.1f km".format(value)
         "chargeRegularity" -> "%.0f%%".format(value * 100f)
+        "locationEntropy" -> "%.2f".format(value)
+        "homeTimeRatio" -> "%.0f%%".format(value * 100f)
         "wakeTimeHour", "sleepTimeHour" -> {
             val hour = value.toInt()
             val min = ((value - hour) * 60f).roundToInt().coerceIn(0, 59)
@@ -4077,6 +4285,8 @@ fun getFeatureValueFromEntity(feat: com.example.mhealth.logic.db.DailyFeaturesEn
         "keystrokeSpeed" -> feat.keystrokeSpeed
         "backspaceRatio" -> feat.backspaceRatio
         "scrollVelocity" -> feat.scrollVelocity
+        "locationEntropy" -> feat.locationEntropy
+        "homeTimeRatio" -> feat.homeTimeRatio
         else -> 0f
     }
 }
@@ -5284,59 +5494,75 @@ fun CheckInScreen() {
                     modifier = Modifier.padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
+                    val todayEntry = remember(journalEntries) { journalEntries.find { it.optString("date") == todayStr } }
+                    val alreadySubmitted = todayEntry != null
+
                     Text(
-                        text = "Write something...",
+                        text = if (alreadySubmitted) "Today's Reflection Saved" else "Write something...",
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = if (alreadySubmitted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
                     )
                     
+                    if (alreadySubmitted) {
+                        Text(
+                            text = "You've already written a reflection for today. Take time to pause, breathe, and return tomorrow.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    
                     OutlinedTextField(
-                        value = journalText,
-                        onValueChange = { if (it.length <= 500) journalText = it },
+                        value = if (alreadySubmitted) (todayEntry?.optString("note") ?: "") else journalText,
+                        onValueChange = { if (!alreadySubmitted && it.length <= 500) journalText = it },
+                        enabled = !alreadySubmitted,
                         placeholder = { Text("What's on your mind today? Write freely...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
                         modifier = Modifier.fillMaxWidth().height(150.dp),
                         shape = RoundedCornerShape(12.dp),
                         textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Fredoka, fontSize = 14.sp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
+                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     )
                     
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "${journalText.length}/500",
-                            fontSize = 10.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                        )
-                        
-                        Button(
-                            onClick = {
-                                if (journalText.isNotBlank()) {
-                                    // Save with a default middle value for sliders (since we routed sliders contextually)
-                                    saveCheckinToHistory(prefs, 3, 3, 3, 3, journalText.trim())
-                                    journalText = ""
-                                    checkinRefreshTrigger += 1
-                                    Toast.makeText(context, "Journal entry saved!", Toast.LENGTH_SHORT).show()
-                                }
-                            },
-                            enabled = journalText.isNotBlank(),
-                            modifier = Modifier.height(38.dp),
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary,
-                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                contentColor = Color.Black,
-                                disabledContentColor = Color.Black.copy(alpha = 0.3f)
-                            )
+                    if (!alreadySubmitted) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text("Save Entry", fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 12.sp)
+                            Text(
+                                text = "${journalText.length}/500",
+                                fontSize = 10.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
+                            )
+                            
+                            Button(
+                                onClick = {
+                                    if (journalText.isNotBlank()) {
+                                        // Save with a default middle value for sliders (since we routed sliders contextually)
+                                        saveCheckinToHistory(prefs, 3, 3, 3, 3, journalText.trim())
+                                        journalText = ""
+                                        checkinRefreshTrigger += 1
+                                        Toast.makeText(context, "Journal entry saved!", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                enabled = journalText.isNotBlank(),
+                                modifier = Modifier.height(38.dp),
+                                shape = RoundedCornerShape(10.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = MaterialTheme.colorScheme.primary,
+                                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                                    contentColor = Color.Black,
+                                    disabledContentColor = Color.Black.copy(alpha = 0.3f)
+                                )
+                            ) {
+                                Text("Save Entry", fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 12.sp)
+                            }
                         }
                     }
                 }
@@ -5386,6 +5612,205 @@ fun CheckInScreen() {
                             lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onBackground
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// History Screen Composable
+// =============================================================================
+@Composable
+fun HistoryScreen() {
+    val context = LocalContext.current
+    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+    val history = remember(prefs) { getCheckinHistoryList(prefs).reversed() }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Transparent),
+        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        // Header
+        item {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "Lumen.",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = BrandingFont,
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(bottom = 6.dp)
+                )
+                Text(
+                    text = "Rhythm History",
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Your journey of self-reflection and balance over time",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        }
+
+        if (history.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 40.dp),
+                    shape = RoundedCornerShape(24.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.History,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+
+                        Text(
+                            text = "No history recorded yet",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+
+                        Text(
+                            text = "Complete a daily check-in or write a journal entry to start building your timeline of self-reflections.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 18.sp
+                        )
+                    }
+                }
+            }
+        } else {
+            items(history) { entry ->
+                val dateStr = entry.optString("date")
+                val mood = entry.optInt("mood", 3)
+                val anxiety = entry.optInt("anxiety", 3)
+                val note = entry.optString("note", "")
+
+                val formattedDate = remember(dateStr) {
+                    try {
+                        val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
+                        if (d != null) SimpleDateFormat("EEEE, MMMM d, yyyy").format(d) else dateStr
+                    } catch (e: Exception) { dateStr }
+                }
+
+                val moodLabel = listOf("Very Low", "Low", "Neutral", "Good", "Great").getOrElse(mood - 1) { "Neutral" }
+                val moodEmoji = listOf("😞", "🙁", "😐", "🙂", "😄").getOrElse(mood - 1) { "😐" }
+
+                val anxietyLabel = listOf("Tense", "Anxious", "Neutral", "Calm", "Peaceful").getOrElse(anxiety - 1) { "Neutral" }
+                val anxietyEmoji = listOf("😫", "😟", "😐", "😌", "🧘").getOrElse(anxiety - 1) { "😐" }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = formattedDate,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontFamily = Fredoka
+                            )
+                        }
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(moodEmoji, fontSize = 12.sp)
+                                    Text("Mood: $moodLabel", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+                                }
+                            }
+
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Text(anxietyEmoji, fontSize = 12.sp)
+                                    Text("Stress: $anxietyLabel", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.secondary)
+                                }
+                            }
+                        }
+
+                        if (note.isNotBlank()) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 4.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(3.dp)
+                                        .height(IntrinsicSize.Max)
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                                Text(
+                                    text = note,
+                                    fontSize = 13.sp,
+                                    lineHeight = 18.sp,
+                                    color = MaterialTheme.colorScheme.onBackground,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                        }
                     }
                 }
             }

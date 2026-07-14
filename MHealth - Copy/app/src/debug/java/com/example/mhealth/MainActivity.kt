@@ -2403,11 +2403,13 @@ fun SettingsScreen() {
                 Column(Modifier.fillMaxWidth()) {
                     if (homeLocation != null) {
                         val (lat, lon) = checkNotNull(homeLocation) { "Home location required for insights" }
+                        val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
+                        val isAuto = remember(prefs, homeLocation) { prefs.getBoolean("home_location_set_automatically", false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Home, null, tint = OceanBlue, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = "✓ Home set: %.4f, %.4f".format(lat, lon),
+                                text = if (isAuto) "✓ Home set automatically: %.4f, %.4f".format(lat, lon) else "✓ Home set: %.4f, %.4f".format(lat, lon),
                                 fontSize = 13.sp, color = OceanBlue, fontWeight = FontWeight.Medium
                             )
                         }

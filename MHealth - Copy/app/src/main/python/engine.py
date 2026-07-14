@@ -211,6 +211,9 @@ def run_analysis(json_string: str) -> str:
         s1 = ImprovedAnomalyDetector(baseline=s1_baseline)
         s1.set_user_profile(py_user_profile)
 
+        user_feedbacks = data.get("user_feedbacks", [])
+        s1.apply_user_feedback_tuning(user_feedbacks)
+
         if historical_scores:
             s1.full_anomaly_history = list(historical_scores)
             for score in historical_scores[-14:]:
@@ -375,9 +378,28 @@ def run_analysis(json_string: str) -> str:
         dna_result["l2_modifier"] = round(l2_modifier, 4)
         dna_result["cluster_mismatch"] = round(cluster_mismatch, 4)
 
+        # Generate the daily narrative story explaining the user's circadian rhythm
+        rhythm_story_text = ""
+        try:
+            from rhythm_story import generate_rhythm_story
+            confidence_score = float(daily_report.baseline_confidence) if hasattr(daily_report, "baseline_confidence") else 1.0
+            rhythm_story_text = generate_rhythm_story(
+                current_data=current,
+                baseline_means=baseline_means,
+                baseline_stds=baseline_stds,
+                s1_report=s1_report,
+                user_profile=py_user_profile,
+                day_number=day_number,
+                confidence=confidence_score
+            )
+        except Exception as e:
+            print(f"  [StoryGen] Failed to generate rhythm story: {e}")
+            rhythm_story_text = "Your daily circadian rhythm is within standard operating parameters."
+
         # ── Map to Kotlin JSON contract ────────────────────────────────────────
         result_dict = {
             "status": "ok",
+            "observation_story": rhythm_story_text,
             "anomaly": {
                 "detected":        s1_report.sustained_deviation_days >= 3,
                 "anomaly_score":   float(s1_report.overall_anomaly_score),
@@ -431,7 +453,8 @@ def run_analysis(json_string: str) -> str:
             "profile": profile_data,
             "bayesian_baseline": {
                 "means": s1.bayesian_state.effective_means if s1.bayesian_state else {},
-                "stds": s1.bayesian_state.effective_stds if s1.bayesian_state else {}
+                "stds": s1.bayesian_state.effective_stds if s1.bayesian_state else {},
+                "confidence": float(s1.bayesian_state.confidence_score) if s1.bayesian_state else 1.0
             },
         }
 

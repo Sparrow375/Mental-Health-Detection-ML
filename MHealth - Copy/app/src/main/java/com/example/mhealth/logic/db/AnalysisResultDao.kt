@@ -54,4 +54,7 @@ interface AnalysisResultDao {
 
     @Query("DELETE FROM analysis_results WHERE userId = :userId AND date = :date")
     suspend fun deleteByDate(userId: String, date: String): Int
+
+    @Query("UPDATE analysis_results SET userFeedbackState = :state, userFeedbackCategory = :category, userFeedbackNotes = :notes WHERE userId = :userId AND date = :date")
+    suspend fun updateFeedback(userId: String, date: String, state: String, category: String, notes: String): Int
 }

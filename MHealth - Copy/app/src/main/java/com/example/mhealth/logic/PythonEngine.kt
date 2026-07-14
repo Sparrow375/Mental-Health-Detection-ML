@@ -28,6 +28,7 @@ object PythonEngine {
         val flaggedFeatures: List<String>  = emptyList(),
         val patternType: String            = "stable",
         val anomalyMessage: String         = "",
+        val observationStory: String       = "", // Narrative story generated from z-scores
 
         // System 2
         val prototypeMatch: String         = "Normal",
@@ -51,6 +52,7 @@ object PythonEngine {
         // Bayesian baseline live update vectors
         val bayesianMeans: Map<String, Float> = emptyMap(),
         val bayesianStds: Map<String, Float>  = emptyMap(),
+        val baselineConfidence: Float         = 1.0f,
 
         // Meta
         val engineStatus: String           = "ok",
@@ -115,7 +117,9 @@ object PythonEngine {
             val bayesian = root.optJSONObject("bayesian_baseline")
             val bayesianMeans = mutableMapOf<String, Float>()
             val bayesianStds = mutableMapOf<String, Float>()
+            var baselineConfidence = 1.0f
             if (bayesian != null) {
+                baselineConfidence = bayesian.optDouble("confidence", 1.0).toFloat()
                 val meansObj = bayesian.optJSONObject("means")
                 if (meansObj != null) {
                     val keys = meansObj.keys()
@@ -134,6 +138,8 @@ object PythonEngine {
                 }
             }
 
+            val observationStoryText = root.optString("observation_story", "")
+
             AnalysisResult(
                 anomalyDetected     = anomaly.optBoolean("detected",      false),
                 anomalyScore        = anomaly.optDouble("anomaly_score",   0.0).toFloat(),
@@ -143,6 +149,7 @@ object PythonEngine {
                 flaggedFeatures     = flagged,
                 patternType         = anomaly.optString("pattern_type",   "stable"),
                 anomalyMessage      = anomaly.optString("message",         ""),
+                observationStory    = observationStoryText,
                 prototypeMatch      = prototype.optString("match",         "Normal"),
                 prototypeConfidence = prototype.optDouble("confidence",    0.0).toFloat(),
                 confidenceLabel     = prototype.optString("confidence_label","HIGH"),
@@ -156,6 +163,7 @@ object PythonEngine {
                 profileJson         = profileJson,
                 bayesianMeans       = bayesianMeans,
                 bayesianStds        = bayesianStds,
+                baselineConfidence  = baselineConfidence,
                 engineStatus        = status,
                 errorMessage        = root.optString("error_message", "")
             )

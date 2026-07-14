@@ -34,6 +34,7 @@ class L1Scorer:
         self.history_window = history_window
         self.bayesian_state: Optional[BayesianState] = None
         self._adaptive_weights: Dict[str, float] = {}
+        self._variance_scale_factors: Dict[str, float] = {}
 
         # Rolling window for velocity computation
         self.feature_history: Dict[str, deque] = {
@@ -90,6 +91,10 @@ class L1Scorer:
             else:
                 baseline_val = self.baseline_dict[feature]
                 variance = self.baseline.variances.get(feature, 1.0) if self.baseline.variances else 1.0
+
+            # Apply feedback-driven variance scaling
+            scale_factor = self._variance_scale_factors.get(feature, 1.0)
+            variance = variance * scale_factor
 
             # Skip features with near-zero variance
             if variance < 0.05:

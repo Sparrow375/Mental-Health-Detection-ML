@@ -2,9 +2,12 @@ package com.example.mhealth.logic
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.location.Location
+import android.util.Log
 import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.DailyFeaturesEntity
 import com.example.mhealth.logic.db.MHealthDatabase
+import com.example.mhealth.logic.db.ObservationEntity
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.LatLonPoint
 import com.example.mhealth.models.PersonalityVector
@@ -49,6 +52,15 @@ object DataRepository {
     private val _s1ProfileJson = MutableStateFlow<String?>(null)
     val s1ProfileJson: StateFlow<String?> = _s1ProfileJson
 
+    private val _latestObservation = MutableStateFlow<ObservationEntity?>(null)
+    val latestObservation: StateFlow<ObservationEntity?> = _latestObservation
+
+    private val _allObservations = MutableStateFlow<List<ObservationEntity>>(emptyList())
+    val allObservations: StateFlow<List<ObservationEntity>> = _allObservations
+
+    private val _baselineConfidenceIndex = MutableStateFlow(1.0f)
+    val baselineConfidenceIndex: StateFlow<Float> = _baselineConfidenceIndex
+
     /**
      * Wire the Room-backed StateFlows after the DB is available (call from MonitoringService/Application).
      * Safe to call multiple times — subsequent calls are no-ops.
@@ -67,6 +79,16 @@ object DataRepository {
         scope.launch {
             db.analysisResultDao().getLatestNFlow(userId, limit = 30).collect { list ->
                 _analysisHistory.value = list
+            }
+        }
+        scope.launch {
+            db.observationDao().getLatestFlow(userId).collect { entity ->
+                _latestObservation.value = entity
+            }
+        }
+        scope.launch {
+            db.observationDao().getAllFlow(userId).collect { list ->
+                _allObservations.value = list
             }
         }
         // Load baseline progress and history
@@ -304,6 +326,8 @@ object DataRepository {
         _dnaBaselineDaysRequired.value = 1
         _monitoringIntervalMinutes.value = prefs?.getLong("dev_monitoring_interval", 15L) ?: 15L
         
+        _baselineConfidenceIndex.value = prefs?.getFloat("baseline_confidence_index", 1.0f) ?: 1.0f
+        
         // Restore Onboarding State
         _firstLoginComplete.value = prefs?.getBoolean("first_login_complete", false) ?: false
         _phq9Score.value = prefs?.getInt("screener_phq9", 0) ?: 0
@@ -519,6 +543,10 @@ object DataRepository {
         val updated = (_locationSnapshots.value + point).takeLast(288) // 24h @ 5-min continuous tracking
         _locationSnapshots.value = updated
         saveLocationsToPrefs(updated)
+        saveTo48hHistory(point)
+        scope.launch {
+            checkAndAutoSetHomeLocation()
+        }
     }
 
     fun updateGpsState(state: String) {
@@ -579,12 +607,139 @@ object DataRepository {
         }
     }
 
-    fun setHomeLocation(lat: Double, lon: Double) {
+    fun setHomeLocation(lat: Double, lon: Double, isAuto: Boolean = false) {
         _homeLocation.value = Pair(lat, lon)
         prefs?.edit()?.apply {
             putFloat("home_location_lat", lat.toFloat())
             putFloat("home_location_lon", lon.toFloat())
+            putBoolean("home_location_set_automatically", isAuto)
         }?.apply()
+    }
+
+    private fun saveTo48hHistory(point: LatLonPoint) {
+        val prefs = prefs ?: return
+        val currentHistoryStr = prefs.getString("loc_snapshots_48h", "") ?: ""
+        val now = System.currentTimeMillis()
+        val limit = now - 2 * 24 * 3600 * 1000L
+
+        val points = mutableListOf<LatLonPoint>()
+        if (currentHistoryStr.isNotEmpty()) {
+            try {
+                currentHistoryStr.split(";").filter { it.isNotBlank() }.forEach {
+                    val parts = it.split(",")
+                    val timeMs = parts[2].toLong()
+                    if (timeMs >= limit) {
+                        points.add(
+                            LatLonPoint(
+                                parts[0].toDouble(),
+                                parts[1].toDouble(),
+                                timeMs,
+                                if (parts.size > 3) parts[3].toFloat() else 0f,
+                                if (parts.size > 4) parts[4].toFloat() else 0f
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {}
+        }
+        points.add(point)
+
+        val trimmedPoints = points.takeLast(1000)
+        val str = trimmedPoints.joinToString(";") { "${it.lat},${it.lon},${it.timeMs},${it.accuracy},${it.speed}" }
+        prefs.edit().putString("loc_snapshots_48h", str).apply()
+    }
+
+    fun checkAndAutoSetHomeLocation() {
+        val prefs = prefs ?: return
+        val isAutoSet = prefs.getBoolean("home_location_set_automatically", false)
+        val homeLat = prefs.getFloat("home_location_lat", Float.NaN)
+        if (!homeLat.isNaN() && !isAutoSet) {
+            return
+        }
+
+        val currentHistoryStr = prefs.getString("loc_snapshots_48h", "") ?: ""
+        if (currentHistoryStr.isEmpty()) return
+
+        val now = System.currentTimeMillis()
+        val limit = now - 2 * 24 * 3600 * 1000L
+
+        val points = mutableListOf<LatLonPoint>()
+        try {
+            currentHistoryStr.split(";").filter { it.isNotBlank() }.forEach {
+                val parts = it.split(",")
+                val timeMs = parts[2].toLong()
+                if (timeMs >= limit) {
+                    points.add(
+                        LatLonPoint(
+                            parts[0].toDouble(),
+                            parts[1].toDouble(),
+                            timeMs,
+                            if (parts.size > 3) parts[3].toFloat() else 0f,
+                            if (parts.size > 4) parts[4].toFloat() else 0f
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            return
+        }
+
+        val validPoints = points.filter { it.accuracy <= 200f }
+        if (validPoints.size < 10) {
+            return
+        }
+
+        val earliest = validPoints.minOf { it.timeMs }
+        val latest = validPoints.maxOf { it.timeMs }
+        if (latest - earliest < 24 * 3600 * 1000L) {
+            return
+        }
+
+        class Cluster(var sumLat: Double, var sumLon: Double, var count: Int, var totalTimeMs: Long)
+        val clusters = mutableListOf<Cluster>()
+        val CLUSTER_RADIUS_METERS = 150f
+        val ENTROPY_BRIDGE_CAP_MS = 12L * 3600_000L
+
+        val sortedPoints = validPoints.sortedBy { it.timeMs }
+        for (i in 0 until sortedPoints.size) {
+            val point = sortedPoints[i]
+            val durationMs = if (i < sortedPoints.size - 1) {
+                (sortedPoints[i + 1].timeMs - point.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
+            } else {
+                (now - point.timeMs).coerceIn(0L, ENTROPY_BRIDGE_CAP_MS)
+            }
+
+            var found = false
+            for (cluster in clusters) {
+                val centerLat = cluster.sumLat / cluster.count
+                val centerLon = cluster.sumLon / cluster.count
+                val results = FloatArray(1)
+                Location.distanceBetween(point.lat, point.lon, centerLat, centerLon, results)
+                if (results[0] <= CLUSTER_RADIUS_METERS) {
+                    cluster.sumLat += point.lat
+                    cluster.sumLon += point.lon
+                    cluster.count++
+                    cluster.totalTimeMs += durationMs
+                    found = true
+                    break
+                }
+            }
+            if (!found) {
+                clusters.add(Cluster(point.lat, point.lon, 1, durationMs))
+            }
+        }
+
+        val bestCluster = clusters.maxByOrNull { it.totalTimeMs } ?: return
+        val MIN_REQUIRED_TIME_MS = 4L * 3600 * 1000L
+        if (bestCluster.totalTimeMs < MIN_REQUIRED_TIME_MS) {
+            return
+        }
+
+        val autoLat = bestCluster.sumLat / bestCluster.count
+        val autoLon = bestCluster.sumLon / bestCluster.count
+
+        setHomeLocation(autoLat, autoLon, isAuto = true)
+        Log.i("DataRepository", "Auto-set home location: $autoLat, $autoLon based on ${bestCluster.totalTimeMs / 3600000f} hours spent.")
     }
 
     fun getHomeLatitude(): Double? = _homeLocation.value?.first
@@ -679,6 +834,35 @@ object DataRepository {
             _stepBaseline.value = stepBase
             prefs?.edit()?.putFloat("step_baseline_today", stepBase)?.apply()
         }
+    }
+
+    fun updateFeedback(context: Context, userId: String, date: String, state: String, category: String, notes: String) {
+        val db = MHealthDatabase.getInstance(context.applicationContext)
+        scope.launch {
+            db.analysisResultDao().updateFeedback(userId, date, state, category, notes)
+            
+            // Refresh latest analysis result flow in case it was the updated one
+            val latest = db.analysisResultDao().getLatest(userId)
+            _latestAnalysisResult.value = latest
+            
+            // Refresh history list flow
+            val historyList = db.analysisResultDao().getLatestN(userId, 30)
+            _analysisHistory.value = historyList
+        }
+    }
+
+    fun updateObservationFeedback(context: Context, userId: String, date: String, state: String, category: String, notes: String) {
+        val db = MHealthDatabase.getInstance(context.applicationContext)
+        scope.launch {
+            db.observationDao().updateFeedback(userId, date, state, category, notes)
+            val latest = db.observationDao().getLatest(userId)
+            _latestObservation.value = latest
+        }
+    }
+
+    fun setBaselineConfidenceIndex(confidence: Float) {
+        _baselineConfidenceIndex.value = confidence
+        prefs?.edit()?.putFloat("baseline_confidence_index", confidence)?.apply()
     }
 
     /**

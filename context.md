@@ -541,21 +541,4 @@ To maintain compatibility and cross-platform scoring alignment, the telemetry ve
     2. **Internet Permission & WebView Diagnostics**: Added `<uses-permission android:name="android.permission.INTERNET" />` to the debug-only manifest (`app/src/debug/AndroidManifest.xml`) to keep the release/production build 100% offline. Added robust error logging (`onReceivedError`, `onReceivedHttpError`), base URL alignment to CDN origin, static HTML loading state UI, and direct JS error reporting alerts (`window.onerror`) inside `MapPickerDialog` for real-time debugging.
     3. **Debounced Search Autocomplete Suggestions**: Embedded a dynamic typeahead autocomplete dropdown below the map search input utilizing the Nominatim Search API. Employs a 400ms input debouncer to restrict API query rates and prevent server-side spam/blocks. Uses dynamic map bounds viewport viewboxes to prioritize local suggestions based on proximity, and auto-dismisses the dropdown overlay when a search is triggered or a suggestion is picked.
     4. **CI Workflow Build Target Filters**: Configured custom `workflow_dispatch` checkbox input options (`build_debug`, `build_release`) and automatic path filtering logic in `android.yml` to selectively build and release only modified variants (e.g. skipping time-consuming release compiles if only debug source trees are edited).
-    5. **Fallback Auto-Set Home Location (Release)**: Fixed a Jetpack Compose compilation issue where `isHomeSetAutomatically` was used inside the `LazyColumn` builder block by hoisting the `remember` declaration to the root `MainLumenDashboard` Composable function. Verified that the fallback home location auto-clustering logic in `DataRepository` works for 2-day location history spans and displays gentle reminders/status updates on the Home and Settings screens.
-*   **2026-07-14 (Sprint: Overview Documentation)**:
-    1. **Lumen Release Build Overview**: Generated a product-focused overview document for the Lumen release build (`lumen_release_overview.md` artifact) detailing user-facing features (tabs, insights, breathing lotus, habit quests, detox timer, wind-down companion) and offline data security.
-*   **2026-07-14 (Sprint: Lumen Revamp Planning)**:
-    1. **Lumen Revamp Implementation Plan**: Created a detailed multi-phase implementation plan (`lumen_revamp_implementation_plan.md` artifact) outlining the transition to a closed-loop "Detect → Surface → Interpret → Refine" user experience, including Home, Insights, Check-In tab updates, and premium UI polishing.
-    2. **Task List Update**: Populated `task_list.md` with tasks T70 to T80.
-*   **2026-07-14 (Sprint: Closed-Loop Revamp Implementation)**:
-    1. **Phase 1: Room DB & Python Model Integration**: Created `ObservationEntity` Room table with confidence gates. Refactored Python `detector.py` to process haptic confirm/correct actions and tune Bayesian prior baseline weights.
-    2. **Phase 2: Frosted-Glass Hero & Correction Micro-flow**: Created the single Hero Observation Card on the Home Screen. Integrated inline Action Chips (`That Tracks`, `Not Quite`, `Tell me more`) with haptics, and built a dynamic modal micro-flow to capture schedule corrections.
-    3. **Phase 3: Ranked Insights Discovery Feed & Metric Drawer**: Redesigned the Insights screen to lead with a ranked list of "Daily Discoveries" with "Validated by You" status badges. Moved complex metrics (6-axis radar charts, anomaly gauges, trend lists) to a modern collapsible bottom sheet ("Explore Metrics").
-    4. **Phase 4: Minimalist Journal Pad**: Simplified the Check-In tab into a beautiful text journaling canvas with scrollable history entries.
-    5. **Phase 5: Premium UI Polish & Typography**: Unified system typography around sans-serif Fredoka, replaced emojis with custom vector icons, restyle canvas breathing lotus & consistency gauge with elegant neon glow halos, and verified 100% clean builds.
-
-
-
-
-
 

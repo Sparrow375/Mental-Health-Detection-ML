@@ -220,8 +220,7 @@ class MainActivity : ComponentActivity() {
 // =============================================================================
 // Premium Typography & Color Palettes
 // =============================================================================
-val Fredoka = FontFamily.SansSerif
-val BrandingFont = FontFamily(
+val Fredoka = FontFamily(
     Font(R.font.fredoka, FontWeight.Normal)
 )
 
@@ -313,7 +312,6 @@ fun LumenTheme(
 enum class LumenDest(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
     INSIGHTS("Insights", Icons.Default.Timeline),
-    HISTORY("History", Icons.Default.History),
     CHECKIN("Check In", Icons.Default.Favorite),
     SETTINGS("Settings", Icons.Default.Settings)
 }
@@ -366,68 +364,6 @@ fun LumenAppShell() {
 }
 
 @Composable
-fun AmbientCoolingBackground() {
-    val infiniteTransition = rememberInfiniteTransition(label = "ambient_cooling")
-    val shiftX by infiniteTransition.animateFloat(
-        initialValue = 0.2f,
-        targetValue = 0.8f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(12000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shift_x"
-    )
-    val shiftY by infiniteTransition.animateFloat(
-        initialValue = 0.8f,
-        targetValue = 0.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(16000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "shift_y"
-    )
-    val radiusScale by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1.2f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(14000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "radius"
-    )
-
-    Canvas(modifier = Modifier.fillMaxSize()) {
-        val width = size.width
-        val height = size.height
-        val baseColor = Color(0xFF070B19)
-        val glowColor1 = Color(0xFF0F2B48)
-        val glowColor2 = Color(0xFF1B0F3A)
-
-        drawRect(color = baseColor)
-
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(glowColor1.copy(alpha = 0.45f), Color.Transparent),
-                center = Offset(width * shiftX, height * shiftY),
-                radius = width * radiusScale
-            ),
-            center = Offset(width * shiftX, height * shiftY),
-            radius = width * radiusScale
-        )
-
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(glowColor2.copy(alpha = 0.35f), Color.Transparent),
-                center = Offset(width * (1f - shiftX), height * (1f - shiftY)),
-                radius = width * (radiusScale * 0.9f)
-            ),
-            center = Offset(width * (1f - shiftX), height * (1f - shiftY)),
-            radius = width * (radiusScale * 0.9f)
-        )
-    }
-}
-
-@Composable
 fun MainLumenDashboard() {
     var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
     val context = LocalContext.current
@@ -453,9 +389,8 @@ fun MainLumenDashboard() {
     }
 
     Scaffold(
-        containerColor = Color.Transparent,
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.85f), tonalElevation = 0.dp) {
+            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
                 LumenDest.entries.forEach { dest ->
                     val isSelected = selectedTab == dest
                     NavigationBarItem(
@@ -480,7 +415,6 @@ fun MainLumenDashboard() {
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            AmbientCoolingBackground()
             AnimatedContent(
                 targetState = selectedTab,
                 transitionSpec = {
@@ -499,7 +433,6 @@ fun MainLumenDashboard() {
                 when (targetTab) {
                     LumenDest.HOME -> HomeScreen(onNavigateToCheckIn = { selectedTab = LumenDest.CHECKIN })
                     LumenDest.INSIGHTS -> InsightsScreen()
-                    LumenDest.HISTORY -> HistoryScreen()
                     LumenDest.CHECKIN -> CheckInScreen()
                     LumenDest.SETTINGS -> SettingsScreen()
                 }
@@ -509,168 +442,8 @@ fun MainLumenDashboard() {
 }
 
 // =============================================================================
-// Contextual Check-In Section
-// =============================================================================
-@Composable
-fun ContextualCheckinSection(
-    onSave: (mood: Int, anxiety: Int) -> Unit
-) {
-    var mood by remember { mutableIntStateOf(3) }
-    var anxiety by remember { mutableIntStateOf(3) }
-    
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-        
-        Text(
-            text = "Rate your mood & stress to complete validation:",
-            fontSize = 13.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            fontFamily = Fredoka
-        )
-        
-        // Mood Slider
-        Column {
-            Text(
-                text = "Mood: ${listOf("Very Low", "Low", "Neutral", "Good", "Great")[mood - 1]}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Slider(
-                value = mood.toFloat(),
-                onValueChange = { mood = it.roundToInt() },
-                valueRange = 1f..5f,
-                steps = 3,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(0.2f),
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent
-                )
-            )
-        }
-        
-        // Anxiety Slider
-        Column {
-            Text(
-                text = "Stress / Anxiety: ${listOf("Tense", "Anxious", "Neutral", "Calm", "Very Peaceful")[anxiety - 1]}",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Slider(
-                value = anxiety.toFloat(),
-                onValueChange = { anxiety = it.roundToInt() },
-                valueRange = 1f..5f,
-                steps = 3,
-                colors = SliderDefaults.colors(
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(0.2f),
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent
-                )
-            )
-        }
-        
-        Button(
-            onClick = { onSave(mood, anxiety) },
-            modifier = Modifier.fillMaxWidth().height(38.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.primary,
-                contentColor = Color.Black
-            ),
-            shape = RoundedCornerShape(10.dp)
-        ) {
-            Text(
-                text = "Confirm & Complete",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                fontFamily = Fredoka
-            )
-        }
-    }
-}
-
-// =============================================================================
 // Home Screen Composable
 // =============================================================================
-@Composable
-fun ToolTrayCard(
-    title: String,
-    description: String,
-    icon: ImageVector,
-    onClick: () -> Unit
-) {
-    Card(
-        onClick = onClick,
-        modifier = Modifier
-            .width(140.dp)
-            .height(115.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
-        ),
-        border = BorderStroke(
-            1.dp,
-            Brush.horizontalGradient(
-                colors = listOf(
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                )
-            )
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(32.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(18.dp)
-                )
-            }
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    maxLines = 1,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = description,
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-                    maxLines = 2,
-                    lineHeight = 12.sp,
-                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
-                )
-            }
-        }
-    }
-}
-
 @Composable
 fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     val context = LocalContext.current
@@ -678,13 +451,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     val latestResult by DataRepository.latestAnalysisResult.collectAsState()
     val provisional by DataRepository.provisionalAnalysis.collectAsState()
     val isBuilding by DataRepository.isBuildingBaseline.collectAsState()
-    val latestObservation by DataRepository.latestObservation.collectAsState()
-
-    var configSeq by remember { mutableStateOf(0) }
-    var showBreathingDialog by remember { mutableStateOf(false) }
-    var showDetoxDialog by remember { mutableStateOf(false) }
-    var showWindDownDialog by remember { mutableStateOf(false) }
-    var showHabitsDialog by remember { mutableStateOf(false) }
     
     val activeResult = provisional ?: latestResult
     val score = activeResult?.effectiveScore ?: -1f
@@ -707,28 +473,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     }
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
-    val sleepTarget = remember(configSeq) {
-        val anchorOverride = prefs.getFloat("habit_circadian_anchor_target", -1f)
-        if (anchorOverride > 0f) {
-            anchorOverride
-        } else {
-            val historyStr = prefs.getString("checkin_history", null)
-            if (!historyStr.isNullOrBlank()) {
-                try {
-                    val arr = org.json.JSONArray(historyStr)
-                    val sleepTimes = mutableListOf<Float>()
-                    for (i in 0 until minOf(arr.length(), 14)) {
-                        val obj = arr.optJSONObject(i)
-                        val st = obj?.optDouble("sleep_time", -1.0)?.toFloat() ?: -1f
-                        if (st > 0f) sleepTimes.add(st)
-                    }
-                    if (sleepTimes.size >= 3) {
-                        sleepTimes.average().toFloat()
-                    } else 23f
-                } catch (_: Exception) { 23f }
-            } else 23f
-        }
-    }
     val activeStreak = remember(prefs) { getActiveStreak(prefs) }
     
     val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
@@ -773,9 +517,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     var showLocationDisclosure by remember { mutableStateOf(false) }
     val homeLocationState by DataRepository.homeLocation.collectAsState()
     val isHomeSet = homeLocationState != null
-    val isHomeSetAutomatically = remember(prefs, homeLocationState) {
-        prefs.getBoolean("home_location_set_automatically", false)
-    }
 
     var isReminderDismissed by remember {
         mutableStateOf(prefs.getBoolean("home_permissions_reminder_dismissed", false))
@@ -831,9 +572,9 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent),
+            .background(MaterialTheme.colorScheme.background),
         horizontalAlignment = Alignment.CenterHorizontally,
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
+        contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(24.dp)
     ) {
         item {
@@ -845,7 +586,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                     text = "Lumen.",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = BrandingFont,
+                    fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
@@ -862,45 +603,6 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
                 )
-            }
-        }
-        if (!isHomeSet || isHomeSetAutomatically) {
-            item {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(
-                        containerColor = if (isHomeSet) MaterialTheme.colorScheme.primary.copy(alpha = 0.08f) else AlertWarning.copy(alpha = 0.08f)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isHomeSet) MaterialTheme.colorScheme.primary.copy(alpha = 0.25f) else AlertWarning.copy(alpha = 0.25f)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = if (isHomeSet) Icons.Default.Home else Icons.Default.LocationOn,
-                            contentDescription = null,
-                            tint = if (isHomeSet) MaterialTheme.colorScheme.primary else AlertWarning,
-                            modifier = Modifier.size(20.dp)
-                        )
-                        Spacer(Modifier.width(12.dp))
-                        Text(
-                            text = if (isHomeSet) {
-                                "Home location has been set automatically based on where you spend the most time. If this is incorrect, you can change it anytime in Settings."
-                            } else {
-                                "Home location is not set yet. We'll automatically set it based on your location history (2 days of data), or you can set it now."
-                            },
-                            fontSize = 12.sp,
-                            lineHeight = 16.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
-                            modifier = Modifier.weight(1f)
-                        )
-                    }
-                }
             }
         }
 
@@ -1027,526 +729,70 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 }
             }
         }
-          item {
-            val scope = rememberCoroutineScope()
-            val userId = userProfile?.email ?: "patient@lumen.health"
-            val targetDate = latestObservation?.date ?: activeResult?.date ?: todayStr
-            val feedbackState = latestObservation?.feedbackState ?: activeResult?.userFeedbackState ?: "unresolved"
-            val feedbackCategory = latestObservation?.feedbackCategory ?: activeResult?.userFeedbackCategory ?: ""
-            val feedbackNotes = latestObservation?.feedbackNotes ?: activeResult?.userFeedbackNotes ?: ""
-            val storyText = latestObservation?.narrative?.takeIf { it.isNotBlank() }
-                ?: activeResult?.observationStory?.takeIf { it.isNotBlank() }
-                ?: if (latestObservation?.isQuietDay == true || activeResult?.effectiveScore == 0f) {
-                    "Your rhythm is stable and consistent today — steady as it's been."
-                } else if (isBuilding) {
-                    "Lumen is mapping your unique behavioral rhythms. Waking up, sleeping patterns, and app usages are being structured to build your personalized circadian baseline."
-                } else {
-                    "Your daily circadian rhythm is within standard operating parameters."
-                }
-
-            // Local state for interactive editing
-            var showCorrectionFlow by remember(targetDate, feedbackState) { mutableStateOf(false) }
-            var showNoteFlow by remember(targetDate, feedbackState) { mutableStateOf(false) }
-            var noteInput by remember(targetDate) { mutableStateOf("") }
-            var selectedCategory by remember { mutableStateOf("none") }
-            var showContextualSliders by remember { mutableStateOf(false) }
-            var pendingFeedbackState by remember { mutableStateOf("") }
-            var pendingFeedbackCategory by remember { mutableStateOf("none") }
-            var pendingFeedbackNotes by remember { mutableStateOf("") }
-
-            val haptic = LocalHapticFeedback.current
-
-            StaggeredFadeIn(index = 1) {
-                Card(
+        
+        item {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CalmLotusPulse()
+            }
+        }
+        
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer {
-                            clip = true
-                            shape = RoundedCornerShape(24.dp)
-                        },
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)
-                    ),
-                    border = BorderStroke(
-                        1.dp,
-                        Brush.horizontalGradient(
-                            colors = listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.05f)
-                            )
-                        )
-                    )
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Header Row
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Waves,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    text = "Daily Rhythm Story",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                            Text(
-                                text = "AI Insights",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
-                                fontFamily = Fredoka,
-                                modifier = Modifier
-                                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(0.4f), RoundedCornerShape(4.dp))
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
-                        }
-
-                        // Main Narrative Text
-                        Text(
-                            text = storyText,
-                            fontSize = 14.sp,
-                            lineHeight = 22.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(0.9f)
-                        )
-
-                        // Divider if interactive
-                        if (feedbackState == "unresolved") {
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth(),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                            )
-
-                            if (showContextualSliders) {
-                                ContextualCheckinSection(
-                                    onSave = { moodVal, anxietyVal ->
-                                        recordDailyCheckin(prefs, moodVal, 3, 3, anxietyVal)
-                                        saveCheckinToHistory(prefs, moodVal, 3, 3, anxietyVal, pendingFeedbackNotes)
-                                        lastCheckinDate = todayStr
-                                        
-                                        DataRepository.updateFeedback(
-                                            context,
-                                            userId,
-                                            targetDate,
-                                            pendingFeedbackState,
-                                            pendingFeedbackCategory,
-                                            pendingFeedbackNotes
-                                        )
-                                        showContextualSliders = false
-                                    }
-                                )
-                            } else if (!showCorrectionFlow && !showNoteFlow) {
-                                // Primary Interpretation Chips
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // That Tracks Button
-                                    Button(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            if (!alreadyCheckedIn) {
-                                                pendingFeedbackState = "confirmed"
-                                                pendingFeedbackCategory = "none"
-                                                pendingFeedbackNotes = ""
-                                                showContextualSliders = true
-                                            } else {
-                                                DataRepository.updateFeedback(
-                                                    context,
-                                                    userId,
-                                                    targetDate,
-                                                    "confirmed",
-                                                    "none",
-                                                    ""
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f).height(38.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                            contentColor = MaterialTheme.colorScheme.primary
-                                        ),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text(
-                                            "That Tracks",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = Fredoka
-                                        )
-                                    }
-
-                                    // Not Quite Button
-                                    Button(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            showCorrectionFlow = true
-                                        },
-                                        modifier = Modifier.weight(1f).height(38.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surface,
-                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text(
-                                            "Not Quite",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = Fredoka
-                                        )
-                                    }
-
-                                    // Tell Me More Button
-                                    Button(
-                                        onClick = {
-                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                            showNoteFlow = true
-                                        },
-                                        modifier = Modifier.weight(1f).height(38.dp),
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = MaterialTheme.colorScheme.surface,
-                                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                        ),
-                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                                        shape = RoundedCornerShape(10.dp),
-                                        contentPadding = PaddingValues(0.dp)
-                                    ) {
-                                        Text(
-                                            "Tell me more",
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            fontFamily = Fredoka
-                                        )
-                                    }
-                                }
-                            } else if (showCorrectionFlow) {
-                                // Correction Options Micro-Flow
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        "Help us adapt. What describes this shift best?",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    val categories = listOf(
-                                        "schedule_shift" to "Schedule shift / Late night",
-                                        "travel" to "Travel / Out of town",
-                                        "illness" to "Illness or fatigue",
-                                        "stress" to "Temporary high stress",
-                                        "none" to "Other benign routine change"
-                                    )
-
-                                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                        categories.forEach { (cat, label) ->
-                                            Row(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .clickable { selectedCategory = cat }
-                                                    .padding(vertical = 4.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                RadioButton(
-                                                    selected = selectedCategory == cat,
-                                                    onClick = { selectedCategory = cat }
-                                                )
-                                                Spacer(Modifier.width(8.dp))
-                                                Text(
-                                                    text = label,
-                                                    fontSize = 13.sp,
-                                                    color = MaterialTheme.colorScheme.onBackground
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = { showCorrectionFlow = false },
-                                            modifier = Modifier.weight(1f).height(36.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.surface,
-                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            ),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Cancel", fontSize = 12.sp, fontFamily = Fredoka)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                if (!alreadyCheckedIn) {
-                                                    pendingFeedbackState = "corrected"
-                                                    pendingFeedbackCategory = selectedCategory
-                                                    pendingFeedbackNotes = ""
-                                                    showContextualSliders = true
-                                                } else {
-                                                    DataRepository.updateFeedback(
-                                                        context,
-                                                        userId,
-                                                        targetDate,
-                                                        "corrected",
-                                                        selectedCategory,
-                                                        ""
-                                                    )
-                                                }
-                                                showCorrectionFlow = false
-                                            },
-                                            modifier = Modifier.weight(1f).height(36.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary,
-                                                contentColor = Color.Black
-                                            ),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Update Model", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                                        }
-                                    }
-                                }
-                            } else if (showNoteFlow) {
-                                // Add Custom Note Flow
-                                Column(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    Text(
-                                        "Log notes for your secure, offline reflection",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    OutlinedTextField(
-                                        value = noteInput,
-                                        onValueChange = { noteInput = it },
-                                        placeholder = { Text("What caused this shift? (e.g. coffee, workout, exam)", fontSize = 13.sp) },
-                                        modifier = Modifier.fillMaxWidth(),
-                                        maxLines = 3,
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                        )
-                                    )
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                    ) {
-                                        Button(
-                                            onClick = { showNoteFlow = false },
-                                            modifier = Modifier.weight(1f).height(36.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.surface,
-                                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                            ),
-                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Cancel", fontSize = 12.sp, fontFamily = Fredoka)
-                                        }
-
-                                        Button(
-                                            onClick = {
-                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                                if (!alreadyCheckedIn) {
-                                                    pendingFeedbackState = "noted"
-                                                    pendingFeedbackCategory = "none"
-                                                    pendingFeedbackNotes = noteInput
-                                                    showContextualSliders = true
-                                                } else {
-                                                    DataRepository.updateFeedback(
-                                                        context,
-                                                        userId,
-                                                        targetDate,
-                                                        "noted",
-                                                        "none",
-                                                        noteInput
-                                                    )
-                                                }
-                                                showNoteFlow = false
-                                            },
-                                            modifier = Modifier.weight(1f).height(36.dp),
-                                            colors = ButtonDefaults.buttonColors(
-                                                containerColor = MaterialTheme.colorScheme.primary,
-                                                contentColor = Color.Black
-                                            ),
-                                            shape = RoundedCornerShape(8.dp)
-                                        ) {
-                                            Text("Save Details", fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                                        }
-                                    }
-                                }
-                            }
-                        } else {
-                            // Feedback Submitted State Banner
-                            HorizontalDivider(
-                                modifier = Modifier.fillMaxWidth(),
-                                thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f)
-                            )
-
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
-                                    .padding(horizontal = 14.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.CheckCircle,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
-                                    Spacer(Modifier.width(8.dp))
-                                    val labelText = when (feedbackState) {
-                                        "confirmed" -> "That Tracks (Feedback saved. Parameters refined.)"
-                                        "corrected" -> {
-                                            val displayCat = when (feedbackCategory) {
-                                                "schedule_shift" -> "Schedule Shift"
-                                                "travel" -> "Travel"
-                                                "illness" -> "Illness/Fatigue"
-                                                "stress" -> "Stress"
-                                                else -> "Routine Shift"
-                                            }
-                                            "Noted: $displayCat (Weights adapted.)"
-                                        }
-                                        "noted" -> "Details logged to offline reflection history."
-                                        else -> "Feedback saved."
-                                    }
-                                    Text(
-                                        text = labelText,
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.Medium
-                                    )
-                                }
-
-                                Text(
-                                    text = "Undo",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    modifier = Modifier
-                                        .clickable {
-                                            DataRepository.updateFeedback(
-                                                context,
-                                                userId,
-                                                targetDate,
-                                                "unresolved",
-                                                "",
-                                                ""
-                                            )
-                                        }
-                                        .padding(4.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // T76: Collapse Breathing, Detox, Wind-Down, and Habits into a bottom horizontal tray
-        item {
-            StaggeredFadeIn(index = 2) {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
+                        .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Text(
-                        text = "Today's Tools",
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Tool 1: Mindful Breathing
-                        ToolTrayCard(
-                            title = "Breathing",
-                            description = "Box breathing reset",
-                            icon = Icons.Default.Spa,
-                            onClick = { showBreathingDialog = true }
-                        )
-                        // Tool 2: Digital Detox
-                        ToolTrayCard(
-                            title = "Digital Detox",
-                            description = "Pause notifications",
-                            icon = Icons.Default.HourglassEmpty,
-                            onClick = { showDetoxDialog = true }
-                        )
-                        // Tool 3: Wind-Down
-                        ToolTrayCard(
-                            title = "Wind-Down",
-                            description = "Sleep prep guide",
-                            icon = Icons.Default.Bedtime,
-                            onClick = { showWindDownDialog = true }
-                        )
-                        // Tool 4: Habit Quests
-                        ToolTrayCard(
-                            title = "Habit Quests",
-                            description = "Track goals",
-                            icon = Icons.Default.TrendingUp,
-                            onClick = { showHabitsDialog = true }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("✨", fontSize = 18.sp)
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Your Rhythm Story",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = "AI Insights",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
+                            fontFamily = Fredoka,
+                            modifier = Modifier
+                                .background(MaterialTheme.colorScheme.surfaceVariant.copy(0.5f), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
                         )
                     }
+                    Text(
+                        text = statusText,
+                        fontSize = 14.sp,
+                        lineHeight = 20.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(0.9f)
+                    )
                 }
             }
         }
-
-        if (weeklyFeatures.isNotEmpty() && baseline != null) {
-            item {
-                StaggeredFadeIn(index = 3) {
-                    TelemetrySnapshotCard(features = weeklyFeatures, baseline = baseline)
-                }
-            }
-        }
-
+        
         item {
-            StaggeredFadeIn(index = 4) {
+            StaggeredFadeIn(index = 1) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(20.dp),
@@ -1568,12 +814,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                                     .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Star,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Text("🔥", fontSize = 24.sp)
                             }
                             Spacer(Modifier.width(16.dp))
                             Column {
@@ -1595,6 +836,97 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 }
             }
         }
+        
+        if (!alreadyCheckedIn) {
+            item {
+                StaggeredFadeIn(index = 2) {
+                    Card(
+                        onClick = onNavigateToCheckIn,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(20.dp),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Row(modifier = Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.primary.copy(0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Favorite,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                                Spacer(Modifier.width(16.dp))
+                                Column {
+                                    Text(
+                                        text = "How are you feeling today?",
+                                        fontSize = 15.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "Take 30 seconds to log your current state.",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.7f)
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Default.ChevronRight,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        if (weeklyFeatures.isNotEmpty() && baseline != null) {
+            item {
+                StaggeredFadeIn(index = 3) {
+                    TelemetrySnapshotCard(features = weeklyFeatures, baseline = baseline)
+                }
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 4) {
+                MindfulBreathingCard()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 4) {
+                HabitQuestsSection()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 5) {
+                WindDownCompanionCard()
+            }
+        }
+
+        item {
+            StaggeredFadeIn(index = 6) {
+                DigitalDetoxCard()
+            }
+        }
 
         // 30 days research contribution prompt card (Task 17)
         item {
@@ -1607,7 +939,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                 if (showResearchDialog) {
                     ResearchContributionDialog(onDismiss = { showResearchDialog = false })
                 }
-                StaggeredFadeIn(index = 5) {
+                StaggeredFadeIn(index = 7) {
                     Card(
                         modifier = Modifier.fillMaxWidth().clickable { showResearchDialog = true },
                         shape = RoundedCornerShape(20.dp),
@@ -1618,20 +950,7 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
                             modifier = Modifier.padding(20.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Science,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
+                            Text("🔬", fontSize = 28.sp)
                             Spacer(Modifier.width(16.dp))
                             Column(modifier = Modifier.weight(1f)) {
                                 Text(
@@ -1656,29 +975,16 @@ fun HomeScreen(onNavigateToCheckIn: () -> Unit) {
         }
 
         item {
-            StaggeredFadeIn(index = 6) {
+            StaggeredFadeIn(index = 8) {
                 DailyFocusCard()
             }
         }
 
         item {
-            StaggeredFadeIn(index = 7) {
+            StaggeredFadeIn(index = 9) {
                 MilestoneCard(prefs, weeklyFeatures)
             }
         }
-    }
-
-    if (showBreathingDialog) {
-        FullScreenBreathingScreen(onDismiss = { showBreathingDialog = false })
-    }
-    if (showDetoxDialog) {
-        DigitalDetoxTimerOverlay(durationMinutes = 15, onDismiss = { showDetoxDialog = false; configSeq++ })
-    }
-    if (showWindDownDialog) {
-        WindDownOverlay(sleepTarget = sleepTarget, onDismiss = { showWindDownDialog = false; configSeq++ })
-    }
-    if (showHabitsDialog) {
-        ManageHabitsDialog(onDismiss = { showHabitsDialog = false; configSeq++ })
     }
 }
 
@@ -1785,68 +1091,22 @@ fun CalmLotusPulse(modifier: Modifier = Modifier) {
             val center = Offset(size.width / 2, size.height / 2)
             val baseRadius = 80.dp.toPx()
             
-            // Ripple 1 layered glows
-            drawCircle(
-                color = primaryColor,
-                radius = baseRadius * rippleRadius1,
-                center = center,
-                alpha = rippleAlpha1 * 0.2f,
-                style = Stroke(width = 8.dp.toPx())
-            )
-            drawCircle(
-                color = primaryColor,
-                radius = baseRadius * rippleRadius1,
-                center = center,
-                alpha = rippleAlpha1 * 0.5f,
-                style = Stroke(width = 4.dp.toPx())
-            )
             drawCircle(
                 color = primaryColor,
                 radius = baseRadius * rippleRadius1,
                 center = center,
                 alpha = rippleAlpha1,
-                style = Stroke(width = 1.5f.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
             
-            // Ripple 2 layered glows
-            drawCircle(
-                color = primaryColor,
-                radius = baseRadius * rippleRadius2,
-                center = center,
-                alpha = rippleAlpha2 * 0.2f,
-                style = Stroke(width = 8.dp.toPx())
-            )
-            drawCircle(
-                color = primaryColor,
-                radius = baseRadius * rippleRadius2,
-                center = center,
-                alpha = rippleAlpha2 * 0.5f,
-                style = Stroke(width = 4.dp.toPx())
-            )
             drawCircle(
                 color = primaryColor,
                 radius = baseRadius * rippleRadius2,
                 center = center,
                 alpha = rippleAlpha2,
-                style = Stroke(width = 1.5f.dp.toPx())
+                style = Stroke(width = 2.dp.toPx())
             )
         }
-        
-        // Central breathing glow halo
-        Box(
-            modifier = Modifier
-                .size(125.dp)
-                .scale(scale)
-                .clip(CircleShape)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            primaryColor.copy(alpha = 0.3f),
-                            primaryColor.copy(alpha = 0.0f)
-                        )
-                    )
-                )
-        )
         
         Box(
             modifier = Modifier
@@ -1968,52 +1228,19 @@ fun TelemetrySnapshotCard(features: List<PersonalityVector>, baseline: Personali
                 
                 // Sleep Pill
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Bedtime,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text("Sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                    }
+                    Text("🌙 Sleep", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.1f h".format(latest.sleepDurationHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
                 
                 // Steps Pill
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.DirectionsRun,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text("Steps", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                    }
+                    Text("🏃 Steps", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.0f".format(latest.dailyStepCount), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
                 
                 // Screen Pill
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = snapshotPillModifier) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PhoneAndroid,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.7f),
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text("Screen", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
-                    }
+                    Text("📱 Screen", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     Text("%.1f h".format(latest.screenTimeHours), fontSize = 13.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
             }
@@ -2500,16 +1727,13 @@ fun MindfulBreathingCard() {
 }
 
 // =============================================================================
-@OptIn(ExperimentalMaterial3Api::class)
+// Insights Screen Composable
+// =============================================================================
 @Composable
 fun InsightsScreen() {
     val weeklyFeatures by DataRepository.weeklyFeatureHistory.collectAsState()
     val baseline by DataRepository.baseline.collectAsState()
     val isDnaReady by DataRepository.isDnaBaselineReady.collectAsState()
-    val analysisHistory by DataRepository.analysisHistory.collectAsState()
-    val stories = remember(analysisHistory) {
-        analysisHistory.filter { it.observationStory.isNotBlank() }
-    }
     val context = LocalContext.current
     
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
@@ -2581,15 +1805,11 @@ fun InsightsScreen() {
         return
     }
     
-    var showMetricsDrawer by remember { mutableStateOf(false) }
-    val userProfile by DataRepository.userProfile.collectAsState()
-    val userId = userProfile?.email ?: "patient@lumen.health"
-
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Transparent),
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -2598,19 +1818,19 @@ fun InsightsScreen() {
                     text = "Lumen.",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = BrandingFont,
+                    fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
                 Text(
-                    text = "Your Discoveries",
+                    text = "Your Rhythms",
                     fontSize = 24.sp,
                     fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Daily routines, deviations, and detailed telemetry analysis",
+                    text = "A gentle look at how your week has been flowing",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp)
@@ -2686,33 +1906,6 @@ fun InsightsScreen() {
             }
             
             if (latest != null && base != null) {
-                val currentScore = {
-                    val deviations = listOf(
-                        safeDev(latest.sleepDurationHours, base.sleepDurationHours, 1.5f),
-                        safeDev(latest.dailyStepCount, base.dailyStepCount, base.dailyStepCount.coerceAtLeast(500f)),
-                        safeDev(latest.callsPerDay, base.callsPerDay, base.callsPerDay.coerceAtLeast(3f)),
-                        safeDev(latest.screenTimeHours, base.screenTimeHours, base.screenTimeHours.coerceAtLeast(1f)),
-                        safeDev(latest.locationEntropy, base.locationEntropy, base.locationEntropy.coerceAtLeast(0.1f)),
-                        safeDev(latest.homeTimeRatio, base.homeTimeRatio, base.homeTimeRatio.coerceAtLeast(0.05f))
-                    )
-                    val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
-                    ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
-                }()
-
-                val topDeviations = {
-                    val devs = listOf(
-                        "Sleep Duration" to (latest.sleepDurationHours - base.sleepDurationHours) / 1.5f,
-                        "Daily Steps" to (latest.dailyStepCount - base.dailyStepCount) / base.dailyStepCount.coerceAtLeast(500f),
-                        "Phone Calls" to (latest.callsPerDay - base.callsPerDay) / base.callsPerDay.coerceAtLeast(3f),
-                        "Screen Time" to (latest.screenTimeHours - base.screenTimeHours) / base.screenTimeHours.coerceAtLeast(1f),
-                        "Location Variance" to (latest.locationEntropy - base.locationEntropy) / base.locationEntropy.coerceAtLeast(0.1f),
-                        "Time at Home" to (latest.homeTimeRatio - base.homeTimeRatio) / base.homeTimeRatio.coerceAtLeast(0.05f)
-                    )
-                    devs.filter { Math.abs(it.second) >= 0.35f }
-                        .sortedByDescending { Math.abs(it.second) }
-                        .take(3)
-                }()
-
                 if (!isDnaReady) {
                     item {
                         Card(
@@ -2725,12 +1918,7 @@ fun InsightsScreen() {
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.Info,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                                    modifier = Modifier.size(24.dp)
-                                )
+                                Text("🔬", fontSize = 24.sp)
                                 Spacer(Modifier.width(16.dp))
                                 Text(
                                     text = "Lumen is in early stages of learning your rhythms — insights may be less accurate during this calibration period. Allow a few more days for precision.",
@@ -2743,102 +1931,41 @@ fun InsightsScreen() {
                         }
                     }
                 }
-
-                // 1. Daily Rhythm Score Gauge
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Today's Rhythm Consistency",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.align(Alignment.Start)
-                            )
-                            RhythmConsistencyGauge(score = currentScore)
-                            Text(
-                                text = when {
-                                    currentScore >= 85f -> "Your circadian boundaries are extremely stable today. Excellent job staying in harmony with your natural routine!"
-                                    currentScore >= 70f -> "Your routine is mostly stable. Only minor deviations in your typical behaviors were detected."
-                                    else -> "We detected notable shifts in your routine boundaries today. Check the routine deviations below to align your habits."
-                                },
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                textAlign = TextAlign.Center,
-                                lineHeight = 16.sp
-                            )
-                        }
-                    }
-                }
-
-                // 2. Summary of Top Deviated Features Card
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Text(
-                                text = "Routine Deviations",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            if (topDeviations.isEmpty()) {
-                                Text(
-                                    text = "Your behaviors today are beautifully aligned with your typical baseline patterns. No significant routine deviations detected.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            } else {
-                                topDeviations.forEach { (name, devRatio) ->
-                                    val pct = Math.abs(devRatio * 100f).roundToInt()
-                                    val dir = if (devRatio > 0f) "higher" else "lower"
-                                    val color = if (Math.abs(devRatio) > 0.8f) AlertWarning else MaterialTheme.colorScheme.secondary
-
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.SpaceBetween,
-                                        verticalAlignment = Alignment.CenterVertically
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                        ) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .size(6.dp)
-                                                    .clip(CircleShape)
-                                                    .background(color)
-                                            )
-                                            Text(
-                                                text = name,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Medium,
-                                                color = MaterialTheme.colorScheme.onBackground
-                                            )
-                                        }
+                // 1. Mood Trend Card
+                val avgMood = getWeeklyCheckinAverageMood(prefs)
+                if (avgMood > 0f) {
+                    item {
+                        StaggeredFadeIn(index = 0) {
+                            val moodMsg = when {
+                                avgMood >= 4.0f -> "Your mood has been consistently positive this week."
+                                avgMood >= 3.0f -> "Your mood has been mostly stable this week."
+                                else -> "Your mood has been on the lower side this week. Remember to take things slow."
+                            }
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(16.dp),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.05f)),
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.1f))
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("🌟", fontSize = 24.sp)
+                                    Spacer(Modifier.width(16.dp))
+                                    Column {
                                         Text(
-                                            text = "$pct% $dir",
-                                            fontSize = 12.sp,
+                                            text = "Weekly Mood: %.1f / 5".format(avgMood),
+                                            fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = color
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = moodMsg,
+                                            fontSize = 12.sp,
+                                            color = MaterialTheme.colorScheme.onBackground.copy(0.7f),
+                                            modifier = Modifier.padding(top = 2.dp)
                                         )
                                     }
                                 }
@@ -2846,129 +1973,7 @@ fun InsightsScreen() {
                         }
                     }
                 }
-
-                // 3. Location Entropy & Home Time Ratio Card
-                item {
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(20.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(16.dp)
-                        ) {
-                            Text(
-                                text = "Spatial Mobility & Bounds",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                // Location Entropy
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "Location Entropy",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "%.2f".format(latest.locationEntropy),
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                    Text(
-                                        text = "Baseline: %.2f".format(base.locationEntropy),
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
-                                // Home Time Ratio
-                                Column(
-                                    modifier = Modifier.weight(1f),
-                                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(
-                                        text = "Time at Home",
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                    Text(
-                                        text = "%.0f%%".format(latest.homeTimeRatio * 100f),
-                                        fontSize = 20.sp,
-                                        fontWeight = FontWeight.ExtraBold,
-                                        color = MaterialTheme.colorScheme.onBackground
-                                    )
-                                    Text(
-                                        text = "Baseline: %.0f%%".format(base.homeTimeRatio * 100f),
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // 4. Explore everything in more detail (collapsible bottom drawer trigger button)
-                item {
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showMetricsDrawer = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Timeline,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                            }
-                            Spacer(Modifier.width(16.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = "View Detailed Telemetry",
-                                    fontSize = 15.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    fontFamily = Fredoka,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = "Analyze consistency trends, Sleep, Social, Screen, & Mobility details.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                                )
-                            }
-                            Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
-                        }
-                    }
-                }
-
+                
                 // Weekly Digest Report Card (Task 16)
                 item {
                     StaggeredFadeIn(index = 0) {
@@ -2985,27 +1990,14 @@ fun InsightsScreen() {
                                 .fillMaxWidth()
                                 .clickable { showWeeklyDigest = true },
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.08f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.2f))
                         ) {
                             Row(
                                 modifier = Modifier.padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .clip(CircleShape)
-                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Assessment,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                }
+                                Text("📊", fontSize = 28.sp)
                                 Spacer(Modifier.width(16.dp))
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
@@ -3013,436 +2005,160 @@ fun InsightsScreen() {
                                         fontSize = 15.sp,
                                         fontWeight = FontWeight.Bold,
                                         fontFamily = Fredoka,
-                                        color = MaterialTheme.colorScheme.onBackground
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                     Text(
                                         text = "Your Sunday comprehensive routine summary is ready.",
                                         fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
                                         modifier = Modifier.padding(top = 2.dp)
                                     )
                                 }
-                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
                             }
                         }
                     }
                 }
-
-                // 5. Narrative Daily Discoveries Header
+                
+                // 2. Clickable Rhythm & Reflection Card
                 item {
-                    Text(
-                        text = "Rhythm Stories Feed",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
-                }
-
-                if (stories.isEmpty()) {
-                    item {
+                    StaggeredFadeIn(index = 1) {
                         Card(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    activeDetailSector = "Overall Rhythm"
+                                },
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
-                        ) {
-                            Box(
-                                modifier = Modifier.fillMaxWidth().padding(24.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "Your daily rhythm stories will appear here as they are discovered.",
-                                    fontSize = 12.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    items(stories) { result ->
-                        val feedbackState = result.userFeedbackState
-                        val feedbackCategory = result.userFeedbackCategory
-                        val storyText = result.observationStory
-                        val dateStr = result.date
-                        val formattedDate = remember(dateStr) {
-                            try {
-                                val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
-                                if (d != null) SimpleDateFormat("EEEE, MMMM d").format(d) else dateStr
-                            } catch (e: Exception) { dateStr }
-                        }
-
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(18.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
                         ) {
-                            Column(
-                                modifier = Modifier.padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    Text(
-                                        text = formattedDate,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-
-                                    if (feedbackState != "unresolved") {
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = when (feedbackState) {
-                                                "confirmed" -> MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
-                                                "corrected" -> MaterialTheme.colorScheme.secondary.copy(alpha = 0.12f)
-                                                else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                                            },
-                                            border = BorderStroke(
-                                                0.5.dp,
-                                                when (feedbackState) {
-                                                    "confirmed" -> MaterialTheme.colorScheme.primary
-                                                    "corrected" -> MaterialTheme.colorScheme.secondary
-                                                    else -> MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)
-                                                }
-                                            )
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.CheckCircle,
-                                                    contentDescription = null,
-                                                    tint = when (feedbackState) {
-                                                        "confirmed" -> MaterialTheme.colorScheme.primary
-                                                        "corrected" -> MaterialTheme.colorScheme.secondary
-                                                        else -> MaterialTheme.colorScheme.primary
-                                                    },
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                                Spacer(Modifier.width(4.dp))
-                                                Text(
-                                                    text = when (feedbackState) {
-                                                        "confirmed" -> "Validated by You"
-                                                        "corrected" -> {
-                                                            val disp = when (feedbackCategory) {
-                                                                "schedule_shift" -> "Schedule Shift"
-                                                                "travel" -> "Travel"
-                                                                "illness" -> "Illness/Fatigue"
-                                                                "stress" -> "Stress"
-                                                                else -> "Routine Shift"
-                                                            }
-                                                            "Refined: $disp"
-                                                        }
-                                                        else -> "Logged Note"
-                                                    },
-                                                    fontSize = 10.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = when (feedbackState) {
-                                                        "confirmed" -> MaterialTheme.colorScheme.primary
-                                                        "corrected" -> MaterialTheme.colorScheme.secondary
-                                                        else -> MaterialTheme.colorScheme.primary
-                                                    }
-                                                )
-                                            }
-                                        }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(40.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(Icons.Default.Timeline, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     }
-                                }
-
-                                Text(
-                                    text = storyText,
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-
-                                if (feedbackState == "unresolved") {
-                                    var showLocalCorrection by remember { mutableStateOf(false) }
-                                    if (showLocalCorrection) {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalAlignment = Alignment.CenterVertically
-                                        ) {
-                                            listOf(
-                                                "travel" to "Travel",
-                                                "schedule_shift" to "Schedule",
-                                                "stress" to "Stress",
-                                                "illness" to "Fatigue"
-                                            ).forEach { (cat, label) ->
-                                                Button(
-                                                    onClick = {
-                                                        DataRepository.updateFeedback(
-                                                            context,
-                                                            userId,
-                                                            dateStr,
-                                                            "corrected",
-                                                            cat,
-                                                            ""
-                                                        )
-                                                        showLocalCorrection = false
-                                                    },
-                                                    modifier = Modifier.weight(1f).height(30.dp),
-                                                    contentPadding = PaddingValues(0.dp),
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.8f),
-                                                        contentColor = Color.White
-                                                    ),
-                                                    shape = RoundedCornerShape(6.dp)
-                                                ) {
-                                                    Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                                }
-                                            }
-                                        }
-                                    } else {
-                                        Row(
-                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                                        ) {
-                                            Button(
-                                                onClick = {
-                                                    DataRepository.updateFeedback(
-                                                        context,
-                                                        userId,
-                                                        dateStr,
-                                                        "confirmed",
-                                                        "none",
-                                                        ""
-                                                    )
-                                                },
-                                                modifier = Modifier.weight(1f).height(32.dp),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
-                                                    contentColor = MaterialTheme.colorScheme.primary
-                                                ),
-                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                Icon(Icons.Default.Check, null, modifier = Modifier.size(12.dp))
-                                                Spacer(Modifier.width(4.dp))
-                                                Text("That Tracks", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
-
-                                            Button(
-                                                onClick = {
-                                                    showLocalCorrection = true
-                                                },
-                                                modifier = Modifier.weight(1f).height(32.dp),
-                                                colors = ButtonDefaults.buttonColors(
-                                                    containerColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.1f),
-                                                    contentColor = MaterialTheme.colorScheme.secondary
-                                                ),
-                                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.3f)),
-                                                shape = RoundedCornerShape(8.dp)
-                                            ) {
-                                                Icon(Icons.Default.Close, null, modifier = Modifier.size(12.dp))
-                                                Spacer(Modifier.width(4.dp))
-                                                Text("Not Quite", fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                                            }
-                                        }
+                                    Spacer(Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = "Rhythm Consistency",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.onBackground
+                                        )
+                                        Text(
+                                            text = "Overall routine stability compared to baseline",
+                                            fontSize = 11.sp,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(top = 2.dp)
+                                        )
                                     }
+                                    Icon(Icons.Default.ChevronRight, null, tint = MaterialTheme.colorScheme.primary)
                                 }
+                                
+                                Spacer(Modifier.height(16.dp))
+                                
+                                QualitativeTrendChart(features = weeklyFeatures, baseline = base)
                             }
                         }
                     }
-            }
-        }
-    }
-}
-
-    // Modal Bottom Sheet Drawer for Explore Metrics (T78)
-    if (showMetricsDrawer && showInsights) {
-        val latest = weeklyFeatures.lastOrNull()
-        val base = if (isDnaReady && baseline != null) {
-            baseline
-        } else {
-            val count = weeklyFeatures.size
-            if (count > 0) {
-                PersonalityVector(
-                    screenTimeHours = weeklyFeatures.map { it.screenTimeHours }.sum() / count,
-                    unlockCount = weeklyFeatures.map { it.unlockCount }.sum() / count,
-                    appLaunchCount = weeklyFeatures.map { it.appLaunchCount }.sum() / count,
-                    notificationsToday = weeklyFeatures.map { it.notificationsToday }.sum() / count,
-                    socialAppRatio = weeklyFeatures.map { it.socialAppRatio }.sum() / count,
-                    callsPerDay = weeklyFeatures.map { it.callsPerDay }.sum() / count,
-                    callDurationMinutes = weeklyFeatures.map { it.callDurationMinutes }.sum() / count,
-                    uniqueContacts = weeklyFeatures.map { it.uniqueContacts }.sum() / count,
-                    conversationFrequency = weeklyFeatures.map { it.conversationFrequency }.sum() / count,
-                    dailyDisplacementKm = weeklyFeatures.map { it.dailyDisplacementKm }.sum() / count,
-                    locationEntropy = weeklyFeatures.map { it.locationEntropy }.sum() / count,
-                    homeTimeRatio = weeklyFeatures.map { it.homeTimeRatio }.sum() / count,
-                    wakeTimeHour = weeklyFeatures.map { it.wakeTimeHour }.sum() / count,
-                    sleepTimeHour = weeklyFeatures.map { it.sleepTimeHour }.sum() / count,
-                    sleepDurationHours = weeklyFeatures.map { it.sleepDurationHours }.sum() / count,
-                    dailyStepCount = weeklyFeatures.map { it.dailyStepCount }.sum() / count,
-                    activeMinutes = weeklyFeatures.map { it.activeMinutes }.sum() / count,
-                    keystrokeSpeed = weeklyFeatures.map { it.keystrokeSpeed }.sum() / count,
-                    backspaceRatio = weeklyFeatures.map { it.backspaceRatio }.sum() / count,
-                    scrollVelocity = weeklyFeatures.map { it.scrollVelocity }.sum() / count,
-                    daylightExposureMinutes = weeklyFeatures.map { it.daylightExposureMinutes }.sum() / count,
-                    chargeRegularity = weeklyFeatures.map { it.chargeRegularity }.sum() / count,
-                    chargeDurationHours = weeklyFeatures.map { it.chargeDurationHours }.sum() / count
-                )
-            } else null
-        }
-
-        if (latest != null && base != null) {
-            val currentScore = {
-                val deviations = listOf(
-                    safeDev(latest.sleepDurationHours, base.sleepDurationHours, 1.5f),
-                    safeDev(latest.dailyStepCount, base.dailyStepCount, base.dailyStepCount.coerceAtLeast(500f)),
-                    safeDev(latest.callsPerDay, base.callsPerDay, base.callsPerDay.coerceAtLeast(3f)),
-                    safeDev(latest.screenTimeHours, base.screenTimeHours, base.screenTimeHours.coerceAtLeast(1f))
-                )
-                val avgDev = deviations.average().toFloat().coerceIn(0f, 2f)
-                ((1f - avgDev / 2f) * 100f).coerceIn(0f, 100f)
-            }()
-
-            ModalBottomSheet(
-                onDismissRequest = { showMetricsDrawer = false },
-                sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-                containerColor = MaterialTheme.colorScheme.background,
-                dragHandle = { BottomSheetDefaults.DragHandle() }
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .navigationBarsPadding()
-                        .padding(horizontal = 24.dp, vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = "Explore Metrics & Baselines",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start)
-                    )
-
-                    Text(
-                        text = "Circadian Consistency",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start),
-                        fontFamily = Fredoka
-                    )
-                    RhythmConsistencyGauge(score = currentScore)
-
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                    Text(
-                        text = "Behavioral Fingerprint Radar",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start),
-                        fontFamily = Fredoka
-                    )
-                    BehavioralFingerprintRadar(latest = latest, base = base)
-
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                    Text(
-                        text = "Consistency Trend",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start),
-                        fontFamily = Fredoka
-                    )
-                    QualitativeTrendChart(features = weeklyFeatures, baseline = base)
-
-                    HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.2f))
-                    Text(
-                        text = "Sensor Telemetry Details",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.align(Alignment.Start),
-                        fontFamily = Fredoka
-                    )
-
-                    // Sleep Card
+                }
+                
+                // 3. 4 Qualitative Insight Cards
+                
+                // Sleep Card
+                item {
                     val sleepDiff = latest.sleepDurationHours - base.sleepDurationHours
-                    val sleepBadge = when {
+                    val badgeText = when {
                         sleepDiff > 1.5f -> "Rest Extended"
                         sleepDiff < -1.5f -> "Rest Shortened"
                         else -> "Balanced Rest"
                     }
-                    val sleepBadgeColor = when {
+                    val badgeColor = when {
                         Math.abs(sleepDiff) > 1.5f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val sleepDesc = when {
+                    val desc = when {
                         sleepDiff > 1.5f -> "Your sleep window is notably longer than typical. Allow yourself the extra rest, but try to ease back into your active daily rhythm with gentle daylight."
                         sleepDiff < -1.5f -> "Your sleep duration is shorter today. Creating a calm, screen-free wind-down routine tonight can help restore your energy."
                         else -> "Your sleep duration and bedtime boundaries are beautifully aligned with your typical rest rhythms."
                     }
-                    QualitativeInsightCard(
-                        title = "Sleep & Circadian Alignment",
-                        icon = Icons.Default.NightsStay,
-                        badgeText = sleepBadge,
-                        badgeColor = sleepBadgeColor,
-                        description = sleepDesc,
-                        onClick = {
-                            activeDetailSector = "Sleep"
-                            activeDetailIcon = Icons.Default.NightsStay
-                            showMetricsDrawer = false
-                        }
-                    )
-
-                    // Movement Card
+                    
+                    StaggeredFadeIn(index = 2) {
+                        QualitativeInsightCard(
+                            title = "Sleep & Circadian Alignment",
+                            icon = Icons.Default.NightsStay,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Sleep"
+                                activeDetailIcon = Icons.Default.NightsStay
+                            }
+                        )
+                    }
+                }
+                
+                // Movement Card
+                item {
                     val stepRatio = if (base.dailyStepCount > 0) latest.dailyStepCount / base.dailyStepCount else 1.0f
                     val dispRatio = if (base.dailyDisplacementKm > 0) latest.dailyDisplacementKm / base.dailyDisplacementKm else 1.0f
                     val activeRatio = if (base.dailyStepCount > 0) stepRatio else dispRatio
-                    val moveBadge = when {
+                    
+                    val badgeText = when {
                         activeRatio < 0.6f -> "Pace Slowed"
                         activeRatio > 1.4f -> "Active Flow"
                         else -> "Steady Flow"
                     }
-                    val moveBadgeColor = when {
+                    val badgeColor = when {
                         activeRatio < 0.6f -> AlertWarning
+                        activeRatio > 1.4f -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val moveDesc = when {
+                    val desc = when {
                         activeRatio < 0.6f -> "Your physical movement is quieter today. Consider taking a short, gentle walk to refresh your body and mind."
                         activeRatio > 1.4f -> "You've been highly active today! Excellent job channeling your physical energy and staying in flow."
                         else -> "Your steps and physical mobility are matching your typical baseline patterns."
                     }
-                    QualitativeInsightCard(
-                        title = "Physical Mobility",
-                        icon = Icons.Default.DirectionsRun,
-                        badgeText = moveBadge,
-                        badgeColor = moveBadgeColor,
-                        description = moveDesc,
-                        onClick = {
-                            activeDetailSector = "Movement"
-                            activeDetailIcon = Icons.Default.DirectionsRun
-                            showMetricsDrawer = false
-                        }
-                    )
-
-                    // Social Card
+                    
+                    StaggeredFadeIn(index = 3) {
+                        QualitativeInsightCard(
+                            title = "Physical Mobility",
+                            icon = Icons.Default.DirectionsRun,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Movement"
+                                activeDetailIcon = Icons.Default.DirectionsRun
+                            }
+                        )
+                    }
+                }
+                
+                // Social Card
+                item {
                     val isProxyActive = com.example.mhealth.services.MHealthNotificationListenerService.isServiceEnabled(context)
                     val callDiff = latest.callsPerDay - base.callsPerDay
-                    val socialBadge = when {
+                    val badgeText = when {
                         callDiff < -2.0f -> "Social Pause"
                         else -> "Connected Flow"
                     }
-                    val socialBadgeColor = when {
+                    val badgeColor = when {
                         callDiff < -2.0f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val socialDesc = when {
+                    val desc = when {
                         callDiff < -2.0f -> "We noticed a quiet stretch in your communications. Reaching out to a close friend or family member for a brief chat can offer a comforting boost."
                         else -> "Your social connection rhythm and phone conversations are consistent with your usual baseline."
                     }
@@ -3451,72 +2167,82 @@ fun InsightsScreen() {
                     else if (latest.callsPerDay == 0f && base.callsPerDay == 0f)
                         "📡 Tracking active via dialer launch proxy. Relational metrics will populate as you use your phone for calls."
                     else null
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        QualitativeInsightCard(
-                            title = "Relational Frequency",
-                            icon = Icons.Default.Call,
-                            badgeText = socialBadge,
-                            badgeColor = socialBadgeColor,
-                            description = socialDesc,
-                            onClick = {
-                                activeDetailSector = "Social"
-                                activeDetailIcon = Icons.Default.Call
-                                showMetricsDrawer = false
-                            }
-                        )
-                        if (trackingNote != null) {
-                            Text(
-                                text = trackingNote,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
-                                lineHeight = 13.sp,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                    
+                    StaggeredFadeIn(index = 4) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            QualitativeInsightCard(
+                                title = "Relational Frequency",
+                                icon = Icons.Default.Call,
+                                badgeText = badgeText,
+                                badgeColor = badgeColor,
+                                description = desc,
+                                onClick = {
+                                    activeDetailSector = "Social"
+                                    activeDetailIcon = Icons.Default.Call
+                                }
                             )
+                            if (trackingNote != null) {
+                                Text(
+                                    text = trackingNote,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
+                                    lineHeight = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
+                            }
                         }
                     }
-
-                    // Screen Card
+                }
+                
+                // Screen Card
+                item {
                     val screenDiff = latest.screenTimeHours - base.screenTimeHours
-                    val screenBadge = when {
+                    val badgeText = when {
                         screenDiff > 2.0f -> "Screen Elevated"
                         screenDiff < -2.0f -> "Screen Reduced"
                         else -> "Within Norms"
                     }
-                    val screenBadgeColor = when {
+                    val badgeColor = when {
                         Math.abs(screenDiff) > 2.0f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val screenDesc = when {
+                    val desc = when {
                         screenDiff > 2.0f -> "Your screen interaction is higher than usual today. Taking a few intentional digital-free breaks can help reduce eye strain and clear your mind."
                         screenDiff < -2.0f -> "Your screen time is beautifully low today! Enjoying this digital space is a wonderful way to reconnect with your surroundings."
                         else -> "Your daily screen interactions, unlocks, and app session pacing are steady."
                     }
-                    QualitativeInsightCard(
-                        title = "Digital Interaction Dynamics",
-                        icon = Icons.Default.Smartphone,
-                        badgeText = screenBadge,
-                        badgeColor = screenBadgeColor,
-                        description = screenDesc,
-                        onClick = {
-                            activeDetailSector = "Screen"
-                            activeDetailIcon = Icons.Default.Smartphone
-                            showMetricsDrawer = false
-                        }
-                    )
+                    
+                    StaggeredFadeIn(index = 5) {
+                        QualitativeInsightCard(
+                            title = "Digital Interaction Dynamics",
+                            icon = Icons.Default.Smartphone,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Screen"
+                                activeDetailIcon = Icons.Default.Smartphone
+                            }
+                        )
+                    }
+                }
 
-                    // Interaction Tempo Card
+                // Interaction Tempo Card (T35)
+                item {
                     val isAccessibilityActive = com.example.mhealth.services.MHealthAccessibilityService.isServiceEnabled(context)
                     val tempoRatio = if (base.keystrokeSpeed > 0) latest.keystrokeSpeed / base.keystrokeSpeed else 1.0f
-                    val tempoBadge = when {
+                    
+                    val badgeText = when {
                         tempoRatio < 0.8f -> "Measured Cadence"
                         tempoRatio > 1.25f -> "Swift Cadence"
                         else -> "Steady Cadence"
                     }
-                    val tempoBadgeColor = when {
+                    val badgeColor = when {
+                        tempoRatio < 0.8f -> MaterialTheme.colorScheme.primary
                         tempoRatio > 1.25f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val tempoDesc = when {
+                    val desc = when {
                         tempoRatio < 0.8f -> "Your typing pace is more deliberate and measured. Taking extra time to write can indicate a quiet, thoughtful state of mind."
                         tempoRatio > 1.25f -> "Your key interactions show a swift cadence. A faster typing and scrolling tempo suggests high energy or active processing."
                         else -> "Your writing speed and reading scroll pace are flowing in harmony with your baseline."
@@ -3526,61 +2252,98 @@ fun InsightsScreen() {
                     else if (latest.keystrokeSpeed == 0f)
                         "📡 Accessibility service active. Typing and scroll metrics will populate as you use your keyboard throughout the day."
                     else null
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        QualitativeInsightCard(
-                            title = "Interaction Tempo & Cadence",
-                            icon = Icons.Default.Keyboard,
-                            badgeText = tempoBadge,
-                            badgeColor = tempoBadgeColor,
-                            description = tempoDesc,
-                            onClick = {
-                                activeDetailSector = "Interaction Tempo"
-                                activeDetailIcon = Icons.Default.Keyboard
-                                showMetricsDrawer = false
-                            }
-                        )
-                        if (tempoNote != null) {
-                            Text(
-                                text = tempoNote,
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
-                                lineHeight = 13.sp,
-                                modifier = Modifier.padding(horizontal = 4.dp)
+                    
+                    StaggeredFadeIn(index = 6) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            QualitativeInsightCard(
+                                title = "Interaction Tempo & Cadence",
+                                icon = Icons.Default.Keyboard,
+                                badgeText = badgeText,
+                                badgeColor = badgeColor,
+                                description = desc,
+                                onClick = {
+                                    activeDetailSector = "Interaction Tempo"
+                                    activeDetailIcon = Icons.Default.Keyboard
+                                }
                             )
+                            if (tempoNote != null) {
+                                Text(
+                                    text = tempoNote,
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.65f),
+                                    lineHeight = 13.sp,
+                                    modifier = Modifier.padding(horizontal = 4.dp)
+                                )
+                            }
                         }
                     }
+                }
 
-                    // Location Mobility Card
-                    val entropyDiff = latest.locationEntropy - base.locationEntropy
-                    val locationBadge = when {
-                        entropyDiff < -0.3f -> "Mobility Confined"
-                        entropyDiff > 0.3f -> "Expansive Travel"
-                        else -> "Steady Range"
+                // Daylight Card (T36)
+                item {
+                    val daylight = latest.daylightExposureMinutes
+                    val badgeText = when {
+                        daylight < 15f -> "Indoor Focus"
+                        daylight > 60f -> "Bright Light Flow"
+                        else -> "Balanced Light"
                     }
-                    val locationBadgeColor = when {
-                        entropyDiff < -0.3f -> AlertWarning
+                    val badgeColor = when {
+                        daylight < 15f -> AlertWarning
                         else -> MaterialTheme.colorScheme.primary
                     }
-                    val locationDesc = when {
-                        entropyDiff < -0.3f -> "Your geographic variance is lower today, indicating you stayed in familiar or confined locations. Taking a small excursion can break routine monotony."
-                        entropyDiff > 0.3f -> "You explored new or wider areas today! Expanding your spatial range can have positive effects on mental flexibility."
-                        else -> "Your geographic exploration and travel patterns are consistent with your baseline."
+                    val desc = when {
+                        daylight < 15f -> "Natural light exposure is low today. Stepping outdoors for just 10-15 minutes can significantly boost your daytime alertness and evening sleep quality."
+                        daylight > 60f -> "You secured ample outdoor daylight today. This is exceptional for keeping your sleep-wake cycles and mood naturally synchronized!"
+                        else -> "Your daylight exposure matches your standard healthy baseline."
                     }
-                    QualitativeInsightCard(
-                        title = "Location Mobility & Variance",
-                        icon = Icons.Default.Explore,
-                        badgeText = locationBadge,
-                        badgeColor = locationBadgeColor,
-                        description = locationDesc,
-                        onClick = {
-                            activeDetailSector = "Location Mobility"
-                            activeDetailIcon = Icons.Default.Explore
-                            showMetricsDrawer = false
-                        }
-                    )
-
-                    Spacer(modifier = Modifier.height(24.dp))
+                    
+                    StaggeredFadeIn(index = 7) {
+                        QualitativeInsightCard(
+                            title = "Daylight & Ambient Rhythm",
+                            icon = Icons.Default.WbSunny,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Daylight"
+                                activeDetailIcon = Icons.Default.WbSunny
+                            }
+                        )
+                    }
                 }
+
+                // Charging Card (T36)
+                item {
+                    val regularity = latest.chargeRegularity
+                    val badgeText = when {
+                        regularity < 0.6f -> "Erratic Boundary"
+                        else -> "Stable Boundary"
+                    }
+                    val badgeColor = when {
+                        regularity < 0.6f -> AlertWarning
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    val desc = when {
+                        regularity < 0.6f -> "Your device charging times are shifting. Keeping a regular phone plug-in schedule helps support steady morning and evening sleep boundaries."
+                        else -> "Your phone charging patterns demonstrate a consistent daily rhythm, indicating strong day-to-day boundaries."
+                    }
+                    
+                    StaggeredFadeIn(index = 8) {
+                        QualitativeInsightCard(
+                            title = "Circadian Boundary Stability",
+                            icon = Icons.Default.Bolt,
+                            badgeText = badgeText,
+                            badgeColor = badgeColor,
+                            description = desc,
+                            onClick = {
+                                activeDetailSector = "Charging"
+                                activeDetailIcon = Icons.Default.Bolt
+                            }
+                        )
+                    }
+                }
+
+
             }
         }
     }
@@ -3774,6 +2537,7 @@ private fun safeDev(current: Float, base: Float, scale: Float): Float {
 
 // =============================================================================
 // Per-Sector Detail Screen (T7)
+// =============================================================================
 @Composable
 fun SectorDetailScreen(
     sectorName: String,
@@ -3797,7 +2561,6 @@ fun SectorDetailScreen(
             "Daylight" -> listOf("daylightExposureMinutes" to "Daylight (min)")
             "Charging" -> listOf("chargeRegularity" to "Charge Regularity", "chargeDurationHours" to "Charge Hours")
             "Interaction Tempo" -> listOf("keystrokeSpeed" to "Typing Speed (chars/s)", "backspaceRatio" to "Backspace Ratio", "scrollVelocity" to "Scroll Velocity (px/s)")
-            "Location Mobility" -> listOf("locationEntropy" to "Location Entropy", "homeTimeRatio" to "Time at Home", "dailyDisplacementKm" to "Distance (km)")
             else -> emptyList()
         }
     }
@@ -3810,8 +2573,8 @@ fun SectorDetailScreen(
     val baseMap = baselineEntities.associate { it.featureName to it.baselineValue }
 
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(Color.Transparent),
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
+        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(24.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         item {
@@ -3924,8 +2687,6 @@ fun getFeatureValue(vec: PersonalityVector, key: String): Float {
         "daylightExposureMinutes" -> vec.daylightExposureMinutes
         "chargeRegularity" -> vec.chargeRegularity
         "chargeDurationHours" -> vec.chargeDurationHours
-        "locationEntropy" -> vec.locationEntropy
-        "homeTimeRatio" -> vec.homeTimeRatio
         else -> 0f
     }
 }
@@ -3938,8 +2699,6 @@ fun formatValue(value: Float, key: String): String {
         "dailyStepCount" -> "%.0f".format(value)
         "dailyDisplacementKm" -> "%.1f km".format(value)
         "chargeRegularity" -> "%.0f%%".format(value * 100f)
-        "locationEntropy" -> "%.2f".format(value)
-        "homeTimeRatio" -> "%.0f%%".format(value * 100f)
         "wakeTimeHour", "sleepTimeHour" -> {
             val hour = value.toInt()
             val min = ((value - hour) * 60f).roundToInt().coerceIn(0, 59)
@@ -4285,8 +3044,6 @@ fun getFeatureValueFromEntity(feat: com.example.mhealth.logic.db.DailyFeaturesEn
         "keystrokeSpeed" -> feat.keystrokeSpeed
         "backspaceRatio" -> feat.backspaceRatio
         "scrollVelocity" -> feat.scrollVelocity
-        "locationEntropy" -> feat.locationEntropy
-        "homeTimeRatio" -> feat.homeTimeRatio
         else -> 0f
     }
 }
@@ -4511,47 +3268,17 @@ fun RhythmConsistencyGauge(score: Float) {
                     startAngle = 135f,
                     sweepAngle = 270f,
                     useCenter = false,
-                    alpha = 0.5f,
-                    style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
-                )
-                drawArc(
-                    color = outlineColor,
-                    startAngle = 135f,
-                    sweepAngle = 270f,
-                    useCenter = false,
-                    alpha = 1.0f,
-                    style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
-            // Active arc with glow layers
+            // Active arc
             Canvas(modifier = Modifier.fillMaxSize()) {
-                val sweep = 270f * (animatedScore / 100f)
-                // Base thick glow
                 drawArc(
                     color = primary,
                     startAngle = 135f,
-                    sweepAngle = sweep,
+                    sweepAngle = 270f * (animatedScore / 100f),
                     useCenter = false,
-                    alpha = 0.15f,
-                    style = Stroke(width = 18.dp.toPx(), cap = StrokeCap.Round)
-                )
-                // Middle bloom glow
-                drawArc(
-                    color = primary,
-                    startAngle = 135f,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    alpha = 0.4f,
-                    style = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
-                )
-                // Crisp sharp core
-                drawArc(
-                    color = primary,
-                    startAngle = 135f,
-                    sweepAngle = sweep,
-                    useCenter = false,
-                    alpha = 1.0f,
-                    style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                    style = Stroke(width = 10.dp.toPx(), cap = StrokeCap.Round)
                 )
             }
             // Score text
@@ -5164,12 +3891,7 @@ fun MoodBehaviorCorrelationCard(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Assessment,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
+                Text("📊", fontSize = 24.sp)
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(
@@ -5226,7 +3948,7 @@ fun MoodBehaviorCorrelationCard(
         if (abs(highSteps - lowSteps) > 500f) {
             correlationCards.add {
                 CorrelationItemCard(
-                    icon = Icons.Default.DirectionsRun,
+                    icon = "🏃",
                     title = "Steps & Mood Resonance",
                     message = "On higher mood days, you averaged ${highSteps.roundToInt()} steps, compared to ${lowSteps.roundToInt()} steps on lower mood days.",
                     tintColor = TealAccent
@@ -5243,7 +3965,7 @@ fun MoodBehaviorCorrelationCard(
         if (abs(highSleep - lowSleep) > 0.5f) {
             correlationCards.add {
                 CorrelationItemCard(
-                    icon = Icons.Default.Bedtime,
+                    icon = "🌙",
                     title = "Sleep Recovery & Mood",
                     message = "You secured ${String.format("%.1f", highSleep)} hours of sleep before high mood days vs ${String.format("%.1f", lowSleep)} hours on lower mood cycles.",
                     tintColor = MaterialTheme.colorScheme.primary
@@ -5260,7 +3982,7 @@ fun MoodBehaviorCorrelationCard(
         if (abs(highScreen - lowScreen) > 0.5f) {
             correlationCards.add {
                 CorrelationItemCard(
-                    icon = Icons.Default.PhoneAndroid,
+                    icon = "📵",
                     title = "Screen Time & Sentiment",
                     message = "On low mood days, you spent ${String.format("%.1f", lowScreen)} hours on screen compared to ${String.format("%.1f", highScreen)} hours on higher mood days.",
                     tintColor = AlertRose
@@ -5278,12 +4000,7 @@ fun MoodBehaviorCorrelationCard(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Row(modifier = Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.TrendingUp,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(24.dp)
-                )
+                Text("📈", fontSize = 24.sp)
                 Spacer(Modifier.width(16.dp))
                 Column {
                     Text(
@@ -5313,7 +4030,7 @@ fun MoodBehaviorCorrelationCard(
 }
 
 @Composable
-fun CorrelationItemCard(icon: ImageVector, title: String, message: String, tintColor: Color) {
+fun CorrelationItemCard(icon: String, title: String, message: String, tintColor: Color) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -5332,12 +4049,7 @@ fun CorrelationItemCard(icon: ImageVector, title: String, message: String, tintC
                     .background(tintColor.copy(0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = tintColor,
-                    modifier = Modifier.size(20.dp)
-                )
+                Text(icon, fontSize = 20.sp)
             }
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -5362,32 +4074,22 @@ fun CorrelationItemCard(icon: ImageVector, title: String, message: String, tintC
 // =============================================================================
 // Personal Milestones Card (T10)
 // =============================================================================
-class MilestoneItem(val icon: ImageVector, val tint: Color, val message: String)
-
 @Composable
 fun MilestoneCard(prefs: SharedPreferences, features: List<PersonalityVector>) {
     val streak = remember(prefs) { getActiveStreak(prefs) }
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val milestones = remember(features, streak, primaryColor) {
-        val list = mutableListOf<MilestoneItem>()
-        if (streak >= 7) {
-            list.add(MilestoneItem(Icons.Default.Whatshot, AlertRose, "${streak}-day check-in streak! Incredible consistency."))
-        } else if (streak >= 3) {
-            list.add(MilestoneItem(Icons.Default.Whatshot, AlertRose, "${streak}-day check-in streak — keep it going!"))
-        }
+    val milestones = remember(features, streak) {
+        val list = mutableListOf<String>()
+        if (streak >= 7) list.add("🔥 ${streak}-day check-in streak! Incredible consistency.")
+        else if (streak >= 3) list.add("🔥 ${streak}-day check-in streak — keep it going!")
 
         if (features.size >= 7) {
             val recentSleep = features.take(7).map { it.sleepDurationHours }
             val sleepStd = kotlin.math.sqrt(recentSleep.map { (it - recentSleep.average()).let { d -> d * d } }.average()).toFloat()
-            if (sleepStd < 0.5f) {
-                list.add(MilestoneItem(Icons.Default.Bedtime, primaryColor, "Consistent Sleeper — your bedtime varied by less than 30 min this week!"))
-            }
+            if (sleepStd < 0.5f) list.add("🌙 Consistent Sleeper — your bedtime varied by less than 30 min this week!")
 
             val recentSteps = features.take(7).map { it.dailyStepCount }
             val bestDay = recentSteps.maxOrNull() ?: 0f
-            if (bestDay > 8000f) {
-                list.add(MilestoneItem(Icons.Default.DirectionsRun, TealAccent, "Peak day: ${bestDay.roundToInt()} steps!"))
-            }
+            if (bestDay > 8000f) list.add("🏃 Peak day: ${bestDay.roundToInt()} steps!")
         }
         list
     }
@@ -5400,22 +4102,10 @@ fun MilestoneCard(prefs: SharedPreferences, features: List<PersonalityVector>) {
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(0.06f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.15f))
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("Milestones", fontSize = 14.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
-            milestones.forEach { m ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = m.icon,
-                        contentDescription = null,
-                        tint = m.tint,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(m.message, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.8f), lineHeight = 17.sp)
-                }
+            milestones.forEach { msg ->
+                Text(msg, fontSize = 12.sp, color = MaterialTheme.colorScheme.onBackground.copy(0.8f), lineHeight = 17.sp)
             }
         }
     }
@@ -5436,379 +4126,599 @@ fun getCheckinHistoryList(prefs: SharedPreferences): List<org.json.JSONObject> {
 @Composable
 fun CheckInScreen() {
     val context = LocalContext.current
+    var subTab by remember { mutableStateOf(0) }
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     
-    var journalText by remember { mutableStateOf("") }
-    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
-    
-    var checkinRefreshTrigger by remember { mutableIntStateOf(0) }
-    val history = remember(prefs, checkinRefreshTrigger) { getCheckinHistoryList(prefs) }
-    
-    val journalEntries = remember(history) {
-        history.filter { it.optString("note").isNotBlank() }
-    }
-    
-    LazyColumn(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+            .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header
-        item {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    text = "Lumen.",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = BrandingFont,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                Text(
-                    text = "Journal Pad",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = "A quiet space to write and reflect on your days",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+        ) {
+            Text(
+                text = "Lumen.",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        TabRow(
+            selectedTabIndex = subTab,
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.primary,
+            indicator = { tabPositions ->
+                TabRowDefaults.SecondaryIndicator(
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[subTab]),
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
+        ) {
+            Tab(
+                selected = subTab == 0,
+                onClick = { subTab = 0 },
+                text = { Text("Daily Check-in", fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka) }
+            )
+            Tab(
+                selected = subTab == 1,
+                onClick = { subTab = 1 },
+                text = { Text("Monthly Check-in", fontWeight = FontWeight.ExtraBold, fontFamily = Fredoka) }
+            )
         }
         
-        // Pad Card
-        item {
+        Box(modifier = Modifier.weight(1f)) {
+            when (subTab) {
+                0 -> DailyCheckinTab(prefs)
+                1 -> MonthlyCheckinTab(prefs)
+            }
+        }
+    }
+}
+
+@Composable
+fun DailyCheckinTab(prefs: SharedPreferences) {
+    val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    var lastCheckinDate by remember { mutableStateOf(prefs.getString("daily_checkin_date_last", "") ?: "") }
+    
+    val alreadyCheckedIn = lastCheckinDate == todayStr
+    
+    if (alreadyCheckedIn) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(48.dp)
+                )
+            }
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = "You've checked in today!",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Thank you for taking time to log your routines. See you tomorrow!",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
+        }
+    } else {
+        var mood by remember { mutableIntStateOf(3) }
+        var energy by remember { mutableIntStateOf(3) }
+        var sleep by remember { mutableIntStateOf(3) }
+        var anxiety by remember { mutableIntStateOf(3) }
+        var journalNote by remember { mutableStateOf("") }
+        
+        val scrollState = rememberScrollState()
+        
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(scrollState)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Text(
+                text = "Daily Reflection",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+            Text(
+                text = "Tune in to your body and mind. How are you feeling right now?",
+                fontSize = 13.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            PremiumCheckinSlider(
+                question = "How has your mood been lately?",
+                value = mood,
+                labels = listOf("Very Low", "Low", "Neutral", "Good", "Great"),
+                onValueChange = { mood = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How is your energy level?",
+                value = energy,
+                labels = listOf("Exhausted", "Low", "Neutral", "Active", "Energized"),
+                onValueChange = { energy = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How well did you sleep last night?",
+                value = sleep,
+                labels = listOf("Terrible", "Poor", "Neutral", "Good", "Excellent"),
+                onValueChange = { sleep = it }
+            )
+            
+            PremiumCheckinSlider(
+                question = "How anxious have you been feeling?",
+                value = anxiety,
+                labels = listOf("Tense", "Anxious", "Neutral", "Calm", "Very Peaceful"),
+                onValueChange = { anxiety = it }
+            )
+
+            // Optional Journal Note
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    val todayEntry = remember(journalEntries) { journalEntries.find { it.optString("date") == todayStr } }
-                    val alreadySubmitted = todayEntry != null
-
-                    Text(
-                        text = if (alreadySubmitted) "Today's Reflection Saved" else "Write something...",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = if (alreadySubmitted) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground
-                    )
-                    
-                    if (alreadySubmitted) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Edit,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "You've already written a reflection for today. Take time to pause, breathe, and return tomorrow.",
-                            fontSize = 12.sp,
+                            text = "Anything on your mind?",
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            fontFamily = Fredoka
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "(optional)",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    
+                    Spacer(Modifier.height(10.dp))
                     OutlinedTextField(
-                        value = if (alreadySubmitted) (todayEntry?.optString("note") ?: "") else journalText,
-                        onValueChange = { if (!alreadySubmitted && it.length <= 500) journalText = it },
-                        enabled = !alreadySubmitted,
-                        placeholder = { Text("What's on your mind today? Write freely...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
-                        modifier = Modifier.fillMaxWidth().height(150.dp),
+                        value = journalNote,
+                        onValueChange = { if (it.length <= 500) journalNote = it },
+                        placeholder = { Text("Reflect on your day, note what's happening in your life...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(100.dp),
                         shape = RoundedCornerShape(12.dp),
-                        textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Fredoka, fontSize = 14.sp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            disabledBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
-                            disabledTextColor = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    )
-                    
-                    if (!alreadySubmitted) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "${journalText.length}/500",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)
-                            )
-                            
-                            Button(
-                                onClick = {
-                                    if (journalText.isNotBlank()) {
-                                        // Save with a default middle value for sliders (since we routed sliders contextually)
-                                        saveCheckinToHistory(prefs, 3, 3, 3, 3, journalText.trim())
-                                        journalText = ""
-                                        checkinRefreshTrigger += 1
-                                        Toast.makeText(context, "Journal entry saved!", Toast.LENGTH_SHORT).show()
-                                    }
-                                },
-                                enabled = journalText.isNotBlank(),
-                                modifier = Modifier.height(38.dp),
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
-                                    contentColor = Color.Black,
-                                    disabledContentColor = Color.Black.copy(alpha = 0.3f)
-                                )
-                            ) {
-                                Text("Save Entry", fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        
-        // History Header
-        if (journalEntries.isNotEmpty()) {
-            item {
-                Text(
-                    text = "Past Entries",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-            
-            items(journalEntries) { entry ->
-                val dateStr = entry.optString("date")
-                val note = entry.optString("note")
-                val formattedDate = remember(dateStr) {
-                    try {
-                        val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
-                        if (d != null) SimpleDateFormat("EEEE, MMMM d, yyyy").format(d) else dateStr
-                    } catch (e: Exception) { dateStr }
-                }
-                
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                ) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(
-                            text = formattedDate,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = Fredoka
-                        )
-                        Text(
-                            text = note,
+                        maxLines = 4,
+                        textStyle = androidx.compose.ui.text.TextStyle(
                             fontSize = 13.sp,
-                            lineHeight = 18.sp,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-                    }
+                    )
+                    Text(
+                        text = "${journalNote.length}/500",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 4.dp),
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            Button(
+                onClick = {
+                    recordDailyCheckin(prefs, mood, energy, sleep, anxiety)
+                    saveCheckinToHistory(prefs, mood, energy, sleep, anxiety, journalNote.trim())
+                    lastCheckinDate = todayStr
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text(
+                    text = "Save Check-in",
+                    color = Color.Black,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    fontSize = 15.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun PremiumCheckinSlider(
+    question: String,
+    value: Int,
+    labels: List<String>,
+    onValueChange: (Int) -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(
+                text = question,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onBackground,
+                fontFamily = Fredoka
+            )
+            Spacer(Modifier.height(16.dp))
+            
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { onValueChange(it.roundToInt()) },
+                valueRange = 1f..5f,
+                steps = 3,
+                colors = SliderDefaults.colors(
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.outline.copy(0.2f),
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent
+                )
+            )
+            
+            Spacer(Modifier.height(8.dp))
+            
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                labels.forEachIndexed { index, label ->
+                    val isSelected = index + 1 == value
+                    Text(
+                        text = label,
+                        fontSize = 11.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground.copy(0.4f),
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.weight(1f)
+                    )
                 }
             }
         }
     }
 }
 
-// =============================================================================
-// History Screen Composable
-// =============================================================================
-@Composable
-fun HistoryScreen() {
-    val context = LocalContext.current
-    val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
-    val history = remember(prefs) { getCheckinHistoryList(prefs).reversed() }
+fun saveMonthlyReflection(prefs: SharedPreferences, phqScore: Int, gadScore: Int, note: String) {
+    val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+    val historyStr = prefs.getString("monthly_reflections_history", "[]") ?: "[]"
+    try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until array.length()) {
+            list.add(array.getJSONObject(i))
+        }
+        list.removeAll { it.optString("date") == dateStr }
+        val newObj = org.json.JSONObject().apply {
+            put("date", dateStr)
+            put("phqScore", phqScore)
+            put("gadScore", gadScore)
+            put("note", note)
+        }
+        list.add(newObj)
+        val newArray = org.json.JSONArray()
+        list.forEach { newArray.put(it) }
+        prefs.edit().putString("monthly_reflections_history", newArray.toString()).apply()
+    } catch (e: Exception) {
+        e.printStackTrace()
+    }
+}
 
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Transparent),
-        contentPadding = PaddingValues(start = 24.dp, top = 24.dp, end = 24.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Header
-        item {
-            Column(modifier = Modifier.fillMaxWidth()) {
+fun getMonthlyReflectionsList(prefs: SharedPreferences): List<org.json.JSONObject> {
+    val historyStr = prefs.getString("monthly_reflections_history", "[]") ?: "[]"
+    return try {
+        val array = org.json.JSONArray(historyStr)
+        val list = mutableListOf<org.json.JSONObject>()
+        for (i in 0 until array.length()) {
+            list.add(array.getJSONObject(i))
+        }
+        list.sortedByDescending { it.optString("date") }
+    } catch (e: Exception) {
+        emptyList()
+    }
+}
+
+@Composable
+fun MonthlyCheckinTab(prefs: SharedPreferences) {
+    var activeWizard by remember { mutableStateOf(false) }
+    val cooldownDays = remember(activeWizard) { getMonthlyCooldownDays(prefs) }
+    val reflections = remember(cooldownDays) { getMonthlyReflectionsList(prefs) }
+    
+    val phq9Answers = remember { mutableStateListOf(*Array(5) { -1 }) }
+    val gad7Answers = remember { mutableStateListOf(*Array(5) { -1 }) }
+    
+    val phq9Questions = listOf(
+        "Little interest or pleasure in doing things.",
+        "Feeling down, depressed, or hopeless.",
+        "Trouble falling or staying asleep, or sleeping too much.",
+        "Feeling tired or having little energy.",
+        "Poor appetite or overeating."
+    )
+
+    val gad7Questions = listOf(
+        "Feeling nervous, anxious, or on edge.",
+        "Not being able to stop or control worrying.",
+        "Worrying too much about different things.",
+        "Trouble relaxing.",
+        "Becoming easily annoyed or irritable."
+    )
+    val optionsList = listOf("Not at all", "Several days", "More than half the days", "Nearly every day")
+    
+    var wizardStep by remember { mutableIntStateOf(1) }
+    var reflectionNote by remember { mutableStateOf("") }
+    
+    if (activeWizard) {
+        if (wizardStep == 1) {
+            ScreenerWizard(
+                questions = phq9Questions,
+                answers = phq9Answers,
+                options = optionsList,
+                onCompleted = { wizardStep = 2 }
+            )
+        } else if (wizardStep == 2) {
+            ScreenerWizard(
+                questions = gad7Questions,
+                answers = gad7Answers,
+                options = optionsList,
+                onCompleted = { wizardStep = 3 }
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
                 Text(
-                    text = "Lumen.",
-                    fontSize = 18.sp,
+                    text = "Monthly Reflection Note",
+                    fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = BrandingFont,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(bottom = 6.dp)
-                )
-                Text(
-                    text = "Rhythm History",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.ExtraBold,
                     fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Your journey of self-reflection and balance over time",
+                    text = "Reflecting on your month can help you identify trends, triggers, and patterns. Write down your general thoughts, experiences, and how you feel you've paced yourself.",
                     fontSize = 13.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp)
+                    lineHeight = 18.sp
                 )
+                
+                OutlinedTextField(
+                    value = reflectionNote,
+                    onValueChange = { reflectionNote = it },
+                    modifier = Modifier.fillMaxWidth().height(180.dp),
+                    placeholder = { Text("Write your thoughts here...", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(0.5f)) },
+                    shape = RoundedCornerShape(12.dp),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = Fredoka, fontSize = 14.sp)
+                )
+                
+                Spacer(Modifier.height(24.dp))
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    TextButton(onClick = { wizardStep = 2 }) {
+                        Text("Back", fontFamily = Fredoka, fontWeight = FontWeight.Bold)
+                    }
+                    Button(
+                        onClick = {
+                            val totalPhq = (phq9Answers.sum() * 9f / 5f).roundToInt()
+                            val totalGad = (gad7Answers.sum() * 7f / 5f).roundToInt()
+                            val todayStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date())
+                            
+                            DataRepository.saveScreenerScores(totalPhq, totalGad, DataRepository.recentLifeEventsCount.value)
+                            saveMonthlyReflection(prefs, totalPhq, totalGad, reflectionNote.trim())
+                            prefs.edit().putString("monthly_checkin_last_date", todayStr).apply()
+                            
+                            phq9Answers.fill(-1)
+                            gad7Answers.fill(-1)
+                            reflectionNote = ""
+                            activeWizard = false
+                            wizardStep = 1
+                        },
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.width(140.dp).height(48.dp)
+                    ) {
+                        Text("Save & Close", fontFamily = Fredoka, fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+                }
             }
         }
-
-        if (history.isEmpty()) {
+    } else {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 4.dp, vertical = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 40.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
+                if (cooldownDays > 0) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
+                                .size(80.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                                .background(MaterialTheme.colorScheme.primary.copy(0.08f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.History,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(32.dp)
-                            )
+                            Text("⏳", fontSize = 32.sp)
                         }
-
+                        Spacer(Modifier.height(16.dp))
                         Text(
-                            text = "No history recorded yet",
-                            fontSize = 16.sp,
+                            text = "Assessment Cooldown",
+                            fontSize = 18.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = Fredoka,
                             color = MaterialTheme.colorScheme.onBackground
                         )
-
+                        Spacer(Modifier.height(6.dp))
                         Text(
-                            text = "Complete a daily check-in or write a journal entry to start building your timeline of self-reflections.",
+                            text = "Lumen requested a detailed wellness check-in recently.\nYour next check-in will be available in $cooldownDays days.",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             textAlign = TextAlign.Center,
-                            lineHeight = 18.sp
+                            lineHeight = 17.sp
                         )
+                    }
+                } else {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("📋", fontSize = 32.sp)
+                        }
+                        Spacer(Modifier.height(16.dp))
+                        Text(
+                            text = "Monthly Reflection Check-in",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            text = "A detailed wellness assessment to help Lumen recalibrate its tracking sensitivity and align with your baseline trends.",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 17.sp
+                        )
+                        Spacer(Modifier.height(20.dp))
+                        Button(
+                            onClick = { activeWizard = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Text(
+                                text = "Start Assessment",
+                                color = Color.Black,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                fontSize = 14.sp
+                            )
+                        }
                     }
                 }
             }
-        } else {
-            items(history) { entry ->
-                val dateStr = entry.optString("date")
-                val mood = entry.optInt("mood", 3)
-                val anxiety = entry.optInt("anxiety", 3)
-                val note = entry.optString("note", "")
 
-                val formattedDate = remember(dateStr) {
-                    try {
-                        val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
-                        if (d != null) SimpleDateFormat("EEEE, MMMM d, yyyy").format(d) else dateStr
-                    } catch (e: Exception) { dateStr }
+            if (reflections.isNotEmpty()) {
+                item {
+                    Spacer(Modifier.height(16.dp))
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = "Historical Reflections & Trends",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                        )
+                    }
                 }
-
-                val moodLabel = listOf("Very Low", "Low", "Neutral", "Good", "Great").getOrElse(mood - 1) { "Neutral" }
-                val moodEmoji = listOf("😞", "🙁", "😐", "🙂", "😄").getOrElse(mood - 1) { "😐" }
-
-                val anxietyLabel = listOf("Tense", "Anxious", "Neutral", "Calm", "Peaceful").getOrElse(anxiety - 1) { "Neutral" }
-                val anxietyEmoji = listOf("😫", "😟", "😐", "😌", "🧘").getOrElse(anxiety - 1) { "😐" }
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(20.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)),
-                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
-                ) {
-                    Column(
-                        modifier = Modifier.padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Row(
+                
+                reflections.forEach { obj ->
+                    item {
+                        Card(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
                         ) {
-                            Text(
-                                text = formattedDate,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontFamily = Fredoka
-                            )
-                        }
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.15f))
-                            ) {
+                            Column(modifier = Modifier.padding(16.dp)) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
                                 ) {
-                                    Text(moodEmoji, fontSize = 12.sp)
-                                    Text("Mood: $moodLabel", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+                                    val dateStr = obj.optString("date")
+                                    val formattedDate = remember(dateStr) {
+                                        try {
+                                            val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(dateStr)
+                                            if (d != null) SimpleDateFormat("MMMM yyyy", Locale.US).format(d) else dateStr
+                                        } catch (e: Exception) { dateStr }
+                                    }
+                                    Text(
+                                        text = formattedDate,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = Fredoka,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                    Text(
+                                        text = "PHQ-9: ${obj.optInt("phqScore")} | GAD-7: ${obj.optInt("gadScore")}",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f),
-                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary.copy(alpha = 0.15f))
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(anxietyEmoji, fontSize = 12.sp)
-                                    Text("Stress: $anxietyLabel", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.secondary)
+                                
+                                val note = obj.optString("note", "")
+                                if (note.isNotBlank()) {
+                                    Spacer(Modifier.height(8.dp))
+                                    Text(
+                                        text = note,
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onBackground.copy(0.8f),
+                                        lineHeight = 16.sp,
+                                        fontFamily = Fredoka
+                                    )
                                 }
-                            }
-                        }
-
-                        if (note.isNotBlank()) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(top = 4.dp),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .width(3.dp)
-                                        .height(IntrinsicSize.Max)
-                                        .background(MaterialTheme.colorScheme.primary)
-                                )
-                                Text(
-                                    text = note,
-                                    fontSize = 13.sp,
-                                    lineHeight = 18.sp,
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    modifier = Modifier.weight(1f)
-                                )
                             }
                         }
                     }
@@ -5941,7 +4851,7 @@ fun SettingsScreen() {
                     text = "Lumen.",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    fontFamily = BrandingFont,
+                    fontFamily = Fredoka,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(bottom = 6.dp)
                 )
@@ -6105,12 +5015,11 @@ fun SettingsScreen() {
                     if (homeLocation != null) {
                         val (lat, lon) = checkNotNull(homeLocation)
                         val locationLabel = remember(lat, lon) { geocodeLocationName(context, lat, lon) }
-                        val isAuto = remember(prefs, homeLocation) { prefs.getBoolean("home_location_set_automatically", false) }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Home, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                text = if (isAuto) "✓ Home set automatically: $locationLabel" else "✓ Home set: $locationLabel",
+                                text = "✓ Home set: $locationLabel",
                                 fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium
                             )
                         }
@@ -9425,12 +8334,7 @@ fun HabitQuestsSection() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.EmojiEvents,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Text("🛡️", fontSize = 18.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Active Habit Quests",
@@ -9579,24 +8483,7 @@ fun HabitProgressRow(
             }
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (streak > 0) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "$streak",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary,
-                            fontFamily = Fredoka
-                        )
-                    }
+                    Text("🔥 $streak", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary, fontFamily = Fredoka)
                 }
                 val statusText = if (isBedtime && currentValue < 0f) "Pending Sleep" else if (isMet) "On Track" else if (isLowerBetter) "Over Target" else "Pending"
                 val statusColor = if (isBedtime && currentValue < 0f) MaterialTheme.colorScheme.onSurfaceVariant.copy(0.6f) else if (isMet) TealAccent else MaterialTheme.colorScheme.error
@@ -10108,12 +8995,7 @@ fun WeeklyDigestDialog(
                             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                                 // Highlight Section
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.EmojiEvents,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    Text("🎉", fontSize = 16.sp)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Weekly Highlight", fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
                                 }
@@ -10129,12 +9011,7 @@ fun WeeklyDigestDialog(
 
                                 // Watch Section
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Warning,
-                                        contentDescription = null,
-                                        tint = AlertRose,
-                                        modifier = Modifier.size(16.dp)
-                                    )
+                                    Text("⚠️", fontSize = 16.sp)
                                     Spacer(Modifier.width(8.dp))
                                     Text("Rhythm Watch Item", fontWeight = FontWeight.Bold, fontSize = 13.sp, fontFamily = Fredoka, color = AlertRose)
                                 }
@@ -10327,12 +9204,7 @@ fun ResearchContributionDialog(onDismiss: () -> Unit) {
         onDismissRequest = onDismiss,
         title = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Default.Science,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
+                Text("🔬", fontSize = 20.sp)
                 Spacer(Modifier.width(8.dp))
                 Text("Support Mental Health Research", fontWeight = FontWeight.Bold, fontSize = 16.sp, fontFamily = Fredoka)
             }
@@ -10343,24 +9215,8 @@ fun ResearchContributionDialog(onDismiss: () -> Unit) {
                     "You can anonymously contribute your daily aggregated rhythm trends to help build open-source mental health models. The shared dataset strictly observes privacy guarantees:",
                     fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Lock,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        "Privacy Protections:",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
                 Text(
+                    "🔒 Privacy Protections:\n" +
                     "• Zero PII: Your name, coordinates, phone logs, and app lists are stripped entirely.\n" +
                     "• Timeline Blinding: Actual dates and timestamps are removed; daily records are indexed as Day 1, Day 2, etc.\n" +
                     "• Noise Perturbation: Small differential noise is injected into step counts (+/- 150) and screen times (+/- 10 min) to prevent tracing back to individuals.",
@@ -10462,12 +9318,7 @@ fun WindDownCompanionCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.Bedtime,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Text("🌙", fontSize = 18.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Wind-Down Companion",
@@ -10518,12 +9369,7 @@ fun WindDownCompanionCard() {
                         .padding(horizontal = 12.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(16.dp)
-                    )
+                    Text("🎉", fontSize = 14.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Bedtime anchor met last night!",
@@ -10809,12 +9655,7 @@ fun DigitalDetoxCard() {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.PhoneAndroid,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
+                    Text("📵", fontSize = 18.sp)
                     Spacer(Modifier.width(8.dp))
                     Text(
                         text = "Digital Detox Timer",
@@ -10832,12 +9673,7 @@ fun DigitalDetoxCard() {
                             .padding(horizontal = 8.dp, vertical = 2.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(12.dp)
-                        )
+                        Text("🔥", fontSize = 12.sp)
                         Spacer(Modifier.width(4.dp))
                         Text(
                             text = "$streak Streak",

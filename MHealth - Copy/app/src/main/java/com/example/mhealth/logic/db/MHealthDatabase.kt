@@ -26,10 +26,9 @@ import androidx.room.RoomDatabase
         AppSessionEntity::class,
         PersonDnaEntity::class,
         NotificationEventEntity::class,
-        DailyDnaSnapshotEntity::class,
-        ObservationEntity::class
+        DailyDnaSnapshotEntity::class
     ],
-    version = 18,
+    version = 16,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -43,7 +42,6 @@ abstract class MHealthDatabase : RoomDatabase() {
     abstract fun personDnaDao(): PersonDnaDao
     abstract fun notificationEventDao(): NotificationEventDao
     abstract fun dailyDnaSnapshotDao(): DailyDnaSnapshotDao
-    abstract fun observationDao(): ObservationDao
 
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null
@@ -430,37 +428,6 @@ abstract class MHealthDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_16_17 = object : androidx.room.migration.Migration(16, 17) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("ALTER TABLE analysis_results ADD COLUMN userFeedbackState TEXT NOT NULL DEFAULT 'unresolved'")
-                db.execSQL("ALTER TABLE analysis_results ADD COLUMN userFeedbackCategory TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE analysis_results ADD COLUMN userFeedbackNotes TEXT NOT NULL DEFAULT ''")
-                db.execSQL("ALTER TABLE analysis_results ADD COLUMN observationStory TEXT NOT NULL DEFAULT ''")
-            }
-        }
-
-        private val MIGRATION_17_18 = object : androidx.room.migration.Migration(17, 18) {
-            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
-                db.execSQL("""
-                    CREATE TABLE IF NOT EXISTS observations (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        userId TEXT NOT NULL,
-                        date TEXT NOT NULL,
-                        category TEXT NOT NULL,
-                        title TEXT NOT NULL,
-                        narrative TEXT NOT NULL,
-                        feedbackState TEXT NOT NULL DEFAULT 'unresolved',
-                        feedbackCategory TEXT NOT NULL DEFAULT '',
-                        feedbackNotes TEXT NOT NULL DEFAULT '',
-                        baselineConfidence REAL NOT NULL DEFAULT 1.0,
-                        isQuietDay INTEGER NOT NULL DEFAULT 0,
-                        flaggedFeatures TEXT NOT NULL DEFAULT '[]',
-                        createdAt INTEGER NOT NULL
-                    )
-                """)
-            }
-        }
-
         fun getInstance(context: Context): MHealthDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -471,8 +438,7 @@ abstract class MHealthDatabase : RoomDatabase() {
                 .addMigrations(
                     MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7,
                     MIGRATION_7_8, MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12,
-                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17,
-                    MIGRATION_17_18
+                    MIGRATION_12_13, MIGRATION_13_14, MIGRATION_14_15, MIGRATION_15_16
                 )
                     .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                     .fallbackToDestructiveMigration()

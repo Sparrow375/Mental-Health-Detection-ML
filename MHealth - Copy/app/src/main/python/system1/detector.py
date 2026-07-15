@@ -107,50 +107,6 @@ class AnomalyDetector:
             if self.evidence_engine is not None:
                 self.evidence_engine.ANOMALY_SCORE_THRESHOLD = 0.32
 
-    def apply_user_feedback_tuning(self, user_feedbacks: list) -> None:
-        """
-        Adjust feature weights and variance thresholds based on recent user feedback.
-        If a user has corrected an anomaly ("Not Quite"), we find the flagged features
-        for that day and dampen their weights or scale up their baseline variances.
-        """
-        if not user_feedbacks:
-            return
-
-        # Count corrections per feature in the feedback window
-        corrections_count = {}
-        for fb in user_feedbacks:
-            state = fb.get("state", "unresolved")
-            if state in ["corrected", "noted"]:
-                flagged = fb.get("flagged_features", [])
-                for feat_str in flagged:
-                    # e.g., "sleepDurationHours (2.41 SD)" -> "sleepDurationHours"
-                    clean_feat = feat_str.split()[0] if feat_str else ""
-                    if clean_feat in self.feature_names:
-                        corrections_count[clean_feat] = corrections_count.get(clean_feat, 0) + 1
-
-        if corrections_count:
-            print(f"  [UserFeedback] Adjusting parameters based on feedback corrections: {corrections_count}")
-            adjusted_weights = {}
-            variance_scales = {}
-            for feat in self.feature_names:
-                base_w = self.l1_scorer._get_weight(feat)
-                if feat in corrections_count:
-                    c = corrections_count[feat]
-                    # w_new = w_base * (0.6)^c, floor at 0.2
-                    new_w = max(base_w * (0.6 ** c), 0.2)
-                    adjusted_weights[feat] = new_w
-                    
-                    # sigma_new = sigma_base * (1.3)^c, ceiling at 3.0x
-                    scale_factor = min(1.3 ** c, 3.0)
-                    variance_scales[feat] = scale_factor
-                    print(f"  [UserFeedback] Adjusted {feat}: weight {base_w:.3f} -> {new_w:.3f}, var scale -> {scale_factor:.3f}")
-                else:
-                    adjusted_weights[feat] = base_w
-                    variance_scales[feat] = 1.0
-
-            self.l1_scorer.set_adaptive_weights(adjusted_weights)
-            self.l1_scorer._variance_scale_factors = variance_scales
-
     # ------------------------------------------------------------------
     # Baseline building
     # ------------------------------------------------------------------

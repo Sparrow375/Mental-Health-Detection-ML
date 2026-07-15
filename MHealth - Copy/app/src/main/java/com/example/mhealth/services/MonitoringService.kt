@@ -32,7 +32,6 @@ import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.BaselineEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.UserProfileEntity
-import com.example.mhealth.logic.db.ObservationEntity
 import com.example.mhealth.models.DailyReport
 import com.example.mhealth.models.PersonalityVector
 import kotlinx.coroutines.CoroutineScope
@@ -1049,27 +1048,6 @@ class MonitoringService : Service() {
                     historicalL2Modifiers.forEach { l2ModifiersArray.put(it.toDouble()) }
                     root.put("historical_l2_modifiers", l2ModifiersArray)
                 }
-
-                if (historicalResults.isNotEmpty()) {
-                    val feedbacksArray = org.json.JSONArray()
-                    historicalResults.forEach { res ->
-                        val feedbackObj = org.json.JSONObject().apply {
-                            put("date", res.date)
-                            put("state", res.userFeedbackState)
-                            put("category", res.userFeedbackCategory)
-                            put("notes", res.userFeedbackNotes)
-                            
-                            val flaggedJson = try {
-                                org.json.JSONArray(res.flaggedFeatures)
-                            } catch (e: Exception) {
-                                org.json.JSONArray()
-                            }
-                            put("flagged_features", flaggedJson)
-                        }
-                        feedbacksArray.put(feedbackObj)
-                    }
-                    root.put("user_feedbacks", feedbacksArray)
-                }
                 
                 // 7. Inject sessions
                 val cal = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -60) }
@@ -1116,43 +1094,6 @@ class MonitoringService : Service() {
                     
                     // Push live results to DataRepository
                     DataRepository.updateProvisionalAnalysis(provisionalEntity)
-
-                    // Store provisional ObservationEntity for Home Hero Card real-time update
-                    val flaggedList = result.flaggedFeatures
-                    val category = when {
-                        flaggedList.any { it.contains("sleep", ignoreCase = true) || it.contains("wake", ignoreCase = true) } -> "Sleep"
-                        flaggedList.any { it.contains("step", ignoreCase = true) || it.contains("active", ignoreCase = true) } -> "Activity"
-                        flaggedList.any { it.contains("screen", ignoreCase = true) || it.contains("app", ignoreCase = true) || it.contains("unlock", ignoreCase = true) } -> "Digital"
-                        flaggedList.any { it.contains("displacement", ignoreCase = true) || it.contains("location", ignoreCase = true) || it.contains("home", ignoreCase = true) } -> "Mobility"
-                        else -> "General"
-                    }
-                    val title = when (category) {
-                        "Sleep" -> "Sleep & Bedtime Routine"
-                        "Activity" -> "Daily Physical Activity"
-                        "Digital" -> "Screen & App Habits"
-                        "Mobility" -> "Movement & Mobility"
-                        else -> "Daily Rhythm Summary"
-                    }
-
-                    val observationEntity = ObservationEntity(
-                        userId = userId,
-                        date = todayStr,
-                        category = category,
-                        title = title,
-                        narrative = result.observationStory,
-                        feedbackState = "unresolved",
-                        feedbackCategory = "",
-                        feedbackNotes = "",
-                        baselineConfidence = result.baselineConfidence,
-                        isQuietDay = result.alertLevel == "green",
-                        flaggedFeatures = org.json.JSONArray(result.flaggedFeatures).toString()
-                    )
-                    val existingObs = db.observationDao().getByDate(userId, todayStr)
-                    if (existingObs != null) {
-                        db.observationDao().update(observationEntity.copy(id = existingObs.id))
-                    } else {
-                        db.observationDao().insert(observationEntity)
-                    }
                     
                     // Construct live baseline PersonalityVector using bayesianMeans/bayesianStds
                     if (result.bayesianMeans.isNotEmpty() && result.bayesianStds.isNotEmpty()) {

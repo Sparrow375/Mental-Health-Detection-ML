@@ -52,11 +52,5 @@ data class AnalysisResultEntity(
     val effectiveScore: Float = 0f,            // L1 × L2 modifier
     val evidenceAccumulated: Float = 0f,       // running evidence with compounding
     val patternType: String = "stable",        // stable | rapid_cycling | acute_spike | gradual_drift | mixed
-    val flaggedFeatures: String = "[]",         // JSON list of flagged feature strings
-
-    // Closed-loop revamp fields
-    val userFeedbackState: String = "unresolved", // unresolved | confirmed | corrected | noted
-    val userFeedbackCategory: String = "",        // e.g. schedule_shift | travel | illness | stress | none
-    val userFeedbackNotes: String = "",           // Custom user detail notes
-    val observationStory: String = ""             // Surfaced narrative story (Rhythm Story)
+    val flaggedFeatures: String = "[]"         // JSON list of flagged feature strings
 )

@@ -18,7 +18,6 @@ import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.logic.db.PersonDnaEntity
-import com.example.mhealth.logic.db.ObservationEntity
 import com.example.mhealth.models.DailyReport
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -186,13 +185,14 @@ class NightlyAnalysisWorker(
             }
             val inputJson = JsonConverter.toEngineJson(applicationContext, todayFeatures, baselineEntities, history)
 
-            // Inject day_number, gate_state, historical feedback/scores, and session data
+            // Inject day_number, gate_state, historical anomaly scores, and session data
             val jsonWithMeta = injectMetadata(
                 inputJson = inputJson,
                 dayNumber = dayNumber,
                 contaminated = profileEntity?.baselineContaminated ?: false,
                 gateResultsJson = db.analysisResultDao().getLatest(userId)?.gateResults ?: "{}",
-                historicalResults = historicalResults
+                historicalScores = historicalScores,
+                historicalL2Modifiers = historicalL2Modifiers
             )
 
             // ── 4b. Inject session data, existing profile, and identifiers ──────
@@ -287,8 +287,7 @@ class NightlyAnalysisWorker(
                 effectiveScore      = engineResult.anomalyScore * engineResult.l2Modifier,
                 evidenceAccumulated = engineResult.evidence,
                 patternType         = engineResult.patternType,
-                flaggedFeatures     = org.json.JSONArray(engineResult.flaggedFeatures).toString(),
-                observationStory    = engineResult.observationStory
+                flaggedFeatures     = org.json.JSONArray(engineResult.flaggedFeatures).toString()
             )
             // Dedup: if result already exists for this date, update instead of inserting duplicate
             val existingResult = db.analysisResultDao().getByDate(userId, targetDate)
@@ -298,45 +297,6 @@ class NightlyAnalysisWorker(
             } else {
                 db.analysisResultDao().insert(resultEntity)
                 Log.i(TAG, "Analysis result saved to Room for $targetDate | anomaly_score: ${engineResult.anomalyScore} | alert: ${engineResult.alertLevel}")
-            }
-
-            // Store ObservationEntity for Home Hero Card
-            val flaggedList = engineResult.flaggedFeatures
-            val category = when {
-                flaggedList.any { it.contains("sleep", ignoreCase = true) || it.contains("wake", ignoreCase = true) } -> "Sleep"
-                flaggedList.any { it.contains("step", ignoreCase = true) || it.contains("active", ignoreCase = true) } -> "Activity"
-                flaggedList.any { it.contains("screen", ignoreCase = true) || it.contains("app", ignoreCase = true) || it.contains("unlock", ignoreCase = true) } -> "Digital"
-                flaggedList.any { it.contains("displacement", ignoreCase = true) || it.contains("location", ignoreCase = true) || it.contains("home", ignoreCase = true) } -> "Mobility"
-                else -> "General"
-            }
-            val title = when (category) {
-                "Sleep" -> "Sleep & Bedtime Routine"
-                "Activity" -> "Daily Physical Activity"
-                "Digital" -> "Screen & App Habits"
-                "Mobility" -> "Movement & Mobility"
-                else -> "Daily Rhythm Summary"
-            }
-
-            val observationEntity = ObservationEntity(
-                userId = userId,
-                date = targetDate,
-                category = category,
-                title = title,
-                narrative = engineResult.observationStory,
-                feedbackState = "unresolved",
-                feedbackCategory = "",
-                feedbackNotes = "",
-                baselineConfidence = engineResult.baselineConfidence,
-                isQuietDay = engineResult.alertLevel == "green",
-                flaggedFeatures = org.json.JSONArray(engineResult.flaggedFeatures).toString()
-            )
-            val existingObs = db.observationDao().getByDate(userId, targetDate)
-            if (existingObs != null) {
-                db.observationDao().update(observationEntity.copy(id = existingObs.id))
-                Log.i(TAG, "Observation updated for $targetDate")
-            } else {
-                db.observationDao().insert(observationEntity)
-                Log.i(TAG, "Observation inserted for $targetDate")
             }
 
             // Don't wait for the scheduled CloudSyncWorker - sync immediately after saving
@@ -490,13 +450,14 @@ class NightlyAnalysisWorker(
 
     // ─── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Injects day_number, gate_state, baseline_contaminated, historical results, and user feedbacks into JSON. */
+    /** Injects day_number, gate_state, baseline_contaminated, historical anomaly scores, and L2 modifiers into JSON. */
     private fun injectMetadata(
         inputJson: String,
         dayNumber: Int,
         contaminated: Boolean,
         gateResultsJson: String,
-        historicalResults: List<AnalysisResultEntity> = emptyList()
+        historicalScores: List<Float> = emptyList(),
+        historicalL2Modifiers: List<Float> = emptyList()
     ): String {
         return try {
             val obj = org.json.JSONObject(inputJson)
@@ -511,39 +472,17 @@ class NightlyAnalysisWorker(
             obj.put("gate_state", gateState)
 
             // Add historical anomaly scores for pattern detection
-            if (historicalResults.isNotEmpty()) {
+            if (historicalScores.isNotEmpty()) {
                 val scoresArray = org.json.JSONArray()
-                historicalResults.forEach { scoresArray.put(it.effectiveScore.toDouble()) }
+                historicalScores.forEach { scoresArray.put(it.toDouble()) }
                 obj.put("historical_anomaly_scores", scoresArray)
             }
 
             // Add historical L2 modifiers for correct fast-forward replay
-            if (historicalResults.isNotEmpty()) {
+            if (historicalL2Modifiers.isNotEmpty()) {
                 val l2ModifiersArray = org.json.JSONArray()
-                historicalResults.forEach { l2ModifiersArray.put(it.l2Modifier.toDouble()) }
+                historicalL2Modifiers.forEach { l2ModifiersArray.put(it.toDouble()) }
                 obj.put("historical_l2_modifiers", l2ModifiersArray)
-            }
-
-            // Add historical user feedback
-            if (historicalResults.isNotEmpty()) {
-                val feedbacksArray = org.json.JSONArray()
-                historicalResults.forEach { res ->
-                    val feedbackObj = org.json.JSONObject().apply {
-                        put("date", res.date)
-                        put("state", res.userFeedbackState)
-                        put("category", res.userFeedbackCategory)
-                        put("notes", res.userFeedbackNotes)
-                        
-                        val flaggedJson = try {
-                            org.json.JSONArray(res.flaggedFeatures)
-                        } catch (e: Exception) {
-                            org.json.JSONArray()
-                        }
-                        put("flagged_features", flaggedJson)
-                    }
-                    feedbacksArray.put(feedbackObj)
-                }
-                obj.put("user_feedbacks", feedbacksArray)
             }
 
             obj.toString()

@@ -359,11 +359,8 @@ fun LumenAppShell() {
     }
 
     LumenTheme(themeMode = themeMode) {
-        val navPad = rememberNavBarPadding()
         Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(bottom = navPad),
+            modifier = Modifier.fillMaxSize(),
             color = MaterialTheme.colorScheme.background
         ) {
             when (appState) {
@@ -404,7 +401,11 @@ fun DashboardScreen() {
 
     Scaffold(
         bottomBar = {
-            NavigationBar(containerColor = MaterialTheme.colorScheme.surface, tonalElevation = 0.dp) {
+            NavigationBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 0.dp,
+                modifier = Modifier.navigationBarsPadding()
+            ) {
                 LumenDest.entries.forEach { dest ->
                     val isSelected = selectedTab == dest
                     NavigationBarItem(

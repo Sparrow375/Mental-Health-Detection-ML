@@ -342,6 +342,7 @@ fun WeeklyDigestDialog(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
+                    .systemBarsPadding()
                     .padding(24.dp)
             ) {
                 Row(
@@ -352,7 +353,7 @@ fun WeeklyDigestDialog(
                     Column {
                         Text(
                             text = "Weekly Digest",
-                            fontSize = 22.sp,
+                            fontSize = 24.sp,
                             fontWeight = FontWeight.ExtraBold,
                             fontFamily = Fredoka,
                             color = MaterialTheme.colorScheme.onBackground
@@ -364,7 +365,7 @@ fun WeeklyDigestDialog(
                         )
                     }
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, null)
+                        Icon(Icons.Default.Close, contentDescription = "Close")
                     }
                 }
 
@@ -378,24 +379,25 @@ fun WeeklyDigestDialog(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.EmojiEvents, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.EmojiEvents, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text("Weekly Highlights", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
                                 }
                                 val highlightStr = when {
-                                    stepPct > 110 -> "Physical activity was exceptionally strong this week, fueling circadian resilience."
+                                    stepPct > 110 -> "Physical activity was exceptionally strong this week, fueling overall resilience."
                                     sleepPct > 105 -> "Restful sleep windows provided deep recovery for mind and body."
                                     screenPct < 90 -> "Digital boundaries were well maintained, freeing up offline reflection space."
                                     else -> "Daily routines maintained a steady, predictable lifestyle flow throughout the week."
                                 }
-                                Text(highlightStr, fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onBackground)
+                                Text(highlightStr, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                     }
@@ -404,14 +406,35 @@ fun WeeklyDigestDialog(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                Text("Rhythm Breakdown", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.onBackground)
+                                
+                                DigestMetricRow(label = "Sleep & Rest", valueStr = if (sleepPct >= 100) "About ${sleepPct - 100}% above usual" else "About ${100 - sleepPct}% below usual", isPositive = sleepPct >= 90)
+                                DigestMetricRow(label = "Physical Activity", valueStr = if (stepPct >= 100) "About ${stepPct - 100}% above baseline" else "About ${100 - stepPct}% below baseline", isPositive = stepPct >= 80)
+                                DigestMetricRow(label = "Screen & Digital", valueStr = if (screenPct <= 100) "Within healthy boundaries" else "About ${screenPct - 100}% higher than usual", isPositive = screenPct <= 115)
+                            }
+                        }
+                    }
+
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.WarningAmber, null, tint = AlertWarning, modifier = Modifier.size(20.dp))
+                                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = AlertWarning, modifier = Modifier.size(20.dp))
                                     Spacer(Modifier.width(8.dp))
                                     Text("Rhythm Watch Item", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = AlertWarning)
                                 }
@@ -421,21 +444,47 @@ fun WeeklyDigestDialog(
                                     stepPct < 80 -> "Physical steps dipped below baseline. A short daily walk can renew physical energy."
                                     else -> "No major circadian drifts or digital spikes detected. Routine remains steady."
                                 }
-                                Text(watchStr, fontSize = 12.sp, lineHeight = 17.sp, color = MaterialTheme.colorScheme.onBackground)
+                                Text(watchStr, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                     }
                 }
 
+                Spacer(Modifier.height(12.dp))
+
                 Button(
                     onClick = onDismiss,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Close Summary", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text("Close Summary", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 15.sp, fontFamily = Fredoka)
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DigestMetricRow(label: String, valueStr: String, isPositive: Boolean) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(8.dp)
+                    .background(if (isPositive) MaterialTheme.colorScheme.primary else AlertWarning, CircleShape)
+            )
+            Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
+        }
+        Text(valueStr, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
     }
 }

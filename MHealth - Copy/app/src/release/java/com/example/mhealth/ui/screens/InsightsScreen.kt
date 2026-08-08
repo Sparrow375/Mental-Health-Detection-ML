@@ -112,25 +112,10 @@ fun InsightsScreen() {
             }
         }
 
-        // Section 1: Weekly Story Narrative Card (with visual status indicators)
-        item {
-            WeeklyStoryCard(features = weeklyFeatures, baseline = baseVec)
-        }
-
-        // Section 2: Multi-Dimensional Rhythm Trends Chart
-        item {
-            RhythmTrendsChart(features = weeklyFeatures, baseline = baseVec)
-        }
-
-        // Section 3: 6-Axis Behavioral Fingerprint Radar
-        item {
-            BehavioralFingerprintRadar(currentVector = latest, baselineVector = baseVec)
-        }
-
-        // Section 4: Curated Insight Sectors Header
+        // Section 1: Curated Insight Sectors Header
         item {
             Text(
-                text = "Rhythm Dimensions",
+                text = "Today's Rhythm Dimensions",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = Fredoka,
@@ -310,6 +295,33 @@ fun InsightsScreen() {
                     activeSectorIcon = Icons.Default.Explore
                 }
             )
+        }
+
+        // Section: Long-Term Weekly Patterns Header
+        item {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = "Weekly Trends & Analysis",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+        // Weekly Story Narrative Card
+        item {
+            WeeklyStoryCard(features = weeklyFeatures, baseline = baseVec)
+        }
+
+        // Multi-Dimensional Rhythm Trends Chart
+        item {
+            RhythmTrendsChart(features = weeklyFeatures, baseline = baseVec)
+        }
+
+        // 6-Axis Behavioral Fingerprint Radar
+        item {
+            BehavioralFingerprintRadar(currentVector = latest, baselineVector = baseVec)
         }
     }
 }
@@ -543,6 +555,45 @@ fun SectorDetailScreen(
                     )
 
                     Spacer(Modifier.height(4.dp))
+
+                    // Relative Baseline Comparison Bar
+                    Text(
+                        text = "Weekly Average vs Personal Baseline",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        val barFraction = (1.0f + (pctDiff / 100f)).coerceIn(0.2f, 1.8f) / 2.0f
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(8.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .fillMaxWidth(barFraction)
+                                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            )
+                        }
+                        Text(
+                            text = if (pctDiff >= 0) "+$pctDiff%" else "$pctDiff%",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+
                     Text(
                         text = "7-Day Trend Sparkline",
                         fontSize = 12.sp,
@@ -558,7 +609,7 @@ fun SectorDetailScreen(
         // Outlier Callout Section
         item {
             Text(
-                text = "Notable Days",
+                text = "Notable Days & Tips",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 fontFamily = Fredoka,
@@ -580,7 +631,7 @@ fun SectorDetailScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Icon(Icons.Default.Tune, null, tint = AlertWarning)
+                        Icon(Icons.Default.Tune, contentDescription = null, tint = AlertWarning)
                         Column {
                             Text(
                                 text = "Highest Shift Day",
@@ -595,6 +646,48 @@ fun SectorDetailScreen(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
+                    }
+                }
+            }
+        }
+
+        item {
+            val tipStr = when (sectorName) {
+                "Sleep & Rest" -> "Keeping consistent sleep and wake hours builds strong circadian rhythms."
+                "Physical Activity" -> "A quick 10-minute afternoon walk helps release tension and steady mood."
+                "Social Connection" -> "Reaching out to a trusted contact or friend brings emotional balance."
+                "Screen Time" -> "Taking brief 15-minute digital sunset breaks before bed aids restful sleep."
+                "Interaction Pace" -> "A steady typing and scroll cadence reflects balanced energy levels."
+                "Daylight Exposure" -> "Getting morning natural light helps anchor your internal body clock."
+                "Routine & Places" -> "Visiting new spatial environments naturally expands cognitive vitality."
+                else -> "Maintaining daily routine consistency supports overall lifestyle balance."
+            }
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Icon(Icons.Default.Lightbulb, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                    Column {
+                        Text(
+                            text = "Gentle Insight",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Text(
+                            text = tipStr,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            lineHeight = 16.sp
+                        )
                     }
                 }
             }

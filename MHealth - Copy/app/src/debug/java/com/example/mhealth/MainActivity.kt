@@ -1312,7 +1312,6 @@ private val featureLabels: Map<String, Pair<String, String>> = linkedMapOf(
     "upiTransactionsToday" to Pair("UPI / Payments",        ""),
     "appUninstallsToday"   to Pair("App Uninstalls",         ""),
     "appInstallsToday"     to Pair("App Installs",          ""),
-    "calendarEventsToday"  to Pair("Calendar Events",        ""),
     "mediaCountToday"      to Pair("Media Files",           ""),
     "downloadsToday"       to Pair("Downloads Today",       ""),
     "musicTimeMinutes"     to Pair("Music Time",           "min")
@@ -1693,7 +1692,6 @@ fun AnalysisScreen() {
                             normalizeDev(v.upiTransactionsToday, b.upiTransactionsToday),
                             normalizeDev(v.appUninstallsToday, b.appUninstallsToday),
                             normalizeDev(v.appInstallsToday, b.appInstallsToday),
-                            normalizeDev(v.calendarEventsToday, b.calendarEventsToday),
                             normalizeDev(v.mediaCountToday, b.mediaCountToday),
                             normalizeDev(v.downloadsToday, b.downloadsToday),
                             normalizeDev(v.musicTimeMinutes, b.musicTimeMinutes)
@@ -2586,7 +2584,6 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("upiTransactions", day.upiTransactionsToday)
                     put("appUninstalls", day.appUninstallsToday)
                     put("appInstalls", day.appInstallsToday)
-                    put("calendarEvents", day.calendarEventsToday)
                     put("mediaCount", day.mediaCountToday)
                     put("downloads", day.downloadsToday)
                     put("musicTimeMinutes", day.musicTimeMinutes)
@@ -2599,43 +2596,41 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("notifications_breakdown", org.json.JSONObject(day.notificationBreakdownJson))
                     put("app_launches_breakdown", org.json.JSONObject(day.appLaunchesBreakdownJson))
                 })
-                
+
                 historyArr.put(dayObj)
             }
             masterJson.put("daily_history", historyArr)
 
-            // D. Today's LIVE snapshot (current-day data even before midnight rollover)
-            // This ensures the export always reflects reality at the time of export,
-            // not just completed historical days stored in Room.
+            val dailyCheckinHistory = prefs.getString("daily_checkin_history", "[]") ?: "[]"
+            masterJson.put("daily_checkin_history", org.json.JSONArray(dailyCheckinHistory))
+
             val liveVector = DataRepository.latestVector.value
             if (liveVector != null) {
-                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                    .format(java.util.Date())
+                val todayStr = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())
                 val todayObj = org.json.JSONObject()
                 todayObj.put("date", todayStr)
-                todayObj.put("is_live_snapshot", true)  // marks this as in-progress, not a completed day
+                todayObj.put("is_live_snapshot", true)
                 todayObj.put("isSimulated", false)
                 todayObj.put("metrics", org.json.JSONObject().apply {
                     put("screenTimeHours",    liveVector.screenTimeHours)
-                    put("unlockCount",         liveVector.unlockCount)
-                    put("appLaunchCount",      liveVector.appLaunchCount)
-                    put("notifications",       liveVector.notificationsToday)
-                    put("socialRatio",         liveVector.socialAppRatio)
-                    put("callsPerDay",         liveVector.callsPerDay)
-                    put("callDurationMins",    liveVector.callDurationMinutes)
-                    put("uniqueContacts",      liveVector.uniqueContacts)
-                    put("conversationFrequency", liveVector.conversationFrequency)
-                    put("displacementKm",      liveVector.dailyDisplacementKm)
-                    put("locationEntropy",     liveVector.locationEntropy)
-                    put("homeTimeRatio",       liveVector.homeTimeRatio)
-                    put("wakeTimeHour",        liveVector.wakeTimeHour)
-                    put("sleepTimeHour",       liveVector.sleepTimeHour)
-                    put("sleepDurationHours",  liveVector.sleepDurationHours)
-                    put("dailyStepCount",      liveVector.dailyStepCount)
-                    put("activeMinutes",       liveVector.activeMinutes)
-                    put("keystrokeSpeed",      liveVector.keystrokeSpeed)
-                    put("backspaceRatio",      liveVector.backspaceRatio)
-                    put("scrollVelocity",      liveVector.scrollVelocity)
+                    put("unlockCount",        liveVector.unlockCount)
+                    put("appLaunchCount",     liveVector.appLaunchCount)
+                    put("notificationsToday", liveVector.notificationsToday)
+                    put("socialAppRatio",     liveVector.socialAppRatio)
+                    put("callsPerDay",        liveVector.callsPerDay)
+                    put("callDurationMinutes",liveVector.callDurationMinutes)
+                    put("uniqueContacts",     liveVector.uniqueContacts)
+                    put("dailyDisplacementKm",liveVector.dailyDisplacementKm)
+                    put("locationEntropy",    liveVector.locationEntropy)
+                    put("homeTimeRatio",      liveVector.homeTimeRatio)
+                    put("wakeTimeHour",       liveVector.wakeTimeHour)
+                    put("sleepTimeHour",      liveVector.sleepTimeHour)
+                    put("sleepDurationHours", liveVector.sleepDurationHours)
+                    put("dailyStepCount",     liveVector.dailyStepCount)
+                    put("activeMinutes",      liveVector.activeMinutes)
+                    put("keystrokeSpeed",     liveVector.keystrokeSpeed)
+                    put("backspaceRatio",     liveVector.backspaceRatio)
+                    put("scrollVelocity",     liveVector.scrollVelocity)
                     put("daylightExposureMinutes", liveVector.daylightExposureMinutes)
                     put("chargeRegularity",    liveVector.chargeRegularity)
                     put("chargeDurationHours", liveVector.chargeDurationHours)
@@ -2805,7 +2800,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         upiTransactionsToday = metrics.optDouble("upiTransactions", 0.0).toFloat(),
                         appUninstallsToday = metrics.optDouble("appUninstalls", 0.0).toFloat(),
                         appInstallsToday = metrics.optDouble("appInstalls", 0.0).toFloat(),
-                        calendarEventsToday = metrics.optDouble("calendarEvents", 0.0).toFloat(),
                         mediaCountToday = metrics.optDouble("mediaCount", 0.0).toFloat(),
                         downloadsToday = metrics.optDouble("downloads", 0.0).toFloat(),
                         musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),

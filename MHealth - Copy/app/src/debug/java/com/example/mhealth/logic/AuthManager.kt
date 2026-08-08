@@ -212,7 +212,6 @@ class AuthManager(private val context: Context) {
                         appUninstallsToday = doc.getDouble("appUninstallsToday")?.toFloat() ?: 0f,
                         upiTransactionsToday = doc.getDouble("upiTransactionsToday")?.toFloat() ?: 0f,
                         appInstallsToday = doc.getDouble("appInstallsToday")?.toFloat() ?: 0f,
-                        calendarEventsToday = doc.getDouble("calendarEventsToday")?.toFloat() ?: 0f,
                         mediaCountToday = doc.getDouble("mediaCountToday")?.toFloat() ?: 0f,
                         downloadsToday = doc.getDouble("downloadsToday")?.toFloat() ?: 0f,
                         musicTimeMinutes = doc.getDouble("musicTimeMinutes")?.toFloat() ?: 0f,

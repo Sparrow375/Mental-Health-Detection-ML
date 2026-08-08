@@ -2170,7 +2170,6 @@ fun InsightsScreen() {
                                     "UPI Transactions" to "%.0f".format(feat.upiTransactionsToday),
                                     "App Uninstalls"   to "%.0f".format(feat.appUninstallsToday),
                                     "App Installs"     to "%.0f".format(feat.appInstallsToday),
-                                    "Calendar Events"  to "%.0f".format(feat.calendarEventsToday),
                                     "Media Files"      to "%.0f".format(feat.mediaCountToday),
                                     "Downloads"        to "%.0f".format(feat.downloadsToday),
                                     "Music Time"       to "%.0f min".format(feat.musicTimeMinutes)
@@ -2601,6 +2600,7 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
             }
             masterJson.put("daily_history", historyArr)
 
+            val prefs = context.getSharedPreferences("mhealth_data_store", android.content.Context.MODE_PRIVATE)
             val dailyCheckinHistory = prefs.getString("daily_checkin_history", "[]") ?: "[]"
             masterJson.put("daily_checkin_history", org.json.JSONArray(dailyCheckinHistory))
 
@@ -2637,7 +2637,6 @@ private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_det
                     put("upiTransactions",     liveVector.upiTransactionsToday)
                     put("appUninstalls",       liveVector.appUninstallsToday)
                     put("appInstalls",         liveVector.appInstallsToday)
-                    put("calendarEvents",      liveVector.calendarEventsToday)
                     put("mediaCount",          liveVector.mediaCountToday)
                     put("downloads",           liveVector.downloadsToday)
                     put("musicTimeMinutes",    liveVector.musicTimeMinutes)

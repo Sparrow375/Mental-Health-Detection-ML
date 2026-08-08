@@ -83,7 +83,6 @@ object FirebaseSyncHelper {
                     "upiTransactionsToday" to entity.upiTransactionsToday,
                     "appUninstallsToday" to entity.appUninstallsToday,
                     "appInstallsToday" to entity.appInstallsToday,
-                    "calendarEventsToday" to entity.calendarEventsToday,
                     "mediaCountToday" to entity.mediaCountToday,
                     "downloadsToday" to entity.downloadsToday,
                     "musicTimeMinutes" to entity.musicTimeMinutes,

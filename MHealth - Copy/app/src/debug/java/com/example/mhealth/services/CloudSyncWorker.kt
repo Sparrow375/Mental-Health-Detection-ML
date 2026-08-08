@@ -124,7 +124,6 @@ class CloudSyncWorker(appContext: Context, workerParams: WorkerParameters) :
                         "appUninstallsToday" to feature.appUninstallsToday,
                         "upiTransactionsToday" to feature.upiTransactionsToday,
                         "appInstallsToday" to feature.appInstallsToday,
-                        "calendarEventsToday" to feature.calendarEventsToday,
                         "mediaCountToday" to feature.mediaCountToday,
                         "downloadsToday" to feature.downloadsToday,
                         "musicTimeMinutes" to feature.musicTimeMinutes,

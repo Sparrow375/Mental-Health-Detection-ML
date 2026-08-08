@@ -111,7 +111,6 @@ private val featureLabels = mapOf(
     "upiTransactionsToday" to "UPI Transactions",
     "appUninstallsToday" to "Uninstalls",
     "appInstallsToday" to "Installs",
-    "calendarEventsToday" to "Calendar Events",
     "mediaCountToday" to "Media Count",
     "downloadsToday" to "Downloads",
     "musicTimeMinutes" to "Music Time",

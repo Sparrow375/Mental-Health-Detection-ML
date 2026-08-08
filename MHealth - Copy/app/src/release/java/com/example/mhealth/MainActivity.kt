@@ -2337,7 +2337,7 @@ fun getHelplinesByCountry(country: String): List<Helpline> {
     }
 }
 
-private fun exportDataToUri(context: Context, uri: android.net.Uri) {
+fun exportDataToUri(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
     val activity = context as ComponentActivity
     activity.lifecycleScope.launch(Dispatchers.IO) {
@@ -2554,7 +2554,7 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
     }
 }
 
-private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
+fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
     if (context !is ComponentActivity) return
     val activity = context as ComponentActivity
     Toast.makeText(context, "Importing backup...", Toast.LENGTH_SHORT).show()
@@ -3107,7 +3107,7 @@ fun TelemetryDisclosureDialog(
     )
 }
 
-private fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_backup_before_reset_") {
+fun exportDataAsJson(context: Context, filePrefix: String = "mhealth_backup_before_reset_") {
     if (context !is ComponentActivity) return
     val activity = context as ComponentActivity
     activity.lifecycleScope.launch(Dispatchers.IO) {

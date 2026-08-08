@@ -1,6 +1,7 @@
 package com.example.mhealth.ui.screens
 
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.widget.Toast
 import android.media.AudioAttributes
@@ -13,6 +14,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -53,6 +55,9 @@ import com.example.mhealth.ui.components.Fredoka
 import com.example.mhealth.ui.components.rememberNavBarPadding
 import kotlinx.coroutines.delay
 
+import com.example.mhealth.WindDownOverlay
+import com.example.mhealth.DigitalDetoxTimerOverlay
+
 @Composable
 fun ActivitiesScreen() {
     val context = LocalContext.current
@@ -63,12 +68,32 @@ fun ActivitiesScreen() {
     var showManageHabits by remember { mutableStateOf(false) }
     var showWindDownOverlay by remember { mutableStateOf(false) }
     var showDetoxOverlay by remember { mutableStateOf(false) }
+    var showQuestsSubScreen by remember { mutableStateOf(false) }
+
+    androidx.activity.compose.BackHandler(enabled = showQuestsSubScreen) {
+        showQuestsSubScreen = false
+    }
+
+    if (showQuestsSubScreen) {
+        QuestsScreen(
+            prefs = prefs,
+            badges = badges,
+            onBack = { showQuestsSubScreen = false }
+        )
+        return
+    }
 
     if (showBadgeGallery) {
         BadgeGalleryDialog(badges = badges, onDismiss = { showBadgeGallery = false })
     }
     if (showManageHabits) {
         ManageHabitsDialog(prefs = prefs, onDismiss = { showManageHabits = false })
+    }
+    if (showWindDownOverlay) {
+        WindDownOverlay(sleepTarget = 8.0f, onDismiss = { showWindDownOverlay = false })
+    }
+    if (showDetoxOverlay) {
+        DigitalDetoxTimerOverlay(durationMinutes = 30, onDismiss = { showDetoxOverlay = false })
     }
 
     LazyColumn(
@@ -111,7 +136,8 @@ fun ActivitiesScreen() {
                 prefs = prefs,
                 badges = badges,
                 onManageClick = { showManageHabits = true },
-                onGalleryClick = { showBadgeGallery = true }
+                onGalleryClick = { showBadgeGallery = true },
+                onOpenQuests = { showQuestsSubScreen = true }
             )
         }
 
@@ -137,7 +163,8 @@ fun HabitQuestsCard(
     prefs: SharedPreferences,
     badges: List<BadgeEntity>,
     onManageClick: () -> Unit,
-    onGalleryClick: () -> Unit
+    onGalleryClick: () -> Unit,
+    onOpenQuests: () -> Unit = {}
 ) {
     val unlockedCount = remember(badges) { badges.count { it.isUnlocked } }
 
@@ -152,7 +179,9 @@ fun HabitQuestsCard(
     val focusStreak = remember { prefs.getInt("streak_focus_mode", 0) }
 
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onOpenQuests() },
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
@@ -1074,7 +1103,8 @@ fun FullScreenBreathingScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFF07141C))
-                    .statusBarsPadding(),
+                    .statusBarsPadding()
+                    .navigationBarsPadding(),
                 contentAlignment = Alignment.Center
             ) {
                 Column(
@@ -1082,7 +1112,7 @@ fun FullScreenBreathingScreen(
                     verticalArrangement = Arrangement.SpaceBetween,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(top = 48.dp, bottom = (navBarPad2.value + 24).dp, start = 24.dp, end = 24.dp)
+                        .padding(top = 32.dp, bottom = 24.dp, start = 24.dp, end = 24.dp)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
@@ -1280,5 +1310,316 @@ fun MindfulBreathingCard() {
     }
 }
 
-// =============================================================================
-// Insights Screen Composable
+@Composable
+fun QuestsScreen(
+    prefs: SharedPreferences,
+    badges: List<BadgeEntity>,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    var showManageHabits by remember { mutableStateOf(false) }
+    var showCreateCustomHabit by remember { mutableStateOf(false) }
+
+    val unlockedCount = remember(badges) { badges.count { it.isUnlocked } }
+
+    val sunsetEnabled = remember { prefs.getBoolean("habit_digital_sunset_enabled", false) }
+    val circadianEnabled = remember { prefs.getBoolean("habit_circadian_anchor_enabled", false) }
+    val movementEnabled = remember { prefs.getBoolean("habit_movement_boost_enabled", false) }
+    val focusEnabled = remember { prefs.getBoolean("habit_focus_mode_enabled", false) }
+
+    val sunsetStreak = remember { prefs.getInt("streak_digital_sunset", 0) }
+    val circadianStreak = remember { prefs.getInt("streak_circadian_anchor", 0) }
+    val movementStreak = remember { prefs.getInt("streak_movement_boost", 0) }
+    val focusStreak = remember { prefs.getInt("streak_focus_mode", 0) }
+
+    var customHabitsList by remember {
+        mutableStateOf(prefs.getStringSet("custom_habits_set", emptySet())?.toList() ?: emptyList())
+    }
+
+    if (showManageHabits) {
+        ManageHabitsDialog(prefs = prefs, onDismiss = { showManageHabits = false })
+    }
+    if (showCreateCustomHabit) {
+        CreateCustomHabitDialog(
+            onSave = { title, desc ->
+                val newEntry = "$title|$desc|0"
+                val updatedSet = (customHabitsList + newEntry).toSet()
+                prefs.edit().putStringSet("custom_habits_set", updatedSet).apply()
+                customHabitsList = updatedSet.toList()
+                showCreateCustomHabit = false
+                Toast.makeText(context, "Custom habit added!", Toast.LENGTH_SHORT).show()
+            },
+            onDismiss = { showCreateCustomHabit = false }
+        )
+    }
+
+    LazyColumn(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp)
+    ) {
+        // Header
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.Default.ArrowBack, "Back")
+                }
+                Text(
+                    text = "Habit Quests & Badges",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            }
+        }
+
+        // Quest Stats Summary Card
+        item {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+            ) {
+                Row(
+                    modifier = Modifier.padding(18.dp),
+                    horizontalArrangement = Arrangement.SpaceAround,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Active Quests", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "${listOf(sunsetEnabled, circadianEnabled, movementEnabled, focusEnabled).count { it } + customHabitsList.size}",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Badges Unlocked", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "$unlockedCount / ${badges.size}",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Max Streak", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "${listOf(sunsetStreak, circadianStreak, movementStreak, focusStreak).maxOrNull() ?: 0} d",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        }
+
+        // Action Row (+ Custom Habit, Configure Quests)
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Button(
+                    onClick = { showCreateCustomHabit = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Add, null, tint = Color.Black, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Add Custom Quest", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 12.sp)
+                }
+
+                Button(
+                    onClick = { showManageHabits = true },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Tune, null, tint = MaterialTheme.colorScheme.onPrimaryContainer, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(6.dp))
+                    Text("Configure Quests", color = MaterialTheme.colorScheme.onPrimaryContainer, fontWeight = FontWeight.Bold, fontFamily = Fredoka, fontSize = 12.sp)
+                }
+            }
+        }
+
+        // Active Quests Section
+        item {
+            Text("Active Quests", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+        }
+
+        if (sunsetEnabled) {
+            item { QuestRow("Digital Sunset", "Screen-free 30 min before sleep", sunsetStreak, Icons.Default.NightsStay) }
+        }
+        if (circadianEnabled) {
+            item { QuestRow("Circadian Anchor", "Consistent sleep window boundary", circadianStreak, Icons.Default.Schedule) }
+        }
+        if (movementEnabled) {
+            item { QuestRow("Movement Boost", "Daily physical step goal", movementStreak, Icons.Default.DirectionsRun) }
+        }
+        if (focusEnabled) {
+            item { QuestRow("Focus Mode", "Keep social app ratio healthy", focusStreak, Icons.Default.CenterFocusStrong) }
+        }
+
+        customHabitsList.forEach { habitStr ->
+            val parts = habitStr.split("|")
+            val title = parts.getOrNull(0) ?: "Custom Habit"
+            val desc = parts.getOrNull(1) ?: "Daily personal goal"
+            val streak = parts.getOrNull(2)?.toIntOrNull() ?: 0
+            item {
+                QuestRow(title, desc, streak, Icons.Default.Star)
+            }
+        }
+
+        // Achievement Badges & Sharing Section
+        item {
+            Text("Achievement Badges & Sharing", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+        }
+
+        items(badges) { badge ->
+            BadgeRowWithShare(badge = badge, onShare = { shareBadge(context, badge) })
+        }
+    }
+}
+
+@Composable
+fun BadgeRowWithShare(badge: BadgeEntity, onShare: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (badge.isUnlocked) MaterialTheme.colorScheme.primary.copy(0.12f) else MaterialTheme.colorScheme.surface
+        ),
+        border = BorderStroke(1.dp, if (badge.isUnlocked) MaterialTheme.colorScheme.primary.copy(0.3f) else MaterialTheme.colorScheme.outline.copy(0.1f))
+    ) {
+        Row(
+            modifier = Modifier.padding(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Icon(
+                    imageVector = if (badge.isUnlocked) Icons.Default.WorkspacePremium else Icons.Default.Lock,
+                    contentDescription = null,
+                    tint = if (badge.isUnlocked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(0.4f),
+                    modifier = Modifier.size(28.dp)
+                )
+                Column {
+                    Text(badge.badgeName, fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka)
+                    Text(badge.description, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+
+            if (badge.isUnlocked) {
+                IconButton(onClick = onShare) {
+                    Icon(Icons.Default.Share, "Share", tint = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
+    }
+}
+
+fun shareBadge(context: Context, badge: BadgeEntity) {
+    try {
+        val shareIntent = Intent("android.intent.action.SEND").apply {
+            type = "text/plain"
+            putExtra("android.intent.extra.SUBJECT", "Lumen Achievement: ${badge.badgeName}")
+            putExtra("android.intent.extra.TEXT", "🎉 I unlocked the '${badge.badgeName}' badge on Lumen! ${badge.description}")
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Share Achievement Badge"))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Cannot share badge", Toast.LENGTH_SHORT).show()
+    }
+}
+
+@Composable
+fun CreateCustomHabitDialog(
+    onSave: (String, String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var desc by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier.fillMaxWidth().padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Text(
+                    text = "Add Custom Habit Quest",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Quest Title", fontSize = 12.sp) },
+                    placeholder = { Text("e.g., Morning Meditation", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = desc,
+                    onValueChange = { desc = it },
+                    label = { Text("Description", fontSize = 12.sp) },
+                    placeholder = { Text("e.g., 10 mins quiet reflection daily", fontSize = 12.sp) },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Text("Cancel", fontFamily = Fredoka)
+                    }
+                    Button(
+                        onClick = {
+                            if (title.isNotBlank()) {
+                                onSave(title.trim(), desc.trim())
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = title.isNotBlank(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Add Habit", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    }
+                }
+            }
+        }
+    }
+}

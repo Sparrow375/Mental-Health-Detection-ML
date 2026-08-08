@@ -36,7 +36,7 @@ fun CheckInScreen() {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 24.dp, end = 24.dp, top = 24.dp, bottom = 12.dp)
+                .padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 8.dp)
         ) {
             Text(
                 text = "Lumen.",
@@ -44,7 +44,7 @@ fun CheckInScreen() {
                 fontWeight = FontWeight.Bold,
                 fontFamily = Fredoka,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(bottom = 6.dp)
+                modifier = Modifier.padding(bottom = 4.dp)
             )
             Text(
                 text = "Self Reflection",
@@ -53,23 +53,26 @@ fun CheckInScreen() {
                 fontFamily = Fredoka,
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(14.dp))
 
             TabRow(
                 selectedTabIndex = selectedTab,
-                containerColor = MaterialTheme.colorScheme.surface,
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 contentColor = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f), RoundedCornerShape(12.dp)),
                 divider = {}
             ) {
                 Tab(
                     selected = selectedTab == 0,
                     onClick = { selectedTab = 0 },
-                    text = { Text("Daily Reflection", fontFamily = Fredoka, fontWeight = FontWeight.Bold) }
+                    text = { Text("Daily Reflection", fontFamily = Fredoka, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                 )
                 Tab(
                     selected = selectedTab == 1,
                     onClick = { selectedTab = 1 },
-                    text = { Text("Monthly Screener", fontFamily = Fredoka, fontWeight = FontWeight.Bold) }
+                    text = { Text("Monthly Screener", fontFamily = Fredoka, fontWeight = FontWeight.Bold, fontSize = 13.sp) }
                 )
             }
         }
@@ -97,8 +100,8 @@ fun DailyCheckinTab(prefs: android.content.SharedPreferences) {
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(24.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp)
+        contentPadding = PaddingValues(20.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         if (isSubmitted) {
             item {
@@ -165,6 +168,14 @@ fun DailyCheckinTab(prefs: android.content.SharedPreferences) {
                         Button(
                             onClick = {
                                 prefs.edit().putString("daily_checkin_date_last", todayStr).apply()
+                                com.example.mhealth.saveCheckinToHistory(
+                                    prefs = prefs,
+                                    mood = mood.toInt(),
+                                    energy = energy.toInt(),
+                                    sleep = sleepQuality.toInt(),
+                                    anxiety = anxiety.toInt(),
+                                    note = note
+                                )
                                 isSubmitted = true
                                 Toast.makeText(context, "Check-in saved", Toast.LENGTH_SHORT).show()
                             },

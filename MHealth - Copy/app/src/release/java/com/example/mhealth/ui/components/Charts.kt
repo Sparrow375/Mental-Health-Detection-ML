@@ -72,27 +72,24 @@ fun RhythmTrendsChart(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Rhythm Trends",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "% of Personal Baseline",
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = "Rhythm Trends",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "% of Usual Norm",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     LegendItem("Rest", DimensionRestColor)
                     LegendItem("Social", DimensionSocialColor)
                     LegendItem("Movement", DimensionMovementColor)
@@ -153,7 +150,7 @@ fun RhythmTrendsChart(
                             return graphHeight * (1.0f - (clamped - 0.3f) / 1.4f)
                         }
 
-                        // Draw lines for each dimension
+                        // Draw filled area paths & lines for each dimension
                         val dims = listOf(
                             DimensionRestColor to displayList.map { it.sleepDurationHours / baseRest },
                             DimensionSocialColor to displayList.map { it.callsPerDay / baseSocial },
@@ -163,11 +160,26 @@ fun RhythmTrendsChart(
 
                         dims.forEach { (color, series) ->
                             val path = Path()
+                            val fillPath = Path()
                             series.forEachIndexed { i, ratio ->
                                 val x = paddingLeft + i * stepX
                                 val y = calcY(ratio)
-                                if (i == 0) path.moveTo(x, y) else path.lineTo(x, y)
+                                if (i == 0) {
+                                    path.moveTo(x, y)
+                                    fillPath.moveTo(x, graphHeight)
+                                    fillPath.lineTo(x, y)
+                                } else {
+                                    path.lineTo(x, y)
+                                    fillPath.lineTo(x, y)
+                                }
                             }
+                            fillPath.lineTo(paddingLeft + (count - 1) * stepX, graphHeight)
+                            fillPath.close()
+
+                            drawPath(
+                                path = fillPath,
+                                color = color.copy(alpha = 0.08f)
+                            )
                             drawPath(
                                 path = path,
                                 color = color,

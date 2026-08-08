@@ -526,8 +526,7 @@ private fun NavTile(
         Column(
             modifier = Modifier
                 .fillMaxHeight()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.SpaceBetween
+                .padding(16.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -542,21 +541,23 @@ private fun NavTile(
                     modifier = Modifier.size(20.dp)
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    lineHeight = 14.sp
-                )
-            }
+            Spacer(Modifier.height(12.dp))
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = Fredoka,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                text = subtitle,
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                lineHeight = 14.sp,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }

@@ -378,10 +378,12 @@ fun HomeScreen(
                             lineHeight = 23.sp
                         )
 
-                        // Mini Preview Chips
-                        Row(
+                        // Mini Preview Chips (FlowRow prevents character squishing on narrow screens)
+                        @OptIn(ExperimentalLayoutApi::class)
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
                             RhythmChip(label = "Sleep", status = "Aligned", color = MaterialTheme.colorScheme.primary)
                             RhythmChip(label = "Movement", status = "Steady", color = MaterialTheme.colorScheme.primary)

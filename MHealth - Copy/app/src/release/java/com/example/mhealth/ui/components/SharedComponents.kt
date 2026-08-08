@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -46,6 +47,13 @@ val Fredoka = FontFamily(
 
 val AlertWarning = Color(0xFFF59E0B)
 val AlertRose = Color(0xFFF43F5E)
+
+@Composable
+fun rememberNavBarPadding(): Dp {
+    val insets = WindowInsets.navigationBars
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    return with(density) { insets.getBottom(this).toDp() }
+}
 
 @Composable
 fun StaggeredFadeIn(

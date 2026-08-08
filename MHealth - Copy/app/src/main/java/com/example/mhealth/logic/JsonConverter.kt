@@ -129,7 +129,6 @@ object JsonConverter {
         put("upiTransactionsToday", e.upiTransactionsToday)
         put("appUninstallsToday", e.appUninstallsToday)
         put("appInstallsToday", e.appInstallsToday)
-        put("calendarEventsToday", e.calendarEventsToday)
         put("mediaCountToday", e.mediaCountToday)
         put("downloadsToday", e.downloadsToday)
         put("musicTimeMinutes", e.musicTimeMinutes)
@@ -186,7 +185,6 @@ object JsonConverter {
         upiTransactionsToday = v.upiTransactionsToday,
         appUninstallsToday = v.appUninstallsToday,
         appInstallsToday = v.appInstallsToday,
-        calendarEventsToday = v.calendarEventsToday,
         mediaCountToday = v.mediaCountToday,
         downloadsToday = v.downloadsToday,
         musicTimeMinutes = v.musicTimeMinutes,
@@ -226,7 +224,6 @@ object JsonConverter {
         upiTransactionsToday = e.upiTransactionsToday,
         appUninstallsToday = e.appUninstallsToday,
         appInstallsToday = e.appInstallsToday,
-        calendarEventsToday = e.calendarEventsToday,
         mediaCountToday = e.mediaCountToday,
         downloadsToday = e.downloadsToday,
         musicTimeMinutes = e.musicTimeMinutes,
@@ -364,7 +361,6 @@ object JsonConverter {
                 put("upiTransactions", day.upiTransactionsToday)
                 put("appUninstalls", day.appUninstallsToday)
                 put("appInstalls", day.appInstallsToday)
-                put("calendarEvents", day.calendarEventsToday)
                 put("mediaCount", day.mediaCountToday)
                 put("downloads", day.downloadsToday)
                 put("musicTimeMinutes", day.musicTimeMinutes)
@@ -419,7 +415,6 @@ object JsonConverter {
                 put("upiTransactions",     liveVector.upiTransactionsToday)
                 put("appUninstalls",       liveVector.appUninstallsToday)
                 put("appInstalls",         liveVector.appInstallsToday)
-                put("calendarEvents",      liveVector.calendarEventsToday)
                 put("mediaCount",          liveVector.mediaCountToday)
                 put("downloads",           liveVector.downloadsToday)
                 put("musicTimeMinutes",    liveVector.musicTimeMinutes)

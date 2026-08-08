@@ -13,7 +13,7 @@ Groups:
   F  Behavioural Signals        (4 features)
   G  Calendar & Engagement      (4 features)
 
-Total: 29 real-valued features per day.
+Total: 28 real-valued features per day.
 """
 
 from typing import Dict, List
@@ -77,8 +77,7 @@ FEATURE_META: Dict[str, Dict] = {
     "appUninstallsToday":    {"group": "behaviour",     "weight": 0.9, "directionality": "shrink_matters"},
     "appInstallsToday":      {"group": "behaviour",     "weight": 0.8, "directionality": "shrink_matters"},
 
-    # ── Group J: Calendar & Engagement ────────────────────────────────────
-    "calendarEventsToday":   {"group": "engagement",    "weight": 0.9, "directionality": "shrink_matters"},
+    # ── Group J: Engagement ───────────────────────────────────────────────
     "mediaCountToday":       {"group": "engagement",    "weight": 0.7, "directionality": "shrink_matters"},
     "downloadsToday":        {"group": "engagement",    "weight": 0.6, "directionality": "shrink_matters"},
     "musicTimeMinutes":      {"group": "engagement",    "weight": 0.9, "directionality": "both"},

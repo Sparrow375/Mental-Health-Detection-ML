@@ -26,9 +26,10 @@ import androidx.room.RoomDatabase
         AppSessionEntity::class,
         PersonDnaEntity::class,
         NotificationEventEntity::class,
-        DailyDnaSnapshotEntity::class
+        DailyDnaSnapshotEntity::class,
+        BadgeEntity::class
     ],
-    version = 16,
+    version = 17,
     exportSchema = false
 )
 abstract class MHealthDatabase : RoomDatabase() {
@@ -42,6 +43,7 @@ abstract class MHealthDatabase : RoomDatabase() {
     abstract fun personDnaDao(): PersonDnaDao
     abstract fun notificationEventDao(): NotificationEventDao
     abstract fun dailyDnaSnapshotDao(): DailyDnaSnapshotDao
+    abstract fun badgeDao(): BadgeDao
 
     companion object {
         @Volatile private var INSTANCE: MHealthDatabase? = null

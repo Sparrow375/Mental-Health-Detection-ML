@@ -70,7 +70,6 @@ _CAMEL_TO_SNAKE: Dict[str, str] = {
     "upiTransactionsToday": "upi_transactions_today",
     "appUninstallsToday": "app_uninstalls_today",
     "appInstallsToday": "app_installs_today",
-    "calendarEventsToday": "calendar_events_today",
     "mediaCountToday": "media_count_today",
     "downloadsToday": "downloads_today",
     "musicTimeMinutes": "music_time_minutes",
@@ -154,8 +153,7 @@ _FEATURE_STD_FLOORS: Dict[str, float] = {
     "appUninstallsToday": 0.5,
     "appInstallsToday": 0.5,
 
-    # Calendar & Engagement
-    "calendarEventsToday": 0.5,
+    # Engagement
     "mediaCountToday": 1.0,
     "downloadsToday": 0.5,
     "musicTimeMinutes": 10.0,

@@ -212,7 +212,7 @@ class L1Scorer:
                      'dailyStepCount', 'activeMinutes'],
         'sleep': ['wakeTimeHour', 'sleepTimeHour', 'sleepDurationHours',
                   'chargeDurationHours', 'daylightExposureMinutes', 'chargeRegularity'],
-        'engagement': ['calendarEventsToday', 'musicTimeMinutes',
+        'engagement': ['musicTimeMinutes',
                        'upiTransactionsToday', 'mediaCountToday', 'downloadsToday',
                        'keystrokeSpeed', 'backspaceRatio', 'scrollVelocity',
                        'appUninstallsToday', 'appInstallsToday'],

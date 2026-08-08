@@ -23,7 +23,6 @@
 
 
     <!-- ── System ────────────────────────────────────────────────── -->
-    <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
     <!-- ── Network stats (same as Settings → Data usage) ─────────── -->

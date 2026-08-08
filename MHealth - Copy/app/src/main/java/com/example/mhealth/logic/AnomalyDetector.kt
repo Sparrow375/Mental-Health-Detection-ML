@@ -20,8 +20,8 @@ private val FEATURE_META = mapOf(
     "dailyStepCount"          to 1.4f, "activeMinutes"           to 1.2f, "keystrokeSpeed"           to 1.3f,
     "backspaceRatio"          to 1.2f, "scrollVelocity"          to 1.1f, "daylightExposureMinutes"  to 1.1f,
     "chargeRegularity"        to 1.2f, "chargeDurationHours"     to 0.8f, "upiTransactionsToday"     to 1.1f,
-    "appUninstallsToday"      to 0.9f, "appInstallsToday"        to 0.8f, "calendarEventsToday"     to 0.9f,
-    "mediaCountToday"         to 0.7f, "downloadsToday"          to 0.6f, "musicTimeMinutes"        to 0.9f
+    "appUninstallsToday"      to 0.9f, "appInstallsToday"        to 0.8f, "mediaCountToday"         to 0.7f,
+    "downloadsToday"          to 0.6f, "musicTimeMinutes"        to 0.9f
 )
 
 class AnomalyDetector(
@@ -51,7 +51,7 @@ class AnomalyDetector(
             "keystrokeSpeed", "backspaceRatio", "scrollVelocity",
             "daylightExposureMinutes", "chargeRegularity", "chargeDurationHours",
             "upiTransactionsToday", "appUninstallsToday", "appInstallsToday",
-            "calendarEventsToday", "mediaCountToday", "downloadsToday", "musicTimeMinutes"
+            "mediaCountToday", "downloadsToday", "musicTimeMinutes"
         )
         features.forEach { featureHistory[it] = mutableListOf() }
 

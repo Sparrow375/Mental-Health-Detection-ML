@@ -1,5 +1,7 @@
 package com.example.mhealth
 
+import com.example.mhealth.ui.screens.*
+import com.example.mhealth.ui.components.*
 import android.Manifest
 import android.util.Log
 import android.app.Activity
@@ -311,6 +313,7 @@ fun LumenTheme(
 // =============================================================================
 enum class LumenDest(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Default.Home),
+    ACTIVITIES("Activities", Icons.Default.CheckCircle),
     INSIGHTS("Insights", Icons.Default.Timeline),
     CHECKIN("Check In", Icons.Default.Favorite),
     SETTINGS("Settings", Icons.Default.Settings)
@@ -349,22 +352,33 @@ fun LumenAppShell() {
         )
     }
 
-    LaunchedEffect(firstLoginComplete) {
-        appState = if (firstLoginComplete) LumenNavState.DASHBOARD else LumenNavState.ONBOARDING
+    val isDark = when (themeMode) {
+        "light" -> false
+        "system" -> isSystemInDarkTheme()
+        else -> true
     }
 
     LumenTheme(themeMode = themeMode) {
-        when (appState) {
-            LumenNavState.ONBOARDING -> OnboardingWizard(onComplete = {
-                appState = LumenNavState.DASHBOARD
-            })
-            LumenNavState.DASHBOARD -> MainLumenDashboard()
+        val navPad = rememberNavBarPadding()
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = navPad),
+            color = MaterialTheme.colorScheme.background
+        ) {
+            when (appState) {
+                LumenNavState.ONBOARDING -> OnboardingWizard(onComplete = {
+                    prefs.edit().putBoolean("first_login_complete", true).apply()
+                    appState = LumenNavState.DASHBOARD
+                })
+                LumenNavState.DASHBOARD -> DashboardScreen()
+            }
         }
     }
 }
 
 @Composable
-fun MainLumenDashboard() {
+fun DashboardScreen() {
     var selectedTab by remember { mutableStateOf(LumenDest.HOME) }
     val context = LocalContext.current
     
@@ -431,7 +445,12 @@ fun MainLumenDashboard() {
                 label = "TabTransition"
             ) { targetTab ->
                 when (targetTab) {
-                    LumenDest.HOME -> HomeScreen(onNavigateToCheckIn = { selectedTab = LumenDest.CHECKIN })
+                    LumenDest.HOME -> HomeScreen(
+                        onNavigateToInsights = { selectedTab = LumenDest.INSIGHTS },
+                        onNavigateToActivities = { selectedTab = LumenDest.ACTIVITIES },
+                        onNavigateToCheckIn = { selectedTab = LumenDest.CHECKIN }
+                    )
+                    LumenDest.ACTIVITIES -> ActivitiesScreen()
                     LumenDest.INSIGHTS -> InsightsScreen()
                     LumenDest.CHECKIN -> CheckInScreen()
                     LumenDest.SETTINGS -> SettingsScreen()
@@ -1897,7 +1916,6 @@ fun InsightsScreen() {
                         upiTransactionsToday = weeklyFeatures.map { it.upiTransactionsToday }.sum() / count,
                         appUninstallsToday = weeklyFeatures.map { it.appUninstallsToday }.sum() / count,
                         appInstallsToday = weeklyFeatures.map { it.appInstallsToday }.sum() / count,
-                        calendarEventsToday = weeklyFeatures.map { it.calendarEventsToday }.sum() / count,
                         mediaCountToday = weeklyFeatures.map { it.mediaCountToday }.sum() / count,
                         downloadsToday = weeklyFeatures.map { it.downloadsToday }.sum() / count,
                         musicTimeMinutes = weeklyFeatures.map { it.musicTimeMinutes }.sum() / count
@@ -7550,7 +7568,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                     put("upiTransactionsToday", day.upiTransactionsToday)
                     put("appUninstallsToday", day.appUninstallsToday)
                     put("appInstallsToday", day.appInstallsToday)
-                    put("calendarEventsToday", day.calendarEventsToday)
                     put("mediaCountToday", day.mediaCountToday)
                     put("downloadsToday", day.downloadsToday)
                     put("musicTimeMinutes", day.musicTimeMinutes)
@@ -7602,7 +7619,6 @@ private fun exportDataToUri(context: Context, uri: android.net.Uri) {
                     put("upiTransactionsToday", liveVector.upiTransactionsToday)
                     put("appUninstallsToday", liveVector.appUninstallsToday)
                     put("appInstallsToday", liveVector.appInstallsToday)
-                    put("calendarEventsToday", liveVector.calendarEventsToday)
                     put("mediaCountToday", liveVector.mediaCountToday)
                     put("downloadsToday", liveVector.downloadsToday)
                     put("musicTimeMinutes", liveVector.musicTimeMinutes)
@@ -7790,7 +7806,6 @@ private fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         upiTransactionsToday = metrics.optDouble("upiTransactionsToday", 0.0).toFloat(),
                         appUninstallsToday = metrics.optDouble("appUninstallsToday", 0.0).toFloat(),
                         appInstallsToday = metrics.optDouble("appInstallsToday", 0.0).toFloat(),
-                        calendarEventsToday = metrics.optDouble("calendarEventsToday", 0.0).toFloat(),
                         mediaCountToday = metrics.optDouble("mediaCountToday", 0.0).toFloat(),
                         downloadsToday = metrics.optDouble("downloadsToday", 0.0).toFloat(),
                         musicTimeMinutes = metrics.optDouble("musicTimeMinutes", 0.0).toFloat(),

@@ -91,6 +91,34 @@ object DataRepository {
             val profile = db.userProfileDao().getProfile(userId)
             _isDnaBaselineReady.value = (dnaEntity != null) && (profile?.dnaReady ?: false)
         }
+
+        // Badges flow and auto-seeding
+        scope.launch {
+            seedDefaultBadgesIfNeeded(db)
+            db.badgeDao().getAllBadgesFlow().collect { badgeList ->
+                _badges.value = badgeList
+            }
+        }
+    }
+
+    private val _badges = MutableStateFlow<List<com.example.mhealth.logic.db.BadgeEntity>>(emptyList())
+    val badges: StateFlow<List<com.example.mhealth.logic.db.BadgeEntity>> = _badges
+
+    private suspend fun seedDefaultBadgesIfNeeded(db: MHealthDatabase) {
+        val existing = db.badgeDao().getAllBadges()
+        if (existing.isEmpty()) {
+            val defaults = listOf(
+                com.example.mhealth.logic.db.BadgeEntity("first_step", "First Step", "Complete any habit quest for 1 day", "Beginner", false, null, 0, 1),
+                com.example.mhealth.logic.db.BadgeEntity("week_warrior", "Week Warrior", "Maintain a 7-day streak on any quest", "Consistency", false, null, 0, 7),
+                com.example.mhealth.logic.db.BadgeEntity("monthly_master", "Monthly Master", "Maintain a 30-day streak on any quest", "Mastery", false, null, 0, 30),
+                com.example.mhealth.logic.db.BadgeEntity("night_owl_reformed", "Night Owl Reformed", "14-day Circadian Anchor streak", "Sleep", false, null, 0, 14),
+                com.example.mhealth.logic.db.BadgeEntity("digital_minimalist", "Digital Minimalist", "21-day Focus Mode streak", "Digital", false, null, 0, 21),
+                com.example.mhealth.logic.db.BadgeEntity("movement_machine", "Movement Machine", "14-day Movement Boost streak", "Mobility", false, null, 0, 14),
+                com.example.mhealth.logic.db.BadgeEntity("rhythm_master", "Rhythm Master", "All 4 quests completed simultaneously for 7 days", "Mastery", false, null, 0, 7),
+                com.example.mhealth.logic.db.BadgeEntity("century_club", "Century Club", "Reach 100 total quest completion hits", "Legend", false, null, 0, 100)
+            )
+            db.badgeDao().insertAll(defaults)
+        }
     }
 
     /** Update the System 1 profile (called from NightlyAnalysisWorker after profile build). */
@@ -130,7 +158,6 @@ object DataRepository {
         upiTransactionsToday = upiTransactionsToday,
         appUninstallsToday = appUninstallsToday,
         appInstallsToday = appInstallsToday,
-        calendarEventsToday = calendarEventsToday,
         mediaCountToday = mediaCountToday,
         downloadsToday = downloadsToday,
         musicTimeMinutes = musicTimeMinutes,

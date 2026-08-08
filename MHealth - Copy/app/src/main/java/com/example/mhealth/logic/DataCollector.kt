@@ -225,8 +225,7 @@ class DataCollector(private val context: Context) : SensorEventListener {
             appUninstallsToday   = appUninstalls.toFloat(),
             appInstallsToday     = appInstalls.toFloat(),
 
-            // Calendar & Engagement
-            calendarEventsToday  = calEvents.toFloat(),
+            // Engagement
             mediaCountToday      = mediaCount.toFloat(),
             downloadsToday       = downloads.toFloat(),
             musicTimeMinutes     = musicMinutes,

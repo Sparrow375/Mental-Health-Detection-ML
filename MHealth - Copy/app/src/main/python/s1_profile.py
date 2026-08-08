@@ -31,7 +31,7 @@ FEATURE_WEIGHTS = {
     "daylightExposureMinutes": 1.1, "chargeRegularity": 1.2,
     "chargeDurationHours": 0.8,
     "upiTransactionsToday": 1.1, "appUninstallsToday": 0.9, "appInstallsToday": 0.8,
-    "calendarEventsToday": 0.9, "mediaCountToday": 0.7, "downloadsToday": 0.6,
+    "mediaCountToday": 0.7, "downloadsToday": 0.6,
     "musicTimeMinutes": 0.9,
 }
 
@@ -1117,7 +1117,7 @@ def _get_feature_group(feat: str) -> str:
         "circadian": ["daylightExposureMinutes", "chargeRegularity"],
         "system": ["chargeDurationHours"],
         "behavioral": ["upiTransactionsToday", "appUninstallsToday", "appInstallsToday"],
-        "engagement": ["calendarEventsToday", "mediaCountToday", "downloadsToday",
+        "engagement": ["mediaCountToday", "downloadsToday",
                        "musicTimeMinutes"],
     }
     for grp, feats in groups.items():

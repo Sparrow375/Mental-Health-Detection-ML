@@ -72,8 +72,7 @@ class PersonalityVector:
     appUninstallsToday: float = 0.0
     appInstallsToday: float = 0.0
 
-    # ── Calendar & Engagement ─────────────────────────────────────────────
-    calendarEventsToday: float = 0.0
+    # ── Engagement ────────────────────────────────────────────────────────
     mediaCountToday: float = 0.0
     downloadsToday: float = 0.0
     musicTimeMinutes: float = 0.0
@@ -110,7 +109,6 @@ class PersonalityVector:
             "upiTransactionsToday": self.upiTransactionsToday,
             "appUninstallsToday": self.appUninstallsToday,
             "appInstallsToday": self.appInstallsToday,
-            "calendarEventsToday": self.calendarEventsToday,
             "mediaCountToday": self.mediaCountToday,
             "downloadsToday": self.downloadsToday,
             "musicTimeMinutes": self.musicTimeMinutes,

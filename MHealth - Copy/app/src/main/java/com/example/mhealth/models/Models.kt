@@ -66,8 +66,7 @@ data class PersonalityVector(
     val appUninstallsToday: Float = 0f,
     val appInstallsToday: Float = 0f,
 
-    // ── CALENDAR & ENGAGEMENT ────────────────────────────────────────────────
-    val calendarEventsToday: Float = 0f,
+    // ── ENGAGEMENT ───────────────────────────────────────────────────────────
     val mediaCountToday: Float = 0f,
     val downloadsToday: Float = 0f,
     val musicTimeMinutes: Float = 0f,
@@ -109,7 +108,6 @@ data class PersonalityVector(
         "upiTransactionsToday" to upiTransactionsToday,
         "appUninstallsToday" to appUninstallsToday,
         "appInstallsToday" to appInstallsToday,
-        "calendarEventsToday" to calendarEventsToday,
         "mediaCountToday" to mediaCountToday,
         "downloadsToday" to downloadsToday,
         "musicTimeMinutes" to musicTimeMinutes
@@ -127,7 +125,9 @@ data class DailyReport(
     val evidenceAccumulated: Float,
     val topDeviations: Map<String, Float>,
     val notes: String
-)
+) {
+    val anomalyDetected: Boolean get() = anomalyScore > 0.38f || sustainedDeviationDays >= 3 || alertLevel != "green"
+}
 
 /** GPS fix captured every 15 min for displacement/entropy calculation.
  *  [speed] is the Doppler-measured speed in m/s from the GPS chip (0f if unavailable).

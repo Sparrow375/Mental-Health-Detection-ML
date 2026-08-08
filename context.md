@@ -9,8 +9,9 @@ This document serves as the canonical central reference and context for the Ment
 The MHealth system is designed as a **passive, risk-averse decision-support tool** to detect early warning signs of mental health disorders (depression, bipolar/BPD, and schizophrenia) using smartphone telemetry. It does not provide diagnoses; instead, it triggers **caregiver check-ins** and **in-app reflection prompts** based on robust anomaly detection and clinical prototype matching.
 
 The codebase is split into two distinct execution systems linked via a coupling adapter:
-*   **System 1 (On-Device Anomaly Detector)**: Parallel dual-layer monitoring. Runs a surface-level layer (Layer 1, 29D vector) and a micro-level layer (Layer 2, app session and notification telemetry) to compute a daily anomaly score, calibrate personal thresholds, and discover new healthy lifestyle contexts via rolling candidate windows.
+*   **System 1 (On-Device Anomaly Detector)**: Parallel dual-layer monitoring. Runs a surface-level layer (Layer 1, 28D vector) and a micro-level layer (Layer 2, app session and notification telemetry) to compute a daily anomaly score, calibrate personal thresholds, and discover new healthy lifestyle contexts via rolling candidate windows.
 *   **System 2 (Clinical Disorder Matcher)**: Diagnostic characterization pipeline. Triggered when System 1 alarms. Pre-filters transient stress via a Life Event Filter, matches deviation profiles geometrically against clinical disorder prototypes, applies expert clinical overrides, and validates classifications using temporal shape timeseries analysis.
+*   **Lumen v2.0 Release UI Architecture**: Split release UI into modular composables: `HomeScreen.kt` (Wellness Pulse, Quick Check-in), `ActivitiesScreen.kt` (Habit Quests, Badges, Wind Down, Digital Detox), `InsightsScreen.kt` (Weekly Story with visual status dots, Rhythm Trends multi-line chart, 6-axis Behavioral Radar, Curated Sectors & Sector Drill-Downs), `CheckInScreen.kt` (Daily Checkin & Monthly Screener), `SettingsScreen.kt` (Permissions, Optional Streak Reminders), supported by `SharedComponents.kt` and `Charts.kt`.
 
 ```
                        [Device Telemetry Sensors]
@@ -30,18 +31,6 @@ The codebase is split into two distinct execution systems linked via a coupling 
          ▼                      ▼             S1 Alert Threshold Triggered
      [Frame 2]              [Frame 1]               │
      Personal               Synthetic               ▼
-     Baseline               Population         [System 2: Disorder Matcher]
-     Anchored               Anchored          ├── Life Event Filter (Stage 0)
-         │                      │             ├── Frame Selector (Gate Outcome)
-         └──────────┬───────────┘             ├── Prototype Matcher (Euclidean/Cosine)
-                    │                         ├── Clinical Guardrails Overrides (Persistence Gated)
-                    ▼                         ├── Temporal Shape Validator (Autocorr/Drift)
-              Disorder Match                  └── Explainability Narrative & Radar
-```
-
----
-
-## 2. Core Telemetry: The 29-Feature Personality Vector
 
 Telemetry features are gathered on-device and mapped directly to a 29-dimensional vector, grouped as follows:
 
@@ -541,4 +530,208 @@ To maintain compatibility and cross-platform scoring alignment, the telemetry ve
     2. **Internet Permission & WebView Diagnostics**: Added `<uses-permission android:name="android.permission.INTERNET" />` to the debug-only manifest (`app/src/debug/AndroidManifest.xml`) to keep the release/production build 100% offline. Added robust error logging (`onReceivedError`, `onReceivedHttpError`), base URL alignment to CDN origin, static HTML loading state UI, and direct JS error reporting alerts (`window.onerror`) inside `MapPickerDialog` for real-time debugging.
     3. **Debounced Search Autocomplete Suggestions**: Embedded a dynamic typeahead autocomplete dropdown below the map search input utilizing the Nominatim Search API. Employs a 400ms input debouncer to restrict API query rates and prevent server-side spam/blocks. Uses dynamic map bounds viewport viewboxes to prioritize local suggestions based on proximity, and auto-dismisses the dropdown overlay when a search is triggered or a suggestion is picked.
     4. **CI Workflow Build Target Filters**: Configured custom `workflow_dispatch` checkbox input options (`build_debug`, `build_release`) and automatic path filtering logic in `android.yml` to selectively build and release only modified variants (e.g. skipping time-consuming release compiles if only debug source trees are edited).
+Following an architectural deep dive, the finalized blueprints for the core processing engines of System 1 have been established:
+
+### 8.1 Onboarding & Archetype Discovery
+*   **Parallel Dimensionality Reduction**: L1 (29D) and L2 (22D) are reduced independently to 3D/4D principal component spaces via **PCA** to capture maximum behavioral variance while resolving the curse of dimensionality.
+*   **Parallel Archetype Discovery**: Run **Mean Shift Clustering** independently on L1 and L2 PCA projections. The density bandwidth is set adaptively based on the baseline variance of the principal components, discovering unique anchor clusters for macro (L1) and micro (L2) behaviors separately.
+
+### 8.2 Two-Pass Daily Scoring Pipeline
+1.  **Pass 1: Layer 1 (Surface)**:
+    *   Compute magnitude and EWMA velocity of today's L1 vector against the Golden L1 Baseline to output a raw L1 anomaly score.
+    *   Evaluate distance to nearest L1 anchor cluster centroid. If within $1.5\times$ radius, apply **Radial Proximity Decay** (closer to centroid = larger reduction, down to near 0).
+2.  **Pass 2: Layer 2 (Micro)**:
+    *   Compute magnitude and EWMA velocity of today's L2 vector against the Golden L2 Baseline to output a raw L2 anomaly score.
+    *   Evaluate distance to nearest L2 anchor cluster centroid. If within $1.5\times$ radius, apply **Radial Proximity Decay** to smoothly suppress micro-anomaly.
+3.  **Fusion & Thresholding**:
+    *   Fuse L1 and L2 adjusted scores using a **Weighted Geometric Mean** ($\text{Score} = S_1^{0.6} \times S_2^{0.4}$).
+    *   If the fused score exceeds `ANOMALY_SCORE_THRESHOLD` (e.g., 0.38), increment `sustained_days`.
+
+### 8.3 Post-Filter: Cluster-Non-Formation (Sustained Anomaly Check)
+*   **Variance-Bounded Compactness Test**: When consecutive anomalous days reach $N$ days (e.g., 5–10 days), evaluate their compactness in the L1 and L2 PCA spaces:
+    *   If maximum pairwise distance and standard deviations are **below the average baseline cluster radii**, the anomalous period forms a tight, stable group ──► **Promote as New Context** (suppress alert, merge these days into the Golden Baseline as a new healthy lifestyle context).
+    *   If the anomalous period is **scattered and chaotic** (fails compactness test), it indicates a disorganized clinical onset ──► **Flag user/caregiver** as a high-probability depressive episode.
+
+---
+
+### Update Log Additions
+*   **2026-06-04**: Completed release build 8-point enhancement and fix implementation:
+    1. Fixed the critical onboarding-skipping bug in `DataRepository.saveUserProfile()` by removing first-login-complete flag triggers and creating a dedicated `completeOnboarding()` method called in Step 11 "Start My Journey".
+    2. Overwrote launcher icons with the new `logo.png` scaled across all density mipmap buckets.
+    3. Re-registered the `MHealthAccessibilityService` in `AndroidManifest.xml` and rebranded its label dynamically to "Lumen. Interaction Dynamics". Aligned notification channel names, titles, and icons inside `MonitoringService.kt` to dynamically use "Lumen" branding and the custom launcher logo.
+    4. Added accessibility checks and disclosure dialogs to Step 7 (Permissions) and SettingsScreen.
+    5. Upgraded screen headers and buttons to `FontWeight.ExtraBold` typography.
+    6. Relaxed the Insights gate to show provisional rhythm charts from Day 2 onwards using a progressive average baseline.
+    7. Refactored JSON backup export/import to append and restore `dna_profile` and `onboarding_calibration` configurations.
+    8. Removed the redundant `isStudent` toggle in demographics (Step 2) in favor of the profession dropdown, and expanded Step 4 with 4 new sliders.
+    9. Fixed a compilation error in release `MainActivity.kt`'s backup import logic where `PersonDnaEntity` instantiation had incorrect constructor fields and targeted a non-existent `upsert()` DAO method (changed to `insert()`).
+*   **2026-06-04**: Fixed dark mode text visibility issues, simplified onboarding sleep questions, and enhanced Lumen branding:
+    1. **Text Visibility Fix**: Wrapped the core `LumenTheme` inside a root `Surface` setting `color` to `colorScheme.background` and `contentColor` to `colorScheme.onBackground`. This automatically propagates correct text color styles to standard Text views, resolving the dark mode illegibility bug.
+    2. **Onboarding Simplification**: Removed the redundant "Typical Wake Time" slider from step 3 of the onboarding wizard (reducing sleep-related questions to one Typical Sleep Time slider). Saved a default value of `7.0f` for `user_typical_wake` in SharedPreferences to maintain backend telemetry database consistency.
+    3. **Bold Font Synthesis**: Corrected the `Fredoka` `FontFamily` declaration to only map the `Normal` font weight. This enables Jetpack Compose to dynamically synthesize bold, extra-bold, and black weights, fixing the normal-only font rendering issues.
+    4. **Lumen Branding Badges**: Injected a premium, subtle 'Lumen.' branding text header using titlecase Fredoka font above the titles of all four primary screens (Home, Insights, Check In, Settings) to establish a cohesive brand identity aligned with the official logo.
+    5. **Removed Cove references**: Renamed the main app name string from "Cove" to "Lumen" in `app/src/main/res/values/strings.xml` to eliminate any residual Cove references in accessibility settings and notifications.
+    6. **Monthly Check-in Cooldown Fix**: Keyed `cooldownDays` memory with `activeWizard` in `MonthlyCheckinTab` and reordered the declarations, so that the assessment cooldown screen displays immediately upon questionnaire submission instead of showing the screen refreshed/available again.
+*   **2026-06-27**: Conducted comprehensive 30-day deep dive analysis of Lumen test data from 4 distinct users (Avaneesh, Mohith, Nitish, Sriram) across both dev and user builds. Key findings:
+    1. **Hypothesis Validated**: Layer 2 correctly suppresses scores on familiar/cluster-matched days (modifier 0.15–0.47) while allowing genuine novel patterns through unchanged. Life events affect L1 only and get suppressed by L2; Mohith's 12-day sustained elevated signal (evidence 8.57, oscillating between healthy and bipolar_depressive prototypes) represents a potentially genuine clinical signal.
+    2. **CRITICAL — Circadian Telemetry Math Bugs**: Discovered two massive math bugs in time tracking:
+        - **Circular Z-Score Explosion Bug**: In Python's `L1Scorer.calculate_deviation_magnitude`, simple linear subtraction `(current_val - baseline_val) / variance` is used for `sleepTimeHour` and `wakeTimeHour`. When Sriram slept earlier (11:50 PM instead of baseline 2:10 AM), it calculated a raw linear difference of 21.65 hours instead of the true circular distance of -2.35 hours, triggering false +8.80 SD anomalies and generating false sustained yellow alerts.
+        - **Noon-Offset Boundary Average Bug**: In Kotlin's `buildBaseline`, a static noon offset is used to normalize circular features before averaging. Since Sriram woke up around noon, the boundary split values into 0.0 and 23.0, yielding a linear average of 11.5 (de-normalized to 10:55 PM raw wake time instead of 10:05 AM).
+        - **Proposed Fixes**: Implement circular difference `((diff + 12.0) % 24.0) - 12.0` in Python scoring, and vector average math (sine/cosine summation) in Kotlin baseline building.
+    3. **CRITICAL — User Build Telemetry Blackout**: Discovered that 9+ critical features (screenTimeHours, unlockCount, appLaunchCount, notifications, socialAppRatio, calls, sleepDuration, uniqueContacts) are permanently zero in the user build across ALL 25 days of data. Root cause: `PACKAGE_USAGE_STATS` permission not granted, and `READ_CALL_LOG` stripped from release build. This means Insights tab shows flat lines and anomaly scores are meaningless.
+    4. **CRITICAL — User Build Baseline Contamination**: Baseline built on Day 1 with `std=1.0` for all 30 features (universal default fallback). Combined with zero telemetry, this produces constant ~0.39–0.45 scores and false evidence accumulation reaching 8.95, triggering midnight red alert notifications that are complete false alarms.
+    5. **Score Staleness Bug**: Anomaly scores only refresh at midnight via NightlyAnalysisWorker or on manual Soft Reset. Proposed fix: schedule automatic re-scoring every 4-6 hours during the day.
+    6. **Session Incoherence Dead Signal**: Session incoherence contributes 0.0 across all users and all days. The abandon rate, duration collapse, and trigger shift sub-signals have thresholds that are too loose to ever trigger.
+    7. **User Build L2 DNA Completely Dead**: 0 L2 clusters, 0 texture profiles, 0 app DNA profiles in user build (vs 5-10 clusters and 50 app profiles in dev build) because no app session data is being collected.
+    8. **Dev Build Export Missing Fields**: Dev build detailed dump does not include effectiveScore, l2Modifier, coherence, rhythmDissolution, or sessionIncoherence in analysis_reports. Only user backup format exports these.
+*   **2026-06-27 (Present)**: Implemented full fixes for all critical circadian math, user build telemetry blackout, and baseline calibration bugs:
+    1. **Circadian Math Fixes**: Swapped linear subtraction for circular difference `((diff + 12.0) % 24.0) - 12.0` in Python `L1Scorer.calculate_deviation_magnitude()`. Replaced noon-offset linear average in Kotlin's `buildBaseline()` with proper circular vector averages (sine/cosine summation) and circular standard deviation calculations. Fixed Python's Bayesian NIG updates to map circular inputs to a continuous unwrapped scale during conjugate additions and modulo-24 outputting.
+    2. **User Build Telemetry Setup**: Integrated checks, Prominent Disclosures, and setting redirections for `PACKAGE_USAGE_STATS` (Usage Stats permission) in the release onboarding wizard Step 7 and Home screen setup reminder checklist.
+    3. **Baseline Contamination Fix**: Gated baseline persistence to require `collectedDailyVectors.size >= 7` complete days before auto-establishing.
+    4. **False Alarm Blackout Guard**: Added a guard in Python's `detector.py` that checks for telemetry blackout (when screenTime, unlocks, appLaunches, notifications, and socialRatio are all 0.0). If true, it forces `alert_level = 'green'`, decays evidence state, and overrides notes with a warning message ("Limited data (telemetry permissions missing)").
+    5. **Insights Real-time Refresh**: Integrated `DataRepository.updateWeeklyFeatureHistory(weeklyVectors)` inside `MonitoringService.kt` `runTick` to update weekly histories in real time on every tick, resolving the flat/stale Insights tab bug.
+    6. **Release Settings Reset Parity**: Exposed "Soft Reset" and "Clear All Data" (Hard Reset) with auto-backup confirmations inside the release Settings screen, matching debug build parity.
+    7. **Build Variant Fixes**: Added missing `android.util.Log` import to release `MainActivity.kt` to resolve compiler errors, and removed build conditionals from `.github/workflows/android.yml` to guarantee both user (release) and dev (debug) APKs/AABs compile and upload on every push.
+*   **2026-06-30**: Refined the Lumen onboarding experience to pivot the application from a clinical tool to an intuitive wellness-focused platform:
+    1. **Lifestyle Slider Refinement**: Refactored the `LifestyleSlider` to replace 1–5 numerical scales with descriptive qualitative labels ("Not Very Much", "Slightly", "Somewhat", "A Lot", "Very Much").
+    2. **Jargon Sanitization**: Cleansed the onboarding text, descriptions, reset dialogs, and setup screens of all technical/clinical terminology (e.g. "model weights calibration", "Digital DNA", "calibration", "sensitivities").
+    3. **Permission Flow Optimization**: Moved the conditional disclosure dialog overlays outside the LazyColumn list builder in Step 7 of `OnboardingWizard` to eliminate layout re-composition lag.
+    4. **Daily and Monthly Check-in Notifications**: Integrated background check-in notification prompts inside `MonitoringService.kt` `runTick` to notify users daily (after 7 PM if unchecked) and monthly (after 12 PM when due) if permitted.
+    5. **Concise Assessments**: Shortened the PHQ-9 and GAD-7 screener questionnaires to the first 2 questions (PHQ-2 and GAD-2) in both onboarding and monthly check-ins, scaling the sums to the standard 0-27 and 0-21 ranges for backend compatibility.
+    6. **Google Play Policy Compliance**: Removed unused `READ_EXTERNAL_STORAGE`, `READ_MEDIA_IMAGES`, and `READ_MEDIA_VIDEO` permissions from `AndroidManifest.xml`, `release/MainActivity.kt`, and `debug/MainActivity.kt` to comply with Google Play guidelines regarding infrequent media access.
+
+*   **2026-07-01**: Addressed Google Play Store Accessibility Service policy compliance:
+    1. **XML Config Description**: Configured `android:description="@string/accessibility_service_description"` in `accessibility_service_config.xml` to provide the required user-visible disclosure in system settings.
+    2. **Disclosures & Explanations**: Added a clear string translation in `strings.xml` explaining what the service measures (typing speed, deletion counts, and scroll velocity), and verifying that it does not read, record, or store any text content or sensitive fields (such as passwords), and that all processing is 100% local.
+*   **2026-07-04**: Formulated the iOS migration and technical feasibility strategy. Analyzed strict iOS background sandboxing limitations (no custom background services, accessibility observers, or notification listener hooks) and mapped out feature workarounds (CoreMotion pedometer buffering, CoreLocation SLC, and HealthKit sleep profiles). Drafted the Swift-native translation roadmap for the mathematical ML engine to avoid dynamic Python package rejections.
+
+---
+
+## 9. Future Direction: Wellness & Self-Reflection Pivot
+
+To increase user engagement and ease regulatory boundaries, Lumen is pivoting from a passive clinical-diagnostic alert system to an active-passive hybrid **self-reflection and wellness coaching platform**.
+
+### 9.1 Pivot Design Pillars
+*   **Dual-Core Functionality**:
+    *   *Passive (Silent Shield)*: Systems 1 & 2 run unobtrusively on-device to build baselines and track anomalies. Instead of triggering clinical alerts or alarms, this data runs a contextual reflection trigger engine.
+    *   *Active (Mindful Reflection)*: High-engagement user-facing tasks (box breathing, journaling, cognitive reframing prompts, lifestyle goals) that keep the user coming back daily.
+*   **Biofeedback-Driven Journaling (Contextual Prompts)**:
+    *   Rather than standard daily mood check-ins, the app leverages passive telemetry to offer personalized reflection prompts.
+    *   *Example*: If screen time is abnormally high and sleep onset is delayed, the app prompts: *"We notice your evening digital wind-down was shorter yesterday. How did that affect your morning focus? Let's take a minute to reflect."*
+*   **Passive-Active Closed Loop Habits**:
+    *   Users opt-in to wellness habits (e.g., "Digital Balance", "Circadian Anchor", "Activity Restoration").
+    *   The app passively monitors adherence (using physical steps, screen time, charging habits) and updates active milestones, providing gamified positive reinforcement without requiring manual logs.
+*   **Aggregated B2B Burnout Insights**:
+    *   To target the corporate wellness market (inspired by MindPeers), Lumen will offer an organization-level dashboard summarizing anonymous wellness and focus trends (e.g., team sleep stability, average notification load) while strictly guaranteeing individual employee telemetry remains isolated and secure on-device.
+
+---
+
+## 10. iOS Architecture & Feasibility Strategy
+
+Due to the iOS sandbox design and strict privacy features, reproducing the full 29-feature Android telemetry vector is not possible. The following architectural constraints and implementation guidelines define the iOS version of Lumen:
+
+### 10.1 Key iOS Constraints
+1.  **Zero Accessibility Observers**: Apple blocks third-party applications from observing keystrokes, scroll speeds, or notification counts from other apps. Interaction dynamics features are unavailable.
+2.  **No Notification Listening**: There is no iOS equivalent to Android's `NotificationListenerService` to count notification badges or events globally.
+3.  **No Global Screen/App Usage Stats**: The Screen Time API (`FamilyControls`) is gated behind Apple's manual approval process. Without it, the app cannot trace other app launches or usage categories.
+4.  **No Call or SMS Logs**: Access to raw communication events is completely blocked by the system sandbox.
+
+### 10.2 Recommended Feature Adaptation
+To maintain compatibility and cross-platform scoring alignment, the telemetry vector should be adapted to a subset of 10–12 features available on both platforms:
+*   **CoreMotion**: Collect steps, pace, active minutes, and activity type (walking vs. stationary vs. driving). The M-series coprocessor buffers this for up to 7 days, eliminating the need for continuous background execution.
+*   **CoreLocation**: Use Significant Location Changes (SLC) and region geofencing (home/work boundaries) to track displacement, location entropy, and home time ratio with minimal battery drain.
+*   **HealthKit**: Request permissions to read sleep duration, sleep efficiency, and biometric signals (heart rate variability, resting heart rate) to populate the sleep and physiological indicators.
+*   **EventKit & Photos**: Query calendar engagement events and count daily media additions.
+
+### 10.3 Swift-Native ML Porting
+*   **No Python Interpreter**: Do not embed Python (via Pyto/Chaquopy wrapper) on iOS due to bundle size limits and App Store execution policy risks.
+*   **Swift Translation**: The mathematical functions of System 1 (z-score, EWMA velocity, L2 suppression) and System 2 (weighted cosine similarity, Euclidean sign penalties, temporal shapes) should be ported directly to Swift.
+*   **Accelerate Framework**: Use Apple's native `Accelerate` (vDSP/BLAS) framework for high-performance matrix and vector math.
+*   **Mean Shift**: Implement the PCA + Mean Shift clustering in Swift (~100 lines) using standard linear algebra helpers.
+*   **2026-07-09**: Designed and implemented the Wellness Insights & Self-Reflection Overhaul (Lumen Insights Pivot):
+    1. **Unlimited Check-in History**: Uncapped check-in history storage by removing the 7-entry limitation from `saveCheckinToHistory()`.
+    2. **Self-Reflection & Journaling**: Integrated an optional multi-line journal note input field into the `DailyCheckinTab` and stored notes in the check-in history JSON.
+    3. **GPS Coordinates Disclosure Mitigation**: Integrated reverse-geocoding (extracting city/district) in both `SettingsScreen` and `HomeScreen` using the native Android `Geocoder` class to replace displaying raw latitude/longitude coordinates.
+    4. **Contextual Home Screen Prompts**: Added a sector-aware "Contextual Observation" prompt system on the Home screen that dynamically evaluates the user's latest sleep, activity, digital usage, and mobility metrics against their historical averages, replacing generic status cards.
+    5. **Rhythm Consistency Chart Overhaul**: Replaced the previous circular progress rhythm gauge with an interactive, modern composite consistency bar chart featuring a gradient fill, day-of-week labels, and a clear composite score.
+    6. **Unified Behavioral & Reflection Timeline**: Built a unified chronological timeline on the Insights tab combining behavioral anomalies/observations and check-in history with journal note reflection markers.
+    7. **Interactive Per-Sector Detail Screens**: Added detailed per-sector sheets (Sleep, Activity, Digital, Mobility) accessible from insights cards, displaying interactive line charts with baseline references.
+    8. **Daylight & Charging Insights**: Implemented specific analysis cards for daylight exposure minutes and charging habits consistency.
+    9. **Mood × Behavior Correlation Insights**: Added analysis cards detailing correlations between check-in scores (mood/stress) and passive telemetry metrics (e.g., step count vs. mood, screen time vs. stress).
+    10. **Milestones & Personal Achievements**: Added a dynamic weekly milestones celebration card to the Home screen (e.g., sleep regularity streak, digital detox success, steps achievement).
+    11. **Automated MediaStore Downloads Backups**: Implemented daily automatic backups in `NightlyAnalysisWorker` using the Android `MediaStore` downloads API to store backups in the public Downloads directory without needing runtime permissions.
+    12. **Weekly Sunday Evening Notifications**: Configured `MonitoringService` to issue weekly qualitative wellness summary notifications on Sunday evenings, with direct deep-linking navigation to the Insights tab in both release and debug variants.
+    13. **Refined Insights & History UX**: Cleaned up the overcrowding on the Insights tab by removing rhythm context. Shifted all check-in journal histories and notes exclusively to the dedicated "Overall Rhythm" screen. Enhanced the per-sector line charts with dashed grid lines, a baseline threshold marker, proper Y-axis scales, and dates/day labels on the X-axis, followed by list of raw daily numeric value items.
+    14. **Check-in Stress Inversion Fix & Home Screen Polish (2026-07-09)**:
+        * **Inversion Correction**: Fixed the daily check-in calmness/anxiety rating inversion in `JournalEntryCard` (value 5 now maps correctly to "Calm / Relaxed" and value 1 to "Severe Stress").
+        * **Completed Check-in Dismissal**: Dynamically dismiss the "How are you feeling" check-in prompt on the Home screen once logged today (hiding it completely from the home screen layout).
+        * **Rhythm Consistency Graph Restore**: Restored the `QualitativeTrendChart` graph preview within the Rhythm Consistency card (renamed from Circadian Rhythm Consistency to represent overall behavioral patterns rather than sleep cycle) directly on the Insights tab, while maintaining its clickability to open the detailed `RhythmDetailScreen`.
+        * **Guided Box Breathing**: Added an interactive "Mindful Breathing Pause" card on the Home Screen featuring a 1-minute guided box breathing exercise (4s inhale, 4s hold, 4s exhale, 4s hold) using smooth scaling circles and real-time visual step-by-step guidance.
+        * **Daily Focus & Wisdom**: Integrated a rotating "Daily Focus" mindfulness quote/affirmation card on the Home Screen.
+        * **Today's Telemetry Snapshot**: Added a "Today's Routine Snapshot" card displaying current Sleep, Steps, and Screen Time side-by-side (without showing baseline targets).
+*   **2026-07-11**: Conducted comprehensive release build readiness audit for open testing. Key findings:
+        1. **Call Logs Bug**: `READ_CALL_LOG` permission intentionally stripped from release manifest (Google Play policy). `DataCollector.kt` still queries `CallLog.Calls.CONTENT_URI` which silently returns empty cursors → 4 communication features permanently zero in release. Proposed dialer-app-launch proxy as interim fix.
+        2. **Pivot Proposal Scorecard**: ~60% implemented (passive sensing, breathing, check-ins, insights, encrypted export, helplines, milestones). Missing: passive-verified habits, educational micro-learnings, Shield Mode, biofeedback journal prompts, B2B dashboard.
+        3. **Anonymous Research System Design**: Proposed on-device anonymization pipeline (PII stripping, GPS rounding, app name→category, differential privacy noise) with user-initiated Android Share Sheet export after 30 days. No background uploads, no server, preserves local-only constraint.
+        4. **ML Backend Showcase Strategy**: Proposed "Rhythm Consistency" gauge (inverted anomaly score), 6-axis "Behavioral Fingerprint" radar chart, and "Pattern Stories" narration engine to surface ML insights in non-clinical language.
+        5. **Missing Data Sectors**: Identified 5 collected-but-not-displayed sectors (Interaction Dynamics, Charging Patterns, Daylight, Transaction Activity, Daily Engagement). Interaction Dynamics (keystroke speed, backspace ratio, scroll velocity) flagged as highest priority.
+        6. **Insight Card Transformation**: Proposed evolution from raw statistics to reflective, contextual insights with actionable suggestions and sparkline trends.
+        7. **Feature Roadmap**: 13 features prioritized across P0-P3 tiers. Minimum viable for open testing (P0+P1) estimated at ~5 days. Full roadmap ~15-17 days.
+*   **2026-07-10 (Google Play Store Location Compliance)**:
+    1. **Prominent Location Disclosure Dialog**: Rewrote the prominent location disclosure in `LocationDisclosureDialog` to meet Google Play Console requirements, explicitly highlighting that the app collects background location data "even when the app is closed or not in use" and detailing the specific features powered by this data (displacement distance, location entropy, and home time ratio).
+    2. **Gated Consent In-App Placement**: Intercepted the location permission triggers in release onboarding Step 6 (Home Location Capture) and the release Settings screen row to guarantee that the Prominent Disclosure Dialog is displayed immediately before triggering the system runtime permission dialog.
+    3. **Startup Permission Prompt Removal**: Removed the automatic, un-disclosed multiple permission request launcher from the main dashboard launch in `MainLumenDashboard()`, replacing it with passive checks and runtime service triggers.
+    4. **Debug Variant Parity**: Brought the debug build's `MainDashboard` into parity by implementing the same location disclosure check and intercepting the startup permission request dialog.
+*   **2026-07-11 (Release Readiness, ML UI Overhaul & Critical Release Fixes)**:
+    1. **Interaction Dynamics (T35)**: Integrated keystroke speed, backspace frequency, and scroll velocity into the Insights detail graphs, allowing users to trace typing and scrolling cadence trends.
+    2. **Daylight & Charging Rhythm Sectors (T36)**: Added analysis cards and descriptions details for daylight exposure minutes and charging boundary consistency.
+    3. **Qualitative Narrative Evolution (T37)**: Substituted clinical diagnostics labels with warm, reflective, wellness-focused descriptions on all insights cards.
+    4. **Rhythm Consistency Gauge (T39)**: Introduced an animated Canvas circular gauge displaying Rhythm Consistency (inverted anomaly score) alongside qualitative coherence indicators ("Highly Coherent", "Stable", "Adapting Pacing").
+    5. **Behavioral Fingerprint 6-Axis Radar Chart (T40)**: Designed and drew a custom Canvas radar chart mapping Rest, Mobility, Social Connection, Digital Focus, Daylight Sync, and Key Cadence coordinates relative to baseline.
+    6. **Event Annotation Timeline (T38)**: Built a timeline list with "Annotate" edit features, allowing users to save custom reflection notes (stored locally in SharedPreferences check-in history) for daily rhythm shifts.
+    7. **Wisdom Focus Quotes (T41)**: Expanded the Daily Focus quote list to 26 items across Stoicism, Self-Compassion, Mindfulness, Circadian Rhythms, and Science.
+    8. **Enhanced Monthly Screener & Reflection Log (T42)**: Expanded the monthly check-in questions to a comprehensive 5-question layout for both PHQ-9 and GAD-7, appended a qualitative monthly reflection wizard step, and added a historical scrollable reflection cards registry on the cooldown screen to track long-term trends.
+    9. **Dialer Call Log Proxy (T31)**: Modified `DataCollector.kt` to extract communication metrics directly from foreground app launches of dialers (`com.samsung.android.dialer`, `com.google.android.dialer`, `com.android.dialer`, `com.truecaller`), active call screens (`com.samsung.android.incallui`, `com.android.phone`), and dialer notifications, unblocking relational metrics in release builds.
+    10. **Client-Side Force App Update (T32)**: Verified the implementation of Google Play In-App Updates API (Immediate flow) in `MainActivity.onCreate()` and `onResume()` of the release build.
+    11. **Non-Dismissible Permission Banner (T33)**: Verified that the dashboard monitors critical permissions (GPS Location and Usage Stats) and shows a persistent warning banner that disables the dismiss button until the user grants them in system settings.
+*   **2026-07-11 (Phase 3: P2 Engagement & Anonymization)**:
+    1. **Passive-Verified Habit Goals (T43)**: Integrated Active Habit Quests (Digital Sunset screen time limit, Circadian Bedtime Anchor, Movement Steps Boost, and Focus Social App Ratio) with streak counters, progress visualizers, and a customization settings dialog, visible directly on the Home Screen below the Breathing card.
+    2. **Pattern Stories Narration Engine (T44)**: Developed a paragraph-length behavior narration engine in `generateBehavioralSummary()` which dynamically compiles multi-dimensional deviations (such as circadian shifts, activity dips, and communication drops) into a cohesive "Your Rhythm Story" card on the Home Screen.
+    3. **Weekly Digest Report Card (T45)**: Designed a "Weekly Digest Report Card" on the Insights tab that triggers a full-screen detailed summary showing circadian & activity balance percentages, weekly highlights, watch items, and a qualitative note reflection input field.
+    4. **Anonymous Research Contribution (T46)**: Built an on-device data export pipeline that strips all PII (email, coordinates, names) and timeline timestamps, perturbs step counts (+/- 150) and screen times (+/- 10 mins) for differential privacy, and formats the telemetry history into an anonymized JSON payload to be shared via the standard Android Share Sheet, prompted automatically after a 30-day post-install milestone.
+    5. **CI/CD Build Fix**: Removed local-machine hardcoded Java home settings (`org.gradle.java.home=F:/Avaneesh/Programs/Android/jbr`) from the project-level `gradle.properties` to fix GitHub Actions cloud builds. Relocated these settings to the local machine's global user-level Gradle properties file (`C:\Users\Avaneesh\.gradle\gradle.properties`) to preserve seamless local builds.
+*   **2026-07-11 (Phase 3: P3 Polish & Delight - Wind-Down, Detox, and Mood Correlations)**:
+    1. **Wind-Down Companion (T47, T57)**: Implemented toggleable wind-down card on Home Screen with bedtime anchor tracking. Built immersive `WindDownOverlay` full-screen dialog with a slow Lotus breathing widget (`CalmLotusPulse`), reflection/worries journal logger, and circadian tips.
+    2. **Digital Detox Timer (T48, T58)**: Designedconfigurable digital detox timer selector (15m, 30m, 45m, 60m) and full-screen `DigitalDetoxTimerOverlay` showing progress and remaining duration. Dynamic `BroadcastReceiver` tracks screen-on/user-present actions to interrupt session, updates streak count, and registers system notifications.
+    3. **Mood × Behavior Correlation Cards (T49, T59)**: Refactored card into a robust multi-metric dashboard linking step count, sleep duration, and digital screen time against subjective mood check-ins. Added fallback cards for sparse data (< 5 entries) with clear explanations.
+    4. **Integration & Layout**: Injected new companion and detox cards dynamically inside `HomeScreen`'s `LazyColumn` right after the `HabitQuestsSection`. Sequentialized staggered fade-in animations to avoid overlaps. Fixed a missing nativeCanvas import compilation issue. Verified 100% clean builds for both debug and release variants.
+*   **2026-07-11 (Sprint: Adaptive Wellness & Bug Fixes)**:
+    1. **Nav-Bar Inset Fix (T-A)**: Added `rememberNavBarPadding(): Dp` helper composable that reads the real navigation bar height from the host `Activity`'s `rootWindowInsets` decor view (using API 30+ `WindowInsets.Type.navigationBars()` with legacy fallback). Applied to all 5 full-screen Dialogs: `FullScreenBreathingScreen` setup mode, `FullScreenBreathingScreen` active mode, `WeeklyDigestDialog`, `WindDownOverlay`, and `DigitalDetoxTimerOverlay`. Root cause: inside a `Dialog` window with `decorFitsSystemWindows=false`, `navigationBarsPadding()` resolves to 0 because the dialog's own window does not receive insets from the host window.
+    2. **Share Feedback Button (T-B)**: Added a tappable "Share Feedback" card to `SettingsScreen` (release build) placed above "Privacy Policy & Terms". Uses `Intent.ACTION_SENDTO` with `mailto:` URI pointing to `support@lumenapp.health`. Falls back to a `Toast` message if no email client is installed.
+    3. **Insight Tracking Status Indicators (T-C)**: Added permission-aware sub-notes beneath the **Relational Frequency** and **Interaction Tempo & Cadence** insight cards. Uses `MHealthNotificationListenerService.isServiceEnabled()` and `MHealthAccessibilityService.isServiceEnabled()` to detect whether each service is active, then renders an actionable message (⚠ permission off → enable instructions; 📡 service on but 0 data → reassure user data will accumulate with usage).
+    4. **Adaptive Wind-Down Baseline (T-D)**: Replaced the hard-coded `23f` (11 PM) sleep target in `WindDownCompanionCard` with an adaptive computation. Logic: (a) if the user has explicitly set a `habit_circadian_anchor_target` in Habit Goals, use that; (b) otherwise parse the last 14 days of `checkin_history` JSON from SharedPreferences, extract `sleep_time` entries, and average them if ≥ 3 entries exist; (c) fall back to 23.0h for new users with insufficient data. The card subtitle text adapts: "Your personal baseline: HH:MM. Lumen calculated this from your recent sleep patterns — it adapts as your routine evolves." vs. the default "Target bedtime: HH:MM." message.
+    5. **Build Status**: `assembleRelease` → **BUILD SUCCESSFUL** (4m 30s, 0 errors, 1 deprecation warning in `MHealthDatabase.kt` — pre-existing, unrelated).
+    6. **Debug Variant**: Confirmed debug `MainActivity.kt` is a 3129-line developer panel that does not include the full UI overlay composables — all changes are correctly isolated to the release build only.
+*   **2026-07-12 (Sprint: Pilot Readiness Adjustments)**:
+    1. **Interaction Tempo Graphs Fix (T60)**: Added missing mappings for `keystrokeSpeed`, `backspaceRatio`, and `scrollVelocity` to `getFeatureValueFromEntity()` inside release `MainActivity.kt` to resolve the zero-graph issue.
+    2. **Research Share Redirection (T61)**: Swapped out the failing raw json `ACTION_SEND` intent inside `ResearchContributionDialog` with an external browser `ACTION_VIEW` intent directed at the official research questionnaire Google Form URL.
+    3. **Detox Interrupted Warn Banner Dismiss (T62)**: Integrated a Close/Dismiss button into `DigitalDetoxCard` that updates `detox_interrupted` to false in SharedPreferences and triggers dynamic layout recomposition.
+    4. **Rhythm Score Deviation Smoothing (T63)**: Clamped maximum individual feature deviations in `safeDev()` to `2.0f` to prevent single-feature outliers from dominating the average score. Raised the minimum scale floor of `callsPerDay` in all 4 occurrences from `1f` to `3f` to reduce score volatility from dialer telemetry anomalies.
+    5. **Manual Location Entry Options (T64)**: Temporarily added manual coordinates text inputs, which were subsequently removed in release builds to streamline the UX in favor of automated GPS capture.
+    6. **Onboarding Layout Navigation Overlap Fix (T65)**: Added `.navigationBarsPadding()` to the root Layout Column of `OnboardingWizard` in `MainActivity.kt` to prevent elements from overlapping with software navigation bars across different screen sizes.
+*   **2026-07-13 (Sprint: Debug Map Picker)**:
+    1. **Lightweight Map Picker Dialog (T66)**: Implemented a WebView-based `MapPickerDialog` rendering Leaflet.js and OpenStreetMap (with Nominatim geocoding search API integrations) inside the debug variant of `MainActivity.kt`. Uses a WebView layoutParams layout constraint (`MATCH_PARENT`), safe script load trigger (`onload="initMap()"`), and absolute CSS bounds layout to prevent JavaScript race conditions and zero-height layout rendering bugs. Allows developers/testers to search for locations or click to reposition a draggable home marker. Integrated into onboarding step 2 of `QuestionnaireScreen` and `SettingsScreen`'s Home Location card (debug only).
+    2. **Internet Permission & WebView Diagnostics**: Added `<uses-permission android:name="android.permission.INTERNET" />` to the debug-only manifest (`app/src/debug/AndroidManifest.xml`) to keep the release/production build 100% offline. Added robust error logging (`onReceivedError`, `onReceivedHttpError`), base URL alignment to CDN origin, static HTML loading state UI, and direct JS error reporting alerts (`window.onerror`) inside `MapPickerDialog` for real-time debugging.
+    3. **Debounced Search Autocomplete Suggestions**: Embedded a dynamic typeahead autocomplete dropdown below the map search input utilizing the Nominatim Search API. Employs a 400ms input debouncer to restrict API query rates and prevent server-side spam/blocks. Uses dynamic map bounds viewport viewboxes to prioritize local suggestions based on proximity, and auto-dismisses the dropdown overlay when a search is triggered or a suggestion is picked.
+    4. **CI Workflow Build Target Filters**: Configured custom `workflow_dispatch` checkbox input options (`build_debug`, `build_release`) and automatic path filtering logic in `android.yml` to selectively build and release only modified variants (e.g. skipping time-consuming release compiles if only debug source trees are edited).
 *   **2026-07-15**: Reverted all changes made during the closed-loop revamp, restoring the codebase to its pre-revamp state.
+*   **2026-08-02 (Periodic Data Analysis - 0208 Dataset)**:
+    1. **Data Completeness & Coverage**: Conducted all-round analysis across User build (`l0208.json`, 36 days: June 27 – Aug 2) and Dev build (`mhealth_detailed_dump_1785690029956.json`, 69 days: May 26 – Aug 2). Confirmed continuous daily feature logging with zero gaps.
+    2. **User vs Dev Build Telemetry Parity**: Verified high feature correlation (>0.98) across core sensors (`screenTimeHours` 0.989, `unlockCount` 0.998, `appLaunchCount` 0.993, `notificationsToday` 0.999, `wakeTimeHour` 1.00, `sleepTimeHour` 1.00, `sleepDurationHours` 1.00). Identified call log telemetry divergence due to User build's Dialer App Launch Proxy (2.14 calls/day) vs Dev build's `READ_CALL_LOG` permission (3.78 calls/day).
+    3. **Diagnostic Engine & Life Event Matching**: Discovered alternating travel & stay-at-home routine in late July (50–60 km travel on alternate days vs 4–8 km rest days). Traced System 1 Orange alert on Aug 1 (7 co-deviating features) and verified System 2 Life Event Filter dismissal in Dev build ("Likely life event or situational stress — dismissed").
+    4. **Bugs Spotted**: (a) `effectiveScore` zeroed out in User build JSON export during orange alert state; (b) Dev build analysis report export skips `L2Scorer` modifier calculation (hardcoded to 1.0); (c) Stage 0 Life Event Filter threshold (<=3 co-deviations) passes complex lifestyle shifts to Stage 1 prototype matching.
+*   **2026-08-08 (Outlier Analysis & Cluster Visualization - 0708 Dataset)**:
+    1. **Data Backup Inspection**: Analyzed backup dataset `data/0708/Lumen_backup_20260807_234621.json` (41 daily history records, 37 analysis reports, 30-feature baseline).
+    2. **Outlier & Anomaly Stat Breakdown**: Extracted top feature Z-scores and driver metrics for all 14 outlier/anomaly days across the dataset (e.g. July 9, July 11, July 15, July 16, July 17, July 20, July 26, July 27, July 29, August 3, August 4, August 5, August 6).
+    3. **Cluster Visualization Artifacts**: Generated publication-quality static PNG chart ([behavioral_clusters_pca.png](file:///C:/Users/Avaneesh/.gemini/antigravity-ide/brain/543d46ad-92b3-43ff-b726-8fcf66d5dab1/behavioral_clusters_pca.png)) and interactive HTML visualizer ([behavioral_clusters_interactive.html](file:///C:/Users/Avaneesh/.gemini/antigravity-ide/brain/543d46ad-92b3-43ff-b726-8fcf66d5dab1/behavioral_clusters_interactive.html)) mapping 7 anchor baseline clusters, centroids, radii, and daily anomaly projections in 2D PCA space.
+    4. **Anomaly Classification & Directionality Audit**: Verified that `anomalyDetected` is statefully gated (`sustained_deviation_days >= 3`), not triggered by single-day L1 scores. Confirmed production `L1Scorer` applies `DIRECTIONALITY_DAMPENING` (0.15× multiplier on positive `calendarEventsToday` and `appInstallsToday`), preventing single event spikes from triggering anomalies.

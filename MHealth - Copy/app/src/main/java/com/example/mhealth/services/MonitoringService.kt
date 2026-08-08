@@ -275,6 +275,9 @@ class MonitoringService : Service() {
             val db = MHealthDatabase.getInstance(this@MonitoringService)
             val profile = db.userProfileDao().getProfile(userId)
 
+            // In-place migration: remove calendarEventsToday from baseline if present
+            try { db.baselineDao().deleteFeature("calendarEventsToday") } catch (e: Exception) {}
+
             if (profile?.baselineReady == true) {
                 val baselineEntities = db.baselineDao().getBaseline(userId)
                 if (baselineEntities.isNotEmpty()) {
@@ -307,7 +310,6 @@ class MonitoringService : Service() {
                         upiTransactionsToday = baselineFields["upiTransactionsToday"] ?: 0f,
                         appUninstallsToday = baselineFields["appUninstallsToday"] ?: 0f,
                         appInstallsToday = baselineFields["appInstallsToday"] ?: 0f,
-                        calendarEventsToday = baselineFields["calendarEventsToday"] ?: 0f,
                         mediaCountToday = baselineFields["mediaCountToday"] ?: 0f,
                         downloadsToday = baselineFields["downloadsToday"] ?: 0f,
                         musicTimeMinutes = baselineFields["musicTimeMinutes"] ?: 0f,
@@ -1124,7 +1126,6 @@ class MonitoringService : Service() {
                             upiTransactionsToday = result.bayesianMeans["upiTransactionsToday"] ?: 0f,
                             appUninstallsToday = result.bayesianMeans["appUninstallsToday"] ?: 0f,
                             appInstallsToday = result.bayesianMeans["appInstallsToday"] ?: 0f,
-                            calendarEventsToday = result.bayesianMeans["calendarEventsToday"] ?: 0f,
                             mediaCountToday = result.bayesianMeans["mediaCountToday"] ?: 0f,
                             downloadsToday = result.bayesianMeans["downloadsToday"] ?: 0f,
                             musicTimeMinutes = result.bayesianMeans["musicTimeMinutes"] ?: 0f,
@@ -1152,6 +1153,8 @@ class MonitoringService : Service() {
                 DataRepository.addReport(it)
                 if (it.alertLevel == "orange" || it.alertLevel == "red") {
                     sendAlertNotification(it.alertLevel, it.notes)
+                } else if (it.anomalyDetected) {
+                    sendAnomalyCheckinNotification()
                 }
             }
         }
@@ -1368,7 +1371,6 @@ class MonitoringService : Service() {
             upiTransactionsToday = averages["upiTransactionsToday"] ?: 0f,
             appUninstallsToday = averages["appUninstallsToday"] ?: 0f,
             appInstallsToday = averages["appInstallsToday"] ?: 0f,
-            calendarEventsToday = averages["calendarEventsToday"] ?: 0f,
             mediaCountToday = averages["mediaCountToday"] ?: 0f,
             downloadsToday = averages["downloadsToday"] ?: 0f,
             musicTimeMinutes = averages["musicTimeMinutes"] ?: 0f,
@@ -1399,6 +1401,43 @@ class MonitoringService : Service() {
                 .setAutoCancel(true)
                 .build()
         )
+    }
+
+    private fun sendAnomalyCheckinNotification() {
+        val prefs = getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE)
+        val lastNotifMs = prefs.getLong("last_anomaly_notification_time_ms", 0L)
+        val nowMs = System.currentTimeMillis()
+        // Cooldown: 3 days between anomaly checkin notifications
+        if (nowMs - lastNotifMs < 3 * 24 * 3600 * 1000L) return
+
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "lumen_anomaly_checkin"
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId, "Lumen Check-In Reminders", NotificationManager.IMPORTANCE_DEFAULT
+            )
+            nm.createNotificationChannel(channel)
+        }
+
+        val intent = packageManager.getLaunchIntentForPackage(packageName)?.apply {
+            putExtra("navigate_to", "checkin")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        val pendingIntent = android.app.PendingIntent.getActivity(
+            this, 0, intent, android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+        )
+
+        nm.notify(
+            3, NotificationCompat.Builder(this, channelId)
+                .setContentTitle("Reflect on your flow")
+                .setContentText("Lumen noticed some changes in your routine recently. Would you like to check in?")
+                .setSmallIcon(R.mipmap.ic_launcher)
+                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                .setContentIntent(pendingIntent)
+                .setAutoCancel(true)
+                .build()
+        )
+        prefs.edit().putLong("last_anomaly_notification_time_ms", nowMs).apply()
     }
 
     // ── Missed-day recovery ───────────────────────────────────────────────────

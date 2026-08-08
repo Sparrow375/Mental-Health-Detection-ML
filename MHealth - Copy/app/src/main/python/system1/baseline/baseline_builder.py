@@ -198,8 +198,7 @@ def _get_default_value(feature_name: str) -> float:
         "upiTransactionsToday": 1.0,
         "appUninstallsToday": 0.0,
         "appInstallsToday": 0.0,
-        # Calendar & Engagement
-        "calendarEventsToday": 2.0,
+        # Engagement
         "mediaCountToday": 3.0,
         "downloadsToday": 1.0,
         "musicTimeMinutes": 45.0,

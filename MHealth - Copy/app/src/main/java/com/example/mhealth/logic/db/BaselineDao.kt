@@ -21,4 +21,7 @@ interface BaselineDao {
 
     @Query("DELETE FROM baseline WHERE userId = :userId")
     suspend fun clearBaseline(userId: String): Int
+
+    @Query("DELETE FROM baseline WHERE featureName = :featureName")
+    suspend fun deleteFeature(featureName: String): Int
 }

@@ -501,29 +501,39 @@ fun WeeklyDigestDialog(
                         }
                     }
 
+                    // Only show warning card when there's an actual drift
+                    val hasRealWarning = screenPct > 115 || sleepPct < 85 || stepPct < 80
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.12f))
+                            border = BorderStroke(1.dp, if (hasRealWarning) AlertWarning.copy(alpha = 0.3f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
                                 verticalArrangement = Arrangement.spacedBy(10.dp)
                             ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.WarningAmber, contentDescription = null, tint = AlertWarning, modifier = Modifier.size(20.dp))
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Rhythm Watch Item", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = AlertWarning)
+                                if (hasRealWarning) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.WarningAmber, contentDescription = null, tint = AlertWarning, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Rhythm Watch Item", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = AlertWarning)
+                                    }
+                                    val watchStr = when {
+                                        screenPct > 115 -> "Screen interaction was moderately elevated compared to usual norm. Introducing screen-free gaps could clear focus."
+                                        sleepPct < 85 -> "Sleep duration was shorter than your typical norm. Prioritizing rest tonight will restore balance."
+                                        else -> "Physical steps dipped below usual norm. A short daily walk can renew physical energy."
+                                    }
+                                    Text(watchStr, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)
+                                } else {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("All Rhythms Steady", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    Text("No major circadian drifts or digital spikes detected. Your routine remained well-balanced this week.", fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)
                                 }
-                                val watchStr = when {
-                                    screenPct > 115 -> "Screen interaction was moderately elevated compared to usual norm. Introducing screen-free gaps could clear focus."
-                                    sleepPct < 85 -> "Sleep duration was shorter than your typical norm. Prioritizing rest tonight will restore balance."
-                                    stepPct < 80 -> "Physical steps dipped below usual norm. A short daily walk can renew physical energy."
-                                    else -> "No major circadian drifts or digital spikes detected. Routine remains steady."
-                                }
-                                Text(watchStr, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)
                             }
                         }
                     }
@@ -535,6 +545,7 @@ fun WeeklyDigestDialog(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
+                        .navigationBarsPadding()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
@@ -555,7 +566,8 @@ private fun DigestMetricRow(label: String, valueStr: String, isPositive: Boolean
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.weight(1f, fill = false)
         ) {
             Box(
                 modifier = Modifier
@@ -564,6 +576,14 @@ private fun DigestMetricRow(label: String, valueStr: String, isPositive: Boolean
             )
             Text(label, fontSize = 13.sp, color = MaterialTheme.colorScheme.onBackground, fontWeight = FontWeight.Medium)
         }
-        Text(valueStr, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+        Spacer(Modifier.width(8.dp))
+        Text(
+            text = valueStr,
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            fontWeight = FontWeight.Bold,
+            fontFamily = Fredoka,
+            maxLines = 1
+        )
     }
 }

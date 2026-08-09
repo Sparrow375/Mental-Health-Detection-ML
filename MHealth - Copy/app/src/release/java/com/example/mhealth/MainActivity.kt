@@ -276,7 +276,7 @@ fun LumenTheme(
             onSecondary = Color.White,
             background = Color(0xFFF6FAF9),
             onBackground = Color(0xFF0F172A),
-            surface = Color.White,
+            surface = Color(0xFFEDF2F0),
             onSurface = Color(0xFF0F172A),
             surfaceVariant = Color(0xFFE2E8F0),
             onSurfaceVariant = Color(0xFF64748B),

@@ -408,8 +408,12 @@ fun HomeScreen(
                         "Within you, there is a stillness and a sanctuary to which you can retreat at any time." to "Hermann Hesse"
                     )
                 }
-                val dayOfYear = remember { Calendar.getInstance().get(Calendar.DAY_OF_YEAR) }
-                val (quoteText, quoteAuthor) = dailyQuotes[dayOfYear % dailyQuotes.size]
+                val quoteIndex = remember {
+                    val cal = Calendar.getInstance()
+                    val seed = cal.get(Calendar.DAY_OF_YEAR) * 6 + cal.get(Calendar.HOUR_OF_DAY) / 4 + System.nanoTime().hashCode()
+                    abs(seed) % dailyQuotes.size
+                }
+                val (quoteText, quoteAuthor) = dailyQuotes[quoteIndex]
 
                 Card(
                     modifier = Modifier.fillMaxWidth(),

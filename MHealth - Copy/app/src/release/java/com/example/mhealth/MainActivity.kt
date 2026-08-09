@@ -1972,8 +1972,8 @@ fun InfoCard(
     Card(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
     ) {
         Column(Modifier.padding(16.dp)) {
             Row(
@@ -4659,44 +4659,9 @@ fun DigitalDetoxTimerOverlay(
     LaunchedEffect(Unit) {
         prefs.edit()
             .putBoolean("detox_active", true)
+            .putBoolean("detox_interrupted", false)
             .putLong("detox_end_timestamp", System.currentTimeMillis() + timeRemainingMs)
             .apply()
-    }
-
-    // Register dynamic broadcast receiver for screen unlock / use
-    DisposableEffect(context) {
-        val receiver = object : android.content.BroadcastReceiver() {
-            override fun onReceive(ctx: Context, intent: android.content.Intent) {
-                if (intent.action == android.content.Intent.ACTION_USER_PRESENT || intent.action == android.content.Intent.ACTION_SCREEN_ON) {
-                    val active = prefs.getBoolean("detox_active", false)
-                    if (active) {
-                        prefs.edit()
-                            .putBoolean("detox_active", false)
-                            .putBoolean("detox_interrupted", true)
-                            .putInt("detox_streak", 0)
-                            .apply()
-                        
-                        showDetoxNotification(ctx, "Detox Interrupted ⚠️", "You unlocked your phone! Reconnect with your environment.")
-                        isCancelled = true
-                    }
-                }
-            }
-        }
-        val filter = android.content.IntentFilter().apply {
-            addAction(android.content.Intent.ACTION_USER_PRESENT)
-            addAction(android.content.Intent.ACTION_SCREEN_ON)
-        }
-        
-        androidx.core.content.ContextCompat.registerReceiver(
-            context,
-            receiver,
-            filter,
-            androidx.core.content.ContextCompat.RECEIVER_EXPORTED
-        )
-        
-        onDispose {
-            context.unregisterReceiver(receiver)
-        }
     }
 
     // Countdown Timer Loop
@@ -4705,12 +4670,6 @@ fun DigitalDetoxTimerOverlay(
             while (timeRemainingMs > 0) {
                 delay(1000L)
                 timeRemainingMs -= 1000L
-                val active = prefs.getBoolean("detox_active", false)
-                val interrupted = prefs.getBoolean("detox_interrupted", false)
-                if (!active || interrupted) {
-                    isCancelled = true
-                    break
-                }
             }
             if (timeRemainingMs <= 0 && !isCancelled) {
                 prefs.edit()
@@ -4718,7 +4677,7 @@ fun DigitalDetoxTimerOverlay(
                     .putBoolean("detox_interrupted", false)
                     .putInt("detox_streak", prefs.getInt("detox_streak", 0) + 1)
                     .apply()
-                showDetoxNotification(context, "Detox Completed! 🎉", "Great job! You stayed away for $durationMinutes minutes.")
+                showDetoxNotification(context, "Digital Detox Completed!", "Great job! You completed your $durationMinutes minute detox.")
                 detoxFinished = true
             }
         }

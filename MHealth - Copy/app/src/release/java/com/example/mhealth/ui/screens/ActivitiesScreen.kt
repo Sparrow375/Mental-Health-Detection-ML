@@ -68,6 +68,8 @@ fun ActivitiesScreen() {
     var showManageHabits by remember { mutableStateOf(false) }
     var showWindDownOverlay by remember { mutableStateOf(false) }
     var showDetoxOverlay by remember { mutableStateOf(false) }
+    var showDetoxSetupDialog by remember { mutableStateOf(false) }
+    var detoxMinutes by remember { mutableIntStateOf(30) }
     var showQuestsSubScreen by remember { mutableStateOf(false) }
 
     androidx.activity.compose.BackHandler(enabled = showQuestsSubScreen) {
@@ -92,8 +94,19 @@ fun ActivitiesScreen() {
     if (showWindDownOverlay) {
         WindDownOverlay(sleepTarget = 8.0f, onDismiss = { showWindDownOverlay = false })
     }
+    if (showDetoxSetupDialog) {
+        DetoxDurationSetupDialog(
+            initialMinutes = detoxMinutes,
+            onConfirm = { mins ->
+                detoxMinutes = mins
+                showDetoxSetupDialog = false
+                showDetoxOverlay = true
+            },
+            onDismiss = { showDetoxSetupDialog = false }
+        )
+    }
     if (showDetoxOverlay) {
-        DigitalDetoxTimerOverlay(durationMinutes = 30, onDismiss = { showDetoxOverlay = false })
+        DigitalDetoxTimerOverlay(durationMinutes = detoxMinutes, onDismiss = { showDetoxOverlay = false })
     }
 
     LazyColumn(
@@ -153,7 +166,7 @@ fun ActivitiesScreen() {
 
         // Digital Detox
         item {
-            DigitalDetoxCard(onStartClick = { showDetoxOverlay = true })
+            DigitalDetoxCard(onStartClick = { showDetoxSetupDialog = true })
         }
     }
 }
@@ -547,6 +560,103 @@ fun DigitalDetoxCard(onStartClick: () -> Unit) {
                 colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
             ) {
                 Text("Focus", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+            }
+        }
+    }
+}
+
+@Composable
+fun DetoxDurationSetupDialog(
+    initialMinutes: Int,
+    onConfirm: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var selectedMinutes by remember { mutableIntStateOf(initialMinutes) }
+    var customText by remember { mutableStateOf(initialMinutes.toString()) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(24.dp),
+            color = MaterialTheme.colorScheme.surface,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text(
+                    text = "Digital Detox Duration",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Text(
+                    text = "Select or enter your desired detox duration in minutes:",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    listOf(15, 30, 45, 60).forEach { mins ->
+                        val isSel = selectedMinutes == mins
+                        OutlinedButton(
+                            onClick = {
+                                selectedMinutes = mins
+                                customText = mins.toString()
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                containerColor = if (isSel) MaterialTheme.colorScheme.primary else Color.Transparent,
+                                contentColor = if (isSel) Color.Black else MaterialTheme.colorScheme.primary
+                            ),
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(36.dp)
+                        ) {
+                            Text("${mins}m", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                    }
+                }
+
+                OutlinedTextField(
+                    value = customText,
+                    onValueChange = { input ->
+                        val filtered = input.filter { it.isDigit() }
+                        customText = filtered
+                        val parsed = filtered.toIntOrNull()
+                        if (parsed != null && parsed in 1..480) {
+                            selectedMinutes = parsed
+                        }
+                    },
+                    label = { Text("Custom Minutes", fontSize = 12.sp) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", fontFamily = Fredoka)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = { onConfirm(selectedMinutes.coerceIn(1, 480)) },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        Text("Start Detox", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    }
+                }
             }
         }
     }

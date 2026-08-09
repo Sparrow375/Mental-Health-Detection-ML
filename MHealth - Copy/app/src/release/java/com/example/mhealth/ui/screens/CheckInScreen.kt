@@ -238,8 +238,10 @@ fun HubActionCard(
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Fredoka,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        modifier = Modifier.weight(1f, fill = false)
                     )
+                    Spacer(Modifier.width(8.dp))
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = MaterialTheme.colorScheme.primary.copy(0.12f)
@@ -250,7 +252,8 @@ fun HubActionCard(
                             fontWeight = FontWeight.Bold,
                             fontFamily = Fredoka,
                             color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                            maxLines = 1,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
                         )
                     }
                 }

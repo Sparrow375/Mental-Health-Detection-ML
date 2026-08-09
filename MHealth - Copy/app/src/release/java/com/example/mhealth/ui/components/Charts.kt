@@ -212,17 +212,20 @@ fun RhythmTrendsChart(
 fun LegendItem(label: String, color: Color) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
+        horizontalArrangement = Arrangement.spacedBy(5.dp)
     ) {
         Box(
             modifier = Modifier
-                .size(8.dp)
+                .size(7.dp)
                 .background(color, CircleShape)
         )
         Text(
             text = label,
-            fontSize = 10.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            fontFamily = Fredoka,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1
         )
     }
 }
@@ -276,23 +279,26 @@ fun BehavioralFingerprintRadar(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = "Behavioral Fingerprint",
-                        fontSize = 16.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.Bold,
                         fontFamily = Fredoka,
                         color = MaterialTheme.colorScheme.onBackground
                     )
                     Text(
-                        text = "This Week vs Baseline",
+                        text = "This Week vs Personal Norm",
                         fontSize = 11.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    LegendItem("Baseline", outlineColor.copy(0.6f))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    LegendItem("Usual Norm", outlineColor.copy(0.6f))
                     LegendItem("This Week", primaryColor)
                 }
             }

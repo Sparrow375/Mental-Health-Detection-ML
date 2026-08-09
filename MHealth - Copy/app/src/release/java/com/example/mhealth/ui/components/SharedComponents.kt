@@ -39,6 +39,7 @@ import com.example.mhealth.R
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 val Fredoka = FontFamily(
@@ -223,7 +224,7 @@ fun PermissionSettingRow(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.4f)),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
     ) {
         Row(
@@ -339,6 +340,13 @@ fun WeeklyDigestDialog(
     val baseScreen = baseline.screenTimeHours
     val screenPct = if (baseScreen > 0f) (avgScreen / baseScreen * 100).roundToInt() else 100
 
+    val avgRhythmScore = remember(weeklyFeatures) {
+        val totalSleepDev = abs(sleepPct - 100)
+        val totalStepDev = abs(stepPct - 100)
+        val totalScreenDev = abs(screenPct - 100)
+        (100 - (totalSleepDev * 0.4f + totalStepDev * 0.3f + totalScreenDev * 0.3f).roundToInt()).coerceIn(50, 98)
+    }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -351,6 +359,7 @@ fun WeeklyDigestDialog(
                 modifier = Modifier
                     .fillMaxSize()
                     .systemBarsPadding()
+                    .navigationBarsPadding()
                     .padding(24.dp)
             ) {
                 Row(
@@ -383,6 +392,68 @@ fun WeeklyDigestDialog(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
+                    // Rhythm Score & Streak Hero Row
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.3f))
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    Text(
+                                        text = "Weekly Rhythm Score",
+                                        fontSize = 12.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Row(verticalAlignment = Alignment.Bottom) {
+                                        Text(
+                                            text = "$avgRhythmScore",
+                                            fontSize = 28.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                        Text(
+                                            text = "/100",
+                                            fontSize = 14.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(bottom = 3.dp, start = 2.dp)
+                                        )
+                                    }
+                                }
+
+                                Surface(
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.15f)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                    ) {
+                                        Icon(Icons.Default.LocalFireDepartment, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(16.dp))
+                                        Text(
+                                            text = "7 Day Flow Streak",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = Fredoka,
+                                            color = MaterialTheme.colorScheme.primary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
@@ -424,7 +495,7 @@ fun WeeklyDigestDialog(
                                 Text("Rhythm Breakdown", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = MaterialTheme.colorScheme.onBackground)
                                 
                                 DigestMetricRow(label = "Sleep & Rest", valueStr = if (sleepPct >= 100) "About ${sleepPct - 100}% above usual" else "About ${100 - sleepPct}% below usual", isPositive = sleepPct >= 90)
-                                DigestMetricRow(label = "Physical Activity", valueStr = if (stepPct >= 100) "About ${stepPct - 100}% above baseline" else "About ${100 - stepPct}% below baseline", isPositive = stepPct >= 80)
+                                DigestMetricRow(label = "Physical Activity", valueStr = if (stepPct >= 100) "About ${stepPct - 100}% above usual norm" else "About ${100 - stepPct}% below usual norm", isPositive = stepPct >= 80)
                                 DigestMetricRow(label = "Screen & Digital", valueStr = if (screenPct <= 100) "Within healthy boundaries" else "About ${screenPct - 100}% higher than usual", isPositive = screenPct <= 115)
                             }
                         }
@@ -447,9 +518,9 @@ fun WeeklyDigestDialog(
                                     Text("Rhythm Watch Item", fontWeight = FontWeight.Bold, fontSize = 14.sp, fontFamily = Fredoka, color = AlertWarning)
                                 }
                                 val watchStr = when {
-                                    screenPct > 115 -> "Screen interaction was moderately elevated compared to baseline. Introducing screen-free gaps could clear focus."
-                                    sleepPct < 85 -> "Sleep duration was shorter than your typical baseline. Prioritizing rest tonight will restore balance."
-                                    stepPct < 80 -> "Physical steps dipped below baseline. A short daily walk can renew physical energy."
+                                    screenPct > 115 -> "Screen interaction was moderately elevated compared to usual norm. Introducing screen-free gaps could clear focus."
+                                    sleepPct < 85 -> "Sleep duration was shorter than your typical norm. Prioritizing rest tonight will restore balance."
+                                    stepPct < 80 -> "Physical steps dipped below usual norm. A short daily walk can renew physical energy."
                                     else -> "No major circadian drifts or digital spikes detected. Routine remains steady."
                                 }
                                 Text(watchStr, fontSize = 13.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onBackground)

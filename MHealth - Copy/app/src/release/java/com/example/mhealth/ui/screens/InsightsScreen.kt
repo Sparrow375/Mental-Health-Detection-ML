@@ -931,6 +931,85 @@ fun WeeklyTrendsSubScreen(
             WeeklyStoryCard(features = features, baseline = baseVec)
         }
 
+        // Rhythm Analytics Summary Card
+        item {
+            val displayList = features.takeLast(selectedDays)
+            val avgSleep = if (displayList.isNotEmpty()) displayList.map { it.sleepDurationHours }.average().toFloat() else baseVec.sleepDurationHours
+            val avgSteps = if (displayList.isNotEmpty()) displayList.map { it.dailyStepCount }.average().toFloat() else baseVec.dailyStepCount
+            val avgScreen = if (displayList.isNotEmpty()) displayList.map { it.screenTimeHours }.average().toFloat() else baseVec.screenTimeHours
+
+            val sleepDev = if (baseVec.sleepDurationHours > 0) abs(avgSleep - baseVec.sleepDurationHours) / baseVec.sleepDurationHours else 0f
+            val stepDev = if (baseVec.dailyStepCount > 0) abs(avgSteps - baseVec.dailyStepCount) / baseVec.dailyStepCount else 0f
+            val screenDev = if (baseVec.screenTimeHours > 0) abs(avgScreen - baseVec.screenTimeHours) / baseVec.screenTimeHours else 0f
+
+            val mostDeviated = when {
+                sleepDev >= stepDev && sleepDev >= screenDev -> "Sleep & Rest (${(sleepDev * 100).roundToInt()}% shift)"
+                stepDev >= sleepDev && stepDev >= screenDev -> "Physical Activity (${(stepDev * 100).roundToInt()}% shift)"
+                else -> "Screen Time (${(screenDev * 100).roundToInt()}% shift)"
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+            ) {
+                Column(
+                    modifier = Modifier.padding(18.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Rhythm Analytics Summary",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(10.dp),
+                            color = MaterialTheme.colorScheme.primary.copy(0.12f)
+                        ) {
+                            Text(
+                                text = "${selectedDays}D Window",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Most Shifted Dimension", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(mostDeviated, fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka, color = MaterialTheme.colorScheme.primary)
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Rest Average", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("%.1fh / day".format(avgSleep), fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Activity Average", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("%.0f steps / day".format(avgSteps), fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                        HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text("Screen Time Average", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text("%.1fh / day".format(avgScreen), fontSize = 12.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        }
+                    }
+                }
+            }
+        }
+
         item {
             RhythmTrendsChart(features = features, baseline = baseVec, selectedDaysCount = selectedDays)
         }
@@ -1076,12 +1155,27 @@ data class SectorFeatureSpec(
     val unit: String
 )
 
+fun formatHourLabel(rawH: Float): String {
+    val h = ((rawH % 24f) + 24f).roundToInt() % 24
+    val pm = h >= 12 && h < 24
+    val displayH = when {
+        h == 0 -> 12
+        h > 12 -> h - 12
+        else -> h
+    }
+    return "$displayH ${if (pm) "PM" else "AM"}"
+}
+
+fun circadianHourTransform(hour: Float): Float {
+    return if (hour >= 18f) hour - 18f else hour + 6f
+}
+
 fun getSectorFeatures(sectorName: String): List<SectorFeatureSpec> {
     return when (sectorName) {
         "Sleep & Rest" -> listOf(
             SectorFeatureSpec("Sleep Duration", { it.sleepDurationHours }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepDurationHours" }?.baselineValue ?: (if (base.sleepDurationHours > 0) base.sleepDurationHours else 7f) }, { "%.1fh".format(it) }, "hours"),
-            SectorFeatureSpec("Wake Time", { it.wakeTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "wakeTimeHour" }?.baselineValue ?: (if (base.wakeTimeHour > 0) base.wakeTimeHour else 7f) }, { "%.0f:00".format(it) }, "hour"),
-            SectorFeatureSpec("Bedtime", { it.sleepTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepTimeHour" }?.baselineValue ?: (if (base.sleepTimeHour > 0) base.sleepTimeHour else 23f) }, { "%.0f:00".format(it) }, "hour")
+            SectorFeatureSpec("Wake Time", { it.wakeTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "wakeTimeHour" }?.baselineValue ?: (if (base.wakeTimeHour > 0) base.wakeTimeHour else 7f) }, { formatHourLabel(it) }, "hour"),
+            SectorFeatureSpec("Bedtime", { it.sleepTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepTimeHour" }?.baselineValue ?: (if (base.sleepTimeHour > 0) base.sleepTimeHour else 23f) }, { formatHourLabel(it) }, "hour")
         )
         "Physical Activity" -> listOf(
             SectorFeatureSpec("Daily Step Count", { it.dailyStepCount }, { base, list -> list.firstOrNull { b -> b.featureName == "dailyStepCount" }?.baselineValue ?: (if (base.dailyStepCount > 0) base.dailyStepCount else 3000f) }, { "%.0f steps".format(it) }, "steps"),
@@ -1206,7 +1300,7 @@ fun SectorDetailScreen(
             }
         }
 
-        // Time Range Selector Tabs
+        // Time Range Selector Tabs (Prevents 30D button cutoff by assigning weight to label and shrinking gap)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -1214,13 +1308,14 @@ fun SectorDetailScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "$timeRangeDays-Day Detailed Breakdown",
-                    fontSize = 15.sp,
+                    text = "$timeRangeDays-Day Breakdown",
+                    fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.weight(1f)
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     listOf(7, 14, 30).forEach { days ->
                         val isSel = timeRangeDays == days
                         OutlinedButton(
@@ -1230,7 +1325,7 @@ fun SectorDetailScreen(
                                 contentColor = if (isSel) Color.Black else MaterialTheme.colorScheme.primary
                             ),
                             shape = RoundedCornerShape(10.dp),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                             modifier = Modifier.height(32.dp)
                         ) {
                             Text("${days}D", fontSize = 11.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
@@ -1309,6 +1404,8 @@ fun FeatureBarChartCard(
     diffPct: Int,
     daysCount: Int
 ) {
+    val isCircadianTime = spec.name == "Wake Time" || spec.name == "Bedtime"
+
     val diffText = when {
         diffPct > 0 -> "$diffPct% higher than your personal norm"
         diffPct < 0 -> "${abs(diffPct)}% lower than your personal norm"
@@ -1322,6 +1419,14 @@ fun FeatureBarChartCard(
             diffPct < -15 -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgValue)} $rangeLabel, showing a quieter pattern ($diffText)."
             else -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgValue)} $rangeLabel, flowing in steady alignment with your personal norm."
         }
+    }
+
+    // Apply human circadian transformation for Bedtime & Wake Time chart height scaling
+    val chartValues = remember(values, isCircadianTime) {
+        if (isCircadianTime) values.map { circadianHourTransform(it) } else values
+    }
+    val chartNormValue = remember(normValue, isCircadianTime) {
+        if (isCircadianTime) circadianHourTransform(normValue) else normValue
     }
 
     Card(
@@ -1362,11 +1467,12 @@ fun FeatureBarChartCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            // Labeled Bar Chart Component
+            // Labeled Bar Chart Component with Y-Axis Tick Labels & Circadian Scaling
             LabeledBarChart(
-                values = values,
-                normValue = normValue,
-                formatValue = spec.formatValue
+                values = chartValues,
+                normValue = chartNormValue,
+                formatValue = spec.formatValue,
+                isCircadianTime = isCircadianTime
             )
         }
     }
@@ -1376,7 +1482,8 @@ fun FeatureBarChartCard(
 fun LabeledBarChart(
     values: List<Float>,
     normValue: Float,
-    formatValue: (Float) -> String
+    formatValue: (Float) -> String,
+    isCircadianTime: Boolean = false
 ) {
     if (values.isEmpty()) return
     val primaryColor = MaterialTheme.colorScheme.primary
@@ -1395,15 +1502,36 @@ fun LabeledBarChart(
             Canvas(modifier = Modifier.fillMaxSize()) {
                 val width = size.width
                 val height = size.height
+                val paddingLeft = 42.dp.toPx()
                 val paddingBottom = 22.dp.toPx()
+                val graphWidth = width - paddingLeft
                 val graphHeight = height - paddingBottom
 
                 val normY = graphHeight * (1f - (normValue / maxVal).coerceIn(0f, 1f))
 
+                // Y-Axis tick labels (0, mid, max)
+                val yTicks = listOf(maxVal, maxVal / 2f, 0f)
+                yTicks.forEach { tickVal ->
+                    val yPos = graphHeight * (1f - (tickVal / maxVal).coerceIn(0f, 1f))
+                    val labelText = if (isCircadianTime) {
+                        val hourRaw = if (tickVal <= 6f) tickVal + 18f else tickVal - 6f
+                        formatHourLabel(hourRaw)
+                    } else {
+                        if (tickVal >= 1000) "%.0fk".format(tickVal / 1000f)
+                        else "%.0f".format(tickVal)
+                    }
+                    drawText(
+                        textMeasurer = textMeasurer,
+                        text = labelText,
+                        style = TextStyle(fontSize = 9.sp, color = onSurfaceVariant.copy(0.6f)),
+                        topLeft = Offset(0f, (yPos - 6.dp.toPx()).coerceIn(0f, graphHeight - 12.dp.toPx()))
+                    )
+                }
+
                 // Draw usual norm dashed line
                 drawLine(
                     color = primaryColor.copy(alpha = 0.5f),
-                    start = Offset(0f, normY),
+                    start = Offset(paddingLeft, normY),
                     end = Offset(width, normY),
                     strokeWidth = 1.5.dp.toPx(),
                     pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f), 0f)
@@ -1411,13 +1539,13 @@ fun LabeledBarChart(
 
                 // Draw bars
                 val barCount = values.size
-                val totalGap = width * 0.25f
-                val barWidth = ((width - totalGap) / barCount).coerceAtLeast(6.dp.toPx())
-                val spacing = if (barCount > 1) (width - (barWidth * barCount)) / (barCount - 1) else 0f
+                val totalGap = graphWidth * 0.25f
+                val barWidth = ((graphWidth - totalGap) / barCount).coerceAtLeast(4.dp.toPx())
+                val spacing = if (barCount > 1) (graphWidth - (barWidth * barCount)) / (barCount - 1) else 0f
 
                 values.forEachIndexed { idx, v ->
                     val barHeight = graphHeight * (v / maxVal).coerceIn(0f, 1f)
-                    val x = idx * (barWidth + spacing)
+                    val x = paddingLeft + idx * (barWidth + spacing)
                     val y = graphHeight - barHeight
 
                     val dev = if (normValue > 0) abs(v - normValue) / normValue else 0f
@@ -1438,7 +1566,9 @@ fun LabeledBarChart(
         }
 
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 42.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             val daysOfWeek = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")

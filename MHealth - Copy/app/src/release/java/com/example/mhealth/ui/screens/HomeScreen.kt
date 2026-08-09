@@ -393,6 +393,71 @@ fun HomeScreen(
                 }
             }
 
+            // Daily Quote / Reflection Card
+            item {
+                val dailyQuotes = remember {
+                    listOf(
+                        "Peace comes from within. Do not seek it without." to "Buddha",
+                        "Rest is not idleness, and to lie on the grass under trees is by no means a waste of time." to "John Lubbock",
+                        "Almost everything will work again if you unplug it for a few minutes, including you." to "Anne Lamott",
+                        "You don't have to control your thoughts. You just have to stop letting them control you." to "Dan Millman",
+                        "Mindfulness is about being fully awake in our lives." to "Jon Kabat-Zinn",
+                        "Feelings come and go like clouds in a windy sky. Conscious breathing is my anchor." to "Thich Nhat Hanh",
+                        "Small steps in the right direction can turn out to be the biggest step of your life." to "Wisdom Tradition",
+                        "Quiet the mind, and the soul will speak." to "Ma Jaya Sati Bhagavati",
+                        "Within you, there is a stillness and a sanctuary to which you can retreat at any time." to "Hermann Hesse"
+                    )
+                }
+                val dayOfYear = remember { Calendar.getInstance().get(Calendar.DAY_OF_YEAR) }
+                val (quoteText, quoteAuthor) = dailyQuotes[dayOfYear % dailyQuotes.size]
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(18.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FormatQuote,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Daily Reflection Quote",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                        Text(
+                            text = "\"$quoteText\"",
+                            fontSize = 13.sp,
+                            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                            color = MaterialTheme.colorScheme.onBackground,
+                            lineHeight = 18.sp
+                        )
+                        Text(
+                            text = "— $quoteAuthor",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.align(Alignment.End)
+                        )
+                    }
+                }
+            }
+
             // Quick Check-In Prompt Card (if not checked in today)
             if (!alreadyCheckedIn) {
                 item {

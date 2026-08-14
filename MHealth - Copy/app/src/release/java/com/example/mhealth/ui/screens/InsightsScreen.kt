@@ -205,8 +205,9 @@ fun InsightsScreen() {
         return
     }
 
-    val latest = historyItems.firstOrNull()?.vector ?: weeklyFeatures.lastOrNull() ?: PersonalityVector()
-    val rhythmScore = computeRhythmScore(latest, baseVec, activeResult)
+    val todayItem = historyItems.firstOrNull()
+    val latest = todayItem?.vector ?: weeklyFeatures.lastOrNull() ?: PersonalityVector()
+    val rhythmScore = todayItem?.rhythmScore ?: computeRhythmScore(latest, baseVec, null)
 
     LazyColumn(
         modifier = Modifier

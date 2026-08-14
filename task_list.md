@@ -27,4 +27,6 @@
 - [x] **T112**: Overhaul History Calendar into true Month-Grid Calendar with month picker, navigation arrows, and ordinal date suffixes ("14th", "1st").
 - [x] **T113**: Fix sleep & bedtime circadian circular averaging, clean AM/PM formatting, and human-readable time comparison narrative.
 - [x] **T114**: Verify compilation and test with exported dataset.
+- [x] **T115**: Sync top Insights hero score to directly display today's live history score.
+- [x] **T116**: Fix text cutoff on "Challenging" in Daily Check-In rating selector with maxLines=1, letter spacing, and card padding adjustments.
 

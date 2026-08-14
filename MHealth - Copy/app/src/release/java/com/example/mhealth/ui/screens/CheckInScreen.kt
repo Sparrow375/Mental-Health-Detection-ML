@@ -487,7 +487,7 @@ fun Step1MoodEnergy(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -514,7 +514,7 @@ fun Step1MoodEnergy(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -554,7 +554,7 @@ fun Step2AnxietyRest(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -581,7 +581,7 @@ fun Step2AnxietyRest(
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.12f))
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 18.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Text(
@@ -707,11 +707,14 @@ fun ThemedRatingSelector(
                 }
                 Text(
                     text = label,
-                    fontSize = 10.sp,
+                    fontSize = 9.sp,
                     fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
                     fontFamily = Fredoka,
                     color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    softWrap = false,
+                    letterSpacing = (-0.2).sp
                 )
             }
         }

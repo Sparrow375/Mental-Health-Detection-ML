@@ -32,8 +32,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.example.mhealth.logic.DataRepository
+import com.example.mhealth.logic.JsonConverter
 import com.example.mhealth.logic.db.AnalysisResultEntity
 import com.example.mhealth.logic.db.BaselineEntity
+import com.example.mhealth.logic.db.DailyFeaturesEntity
 import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.ui.components.AlertWarning
@@ -81,10 +83,25 @@ fun InsightsScreen() {
         value = db.analysisResultDao().getAll(userId)
     }
 
+    val allDailyFeatures by produceState<List<DailyFeaturesEntity>>(emptyList(), db) {
+        val userId = DataRepository.userProfile.value?.email ?: "patient@lumen.health"
+        value = db.dailyFeaturesDao().getAllFeatures(userId)
+    }
+
     val prefs = remember(context) { context.getSharedPreferences("mhealth_data_store", Context.MODE_PRIVATE) }
     val checkinHistoryStr = remember(prefs) { prefs.getString("daily_checkin_history", "[]") ?: "[]" }
 
-    val historyItems = remember(weeklyFeatures, analysisReports, checkinHistoryStr) {
+    val baseVec = baseline ?: PersonalityVector(
+        screenTimeHours = baselineEntities.firstOrNull { it.featureName == "screenTimeHours" }?.baselineValue ?: 4f,
+        dailyStepCount = baselineEntities.firstOrNull { it.featureName == "dailyStepCount" }?.baselineValue ?: 3000f,
+        sleepDurationHours = baselineEntities.firstOrNull { it.featureName == "sleepDurationHours" }?.baselineValue ?: 7f,
+        callsPerDay = baselineEntities.firstOrNull { it.featureName == "callsPerDay" }?.baselineValue ?: 2f,
+        locationEntropy = baselineEntities.firstOrNull { it.featureName == "locationEntropy" }?.baselineValue ?: 0.5f,
+        daylightExposureMinutes = baselineEntities.firstOrNull { it.featureName == "daylightExposureMinutes" }?.baselineValue ?: 30f,
+        keystrokeSpeed = baselineEntities.firstOrNull { it.featureName == "keystrokeSpeed" }?.baselineValue ?: 4f
+    )
+
+    val historyItems = remember(allDailyFeatures, weeklyFeatures, analysisReports, checkinHistoryStr, baseVec) {
         val checkinMap = mutableMapOf<String, CheckinRecord>()
         try {
             val arr = JSONArray(checkinHistoryStr)
@@ -106,22 +123,43 @@ fun InsightsScreen() {
             e.printStackTrace()
         }
 
-        weeklyFeatures.mapIndexed { idx, vec ->
-            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(
-                Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(weeklyFeatures.size - 1 - idx)) }.time
-            )
-            val report = analysisReports.firstOrNull { it.date == dateStr }
-            val checkin = checkinMap[dateStr]
-            val scoreVal = if (report != null) ((1f - report.effectiveScore.coerceIn(0f, 1f)) * 100).roundToInt() else 85
-            
-            DailyHistoryItem(
-                dateStr = dateStr,
+        val itemsMap = mutableMapOf<String, DailyHistoryItem>()
+
+        // 1. Populate all historical records from Room DB
+        allDailyFeatures.forEach { entity ->
+            val vec = JsonConverter.toPersonalityVector(entity)
+            val report = analysisReports.firstOrNull { it.date == entity.date }
+            val checkin = checkinMap[entity.date]
+            val scoreVal = computeRhythmScore(vec, baseVec, report)
+            itemsMap[entity.date] = DailyHistoryItem(
+                dateStr = entity.date,
                 vector = vec,
                 analysisResult = report,
                 checkin = checkin,
                 rhythmScore = scoreVal
             )
-        }.reversed()
+        }
+
+        // 2. Ensure weeklyFeatures dates are represented if not already in DB
+        weeklyFeatures.forEachIndexed { idx, vec ->
+            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(
+                Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, -(weeklyFeatures.size - 1 - idx)) }.time
+            )
+            if (!itemsMap.containsKey(dateStr)) {
+                val report = analysisReports.firstOrNull { it.date == dateStr }
+                val checkin = checkinMap[dateStr]
+                val scoreVal = computeRhythmScore(vec, baseVec, report)
+                itemsMap[dateStr] = DailyHistoryItem(
+                    dateStr = dateStr,
+                    vector = vec,
+                    analysisResult = report,
+                    checkin = checkin,
+                    rhythmScore = scoreVal
+                )
+            }
+        }
+
+        itemsMap.values.sortedByDescending { it.dateStr }
     }
 
     if (selectedDetailDay != null) {
@@ -144,10 +182,12 @@ fun InsightsScreen() {
     }
 
     if (activeSectorName != null) {
+        val chronologicalFeatures = historyItems.map { it.vector }.reversed()
         SectorDetailScreen(
             sectorName = activeSectorName!!,
             sectorIcon = activeSectorIcon,
-            features = weeklyFeatures,
+            features = if (chronologicalFeatures.isNotEmpty()) chronologicalFeatures else weeklyFeatures,
+            historyItems = historyItems,
             baselineEntities = baselineEntities,
             onBack = { activeSectorName = null }
         )
@@ -155,8 +195,9 @@ fun InsightsScreen() {
     }
 
     if (showWeeklyTrendsModal) {
+        val chronologicalFeatures = historyItems.map { it.vector }.reversed()
         WeeklyTrendsSubScreen(
-            features = weeklyFeatures,
+            features = if (chronologicalFeatures.isNotEmpty()) chronologicalFeatures else weeklyFeatures,
             baseline = baseline,
             baselineEntities = baselineEntities,
             onBack = { showWeeklyTrendsModal = false }
@@ -164,19 +205,8 @@ fun InsightsScreen() {
         return
     }
 
-    val latest = weeklyFeatures.lastOrNull() ?: PersonalityVector()
-    val baseVec = baseline ?: PersonalityVector(
-        screenTimeHours = baselineEntities.firstOrNull { it.featureName == "screenTimeHours" }?.baselineValue ?: 4f,
-        dailyStepCount = baselineEntities.firstOrNull { it.featureName == "dailyStepCount" }?.baselineValue ?: 3000f,
-        sleepDurationHours = baselineEntities.firstOrNull { it.featureName == "sleepDurationHours" }?.baselineValue ?: 7f,
-        callsPerDay = baselineEntities.firstOrNull { it.featureName == "callsPerDay" }?.baselineValue ?: 2f,
-        locationEntropy = baselineEntities.firstOrNull { it.featureName == "locationEntropy" }?.baselineValue ?: 0.5f,
-        daylightExposureMinutes = baselineEntities.firstOrNull { it.featureName == "daylightExposureMinutes" }?.baselineValue ?: 30f,
-        keystrokeSpeed = baselineEntities.firstOrNull { it.featureName == "keystrokeSpeed" }?.baselineValue ?: 4f
-    )
-
-    val currentEffScore = activeResult?.effectiveScore ?: 0.15f
-    val rhythmScore = ((1.0f - currentEffScore.coerceIn(0f, 1f)) * 100).roundToInt()
+    val latest = historyItems.firstOrNull()?.vector ?: weeklyFeatures.lastOrNull() ?: PersonalityVector()
+    val rhythmScore = computeRhythmScore(latest, baseVec, activeResult)
 
     LazyColumn(
         modifier = Modifier
@@ -533,6 +563,52 @@ data class DailyHistoryItem(
     val checkin: CheckinRecord?,
     val rhythmScore: Int
 )
+
+fun computeCircularHourAverage(hours: List<Float>): Float {
+    if (hours.isEmpty()) return 0f
+    var sinSum = 0.0
+    var cosSum = 0.0
+    hours.forEach { h ->
+        val rad = h * (2.0 * Math.PI / 24.0)
+        sinSum += Math.sin(rad)
+        cosSum += Math.cos(rad)
+    }
+    val avgAngle = Math.atan2(sinSum, cosSum)
+    return (((avgAngle * (24.0 / (2.0 * Math.PI))) + 24.0) % 24.0).toFloat()
+}
+
+fun getOrdinalSuffix(day: Int): String {
+    return when {
+        day in 11..13 -> "th"
+        day % 10 == 1 -> "st"
+        day % 10 == 2 -> "nd"
+        day % 10 == 3 -> "rd"
+        else -> "th"
+    }
+}
+
+fun computeRhythmScore(
+    vec: PersonalityVector?,
+    baseVec: PersonalityVector,
+    report: AnalysisResultEntity?
+): Int {
+    if (report != null && report.effectiveScore > 0.001f) {
+        return ((1f - report.effectiveScore.coerceIn(0f, 1f)) * 100).roundToInt().coerceIn(0, 100)
+    }
+    if (report != null && report.anomalyScore > 0.001f) {
+        val eff = (report.anomalyScore * report.l2Modifier).coerceIn(0f, 1f)
+        return ((1f - eff) * 100).roundToInt().coerceIn(0, 100)
+    }
+    if (vec != null) {
+        val screenDev = if (baseVec.screenTimeHours > 0) abs(vec.screenTimeHours - baseVec.screenTimeHours) / baseVec.screenTimeHours else 0f
+        val sleepDev = if (baseVec.sleepDurationHours > 0) abs(vec.sleepDurationHours - baseVec.sleepDurationHours) / baseVec.sleepDurationHours else 0f
+        val stepDev = if (baseVec.dailyStepCount > 0) abs(vec.dailyStepCount - baseVec.dailyStepCount) / baseVec.dailyStepCount else 0f
+        val callDev = if (baseVec.callsPerDay > 0) abs(vec.callsPerDay - baseVec.callsPerDay) / baseVec.callsPerDay else 0f
+        val weightedDev = (screenDev * 0.3f + sleepDev * 0.35f + stepDev * 0.25f + callDev * 0.1f).coerceIn(0f, 1f)
+        return ((1f - (weightedDev * 0.4f)) * 100).roundToInt().coerceIn(45, 98)
+    }
+    return 88
+}
 
 @Composable
 fun DailyRhythmScoreCard(
@@ -1161,15 +1237,21 @@ data class SectorFeatureSpec(
     val unit: String
 )
 
-fun formatHourLabel(rawH: Float): String {
-    val h = ((rawH % 24f) + 24f).roundToInt() % 24
+fun formatHourLabel(rawH: Float, includeMinutes: Boolean = false): String {
+    val hTotal = ((rawH % 24f) + 24f) % 24f
+    val h = hTotal.toInt()
+    val m = ((hTotal - h) * 60f).roundToInt()
     val pm = h >= 12 && h < 24
     val displayH = when {
         h == 0 -> 12
         h > 12 -> h - 12
         else -> h
     }
-    return "$displayH ${if (pm) "PM" else "AM"}"
+    return if (includeMinutes || m > 0) {
+        "$displayH:${String.format(Locale.US, "%02d", m)} ${if (pm) "PM" else "AM"}"
+    } else {
+        "$displayH ${if (pm) "PM" else "AM"}"
+    }
 }
 
 fun circadianHourTransform(hour: Float): Float {
@@ -1180,8 +1262,8 @@ fun getSectorFeatures(sectorName: String): List<SectorFeatureSpec> {
     return when (sectorName) {
         "Sleep & Rest" -> listOf(
             SectorFeatureSpec("Sleep Duration", { it.sleepDurationHours }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepDurationHours" }?.baselineValue ?: (if (base.sleepDurationHours > 0) base.sleepDurationHours else 7f) }, { "%.1fh".format(it) }, "hours"),
-            SectorFeatureSpec("Wake Time", { it.wakeTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "wakeTimeHour" }?.baselineValue ?: (if (base.wakeTimeHour > 0) base.wakeTimeHour else 7f) }, { formatHourLabel(it) }, "hour"),
-            SectorFeatureSpec("Bedtime", { it.sleepTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepTimeHour" }?.baselineValue ?: (if (base.sleepTimeHour > 0) base.sleepTimeHour else 23f) }, { formatHourLabel(it) }, "hour")
+            SectorFeatureSpec("Wake Time", { it.wakeTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "wakeTimeHour" }?.baselineValue ?: (if (base.wakeTimeHour > 0) base.wakeTimeHour else 7f) }, { formatHourLabel(it, true) }, "hour"),
+            SectorFeatureSpec("Bedtime", { it.sleepTimeHour }, { base, list -> list.firstOrNull { b -> b.featureName == "sleepTimeHour" }?.baselineValue ?: (if (base.sleepTimeHour > 0) base.sleepTimeHour else 23f) }, { formatHourLabel(it, true) }, "hour")
         )
         "Physical Activity" -> listOf(
             SectorFeatureSpec("Daily Step Count", { it.dailyStepCount }, { base, list -> list.firstOrNull { b -> b.featureName == "dailyStepCount" }?.baselineValue ?: (if (base.dailyStepCount > 0) base.dailyStepCount else 3000f) }, { "%.0f steps".format(it) }, "steps"),
@@ -1221,6 +1303,7 @@ fun SectorDetailScreen(
     sectorName: String,
     sectorIcon: ImageVector,
     features: List<PersonalityVector>,
+    historyItems: List<DailyHistoryItem>,
     baselineEntities: List<BaselineEntity>,
     onBack: () -> Unit
 ) {
@@ -1236,7 +1319,7 @@ fun SectorDetailScreen(
 
     val featureSpecs = remember(sectorName) { getSectorFeatures(sectorName) }
 
-    // Build day range vectors (padded to 14 or 30 days if weeklyFeatures has fewer entries)
+    // Build day range vectors (padded to 14 or 30 days if history has fewer entries)
     val displayFeatures = remember(features, timeRangeDays) {
         if (features.isEmpty()) emptyList()
         else {
@@ -1345,20 +1428,16 @@ fun SectorDetailScreen(
         items(featureSpecs) { spec ->
             val featureValues = displayFeatures.map { spec.getValue(it) }
             val normVal = spec.getBaseline(baseVec, baselineEntities)
-            val avgVal = if (featureValues.isNotEmpty()) featureValues.average().toFloat() else normVal
-            val diffPct = if (normVal > 0f) ((avgVal - normVal) / normVal * 100).roundToInt() else 0
 
             FeatureBarChartCard(
                 spec = spec,
                 values = featureValues,
                 normValue = normVal,
-                avgValue = avgVal,
-                diffPct = diffPct,
                 daysCount = timeRangeDays
             )
         }
 
-        // Calendar Heat Map History Grid Section
+        // Calendar History Section
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1383,17 +1462,9 @@ fun SectorDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    CalendarHeatMapGrid(
-                        features = displayFeatures,
-                        onSelectDate = { selectedVector, dateStr ->
-                            selectedCalendarDay = DailyHistoryItem(
-                                dateStr = dateStr,
-                                vector = selectedVector,
-                                analysisResult = null,
-                                checkin = null,
-                                rhythmScore = 85
-                            )
-                        }
+                    MonthHistoryCalendar(
+                        historyItems = historyItems,
+                        onSelectDay = { selectedCalendarDay = it }
                     )
                 }
             }
@@ -1406,24 +1477,45 @@ fun FeatureBarChartCard(
     spec: SectorFeatureSpec,
     values: List<Float>,
     normValue: Float,
-    avgValue: Float,
-    diffPct: Int,
     daysCount: Int
 ) {
     val isCircadianTime = spec.name == "Wake Time" || spec.name == "Bedtime"
 
-    val diffText = when {
-        diffPct > 0 -> "$diffPct% higher than your personal norm"
-        diffPct < 0 -> "${abs(diffPct)}% lower than your personal norm"
-        else -> "matching your personal norm"
-    }
+    val avgVal = if (values.isNotEmpty()) {
+        if (isCircadianTime) computeCircularHourAverage(values) else values.average().toFloat()
+    } else normValue
 
-    val narrative = remember(spec.name, diffPct, daysCount) {
+    val narrative = remember(spec.name, avgVal, normValue, daysCount, isCircadianTime) {
         val rangeLabel = if (daysCount == 7) "this week" else "over the last $daysCount days"
-        when {
-            diffPct > 15 -> "Your average ${spec.name.lowercase()} was ${spec.formatValue(avgValue)} $rangeLabel. You recorded $diffText of ${spec.formatValue(normValue)}."
-            diffPct < -15 -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgValue)} $rangeLabel, showing a quieter pattern ($diffText)."
-            else -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgValue)} $rangeLabel, flowing in steady alignment with your personal norm."
+        if (isCircadianTime) {
+            val diffHours = ((avgVal - normValue + 12f) % 24f) - 12f
+            val diffMins = (abs(diffHours) * 60f).roundToInt()
+            val diffStr = when {
+                diffHours > 0.35f -> {
+                    val h = diffMins / 60
+                    val m = diffMins % 60
+                    if (h > 0) "${h}h ${m}m later than your personal norm" else "${m}m later than your personal norm"
+                }
+                diffHours < -0.35f -> {
+                    val h = diffMins / 60
+                    val m = diffMins % 60
+                    if (h > 0) "${h}h ${m}m earlier than your personal norm" else "${m}m earlier than your personal norm"
+                }
+                else -> "in steady alignment with your personal norm"
+            }
+            "Your average ${spec.name.lowercase()} was ${formatHourLabel(avgVal, true)} $rangeLabel. You recorded $diffStr of ${formatHourLabel(normValue, true)}."
+        } else {
+            val diffPct = if (normValue > 0f) ((avgVal - normValue) / normValue * 100).roundToInt() else 0
+            val diffText = when {
+                diffPct > 0 -> "$diffPct% higher than your personal norm"
+                diffPct < 0 -> "${abs(diffPct)}% lower than your personal norm"
+                else -> "matching your personal norm"
+            }
+            when {
+                diffPct > 15 -> "Your average ${spec.name.lowercase()} was ${spec.formatValue(avgVal)} $rangeLabel. You recorded $diffText of ${spec.formatValue(normValue)}."
+                diffPct < -15 -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgVal)} $rangeLabel, showing a quieter pattern ($diffText)."
+                else -> "Your ${spec.name.lowercase()} averaged ${spec.formatValue(avgVal)} $rangeLabel, flowing in steady alignment with your personal norm."
+            }
         }
     }
 
@@ -1458,7 +1550,7 @@ fun FeatureBarChartCard(
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "Avg: ${spec.formatValue(avgValue)}",
+                    text = "Avg: ${spec.formatValue(avgVal)}",
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
@@ -1521,7 +1613,7 @@ fun LabeledBarChart(
                     val yPos = graphHeight * (1f - (tickVal / maxVal).coerceIn(0f, 1f))
                     val labelText = if (isCircadianTime) {
                         val hourRaw = if (tickVal <= 6f) tickVal + 18f else tickVal - 6f
-                        formatHourLabel(hourRaw)
+                        formatHourLabel(hourRaw, false)
                     } else {
                         if (tickVal >= 1000) "%.0fk".format(tickVal / 1000f)
                         else "%.0f".format(tickVal)
@@ -1593,73 +1685,272 @@ fun LabeledBarChart(
     }
 }
 
+data class CalendarMonthOption(
+    val key: String,
+    val label: String,
+    val cal: Calendar
+)
+
 @Composable
-fun CalendarHeatMapGrid(
-    features: List<PersonalityVector>,
-    onSelectDate: (PersonalityVector, String) -> Unit
+fun MonthHistoryCalendar(
+    historyItems: List<DailyHistoryItem>,
+    onSelectDay: (DailyHistoryItem) -> Unit
 ) {
+    val itemsByDate = remember(historyItems) { historyItems.associateBy { it.dateStr } }
+
+    val monthOptions = remember(historyItems) {
+        val keys = mutableSetOf<String>()
+        val cal = Calendar.getInstance()
+        val sdfMonthKey = SimpleDateFormat("yyyy-MM", Locale.US)
+        keys.add(sdfMonthKey.format(cal.time))
+        historyItems.forEach { item ->
+            try {
+                val d = SimpleDateFormat("yyyy-MM-dd", Locale.US).parse(item.dateStr)
+                if (d != null) keys.add(sdfMonthKey.format(d))
+            } catch (_: Exception) {}
+        }
+        keys.sortedDescending().mapNotNull { k ->
+            try {
+                val d = SimpleDateFormat("yyyy-MM", Locale.US).parse(k)
+                if (d != null) {
+                    val label = SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(d)
+                    val c = Calendar.getInstance().apply {
+                        time = d
+                        set(Calendar.DAY_OF_MONTH, 1)
+                        set(Calendar.HOUR_OF_DAY, 0)
+                        set(Calendar.MINUTE, 0)
+                        set(Calendar.SECOND, 0)
+                    }
+                    CalendarMonthOption(key = k, label = label, cal = c)
+                } else null
+            } catch (_: Exception) {
+                null
+            }
+        }
+    }
+
+    var selectedMonthCal by remember {
+        mutableStateOf(Calendar.getInstance().apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+        })
+    }
+
+    var showMonthPickerDropdown by remember { mutableStateOf(false) }
+
+    val monthTitle = remember(selectedMonthCal) {
+        SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(selectedMonthCal.time)
+    }
+
+    val todayStr = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) }
     val daysOfWeek = listOf("S", "M", "T", "W", "T", "F", "S")
 
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // Day Headers
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Month Navigation & Selection Header
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable { showMonthPickerDropdown = true }
+                    .padding(horizontal = 6.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = monthTitle,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = Fredoka,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+                Icon(
+                    imageVector = Icons.Default.ArrowDropDown,
+                    contentDescription = "Select Month",
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(20.dp)
+                )
+
+                DropdownMenu(
+                    expanded = showMonthPickerDropdown,
+                    onDismissRequest = { showMonthPickerDropdown = false }
+                ) {
+                    monthOptions.forEach { opt ->
+                        val isSelected = SimpleDateFormat("yyyy-MM", Locale.US).format(selectedMonthCal.time) == opt.key
+                        DropdownMenuItem(
+                            text = {
+                                Text(
+                                    text = opt.label,
+                                    fontFamily = Fredoka,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                                )
+                            },
+                            onClick = {
+                                selectedMonthCal = opt.cal.clone() as Calendar
+                                showMonthPickerDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(
+                    onClick = {
+                        val prev = (selectedMonthCal.clone() as Calendar).apply {
+                            add(Calendar.MONTH, -1)
+                        }
+                        selectedMonthCal = prev
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronLeft,
+                        contentDescription = "Previous Month",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+
+                IconButton(
+                    onClick = {
+                        val next = (selectedMonthCal.clone() as Calendar).apply {
+                            add(Calendar.MONTH, 1)
+                        }
+                        selectedMonthCal = next
+                    },
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = "Next Month",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        // Day Headers: S M T W T F S
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
             daysOfWeek.forEach { dayLabel ->
-                Text(
-                    text = dayLabel,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = dayLabel,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = Fredoka,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
 
-        // 7-column grid of cells
-        val totalCells = 28 // 4 full weeks
-        val cal = Calendar.getInstance()
+        // Calendar Month Grid Calculation
+        val firstDayCal = (selectedMonthCal.clone() as Calendar).apply { set(Calendar.DAY_OF_MONTH, 1) }
+        val firstDayOfWeek = firstDayCal.get(Calendar.DAY_OF_WEEK) - 1 // 0-indexed Sunday
+        val daysInMonth = selectedMonthCal.getActualMaximum(Calendar.DAY_OF_MONTH)
+        val year = selectedMonthCal.get(Calendar.YEAR)
+        val month = selectedMonthCal.get(Calendar.MONTH)
+
+        val totalSlots = firstDayOfWeek + daysInMonth
+        val numRows = (totalSlots + 6) / 7
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            for (row in 0 until 4) {
+            for (row in 0 until numRows) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceAround
                 ) {
                     for (col in 0 until 7) {
-                        val cellIdx = row * 7 + col
-                        val dayOffset = (27 - cellIdx)
-                        val cellCal = (cal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, -dayOffset) }
-                        val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(cellCal.time)
-                        val dayNum = cellCal.get(Calendar.DAY_OF_MONTH).toString()
+                        val slotIdx = row * 7 + col
+                        val dayNumber = slotIdx - firstDayOfWeek + 1
 
-                        val vecIdx = features.size - 1 - (dayOffset % features.size)
-                        val vec = features.getOrElse(vecIdx) { PersonalityVector() }
+                        if (dayNumber in 1..daysInMonth) {
+                            val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayNumber)
+                            val item = itemsByDate[dateStr]
+                            val isToday = dateStr == todayStr
+                            val suffix = getOrdinalSuffix(dayNumber)
 
-                        // Simulated Rhythm Score for heat cell
-                        val cellScore = (75 + (cellIdx * 7) % 25).coerceIn(45, 95)
-                        val cellColor = when {
-                            cellScore >= 80 -> MaterialTheme.colorScheme.primary
-                            cellScore >= 60 -> Color(0xFFF59E0B)
-                            else -> Color(0xFFEF4444)
-                        }
+                            val cellScore = item?.rhythmScore
+                            val cellColor = when {
+                                cellScore == null -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                                cellScore >= 80 -> MaterialTheme.colorScheme.primary
+                                cellScore >= 50 -> Color(0xFFF59E0B)
+                                else -> Color(0xFFEF4444)
+                            }
 
-                        Box(
-                            modifier = Modifier
-                                .size(34.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(cellColor.copy(alpha = 0.2f))
-                                .border(1.dp, cellColor.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
-                                .clickable { onSelectDate(vec, dateStr) },
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = dayNum,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                fontFamily = Fredoka,
-                                color = MaterialTheme.colorScheme.onBackground
+                            val hasData = item != null
+
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .padding(2.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(
+                                        if (hasData) cellColor.copy(alpha = 0.18f)
+                                        else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.12f)
+                                    )
+                                    .border(
+                                        width = if (isToday) 1.8.dp else 1.dp,
+                                        color = if (isToday) MaterialTheme.colorScheme.primary else (if (hasData) cellColor.copy(alpha = 0.45f) else Color.Transparent),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable(enabled = hasData) {
+                                        if (item != null) onSelectDay(item)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.Top,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "$dayNumber",
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isToday || hasData) FontWeight.Bold else FontWeight.Normal,
+                                            fontFamily = Fredoka,
+                                            color = if (hasData) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                                        )
+                                        Text(
+                                            text = suffix,
+                                            fontSize = 7.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontFamily = Fredoka,
+                                            color = if (hasData) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
+                                            modifier = Modifier.padding(start = 0.5.dp, top = 0.5.dp)
+                                        )
+                                    }
+
+                                    if (hasData && cellScore != null) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 1.dp)
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(cellColor)
+                                        )
+                                    }
+                                }
+                            }
+                        } else {
+                            // Empty placeholder box for alignment
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .aspectRatio(1f)
+                                    .padding(2.dp)
                             )
                         }
                     }
@@ -1725,18 +2016,9 @@ fun DailyHistoryScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
-                    CalendarHeatMapGrid(
-                        features = historyItems.map { it.vector },
-                        onSelectDate = { vector, dateStr ->
-                            val item = historyItems.firstOrNull { it.dateStr == dateStr } ?: DailyHistoryItem(
-                                dateStr = dateStr,
-                                vector = vector,
-                                analysisResult = null,
-                                checkin = null,
-                                rhythmScore = 82
-                            )
-                            onSelectDay(item)
-                        }
+                    MonthHistoryCalendar(
+                        historyItems = historyItems,
+                        onSelectDay = onSelectDay
                     )
                 }
             }

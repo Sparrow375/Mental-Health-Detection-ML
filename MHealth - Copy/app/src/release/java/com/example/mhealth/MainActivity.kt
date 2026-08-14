@@ -2683,11 +2683,15 @@ fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                 val reportsArr = masterJson.getJSONArray("analysis_reports")
                 for (i in 0 until reportsArr.length()) {
                     val reportObj = reportsArr.getJSONObject(i)
+                    val rawEffectiveScore = reportObj.optDouble("effectiveScore", 0.0).toFloat()
+                    val anomalyScore = reportObj.optDouble("anomalyScore", 0.0).toFloat()
+                    val l2Modifier = reportObj.optDouble("l2Modifier", 1.0).toFloat()
+                    val effScore = if (rawEffectiveScore > 0.001f) rawEffectiveScore else if (anomalyScore > 0.001f) (anomalyScore * l2Modifier).coerceIn(0f, 1f) else 0f
                     val r = AnalysisResultEntity(
                         userId = userId,
                         date = reportObj.optString("date"),
                         anomalyDetected = reportObj.optBoolean("anomalyDetected"),
-                        anomalyScore = reportObj.optDouble("anomalyScore", 0.0).toFloat(),
+                        anomalyScore = anomalyScore,
                         anomalyMessage = reportObj.optString("anomalyMessage", ""),
                         alertLevel = reportObj.optString("alertLevel", "Normal"),
                         sustainedDays = reportObj.optInt("sustainedDays", 0),
@@ -2695,11 +2699,11 @@ fun importBackupDataFromJson(context: Context, uri: android.net.Uri) {
                         matchMessage = reportObj.optString("matchMessage", ""),
                         prototypeConfidence = reportObj.optDouble("prototypeConfidence", 0.0).toFloat(),
                         gateResults = reportObj.optJSONObject("gateResults")?.toString() ?: "{}",
-                        l2Modifier = reportObj.optDouble("l2Modifier", 1.0).toFloat(),
+                        l2Modifier = l2Modifier,
                         coherence = reportObj.optDouble("coherence", 0.0).toFloat(),
                         rhythmDissolution = reportObj.optDouble("rhythmDissolution", 0.0).toFloat(),
                         sessionIncoherence = reportObj.optDouble("sessionIncoherence", 0.0).toFloat(),
-                        effectiveScore = reportObj.optDouble("effectiveScore", 0.0).toFloat(),
+                        effectiveScore = effScore,
                         evidenceAccumulated = reportObj.optDouble("evidenceAccumulated", 0.0).toFloat()
                     )
                     db.analysisResultDao().insert(r)

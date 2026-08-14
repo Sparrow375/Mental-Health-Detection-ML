@@ -19,3 +19,12 @@
 
 ### Verification
 - [x] **T108**: Compile release APK via `./gradlew :app:compileReleaseKotlin` and verify all 9 issues.
+
+## Sprint: Insights UI & Visual Fixes
+- [x] **T109**: Fix Daily Rhythm Score gauge at top of Insights tab (fallback from zero effectiveScore to anomalyScore or live telemetry calculation).
+- [x] **T110**: Fix history scores (eliminate hardcoded 85 for current day and 100 for clean previous days).
+- [x] **T111**: Fix calendar tap data binding (load full Room daily features history so tapping any day displays authentic day metrics and reflections).
+- [x] **T112**: Overhaul History Calendar into true Month-Grid Calendar with month picker, navigation arrows, and ordinal date suffixes ("14th", "1st").
+- [x] **T113**: Fix sleep & bedtime circadian circular averaging, clean AM/PM formatting, and human-readable time comparison narrative.
+- [x] **T114**: Verify compilation and test with exported dataset.
+

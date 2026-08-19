@@ -68,6 +68,8 @@ fun SettingsScreen() {
     var dailyReminders by remember { mutableStateOf(prefs.getBoolean("daily_reminders_enabled", true)) }
     var monthlyReminders by remember { mutableStateOf(prefs.getBoolean("monthly_reminders_enabled", true)) }
     var streakRemindersEnabled by remember { mutableStateOf(prefs.getBoolean("settings_streak_reminders_enabled", true)) }
+    var questProgressEnabled by remember { mutableStateOf(prefs.getBoolean("quest_progress_notifications_enabled", true)) }
+    var milestoneAlertsEnabled by remember { mutableStateOf(prefs.getBoolean("quest_milestone_notifications_enabled", true)) }
     var autoBackupEnabled by remember { mutableStateOf(prefs.getBoolean("auto_backup_enabled", true)) }
     var weeklySummaryEnabled by remember { mutableStateOf(prefs.getBoolean("weekly_summary_notifications_enabled", true)) }
 
@@ -396,13 +398,36 @@ fun SettingsScreen() {
                     )
                     HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
                     ToggleRow(
-                        title = "Streak Reminders",
-                        subtitle = "Evening push notification if a quest streak is at risk",
+                        title = "Quest Mid-day Progress Updates",
+                        subtitle = "Afternoon encouragement (3 PM) on active quest goals",
+                        checked = questProgressEnabled,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            questProgressEnabled = it
+                            prefs.edit().putBoolean("quest_progress_notifications_enabled", it).apply()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Evening Streak-Saver Reminders",
+                        subtitle = "Evening push notification (8:30 PM) if a streak is at risk",
                         checked = streakRemindersEnabled,
                         color = MaterialTheme.colorScheme.primary,
                         onToggle = {
                             streakRemindersEnabled = it
-                            prefs.edit().putBoolean("settings_streak_reminders_enabled", it).apply()
+                            prefs.edit().putBoolean("settings_streak_reminders_enabled", it)
+                                .putBoolean("quest_streak_notifications_enabled", it).apply()
+                        }
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(0.1f))
+                    ToggleRow(
+                        title = "Milestone & Badge Celebrations",
+                        subtitle = "Celebration alerts when hitting 3, 7, 14, or 30-day streaks",
+                        checked = milestoneAlertsEnabled,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = {
+                            milestoneAlertsEnabled = it
+                            prefs.edit().putBoolean("quest_milestone_notifications_enabled", it).apply()
                         }
                     )
                 }

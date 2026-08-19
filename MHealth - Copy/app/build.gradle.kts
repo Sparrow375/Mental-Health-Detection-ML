@@ -9,7 +9,7 @@ plugins {
 
 android {
     namespace = "com.example.mhealth"
-    compileSdk = 35
+    compileSdk = 36
 
     signingConfigs {
         create("sharedDebug") {
@@ -32,7 +32,7 @@ android {
         val isRelease = project.gradle.startParameter.taskNames.any { it.contains("release", ignoreCase = true) }
         applicationId = if (isRelease) "com.lumen.mh.app" else "com.example.mhealth"
         minSdk = 26
-        targetSdk = 35
+        targetSdk = 36
 
         val baseVersionCode = 100
         val runNumber = System.getenv("GITHUB_RUN_NUMBER")?.toIntOrNull() ?: 0

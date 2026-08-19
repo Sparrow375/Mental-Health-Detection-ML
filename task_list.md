@@ -27,6 +27,11 @@
 - [x] **T112**: Overhaul History Calendar into true Month-Grid Calendar with month picker, navigation arrows, and ordinal date suffixes ("14th", "1st").
 - [x] **T113**: Fix sleep & bedtime circadian circular averaging, clean AM/PM formatting, and human-readable time comparison narrative.
 - [x] **T114**: Verify compilation and test with exported dataset.
-- [x] **T115**: Sync top Insights hero score to directly display today's live history score.
-- [x] **T116**: Fix text cutoff on "Challenging" in Daily Check-In rating selector with maxLines=1, letter spacing, and card padding adjustments.
-
+## Sprint: Android 16 (API 36), Monthly Screener & Quests Overhaul
+- [x] **T117**: Update app build configuration to target Android 16 (compileSdk = 36, targetSdk = 36) in `build.gradle.kts`.
+- [x] **T118**: Fix Monthly Check-in button in `CheckInScreen.kt` and build comprehensive 4-step Monthly Screener Wizard (Mood, Anxiety, Life Stressors, Reflection Note) with 30-day cooldown and score saving.
+- [x] **T119**: Overhaul Quests configuration in `ActivitiesScreen.kt`: Add exact quantity inputs for Movement Boost (steps), Daily Screen Limit (hours), Digital Sunset (min), Circadian Anchor (bedtime), Focus Mode (ratio), Mindful Pause (sessions), and Daylight Boost (min).
+- [x] **T120**: Implement personal baseline-based recommendations in `ActivitiesScreen.kt` (e.g. +20% step recommendation based on usual norm, -15% screen time cap) with 1-tap "Apply Recommendation" chips.
+- [x] **T121**: Upgrade Custom Quests into fully customizable structured habit builder with custom units, targets, tracking modes (sensor vs tap), and streak preservation.
+- [x] **T122**: Implement Quest Progress, Streak-Saver, and Milestone notifications in `MonitoringService.kt`, fix streak preference key alignment, and add granular notification toggles to `SettingsScreen.kt` and `ActivitiesScreen.kt`.
+- [x] **T123**: Verify release compilation via `./gradlew :app:compileReleaseKotlin` and validate functionality.

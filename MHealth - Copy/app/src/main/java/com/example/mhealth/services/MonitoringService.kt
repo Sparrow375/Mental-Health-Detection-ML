@@ -870,6 +870,8 @@ class MonitoringService : Service() {
         val editor = prefs.edit()
         
         Log.i("MHealth.Service", "Evaluating habits for $dateStr...")
+        var maxMilestoneStreakAchieved = 0
+        var milestoneQuestTitle = ""
 
         // 1. Digital Sunset
         if (prefs.getBoolean("habit_digital_sunset_enabled", false)) {
@@ -880,6 +882,10 @@ class MonitoringService : Service() {
             val newStreak = if (success) streak + 1 else 0
             editor.putInt("habit_digital_sunset_streak", newStreak)
             editor.putBoolean("habit_digital_sunset_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Digital Sunset"
+            }
             Log.i("MHealth.Service", "  Digital Sunset: $screenMinAfter9 mins (target: $targetMin mins) -> success=$success, streak=$newStreak")
         } else {
             editor.putInt("habit_digital_sunset_streak", 0)
@@ -900,6 +906,10 @@ class MonitoringService : Service() {
             val newStreak = if (success) streak + 1 else 0
             editor.putInt("habit_circadian_anchor_streak", newStreak)
             editor.putBoolean("habit_circadian_anchor_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Circadian Anchor"
+            }
             Log.i("MHealth.Service", "  Circadian Anchor: bedtime $bedtime (target: $targetHour) -> success=$success, streak=$newStreak")
         } else {
             editor.putInt("habit_circadian_anchor_streak", 0)
@@ -914,12 +924,34 @@ class MonitoringService : Service() {
             val newStreak = if (success) streak + 1 else 0
             editor.putInt("habit_movement_boost_streak", newStreak)
             editor.putBoolean("habit_movement_boost_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Movement Boost"
+            }
             Log.i("MHealth.Service", "  Movement Boost: $steps steps (target: $targetSteps) -> success=$success, streak=$newStreak")
         } else {
             editor.putInt("habit_movement_boost_streak", 0)
         }
 
-        // 4. Focus Mode
+        // 4. Daily Screen Time Limit
+        if (prefs.getBoolean("habit_screen_limit_enabled", false)) {
+            val targetHours = prefs.getFloat("habit_screen_limit_target", 4.0f)
+            val screenHours = snapshot.screenTimeHours
+            val success = screenHours <= targetHours && screenHours > 0f
+            val streak = prefs.getInt("habit_screen_limit_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_screen_limit_streak", newStreak)
+            editor.putBoolean("habit_screen_limit_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Screen Time Limit"
+            }
+            Log.i("MHealth.Service", "  Screen Limit: $screenHours hrs (target: $targetHours hrs) -> success=$success, streak=$newStreak")
+        } else {
+            editor.putInt("habit_screen_limit_streak", 0)
+        }
+
+        // 5. Focus Mode (Social App Ratio)
         if (prefs.getBoolean("habit_focus_mode_enabled", false)) {
             val targetRatio = prefs.getFloat("habit_focus_mode_target", 0.20f)
             val socialRatio = snapshot.socialAppRatio
@@ -928,13 +960,90 @@ class MonitoringService : Service() {
             val newStreak = if (success) streak + 1 else 0
             editor.putInt("habit_focus_mode_streak", newStreak)
             editor.putBoolean("habit_focus_mode_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Focus Mode"
+            }
             Log.i("MHealth.Service", "  Focus Mode: social ratio $socialRatio (target: $targetRatio) -> success=$success, streak=$newStreak")
         } else {
             editor.putInt("habit_focus_mode_streak", 0)
         }
 
+        // 6. Mindful Pause
+        if (prefs.getBoolean("habit_mindful_pause_enabled", false)) {
+            val targetSessions = prefs.getInt("habit_mindful_pause_target", 1)
+            val completedSessions = prefs.getInt("habit_mindful_pause_today_count", 0)
+            val success = completedSessions >= targetSessions
+            val streak = prefs.getInt("habit_mindful_pause_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_mindful_pause_streak", newStreak)
+            editor.putInt("habit_mindful_pause_today_count", 0) // reset for new day
+            editor.putBoolean("habit_mindful_pause_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Mindful Pause"
+            }
+        } else {
+            editor.putInt("habit_mindful_pause_streak", 0)
+        }
+
+        // 7. Daylight Exposure
+        if (prefs.getBoolean("habit_daylight_boost_enabled", false)) {
+            val targetMin = prefs.getInt("habit_daylight_boost_target", 30)
+            val daylightMin = snapshot.daylightExposureMinutes.toInt()
+            val success = daylightMin >= targetMin
+            val streak = prefs.getInt("habit_daylight_boost_streak", 0)
+            val newStreak = if (success) streak + 1 else 0
+            editor.putInt("habit_daylight_boost_streak", newStreak)
+            editor.putBoolean("habit_daylight_boost_status_last", success)
+            if (success && (newStreak == 3 || newStreak == 7 || newStreak == 14 || newStreak == 30)) {
+                maxMilestoneStreakAchieved = newStreak
+                milestoneQuestTitle = "Daylight Boost"
+            }
+        } else {
+            editor.putInt("habit_daylight_boost_streak", 0)
+        }
+
+        // 8. Custom Auto-Tracked Quests in JSON
+        try {
+            val customHabitsJson = prefs.getString("custom_habits_json_v2", "[]") ?: "[]"
+            val customArr = org.json.JSONArray(customHabitsJson)
+            var modified = false
+            for (i in 0 until customArr.length()) {
+                val obj = customArr.getJSONObject(i)
+                val isAuto = obj.optBoolean("isAutoTracked", false)
+                val category = obj.optString("category", "")
+                val target = obj.optInt("targetQuantity", 1)
+                val currentStreak = obj.optInt("streak", 0)
+
+                if (isAuto) {
+                    val success = when (category) {
+                        "Movement" -> snapshot.dailyStepCount.toInt() >= target
+                        "Screen" -> (snapshot.screenTimeHours * 60).toInt() <= target
+                        "Sleep" -> snapshot.sleepDurationHours >= (target / 60f)
+                        "Daylight" -> snapshot.daylightExposureMinutes.toInt() >= target
+                        else -> false
+                    }
+                    val newStreak = if (success) currentStreak + 1 else 0
+                    obj.put("streak", newStreak)
+                    obj.put("currentProgress", 0) // reset daily counter
+                    modified = true
+                }
+            }
+            if (modified) {
+                editor.putString("custom_habits_json_v2", customArr.toString())
+            }
+        } catch (e: Exception) {
+            Log.e("MHealth.Service", "Error evaluating custom habits: ${e.message}")
+        }
+
         editor.putString("habit_last_checked_date", dateStr)
         editor.apply()
+
+        // Trigger Milestone Notification if enabled
+        if (maxMilestoneStreakAchieved > 0 && prefs.getBoolean("quest_milestone_notifications_enabled", true)) {
+            sendQuestMilestoneNotification(milestoneQuestTitle, maxMilestoneStreakAchieved)
+        }
     }
 
     private suspend fun handleBaselineBuilding(snapshot: PersonalityVector, today: Int, savedDay: Int, isSimulated: Boolean) {
@@ -1631,9 +1740,114 @@ class MonitoringService : Service() {
                     }
                 }
             }
+
+            // 4. Quest Mid-Day Progress Notification (Send between 2 PM - 5 PM if enabled)
+            val progressNotifsEnabled = prefs.getBoolean("quest_progress_notifications_enabled", true)
+            if (progressNotifsEnabled && hour in 14..17) {
+                val lastProgressSentDate = prefs.getString("quest_progress_notification_sent_date", "") ?: ""
+                if (lastProgressSentDate != todayStr) {
+                    // Check if user has active movement or screen quest and has made progress
+                    val movementEnabled = prefs.getBoolean("habit_movement_boost_enabled", false)
+                    val targetSteps = prefs.getInt("habit_movement_boost_target", 6000)
+                    val currentSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
+                    val currentSteps = currentSnapshot.dailyStepCount.toInt()
+
+                    if (movementEnabled && currentSteps > 0 && currentSteps < targetSteps) {
+                        val pct = ((currentSteps.toFloat() / targetSteps) * 100).toInt()
+                        sendQuestProgressNotification(
+                            "Quest Progress: Movement Boost",
+                            "You're at $currentSteps of $targetSteps steps ($pct%) today! Keep the momentum going."
+                        )
+                        prefs.edit().putString("quest_progress_notification_sent_date", todayStr).apply()
+                    }
+                }
+            }
+
+            // 5. Quest Evening Streak-Saver Notification (Send between 8 PM - 10 PM if enabled)
+            val streakRemindersEnabled = prefs.getBoolean("quest_streak_notifications_enabled", true)
+                && prefs.getBoolean("settings_streak_reminders_enabled", true)
+            if (streakRemindersEnabled && hour in 20..22) {
+                val lastStreakSentDate = prefs.getString("quest_streak_notification_sent_date", "") ?: ""
+                if (lastStreakSentDate != todayStr) {
+                    val movementStreak = prefs.getInt("habit_movement_boost_streak", 0)
+                    val movementEnabled = prefs.getBoolean("habit_movement_boost_enabled", false)
+                    val targetSteps = prefs.getInt("habit_movement_boost_target", 6000)
+                    val currentSnapshot = dataCollector.collectSnapshot(DataRepository.locationSnapshots.value)
+                    val currentSteps = currentSnapshot.dailyStepCount.toInt()
+
+                    if (movementEnabled && movementStreak >= 1 && currentSteps < targetSteps) {
+                        val remaining = targetSteps - currentSteps
+                        sendQuestStreakNotification(
+                            "Protect Your $movementStreak-Day Streak!",
+                            "$remaining steps left to complete today's Movement Boost before bedtime."
+                        )
+                        prefs.edit().putString("quest_streak_notification_sent_date", todayStr).apply()
+                    }
+                }
+            }
         } catch (e: Exception) {
             Log.e("MHealth.Service", "Error checking checkin notifications: ${e.message}", e)
         }
+    }
+
+    private fun sendQuestProgressNotification(title: String, message: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "activities")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 104, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+        nm.notify(6, notification)
+    }
+
+    private fun sendQuestStreakNotification(title: String, message: String) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "activities")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 105, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle(title)
+            .setContentText(message)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+        nm.notify(7, notification)
+    }
+
+    private fun sendQuestMilestoneNotification(questTitle: String, streakDays: Int) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            putExtra("navigate_to", "activities")
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            this, 106, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, "mhealth_monitoring")
+            .setContentTitle("🔥 Milestone Achieved: $questTitle")
+            .setContentText("Congratulations! You've achieved a $streakDays-day streak on $questTitle!")
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
+            .build()
+        nm.notify(8, notification)
     }
 
     private fun sendWeeklySummaryNotification() {
@@ -1698,7 +1912,7 @@ class MonitoringService : Service() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
-            
+        
         nm.notify(3, notification)
     }
 
@@ -1719,7 +1933,7 @@ class MonitoringService : Service() {
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)
             .build()
-            
+        
         nm.notify(4, notification)
     }
 }

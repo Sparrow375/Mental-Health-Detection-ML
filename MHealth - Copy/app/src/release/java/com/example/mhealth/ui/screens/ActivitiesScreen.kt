@@ -46,6 +46,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.example.mhealth.logic.DataRepository
 import com.example.mhealth.logic.db.BadgeEntity
+import com.example.mhealth.logic.db.BaselineEntity
+import com.example.mhealth.logic.db.MHealthDatabase
 import com.example.mhealth.models.PersonalityVector
 import com.example.mhealth.ui.components.AlertWarning
 import com.example.mhealth.ui.components.AlertRose
@@ -54,6 +56,11 @@ import com.example.mhealth.ui.components.ToggleRow
 import com.example.mhealth.ui.components.Fredoka
 import com.example.mhealth.ui.components.rememberNavBarPadding
 import kotlinx.coroutines.delay
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.Locale
+import java.util.UUID
+import kotlin.math.roundToInt
 
 import com.example.mhealth.WindDownOverlay
 import com.example.mhealth.DigitalDetoxTimerOverlay
@@ -171,6 +178,87 @@ fun ActivitiesScreen() {
     }
 }
 
+data class CustomQuest(
+    val id: String,
+    val title: String,
+    val description: String,
+    val category: String, // Movement, Screen, Sleep, Mindfulness, Hydration, Reading, General
+    val targetQuantity: Int,
+    val unit: String,
+    val currentProgress: Int = 0,
+    val streak: Int = 0,
+    val lastCompletedDate: String = "",
+    val isAutoTracked: Boolean = false
+)
+
+fun loadCustomQuests(prefs: SharedPreferences): List<CustomQuest> {
+    val jsonStr = prefs.getString("custom_habits_json_v2", null)
+    if (jsonStr != null) {
+        try {
+            val arr = JSONArray(jsonStr)
+            val list = mutableListOf<CustomQuest>()
+            for (i in 0 until arr.length()) {
+                val obj = arr.getJSONObject(i)
+                list.add(
+                    CustomQuest(
+                        id = obj.optString("id", UUID.randomUUID().toString()),
+                        title = obj.optString("title", "Custom Quest"),
+                        description = obj.optString("description", ""),
+                        category = obj.optString("category", "General"),
+                        targetQuantity = obj.optInt("targetQuantity", 1),
+                        unit = obj.optString("unit", "times"),
+                        currentProgress = obj.optInt("currentProgress", 0),
+                        streak = obj.optInt("streak", 0),
+                        lastCompletedDate = obj.optString("lastCompletedDate", ""),
+                        isAutoTracked = obj.optBoolean("isAutoTracked", false)
+                    )
+                )
+            }
+            return list
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    // Fallback migration from legacy custom_habits_set
+    val legacySet = prefs.getStringSet("custom_habits_set", emptySet()) ?: emptySet()
+    val migrated = legacySet.mapIndexed { idx, item ->
+        val parts = item.split("|")
+        CustomQuest(
+            id = "legacy_$idx",
+            title = parts.getOrNull(0) ?: "Custom Habit",
+            description = parts.getOrNull(1) ?: "",
+            category = "General",
+            targetQuantity = 1,
+            unit = "times",
+            streak = parts.getOrNull(2)?.toIntOrNull() ?: 0
+        )
+    }
+    if (migrated.isNotEmpty()) {
+        saveCustomQuests(prefs, migrated)
+    }
+    return migrated
+}
+
+fun saveCustomQuests(prefs: SharedPreferences, list: List<CustomQuest>) {
+    val arr = JSONArray()
+    for (q in list) {
+        val obj = JSONObject().apply {
+            put("id", q.id)
+            put("title", q.title)
+            put("description", q.description)
+            put("category", q.category)
+            put("targetQuantity", q.targetQuantity)
+            put("unit", q.unit)
+            put("currentProgress", q.currentProgress)
+            put("streak", q.streak)
+            put("lastCompletedDate", q.lastCompletedDate)
+            put("isAutoTracked", q.isAutoTracked)
+        }
+        arr.put(obj)
+    }
+    prefs.edit().putString("custom_habits_json_v2", arr.toString()).apply()
+}
+
 @Composable
 fun HabitQuestsCard(
     prefs: SharedPreferences,
@@ -179,17 +267,32 @@ fun HabitQuestsCard(
     onGalleryClick: () -> Unit,
     onOpenQuests: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     val unlockedCount = remember(badges) { badges.count { it.isUnlocked } }
 
     val sunsetEnabled = remember { prefs.getBoolean("habit_digital_sunset_enabled", false) }
     val circadianEnabled = remember { prefs.getBoolean("habit_circadian_anchor_enabled", false) }
     val movementEnabled = remember { prefs.getBoolean("habit_movement_boost_enabled", false) }
+    val screenLimitEnabled = remember { prefs.getBoolean("habit_screen_limit_enabled", false) }
     val focusEnabled = remember { prefs.getBoolean("habit_focus_mode_enabled", false) }
+    val mindfulEnabled = remember { prefs.getBoolean("habit_mindful_pause_enabled", false) }
+    val daylightEnabled = remember { prefs.getBoolean("habit_daylight_boost_enabled", false) }
 
-    val sunsetStreak = remember { prefs.getInt("streak_digital_sunset", 0) }
-    val circadianStreak = remember { prefs.getInt("streak_circadian_anchor", 0) }
-    val movementStreak = remember { prefs.getInt("streak_movement_boost", 0) }
-    val focusStreak = remember { prefs.getInt("streak_focus_mode", 0) }
+    val sunsetStreak = remember { prefs.getInt("habit_digital_sunset_streak", prefs.getInt("streak_digital_sunset", 0)) }
+    val circadianStreak = remember { prefs.getInt("habit_circadian_anchor_streak", prefs.getInt("streak_circadian_anchor", 0)) }
+    val movementStreak = remember { prefs.getInt("habit_movement_boost_streak", prefs.getInt("streak_movement_boost", 0)) }
+    val screenLimitStreak = remember { prefs.getInt("habit_screen_limit_streak", 0) }
+    val focusStreak = remember { prefs.getInt("habit_focus_mode_streak", prefs.getInt("streak_focus_mode", 0)) }
+    val mindfulStreak = remember { prefs.getInt("habit_mindful_pause_streak", 0) }
+    val daylightStreak = remember { prefs.getInt("habit_daylight_boost_streak", 0) }
+
+    val movementTarget = remember { prefs.getInt("habit_movement_boost_target", 6000) }
+    val screenLimitTarget = remember { prefs.getFloat("habit_screen_limit_target", 4.0f) }
+    val sunsetTarget = remember { prefs.getInt("habit_digital_sunset_target", 30) }
+    val mindfulTarget = remember { prefs.getInt("habit_mindful_pause_target", 1) }
+    val daylightTarget = remember { prefs.getInt("habit_daylight_boost_target", 30) }
+
+    var customQuests by remember { mutableStateOf(loadCustomQuests(prefs)) }
 
     Card(
         modifier = Modifier
@@ -243,46 +346,120 @@ fun HabitQuestsCard(
                 }
             }
 
-            val activeCount = listOf(sunsetEnabled, circadianEnabled, movementEnabled, focusEnabled).count { it }
+            val activeCount = listOf(
+                sunsetEnabled, circadianEnabled, movementEnabled, screenLimitEnabled,
+                focusEnabled, mindfulEnabled, daylightEnabled
+            ).count { it } + customQuests.size
+
             if (activeCount == 0) {
                 Text(
-                    text = "No active habit quests configured. Tap settings to enable digital sunset, circadian anchor, or movement goals.",
+                    text = "No active habit quests configured. Tap the settings icon to configure personalized goals for steps, screen time, bedtime, and custom habits.",
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     lineHeight = 17.sp
                 )
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    if (movementEnabled) {
+                        QuestRow(
+                            title = "Movement Boost",
+                            subtitle = "Goal: ${String.format(java.util.Locale.US, "%,d", movementTarget)} steps/day",
+                            streak = movementStreak,
+                            icon = Icons.Default.DirectionsRun
+                        )
+                    }
+                    if (screenLimitEnabled) {
+                        QuestRow(
+                            title = "Screen Time Limit",
+                            subtitle = "Cap: ${String.format(java.util.Locale.US, "%.1f", screenLimitTarget)}h/day",
+                            streak = screenLimitStreak,
+                            icon = Icons.Default.PhoneAndroid
+                        )
+                    }
                     if (sunsetEnabled) {
                         QuestRow(
                             title = "Digital Sunset",
-                            subtitle = "Screen-free 30 min before sleep",
+                            subtitle = "Screen-free ${sunsetTarget}m before sleep",
                             streak = sunsetStreak,
                             icon = Icons.Default.NightsStay
                         )
                     }
                     if (circadianEnabled) {
+                        val bedHour = prefs.getFloat("habit_circadian_anchor_target", 23.0f)
+                        val bedStr = if (bedHour >= 24f || bedHour < 1f) "12:00 AM" else if (bedHour == 23.5f) "11:30 PM" else if (bedHour == 23.0f) "11:00 PM" else if (bedHour == 22.5f) "10:30 PM" else "10:00 PM"
                         QuestRow(
                             title = "Circadian Anchor",
-                            subtitle = "Consistent sleep window boundary",
+                            subtitle = "Bedtime boundary: $bedStr",
                             streak = circadianStreak,
                             icon = Icons.Default.Schedule
                         )
                     }
-                    if (movementEnabled) {
-                        QuestRow(
-                            title = "Movement Boost",
-                            subtitle = "Physical step goal",
-                            streak = movementStreak,
-                            icon = Icons.Default.DirectionsRun
-                        )
-                    }
                     if (focusEnabled) {
+                        val focusTarget = prefs.getFloat("habit_focus_mode_target", 0.20f)
                         QuestRow(
                             title = "Focus Mode",
-                            subtitle = "Balanced social media ratio",
+                            subtitle = "Social apps below ${(focusTarget * 100).toInt()}% ratio",
                             streak = focusStreak,
                             icon = Icons.Default.CenterFocusStrong
+                        )
+                    }
+                    if (mindfulEnabled) {
+                        QuestRow(
+                            title = "Mindful Pause",
+                            subtitle = "Target: $mindfulTarget breathing session/day",
+                            streak = mindfulStreak,
+                            icon = Icons.Default.SelfImprovement
+                        )
+                    }
+                    if (daylightEnabled) {
+                        QuestRow(
+                            title = "Daylight Boost",
+                            subtitle = "Target: ${daylightTarget}m daylight exposure",
+                            streak = daylightStreak,
+                            icon = Icons.Default.WbSunny
+                        )
+                    }
+
+                    // Custom Quests
+                    customQuests.forEach { quest ->
+                        val catIcon = when (quest.category) {
+                            "Movement" -> Icons.Default.DirectionsRun
+                            "Screen" -> Icons.Default.PhoneAndroid
+                            "Sleep" -> Icons.Default.Bedtime
+                            "Mindfulness" -> Icons.Default.SelfImprovement
+                            "Hydration" -> Icons.Default.LocalDrink
+                            "Reading" -> Icons.Default.MenuBook
+                            else -> Icons.Default.Star
+                        }
+                        QuestRow(
+                            title = quest.title,
+                            subtitle = "${quest.description.ifEmpty { "Daily goal" }} (${quest.targetQuantity} ${quest.unit})",
+                            streak = quest.streak,
+                            icon = catIcon,
+                            progressFraction = if (quest.targetQuantity > 0) (quest.currentProgress.toFloat() / quest.targetQuantity).coerceIn(0f, 1f) else null,
+                            progressText = "${quest.currentProgress} / ${quest.targetQuantity} ${quest.unit}",
+                            actionButton = if (!quest.isAutoTracked) {
+                                {
+                                    IconButton(
+                                        onClick = {
+                                            val updated = customQuests.map {
+                                                if (it.id == quest.id) {
+                                                    val newProg = it.currentProgress + 1
+                                                    val completed = newProg >= it.targetQuantity
+                                                    val newStreak = if (completed && it.currentProgress < it.targetQuantity) it.streak + 1 else it.streak
+                                                    it.copy(currentProgress = newProg, streak = newStreak)
+                                                } else it
+                                            }
+                                            saveCustomQuests(prefs, updated)
+                                            customQuests = updated
+                                            Toast.makeText(context, "Progress logged for ${quest.title}!", Toast.LENGTH_SHORT).show()
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary)
+                                    }
+                                }
+                            } else null
                         )
                     }
                 }
@@ -296,64 +473,111 @@ fun QuestRow(
     title: String,
     subtitle: String,
     streak: Int,
-    icon: ImageVector
+    icon: ImageVector,
+    progressFraction: Float? = null,
+    progressText: String? = null,
+    actionButton: (@Composable () -> Unit)? = null
 ) {
-    Row(
+    Card(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.35f)),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.08f))
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.weight(1f)
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(36.dp)
-                    .background(MaterialTheme.colorScheme.primary.copy(0.12f), CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
-            }
-            Column {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-                Text(
-                    text = subtitle,
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Surface(
-            shape = RoundedCornerShape(20.dp),
-            color = MaterialTheme.colorScheme.primary.copy(0.15f)
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.LocalFireDepartment,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(14.dp)
-                )
-                Text(
-                    text = "$streak d",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.primary
-                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(MaterialTheme.colorScheme.primary.copy(0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(icon, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
+                    Column {
+                        Text(
+                            text = title,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                        Text(
+                            text = subtitle,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    if (actionButton != null) {
+                        actionButton()
+                    }
+
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.primary.copy(0.15f)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.LocalFireDepartment,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "$streak d",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = Fredoka,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+            }
+
+            if (progressFraction != null) {
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    LinearProgressIndicator(
+                        progress = { progressFraction },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(4.dp)
+                            .clip(CircleShape),
+                        color = MaterialTheme.colorScheme.primary,
+                        trackColor = MaterialTheme.colorScheme.outline.copy(0.15f)
+                    )
+                    if (progressText != null) {
+                        Text(
+                            text = progressText,
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
             }
         }
     }
@@ -667,53 +891,479 @@ fun ManageHabitsDialog(
     prefs: SharedPreferences,
     onDismiss: () -> Unit
 ) {
-    var sunset by remember { mutableStateOf(prefs.getBoolean("habit_digital_sunset_enabled", false)) }
-    var circadian by remember { mutableStateOf(prefs.getBoolean("habit_circadian_anchor_enabled", false)) }
-    var movement by remember { mutableStateOf(prefs.getBoolean("habit_movement_boost_enabled", false)) }
-    var focus by remember { mutableStateOf(prefs.getBoolean("habit_focus_mode_enabled", false)) }
+    val context = LocalContext.current
+    val db = remember { MHealthDatabase.getInstance(context.applicationContext) }
+    val baselineEntities by produceState<List<BaselineEntity>>(emptyList(), db) {
+        value = try {
+            db.baselineDao().getBaseline(DataRepository.userProfile.value?.email ?: "default_user")
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
 
-    Dialog(onDismissRequest = onDismiss) {
+    // Baseline stats
+    val baseSteps = baselineEntities.firstOrNull { it.featureName == "dailyStepCount" }?.baselineValue ?: 3500f
+    val baseScreen = baselineEntities.firstOrNull { it.featureName == "screenTimeHours" }?.baselineValue ?: 4.5f
+    val baseSleepHour = baselineEntities.firstOrNull { it.featureName == "sleepTimeHour" }?.baselineValue ?: 23.5f
+    val baseSocial = baselineEntities.firstOrNull { it.featureName == "socialAppRatio" }?.baselineValue ?: 0.25f
+    val baseDaylight = baselineEntities.firstOrNull { it.featureName == "daylightExposureMinutes" }?.baselineValue ?: 20f
+
+    // Recommended values
+    val recSteps = (((baseSteps * 1.2f) / 500f).roundToInt() * 500).coerceIn(2000, 12000)
+    val recScreen = ((baseScreen * 0.85f * 10f).roundToInt() / 10f).coerceIn(2.0f, 6.0f)
+    val recBedHour = if (baseSleepHour > 23f || baseSleepHour < 5f) 23.0f else (baseSleepHour - 0.5f)
+    val recSocial = ((baseSocial * 0.75f * 100f).roundToInt() / 100f).coerceIn(0.10f, 0.30f)
+    val recDaylight = ((baseDaylight + 15f) / 5f).roundToInt() * 5
+
+    // State
+    var movementEnabled by remember { mutableStateOf(prefs.getBoolean("habit_movement_boost_enabled", false)) }
+    var movementTarget by remember { mutableIntStateOf(prefs.getInt("habit_movement_boost_target", 6000)) }
+
+    var screenLimitEnabled by remember { mutableStateOf(prefs.getBoolean("habit_screen_limit_enabled", false)) }
+    var screenLimitTarget by remember { mutableFloatStateOf(prefs.getFloat("habit_screen_limit_target", 4.0f)) }
+
+    var sunsetEnabled by remember { mutableStateOf(prefs.getBoolean("habit_digital_sunset_enabled", false)) }
+    var sunsetTarget by remember { mutableIntStateOf(prefs.getInt("habit_digital_sunset_target", 30)) }
+
+    var circadianEnabled by remember { mutableStateOf(prefs.getBoolean("habit_circadian_anchor_enabled", false)) }
+    var circadianTarget by remember { mutableFloatStateOf(prefs.getFloat("habit_circadian_anchor_target", 23.0f)) }
+
+    var focusEnabled by remember { mutableStateOf(prefs.getBoolean("habit_focus_mode_enabled", false)) }
+    var focusTarget by remember { mutableFloatStateOf(prefs.getFloat("habit_focus_mode_target", 0.20f)) }
+
+    var mindfulEnabled by remember { mutableStateOf(prefs.getBoolean("habit_mindful_pause_enabled", false)) }
+    var mindfulTarget by remember { mutableIntStateOf(prefs.getInt("habit_mindful_pause_target", 1)) }
+
+    var daylightEnabled by remember { mutableStateOf(prefs.getBoolean("habit_daylight_boost_enabled", false)) }
+    var daylightTarget by remember { mutableIntStateOf(prefs.getInt("habit_daylight_boost_target", 30)) }
+
+    // Notification toggles
+    var notifProgress by remember { mutableStateOf(prefs.getBoolean("quest_progress_notifications_enabled", true)) }
+    var notifStreak by remember { mutableStateOf(prefs.getBoolean("quest_streak_notifications_enabled", true)) }
+    var notifMilestone by remember { mutableStateOf(prefs.getBoolean("quest_milestone_notifications_enabled", true)) }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(
             shape = RoundedCornerShape(24.dp),
             color = MaterialTheme.colorScheme.surface,
-            modifier = Modifier.fillMaxWidth().padding(16.dp)
+            modifier = Modifier
+                .fillMaxWidth(0.94f)
+                .fillMaxHeight(0.88f)
+                .padding(vertical = 12.dp)
         ) {
             Column(
-                modifier = Modifier.padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Text(
-                    text = "Configure Habit Quests",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = Fredoka,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Default.Tune, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(22.dp))
+                        Text(
+                            text = "Configure Habit Quests",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                    IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
+                        Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
 
-                ToggleRow("Digital Sunset", "Screen-free gap before sleep", sunset, MaterialTheme.colorScheme.primary) {
-                    sunset = it
-                    prefs.edit().putBoolean("habit_digital_sunset_enabled", it).apply()
-                }
-                ToggleRow("Circadian Anchor", "Consistent bedtime window", circadian, MaterialTheme.colorScheme.primary) {
-                    circadian = it
-                    prefs.edit().putBoolean("habit_circadian_anchor_enabled", it).apply()
-                }
-                ToggleRow("Movement Boost", "Daily physical step goal", movement, MaterialTheme.colorScheme.primary) {
-                    movement = it
-                    prefs.edit().putBoolean("habit_movement_boost_enabled", it).apply()
-                }
-                ToggleRow("Focus Mode", "Keep social app ratio healthy", focus, MaterialTheme.colorScheme.primary) {
-                    focus = it
-                    prefs.edit().putBoolean("habit_focus_mode_enabled", it).apply()
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Movement Boost
+                    item {
+                        QuestConfigItem(
+                            title = "Movement Boost",
+                            description = "Daily physical step goal",
+                            enabled = movementEnabled,
+                            onToggle = { movementEnabled = it },
+                            recommendationText = "★ Recommended: ${String.format(Locale.US, "%,d", recSteps)} steps (+20% vs ${baseSteps.toInt()} norm)",
+                            onApplyRecommendation = { movementTarget = recSteps; movementEnabled = true }
+                        ) {
+                            val stepOptions = listOf(2000, 3000, 5000, 6000, 8000, 10000, 12000)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                stepOptions.forEach { steps ->
+                                    val isSelected = movementTarget == steps
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { movementTarget = steps },
+                                        label = { Text("${String.format(Locale.US, "%,d", steps)} steps", fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Daily Screen Time Limit
+                    item {
+                        QuestConfigItem(
+                            title = "Screen Time Limit",
+                            description = "Daily total screen hours cap",
+                            enabled = screenLimitEnabled,
+                            onToggle = { screenLimitEnabled = it },
+                            recommendationText = "★ Recommended: ${String.format(Locale.US, "%.1f", recScreen)}h cap (-15% vs ${String.format(Locale.US, "%.1f", baseScreen)}h norm)",
+                            onApplyRecommendation = { screenLimitTarget = recScreen; screenLimitEnabled = true }
+                        ) {
+                            val screenOptions = listOf(2.0f, 3.0f, 3.5f, 4.0f, 4.5f, 5.0f, 6.0f)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                screenOptions.forEach { hours ->
+                                    val isSelected = (screenLimitTarget * 10).toInt() == (hours * 10).toInt()
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { screenLimitTarget = hours },
+                                        label = { Text("${hours}h limit", fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Digital Sunset
+                    item {
+                        QuestConfigItem(
+                            title = "Digital Sunset",
+                            description = "Screen-free gap before bedtime",
+                            enabled = sunsetEnabled,
+                            onToggle = { sunsetEnabled = it },
+                            recommendationText = "★ Recommended: 30 min screen-free gap before sleep",
+                            onApplyRecommendation = { sunsetTarget = 30; sunsetEnabled = true }
+                        ) {
+                            val sunsetOptions = listOf(15, 30, 45, 60)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                sunsetOptions.forEach { mins ->
+                                    val isSelected = sunsetTarget == mins
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { sunsetTarget = mins },
+                                        label = { Text("${mins}m gap", fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Circadian Anchor
+                    item {
+                        val bedStr = if (recBedHour >= 24f || recBedHour < 1f) "12:00 AM" else if (recBedHour == 23.5f) "11:30 PM" else if (recBedHour == 23.0f) "11:00 PM" else if (recBedHour == 22.5f) "10:30 PM" else "10:00 PM"
+                        QuestConfigItem(
+                            title = "Circadian Bedtime Anchor",
+                            description = "Consistent target bedtime boundary",
+                            enabled = circadianEnabled,
+                            onToggle = { circadianEnabled = it },
+                            recommendationText = "★ Recommended: $bedStr (30m earlier than usual)",
+                            onApplyRecommendation = { circadianTarget = recBedHour; circadianEnabled = true }
+                        ) {
+                            val bedChoices = listOf(22.0f to "10:00 PM", 22.5f to "10:30 PM", 23.0f to "11:00 PM", 23.5f to "11:30 PM", 24.0f to "12:00 AM")
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                bedChoices.forEach { (hourVal, label) ->
+                                    val isSelected = (circadianTarget * 10).toInt() == (hourVal * 10).toInt()
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { circadianTarget = hourVal },
+                                        label = { Text(label, fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Focus Mode
+                    item {
+                        QuestConfigItem(
+                            title = "Focus Mode",
+                            description = "Social app time ceiling ratio",
+                            enabled = focusEnabled,
+                            onToggle = { focusEnabled = it },
+                            recommendationText = "★ Recommended: ${(recSocial * 100).toInt()}% ratio limit (-25% vs usual norm)",
+                            onApplyRecommendation = { focusTarget = recSocial; focusEnabled = true }
+                        ) {
+                            val focusOptions = listOf(0.10f to "10%", 0.15f to "15%", 0.20f to "20%", 0.25f to "25%", 0.30f to "30%")
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                focusOptions.forEach { (ratio, label) ->
+                                    val isSelected = (focusTarget * 100).toInt() == (ratio * 100).toInt()
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { focusTarget = ratio },
+                                        label = { Text(label, fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Mindful Pause
+                    item {
+                        QuestConfigItem(
+                            title = "Mindful Pause",
+                            description = "Guided breathing reset daily sessions",
+                            enabled = mindfulEnabled,
+                            onToggle = { mindfulEnabled = it },
+                            recommendationText = "★ Recommended: 1 session/day for nervous system reset",
+                            onApplyRecommendation = { mindfulTarget = 1; mindfulEnabled = true }
+                        ) {
+                            val sessionOptions = listOf(1, 2, 3)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                sessionOptions.forEach { sessions ->
+                                    val isSelected = mindfulTarget == sessions
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { mindfulTarget = sessions },
+                                        label = { Text("$sessions session${if (sessions > 1) "s" else ""}/day", fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Daylight Boost
+                    item {
+                        QuestConfigItem(
+                            title = "Daylight Boost",
+                            description = "Natural sunlight exposure duration",
+                            enabled = daylightEnabled,
+                            onToggle = { daylightEnabled = it },
+                            recommendationText = "★ Recommended: ${recDaylight}m daylight (+15m vs norm)",
+                            onApplyRecommendation = { daylightTarget = recDaylight; daylightEnabled = true }
+                        ) {
+                            val daylightOptions = listOf(20, 30, 45, 60)
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            ) {
+                                daylightOptions.forEach { mins ->
+                                    val isSelected = daylightTarget == mins
+                                    FilterChip(
+                                        selected = isSelected,
+                                        onClick = { daylightTarget = mins },
+                                        label = { Text("${mins}m daily", fontSize = 11.sp, fontFamily = Fredoka) },
+                                        colors = FilterChipDefaults.filterChipColors(
+                                            selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                            selectedLabelColor = Color.Black
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    // Notification Settings Section
+                    item {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(0.35f)),
+                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(0.1f))
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(14.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                Text(
+                                    text = "Quest Notification Alerts",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = Fredoka,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+
+                                ToggleRow(
+                                    title = "Mid-day Progress Updates",
+                                    subtitle = "Afternoon nudge (3 PM) on active quest progress",
+                                    checked = notifProgress,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    onToggle = { notifProgress = it }
+                                )
+
+                                ToggleRow(
+                                    title = "Evening Streak-Saver Alerts",
+                                    subtitle = "Evening alert (8:30 PM) to protect your active streaks",
+                                    checked = notifStreak,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    onToggle = { notifStreak = it }
+                                )
+
+                                ToggleRow(
+                                    title = "Milestone & Badge Celebrations",
+                                    subtitle = "Alerts when hitting 3, 7, 14, or 30-day streaks",
+                                    checked = notifMilestone,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    onToggle = { notifMilestone = it }
+                                )
+                            }
+                        }
+                    }
                 }
 
                 Button(
-                    onClick = onDismiss,
+                    onClick = {
+                        prefs.edit()
+                            .putBoolean("habit_movement_boost_enabled", movementEnabled)
+                            .putInt("habit_movement_boost_target", movementTarget)
+                            .putBoolean("habit_screen_limit_enabled", screenLimitEnabled)
+                            .putFloat("habit_screen_limit_target", screenLimitTarget)
+                            .putBoolean("habit_digital_sunset_enabled", sunsetEnabled)
+                            .putInt("habit_digital_sunset_target", sunsetTarget)
+                            .putBoolean("habit_circadian_anchor_enabled", circadianEnabled)
+                            .putFloat("habit_circadian_anchor_target", circadianTarget)
+                            .putBoolean("habit_focus_mode_enabled", focusEnabled)
+                            .putFloat("habit_focus_mode_target", focusTarget)
+                            .putBoolean("habit_mindful_pause_enabled", mindfulEnabled)
+                            .putInt("habit_mindful_pause_target", mindfulTarget)
+                            .putBoolean("habit_daylight_boost_enabled", daylightEnabled)
+                            .putInt("habit_daylight_boost_target", daylightTarget)
+                            .putBoolean("quest_progress_notifications_enabled", notifProgress)
+                            .putBoolean("quest_streak_notifications_enabled", notifStreak)
+                            .putBoolean("quest_milestone_notifications_enabled", notifMilestone)
+                            .apply()
+
+                        Toast.makeText(context, "Quest configurations saved!", Toast.LENGTH_SHORT).show()
+                        onDismiss()
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
-                    Text("Save & Close", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                    Text("Save & Apply Goals", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun QuestConfigItem(
+    title: String,
+    description: String,
+    enabled: Boolean,
+    onToggle: (Boolean) -> Unit,
+    recommendationText: String,
+    onApplyRecommendation: () -> Unit,
+    targetPicker: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = if (enabled) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant.copy(0.2f)
+        ),
+        border = BorderStroke(
+            1.dp,
+            if (enabled) MaterialTheme.colorScheme.primary.copy(0.25f) else MaterialTheme.colorScheme.outline.copy(0.08f)
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            ToggleRow(
+                title = title,
+                subtitle = description,
+                checked = enabled,
+                color = MaterialTheme.colorScheme.primary,
+                onToggle = { onToggle(it) }
+            )
+
+            if (enabled) {
+                targetPicker()
+
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onApplyRecommendation() },
+                    shape = RoundedCornerShape(10.dp),
+                    color = MaterialTheme.colorScheme.primary.copy(0.1f),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(0.25f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = recommendationText,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = "Apply",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = Fredoka,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
                 }
             }
         }
@@ -1435,29 +2085,41 @@ fun QuestsScreen(
     val sunsetEnabled = remember { prefs.getBoolean("habit_digital_sunset_enabled", false) }
     val circadianEnabled = remember { prefs.getBoolean("habit_circadian_anchor_enabled", false) }
     val movementEnabled = remember { prefs.getBoolean("habit_movement_boost_enabled", false) }
+    val screenLimitEnabled = remember { prefs.getBoolean("habit_screen_limit_enabled", false) }
     val focusEnabled = remember { prefs.getBoolean("habit_focus_mode_enabled", false) }
+    val mindfulEnabled = remember { prefs.getBoolean("habit_mindful_pause_enabled", false) }
+    val daylightEnabled = remember { prefs.getBoolean("habit_daylight_boost_enabled", false) }
 
-    val sunsetStreak = remember { prefs.getInt("streak_digital_sunset", 0) }
-    val circadianStreak = remember { prefs.getInt("streak_circadian_anchor", 0) }
-    val movementStreak = remember { prefs.getInt("streak_movement_boost", 0) }
-    val focusStreak = remember { prefs.getInt("streak_focus_mode", 0) }
+    val sunsetStreak = remember { prefs.getInt("habit_digital_sunset_streak", prefs.getInt("streak_digital_sunset", 0)) }
+    val circadianStreak = remember { prefs.getInt("habit_circadian_anchor_streak", prefs.getInt("streak_circadian_anchor", 0)) }
+    val movementStreak = remember { prefs.getInt("habit_movement_boost_streak", prefs.getInt("streak_movement_boost", 0)) }
+    val screenLimitStreak = remember { prefs.getInt("habit_screen_limit_streak", 0) }
+    val focusStreak = remember { prefs.getInt("habit_focus_mode_streak", prefs.getInt("streak_focus_mode", 0)) }
+    val mindfulStreak = remember { prefs.getInt("habit_mindful_pause_streak", 0) }
+    val daylightStreak = remember { prefs.getInt("habit_daylight_boost_streak", 0) }
 
-    var customHabitsList by remember {
-        mutableStateOf(prefs.getStringSet("custom_habits_set", emptySet())?.toList() ?: emptyList())
-    }
+    val movementTarget = remember { prefs.getInt("habit_movement_boost_target", 6000) }
+    val screenLimitTarget = remember { prefs.getFloat("habit_screen_limit_target", 4.0f) }
+    val sunsetTarget = remember { prefs.getInt("habit_digital_sunset_target", 30) }
+    val mindfulTarget = remember { prefs.getInt("habit_mindful_pause_target", 1) }
+    val daylightTarget = remember { prefs.getInt("habit_daylight_boost_target", 30) }
+
+    var customQuests by remember { mutableStateOf(loadCustomQuests(prefs)) }
 
     if (showManageHabits) {
-        ManageHabitsDialog(prefs = prefs, onDismiss = { showManageHabits = false })
+        ManageHabitsDialog(prefs = prefs, onDismiss = {
+            showManageHabits = false
+            customQuests = loadCustomQuests(prefs)
+        })
     }
     if (showCreateCustomHabit) {
         CreateCustomHabitDialog(
-            onSave = { title, desc ->
-                val newEntry = "$title|$desc|0"
-                val updatedSet = (customHabitsList + newEntry).toSet()
-                prefs.edit().putStringSet("custom_habits_set", updatedSet).apply()
-                customHabitsList = updatedSet.toList()
+            onSave = { newQuest ->
+                val updated = customQuests + newQuest
+                saveCustomQuests(prefs, updated)
+                customQuests = updated
                 showCreateCustomHabit = false
-                Toast.makeText(context, "Custom habit added!", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "Custom quest added!", Toast.LENGTH_SHORT).show()
             },
             onDismiss = { showCreateCustomHabit = false }
         )
@@ -1491,6 +2153,16 @@ fun QuestsScreen(
         }
 
         // Quest Stats Summary Card
+        val activeCount = listOf(
+            sunsetEnabled, circadianEnabled, movementEnabled, screenLimitEnabled,
+            focusEnabled, mindfulEnabled, daylightEnabled
+        ).count { it } + customQuests.size
+
+        val maxStreak = (listOf(
+            sunsetStreak, circadianStreak, movementStreak, screenLimitStreak,
+            focusStreak, mindfulStreak, daylightStreak
+        ) + customQuests.map { it.streak }).maxOrNull() ?: 0
+
         item {
             Card(
                 modifier = Modifier.fillMaxWidth(),
@@ -1506,7 +2178,7 @@ fun QuestsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Active Quests", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
-                            "${listOf(sunsetEnabled, circadianEnabled, movementEnabled, focusEnabled).count { it } + customHabitsList.size}",
+                            "$activeCount",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = Fredoka,
@@ -1526,7 +2198,7 @@ fun QuestsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text("Max Streak", fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
-                            "${listOf(sunsetStreak, circadianStreak, movementStreak, focusStreak).maxOrNull() ?: 0} d",
+                            "$maxStreak d",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             fontFamily = Fredoka,
@@ -1572,27 +2244,121 @@ fun QuestsScreen(
             Text("Active Quests", fontSize = 16.sp, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
         }
 
+        if (movementEnabled) {
+            item {
+                QuestRow(
+                    title = "Movement Boost",
+                    subtitle = "Goal: ${String.format(Locale.US, "%,d", movementTarget)} steps/day",
+                    streak = movementStreak,
+                    icon = Icons.Default.DirectionsRun
+                )
+            }
+        }
+        if (screenLimitEnabled) {
+            item {
+                QuestRow(
+                    title = "Screen Time Limit",
+                    subtitle = "Cap: ${String.format(Locale.US, "%.1f", screenLimitTarget)}h/day",
+                    streak = screenLimitStreak,
+                    icon = Icons.Default.PhoneAndroid
+                )
+            }
+        }
         if (sunsetEnabled) {
-            item { QuestRow("Digital Sunset", "Screen-free 30 min before sleep", sunsetStreak, Icons.Default.NightsStay) }
+            item {
+                QuestRow(
+                    title = "Digital Sunset",
+                    subtitle = "Screen-free ${sunsetTarget}m before sleep",
+                    streak = sunsetStreak,
+                    icon = Icons.Default.NightsStay
+                )
+            }
         }
         if (circadianEnabled) {
-            item { QuestRow("Circadian Anchor", "Consistent sleep window boundary", circadianStreak, Icons.Default.Schedule) }
-        }
-        if (movementEnabled) {
-            item { QuestRow("Movement Boost", "Daily physical step goal", movementStreak, Icons.Default.DirectionsRun) }
+            val bedHour = prefs.getFloat("habit_circadian_anchor_target", 23.0f)
+            val bedStr = if (bedHour >= 24f || bedHour < 1f) "12:00 AM" else if (bedHour == 23.5f) "11:30 PM" else if (bedHour == 23.0f) "11:00 PM" else if (bedHour == 22.5f) "10:30 PM" else "10:00 PM"
+            item {
+                QuestRow(
+                    title = "Circadian Anchor",
+                    subtitle = "Bedtime boundary: $bedStr",
+                    streak = circadianStreak,
+                    icon = Icons.Default.Schedule
+                )
+            }
         }
         if (focusEnabled) {
-            item { QuestRow("Focus Mode", "Keep social app ratio healthy", focusStreak, Icons.Default.CenterFocusStrong) }
+            val focusTarget = prefs.getFloat("habit_focus_mode_target", 0.20f)
+            item {
+                QuestRow(
+                    title = "Focus Mode",
+                    subtitle = "Social apps below ${(focusTarget * 100).toInt()}% ratio",
+                    streak = focusStreak,
+                    icon = Icons.Default.CenterFocusStrong
+                )
+            }
+        }
+        if (mindfulEnabled) {
+            item {
+                QuestRow(
+                    title = "Mindful Pause",
+                    subtitle = "Target: $mindfulTarget breathing session/day",
+                    streak = mindfulStreak,
+                    icon = Icons.Default.SelfImprovement
+                )
+            }
+        }
+        if (daylightEnabled) {
+            item {
+                QuestRow(
+                    title = "Daylight Boost",
+                    subtitle = "Target: ${daylightTarget}m daylight exposure",
+                    streak = daylightStreak,
+                    icon = Icons.Default.WbSunny
+                )
+            }
         }
 
-        customHabitsList.forEach { habitStr ->
-            val parts = habitStr.split("|")
-            val title = parts.getOrNull(0) ?: "Custom Habit"
-            val desc = parts.getOrNull(1) ?: "Daily personal goal"
-            val streak = parts.getOrNull(2)?.toIntOrNull() ?: 0
-            item {
-                QuestRow(title, desc, streak, Icons.Default.Star)
+        // Custom Quests
+        items(customQuests) { quest ->
+            val catIcon = when (quest.category) {
+                "Movement" -> Icons.Default.DirectionsRun
+                "Screen" -> Icons.Default.PhoneAndroid
+                "Sleep" -> Icons.Default.Bedtime
+                "Mindfulness" -> Icons.Default.SelfImprovement
+                "Hydration" -> Icons.Default.LocalDrink
+                "Reading" -> Icons.Default.MenuBook
+                else -> Icons.Default.Star
             }
+            QuestRow(
+                title = quest.title,
+                subtitle = "${quest.description.ifEmpty { "Custom personal goal" }} (${quest.targetQuantity} ${quest.unit})",
+                streak = quest.streak,
+                icon = catIcon,
+                progressFraction = if (quest.targetQuantity > 0) (quest.currentProgress.toFloat() / quest.targetQuantity).coerceIn(0f, 1f) else null,
+                progressText = "${quest.currentProgress} / ${quest.targetQuantity} ${quest.unit}",
+                actionButton = if (!quest.isAutoTracked) {
+                    {
+                        IconButton(
+                            onClick = {
+                                val updated = customQuests.map {
+                                    if (it.id == quest.id) {
+                                        val newProg = it.currentProgress + 1
+                                        val completed = newProg >= it.targetQuantity
+                                        val newStreak = if (completed && it.currentProgress < it.targetQuantity) it.streak + 1 else it.streak
+                                        it.copy(currentProgress = newProg, streak = newStreak)
+                                    } else it
+                                }
+                                saveCustomQuests(prefs, updated)
+                                customQuests = updated
+                                Toast.makeText(context, "Progress logged for ${quest.title}!", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(Icons.Default.AddCircle, null, tint = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                } else null
+            )
         }
 
         // Achievement Badges & Sharing Section
@@ -1662,11 +2428,25 @@ fun shareBadge(context: Context, badge: BadgeEntity) {
 
 @Composable
 fun CreateCustomHabitDialog(
-    onSave: (String, String) -> Unit,
+    onSave: (CustomQuest) -> Unit,
     onDismiss: () -> Unit
 ) {
     var title by remember { mutableStateOf("") }
     var desc by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("Hydration") }
+    var targetQtyText by remember { mutableStateOf("8") }
+    var unit by remember { mutableStateOf("glasses") }
+    var isAutoTracked by remember { mutableStateOf(false) }
+
+    val categories = listOf(
+        "Hydration" to ("glasses" to Icons.Default.LocalDrink),
+        "Movement" to ("steps" to Icons.Default.DirectionsRun),
+        "Screen" to ("minutes" to Icons.Default.PhoneAndroid),
+        "Mindfulness" to ("sessions" to Icons.Default.SelfImprovement),
+        "Reading" to ("pages" to Icons.Default.MenuBook),
+        "Sleep" to ("hours" to Icons.Default.Bedtime),
+        "General" to ("times" to Icons.Default.Star)
+    )
 
     Dialog(onDismissRequest = onDismiss) {
         Surface(
@@ -1679,7 +2459,7 @@ fun CreateCustomHabitDialog(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Add Custom Habit Quest",
+                    text = "Add Custom Quest",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = Fredoka,
@@ -1690,7 +2470,7 @@ fun CreateCustomHabitDialog(
                     value = title,
                     onValueChange = { title = it },
                     label = { Text("Quest Title", fontSize = 12.sp) },
-                    placeholder = { Text("e.g., Morning Meditation", fontSize = 12.sp) },
+                    placeholder = { Text("e.g., Drink 8 Glasses of Water", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
@@ -1698,11 +2478,72 @@ fun CreateCustomHabitDialog(
                 OutlinedTextField(
                     value = desc,
                     onValueChange = { desc = it },
-                    label = { Text("Description", fontSize = 12.sp) },
-                    placeholder = { Text("e.g., 10 mins quiet reflection daily", fontSize = 12.sp) },
+                    label = { Text("Description / Purpose", fontSize = 12.sp) },
+                    placeholder = { Text("e.g., Maintain steady hydration throughout the day", fontSize = 12.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                // Category Chips
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text("Category & Icon", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        categories.forEach { (catName, defaultUnitPair) ->
+                            val isSelected = category == catName
+                            FilterChip(
+                                selected = isSelected,
+                                onClick = {
+                                    category = catName
+                                    unit = defaultUnitPair.first
+                                },
+                                label = { Text(catName, fontSize = 11.sp, fontFamily = Fredoka) },
+                                leadingIcon = { Icon(defaultUnitPair.second, null, modifier = Modifier.size(14.dp)) },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = MaterialTheme.colorScheme.primary,
+                                    selectedLabelColor = Color.Black
+                                )
+                            )
+                        }
+                    }
+                }
+
+                // Quantity & Unit Row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    OutlinedTextField(
+                        value = targetQtyText,
+                        onValueChange = { if (it.all { ch -> ch.isDigit() }) targetQtyText = it },
+                        label = { Text("Target Qty", fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+
+                    OutlinedTextField(
+                        value = unit,
+                        onValueChange = { unit = it },
+                        label = { Text("Unit", fontSize = 12.sp) },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+
+                // Tracking Mode Toggle if Movement / Screen
+                if (category == "Movement" || category == "Screen" || category == "Daylight") {
+                    ToggleRow(
+                        title = "Auto-track with Sensors",
+                        subtitle = "Automatically update progress from phone sensors",
+                        checked = isAutoTracked,
+                        color = MaterialTheme.colorScheme.primary,
+                        onToggle = { isAutoTracked = it }
+                    )
+                }
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -1718,7 +2559,17 @@ fun CreateCustomHabitDialog(
                     Button(
                         onClick = {
                             if (title.isNotBlank()) {
-                                onSave(title.trim(), desc.trim())
+                                val qty = targetQtyText.toIntOrNull() ?: 1
+                                val quest = CustomQuest(
+                                    id = "quest_${System.currentTimeMillis()}",
+                                    title = title.trim(),
+                                    description = desc.trim(),
+                                    category = category,
+                                    targetQuantity = qty,
+                                    unit = unit.trim().ifEmpty { "times" },
+                                    isAutoTracked = isAutoTracked
+                                )
+                                onSave(quest)
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -1726,7 +2577,7 @@ fun CreateCustomHabitDialog(
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
-                        Text("Add Habit", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
+                        Text("Create Quest", color = Color.Black, fontWeight = FontWeight.Bold, fontFamily = Fredoka)
                     }
                 }
             }

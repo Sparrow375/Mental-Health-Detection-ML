@@ -1882,8 +1882,8 @@ fun MonthHistoryCalendar(
                             val cellScore = item?.rhythmScore
                             val cellColor = when {
                                 cellScore == null -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                                cellScore >= 80 -> MaterialTheme.colorScheme.primary
-                                cellScore >= 50 -> Color(0xFFF59E0B)
+                                cellScore >= 60 -> MaterialTheme.colorScheme.primary
+                                cellScore >= 40 -> Color(0xFFF59E0B)
                                 else -> Color(0xFFEF4444)
                             }
 

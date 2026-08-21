@@ -1103,6 +1103,53 @@ def compute_cluster_mismatch(today_features: dict, profile_data: dict) -> float:
         return 0.0
 
 
+def compute_l1_pca_coherence(today_features: dict, profile_data: dict) -> float:
+    """
+    Project today's feature vector into the baseline PCA space and compute
+    coherence score relative to the nearest anchor cluster centroid.
+
+    coherence = max(0.0, 1.0 - best_dist / (radius * 1.5))
+
+    Returns
+    -------
+    coherence : float in [0.0, 1.0]
+        1.0 -> today sits directly at a known archetype centroid
+        0.0 -> today is outside 1.5x radius of all known archetypes
+    """
+    try:
+        proj_params = profile_data.get("pca_projection")
+        anchor_clusters = profile_data.get("anchor_clusters", [])
+
+        if not proj_params or not anchor_clusters:
+            return 0.0
+
+        features   = proj_params["features"]
+        norm_means = np.array(proj_params["norm_means"], dtype=float)
+        norm_stds  = np.array(proj_params["norm_stds"],  dtype=float)
+        clin_w     = np.array(proj_params["clinical_weights"], dtype=float)
+        pca_mean   = np.array(proj_params["pca_mean"],   dtype=float)
+        pca_comps  = np.array(proj_params["pca_components"], dtype=float)
+
+        raw_vec = np.array([float(today_features.get(f, 0.0)) for f in features])
+        z_vec = (raw_vec - norm_means) / norm_stds
+        w_vec = z_vec * clin_w
+        today_pca = (w_vec - pca_mean) @ pca_comps.T
+
+        best_coh = 0.0
+        for cluster in anchor_clusters:
+            centroid = np.array(cluster.get("centroid_pca_2d", [0.0, 0.0]), dtype=float)
+            radius   = float(cluster.get("radius", 1.25))
+            dist = float(np.linalg.norm(today_pca - centroid))
+            coh = max(0.0, 1.0 - dist / (max(radius, 1e-6) * 1.5))
+            if coh > best_coh:
+                best_coh = coh
+
+        return float(np.clip(best_coh, 0.0, 1.0))
+    except Exception as e:
+        print("  [L1Coherence] Failed to compute L1 PCA coherence: {}".format(e))
+        return 0.0
+
+
 def _get_feature_group(feat: str) -> str:
     """Return the group name for a feature."""
     groups = {

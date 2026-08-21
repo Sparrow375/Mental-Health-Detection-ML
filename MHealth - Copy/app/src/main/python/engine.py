@@ -19,7 +19,13 @@ from dna_engine import (
     get_released_evidence,
     clear_rejected_candidates,
 )
-from s1_profile import build_full_profile, build_l1_profile, build_l2_texture_profile, compute_cluster_mismatch
+from s1_profile import (
+    build_full_profile,
+    build_l1_profile,
+    build_l2_texture_profile,
+    compute_cluster_mismatch,
+    compute_l1_pca_coherence,
+)
 
 
 def run_analysis(json_string: str) -> str:
@@ -203,9 +209,22 @@ def run_analysis(json_string: str) -> str:
             except Exception as e:
                 print(f"  [L2] Metric computation failed: {e}")
                 l2_modifier = 1.0
-        elif dna is not None:
+
+        if dna is not None and not sessions_today:
             # DNA exists but no today sessions — serialize for persistence
             dna_result["dna_updated_json"] = dna.to_dict()
+
+        # Fallback to L1 PCA cluster coherence when session telemetry is sparse or unrecorded
+        if l2_modifier >= 0.99 and existing_profile and existing_profile.get("anchor_clusters"):
+            try:
+                coherence_l1 = compute_l1_pca_coherence(current, existing_profile)
+                if coherence_l1 > 0.0:
+                    l2_modifier = compute_l2_modifier(coherence_l1, 0.0, 0.0)
+                    dna_result["coherence"] = round(coherence_l1, 4)
+                    dna_result["l2_modifier"] = round(l2_modifier, 4)
+                    print(f"  [L2 Fallback] L1 PCA coherence={coherence_l1:.3f} -> modifier={l2_modifier:.3f}")
+            except Exception as e:
+                print(f"  [L2 Fallback] PCA coherence fallback error: {e}")
 
         # ── System 1 setup ─────────────────────────────────────────────────────
         s1 = ImprovedAnomalyDetector(baseline=s1_baseline)

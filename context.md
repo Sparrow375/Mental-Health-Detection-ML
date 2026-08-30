@@ -776,6 +776,8 @@ To maintain compatibility and cross-platform scoring alignment, the telemetry ve
        - *UI Calendar Threshold Harmonization (`InsightsScreen.kt`)*: Updated `MonthlyCalendarGrid` so `cellScore >= 60` (`effectiveScore <= 0.40`) renders in Green and `cellScore >= 40` in Yellow, eliminating the visual contradiction with `DailyRhythmScoreCard` ("Stable Rhythm").
        - *L1 PCA Cluster Coherence Fallback (`s1_profile.py` & `engine.py`)*: Added `compute_l1_pca_coherence()` projecting today's 29-feature vector into PCA space against anchor clusters when `sessions_today` is empty, preventing sparse session days from jumping to `1.0` and compounding false evidence.
        - *Build Verification*: `./gradlew :app:compileReleaseKotlin` executed with **BUILD SUCCESSFUL** (0 errors).
-
-
-
+*   **2026-08-30 (Google Play Android 16 / API Level 36 Compliance & Release Verification)**:
+    1. **Target SDK Requirement**: Google Play requires apps to target Android 16 (API level 36) or higher for updates.
+    2. **Codebase Configuration**: Verified `MHealth - Copy/app/build.gradle.kts` specifies `compileSdk = 36` and `targetSdk = 36`. Added `android.suppressUnsupportedCompileSdk=36` in `gradle.properties` to suppress AGP warnings cleanly. Updated `test_gradle.kts` to target SDK 36.
+    3. **Release Bundle Build**: Ran `./gradlew :app:bundleRelease --no-daemon` which executed with **BUILD SUCCESSFUL** generating the production App Bundle at `MHealth - Copy/app/build/outputs/bundle/release/app-release.aab`.
+    4. **Play Console Resolution Flow**: Clarified that Google Play displays the warning because previously active artifacts in Play Console tracks were uploaded with API 35. To resolve the warning in Play Console, the developer must upload the newly compiled API 36 AAB into the active track (Production / Closed / Open testing) and create/roll out the release.
